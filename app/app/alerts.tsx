@@ -83,10 +83,13 @@ export default function Alerts() {
   // 알림 탭 도착지 — push.ts routeForNotification과 단일 소스 (푸시 탭 딥링크와 동일 규칙)
   const openNoti = (n: LiveNoti) => routeForNotification(n.kind, n.refId, n.title);
   // 목적지가 없는 행은 Pressable로 그리지 않는다 (하우스 법칙: dead button 금지). 판정은 push.ts가
-  // 소유한다 — 라우터와 같은 파일에 있어야 둘이 어긋나지 않는다. 오늘 이 판정이 false를 돌려주는
-  // 실데이터는 없다(shop·system은 쓰는 마이그레이션이 아예 없다). 즉 이 가드는 지금 증상을 고치는
-  // 게 아니라, 목적지 없는 kind가 생기는 날 눌리는 척하는 카드가 되지 않게 구조로 막는 것이다.
-  const isRoutable = (n: LiveNoti) => hasNotificationRoute(n.kind, n.refId);
+  // 소유한다 — 라우터와 같은 파일에 있어야 둘이 어긋나지 않는다.
+  // 🔴 [0206] 이 주석은 「오늘 false를 돌려주는 실데이터는 없다(shop·system은 쓰는 마이그레이션이
+  //    아예 없다)」였고, 0183부터 **거짓**이었다. `system`은 ops 명부의 kind이고 0183·0186·0193이
+  //    이미 쓴다(0206 §C가 넷째). 그래서 이 가드는 가정이 아니라 증상을 막고 있었다 — 운영자
+  //    인박스의 모든 승격 행이 누를 수 없는 글줄이었다. 이제 title까지 넘긴다: 0206이 목적지를
+  //    붙인 네 제목만 버튼이 되고, 목적지가 없는 ops 제목은 여전히 글줄로 남는다(그게 정직한 쪽).
+  const isRoutable = (n: LiveNoti) => hasNotificationRoute(n.kind, n.refId, n.title);
 
   const markAll = async () => {
     try {

@@ -2,8 +2,9 @@ import { router } from 'expo-router';
 import { session } from '../store';
 import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
 import {
-  CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, needsClubProbe,
-  needsCommunityClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES, refMayBeClubSession,
+  CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, destinationForSystemRef,
+  needsClubProbe, needsCommunityClubProbe, needsCurrentBookingProbe, OWNER_MEETUP_TITLES,
+  refMayBeClubSession,
 } from './notification-route';
 import { supabase } from './supabase';
 
@@ -107,12 +108,31 @@ export function routeForNotification(kind: string | null | undefined, refId: str
     try { router.push(refId ? { pathname: '/owner/report', params: { bid: refId } } : '/cards'); } catch { /* */ }
     return;
   }
+  // 🔴 [0206] THE PARAGRAPH THAT STOOD HERE WAS FALSE, AND IT HAD BEEN FALSE SINCE 0183. It read:
+  // 「`shop` and `system` are still not listed: they are in the noti_kind enum (0001:23) and
+  // NOTHING writes them (zero writers across every migration, zero rows in production)」. True when
+  // written; false from the moment 0183 arm ⓓ started writing `system` rows to the ops roster, and
+  // 0186 and 0193 added two more. The consequence was not cosmetic: `hasNotificationRoute` read
+  // 「`system` has no destination」 straight out of that belief, so every ops escalation this
+  // product raises — 지급 대기 · 인계 확인 멈춤 · 반환 좌초 — arrived in the operator's inbox as a
+  // line of text that could not be tapped. Corrected here rather than deleted: a header that
+  // quietly stops claiming something is how the next session inherits the belief.
+  //
+  // `system` now routes through `destinationForSystemRef` (notification-route.ts, 0206), an
+  // EXACT-TITLE table rather than a probe — the three ops nouns (a runner profile, a booking, a
+  // gear claim) are indistinguishable as uuids and only the title says which. An unlisted title
+  // returns null and stays a plain inbox line.
+  //
+  // `shop` is still unlisted and still has zero writers — measured again on trunk `fde88a1`.
+  if (kind === 'system') {
+    const dest = destinationForSystemRef({ refId, title });
+    if (dest === null) return;   // no console screen for this title — the inbox draws it as text
+    try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready */ }
+    return;
+  }
   // `safety` joins `booking` here. It used to fall off the end of this function and route NOWHERE,
   // so 「외부 커스터디 이양 … 즉시 확인하세요」 — the most urgent thing this product can say — was a
-  // tap that did nothing, in the inbox AND on the OS push. `shop` and `system` are still not
-  // listed: they are in the noti_kind enum (0001:23) and NOTHING writes them (zero writers across
-  // every migration, zero rows in production). hasNotificationRoute() below keeps them from being
-  // drawn as buttons, which is the honest handling of a kind with no destination to bind.
+  // tap that did nothing, in the inbox AND on the OS push.
   if ((kind !== 'booking' && kind !== 'safety') || !refId) return;
 
   // Fast path — titles whose writer is KNOWN to emit a booking id skip the probe and stay instant.
@@ -161,11 +181,22 @@ export function routeForNotification(kind: string | null | undefined, refId: str
 // two must be edited in the same breath — if they disagree the inbox either grows a dead tap or
 // hides a live destination. It answers only "is there a destination at all"; WHICH destination can
 // need the probe, and that answer is never needed to decide whether a row is a button.
-export function hasNotificationRoute(kind: string | null | undefined, refId: string | null | undefined): boolean {
+export function hasNotificationRoute(
+  kind: string | null | undefined,
+  refId: string | null | undefined,
+  title?: string | null,
+): boolean {
   if (kind === 'community') return true;              // /community — no ref needed
   if (kind === 'reward') return true;                 // 리포트(ref 있음) 또는 /cards(없음)
   if (kind === 'booking' || kind === 'safety') return !!refId;
-  return false;                                       // shop · system · 미지의 kind — 바인딩할 목적지 없음
+  // [0206] `system` is the OPS roster's kind (0183 · 0186 · 0193 · 0206 §C). Routable only when
+  // its title has a console screen — the table decides, not the kind, so an ops writer that adds
+  // a title without adding a destination gets an honest inbox LINE rather than a dead button.
+  // ⚠ `title` is optional so the pre-0206 two-argument call shape still compiles; without it the
+  //   answer is `false`, which is the safe direction (a real row drawn as text, never a tap that
+  //   does nothing).
+  if (kind === 'system') return destinationForSystemRef({ refId, title: title ?? '' }) !== null;
+  return false;                                       // shop · 미지의 kind — 바인딩할 목적지 없음
 }
 
 function handleTap(Notifications: any, response: any): void {

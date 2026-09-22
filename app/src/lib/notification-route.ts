@@ -104,6 +104,67 @@ export const RETURN_TITLES = [
  *  confirm_return arms and migration 0188's sweep), so they need no probe and pay for none. */
 export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE, RETURN_ASK_TITLE];
 
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0206] THE `system` KIND — THE OPS ROSTER'S OWN INBOX
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// 🔴 `push.ts`'s header USED TO SAY 「`shop` and `system` are still not listed: they are in the
+//    noti_kind enum (0001:23) and NOTHING writes them (zero writers across every migration, zero
+//    rows in production)」. That was true when it was written and has been FALSE since 0183 —
+//    corrected in that file rather than deleted, because a header that quietly stops claiming
+//    something is how the next session inherits the belief. Three shipped writers, and 0206 adds
+//    a fourth; every one of them addresses the OPS ROSTER, never a customer:
+//
+//      「지급 대기 — 확인 필요」       0186:428 (+0190:98)  ref_id = a RUNNER profile id
+//      「인계 확인 멈춤 — 확인 필요」   0183:429 · 0183:477   ref_id = a booking id
+//      「반환 좌초 — 확인 필요」       0193:656 (arm ⓕ)      ref_id = a booking id
+//      「굿즈 수령 신청 — 확인 필요」   0206 §C               ref_id = a gear_claims id
+//
+// ⚠ **THE REF IS A DIFFERENT NOUN PER TITLE, WHICH IS WHY THIS IS AN EXACT-TITLE TABLE AND NOT A
+//    PROBE.** `push.ts` asks `club_sessions` whether a `booking`-kind ref is a session because a
+//    booking id and a session id are indistinguishable to the client. Here the three candidate
+//    nouns are a PROFILE, a BOOKING and a CLAIM — and the title is the only thing that says
+//    which, because `notifications` has one untyped uuid pointer (push.ts's header). A probe
+//    would need three lookups against three tables the operator may not even be able to read.
+//
+// ⚠ An UNLISTED `system` title routes NOWHERE, deliberately, and `hasNotificationRoute` then
+//   draws the row as plain text rather than as a button (the no-dead-buttons law). A future ops
+//   writer that adds a title without adding it here gets an inbox line that says what happened
+//   and does not pretend to be tappable.
+export const OPS_PAYOUT_DUE_TITLE = '지급 대기 — 확인 필요';
+export const OPS_HANDOFF_STUCK_TITLE = '인계 확인 멈춤 — 확인 필요';
+export const OPS_RETURN_STRAND_TITLE = '반환 좌초 — 확인 필요';
+export const OPS_GEAR_CLAIM_TITLE = '굿즈 수령 신청 — 확인 필요';
+
+/** Every `system` title with a console destination. `app/test/notification-route.test.cjs` reads
+ *  each string out of the migration that writes it, so the two spellings cannot drift. */
+export const OPS_SYSTEM_TITLES = [
+  OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE, OPS_GEAR_CLAIM_TITLE,
+];
+
+/** Where a `system` (ops roster) notification lands, or `null` when this product has no screen
+ *  for that title. `null` is an ANSWER — the inbox draws the row without a tap. */
+export function destinationForSystemRef(
+  f: { refId: string | null | undefined; title: string },
+): Destination | null {
+  const { refId, title } = f;
+  if (!refId) return null;                       // every ops title's whole content is its ref
+  switch (title) {
+    // ref = the RUNNER whose rows are unpaid (0186 §B groups by runner_id), which is exactly the
+    // argument `/ops/payout/[runner]` takes.
+    case OPS_PAYOUT_DUE_TITLE: return `/ops/payout/${refId}`;
+    // ref = the stalled booking. The destination is the LIST rather than a per-booking screen,
+    // because 0206 §B is a read and there is no per-booking ops action on a handoff — but the id
+    // travels so the list can mark which row the bell was about (the screen reads `bid`; a param
+    // nothing reads would be the defect 0193 codex A4 found in the other direction).
+    case OPS_HANDOFF_STUCK_TITLE: return { pathname: '/ops/handoffs', params: { bid: refId } };
+    // ref = the stranded booking, and there IS a per-booking action (`resolve_return`).
+    case OPS_RETURN_STRAND_TITLE: return `/ops/returns/${refId}`;
+    // ref = the gear_claims row, which is what `/ops/gear/[claim]` takes.
+    case OPS_GEAR_CLAIM_TITLE: return `/ops/gear/${refId}`;
+    default: return null;
+  }
+}
+
 // [routing sweep ①] The runner's cancel-compensation receipt. Written by
 // `transition-booking/cancel_owner.ts` (the late tier, only when `lateShare > 0` — the amount is
 // spoken only when the ledger row exists) and by 0117's `sweep_cancel_money_gaps`. Both pass a
