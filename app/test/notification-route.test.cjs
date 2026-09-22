@@ -14,6 +14,8 @@ const {
   RETURN_TITLES, RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
   LIVE_TITLES, CANCEL_COMP_TITLE, CLUB_SESSION_REF_TITLES, refMayBeClubSession,
   COMMUNITY_FEED_TITLE_MARK, isCommunityFeedTitle, needsCommunityClubProbe, destinationForCommunityRef,
+  OPS_SYSTEM_TITLES, OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE,
+  OPS_GEAR_CLAIM_TITLE, destinationForSystemRef,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -396,6 +398,96 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     /needsCommunityClubProbe\(refId, title\)/.test(push) && /destinationForCommunityRef\(/.test(push));
   t('③ push.ts no longer returns /community for the kind unconditionally',
     !/if \(kind === 'community'\) \{ try \{ router\.push\('\/community'\)/.test(push));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0206] THE `system` KIND — THE OPS ROSTER'S OWN INBOX
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// 🔴 The class this catches: push.ts's header claimed 「NOTHING writes `system`」 and
+// `hasNotificationRoute` was built straight on that belief — so every ops escalation this product
+// raises arrived in the operator's inbox as an untappable line. The belief was false from 0183.
+// These pins read each title OUT OF THE MIGRATION THAT WRITES IT (comments stripped first, per the
+// standing comment-matching law — a comment quoting a title must not satisfy a check for the code
+// that writes it), so the client table and the servers cannot drift apart in either direction.
+{
+  const CLAIM = 'c0000000-0000-0000-0000-000000000009';
+  const RUNNER = 'a0000000-0000-0000-0000-000000000003';
+  const mig = (f) => fs.readFileSync(path.resolve(__dirname, '../../supabase/migrations/' + f), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+
+  // ── the four titles, each read out of its own writer ──
+  const m0186 = mig('0186_ops_manual_payout_journal.sql').match(/c_title\s+constant text := '([^']+)'/);
+  t('0186 declares the payout-due ops title', !!m0186, 'no c_title in 0186');
+  t("the client's OPS_PAYOUT_DUE_TITLE equals 0186's",
+    !!m0186 && m0186[1] === OPS_PAYOUT_DUE_TITLE, m0186 ? `0186: ${m0186[1]} client: ${OPS_PAYOUT_DUE_TITLE}` : '');
+
+  const s0183 = mig('0183_handoff_cycle_identity.sql');
+  t("the client's OPS_HANDOFF_STUCK_TITLE is the string 0183 arm ⓓ/ⓔ inserts",
+    s0183.includes("'system'::noti_kind, '" + OPS_HANDOFF_STUCK_TITLE + "'"),
+    'not found as a system insert in 0183: ' + OPS_HANDOFF_STUCK_TITLE);
+
+  const m0193 = mig('0193_ceremony_strand_resolution.sql').match(/c_strand_title constant text := '([^']+)'/);
+  t('0193 declares the strand ops title', !!m0193, 'no c_strand_title in 0193');
+  t("the client's OPS_RETURN_STRAND_TITLE equals 0193's",
+    !!m0193 && m0193[1] === OPS_RETURN_STRAND_TITLE, m0193 ? `0193: ${m0193[1]} client: ${OPS_RETURN_STRAND_TITLE}` : '');
+
+  const m0206 = mig('0206_ops_console_v2.sql').match(/c_ops_title constant text := '([^']+)'/);
+  t('0206 §C declares the gear-claim ops title', !!m0206, 'no c_ops_title in 0206');
+  t("the client's OPS_GEAR_CLAIM_TITLE equals 0206's",
+    !!m0206 && m0206[1] === OPS_GEAR_CLAIM_TITLE, m0206 ? `0206: ${m0206[1]} client: ${OPS_GEAR_CLAIM_TITLE}` : '');
+
+  // ── the destinations, and the three DIFFERENT nouns the refs are ──
+  t('지급 대기 → /ops/payout/{ref}, because 0186 §B groups by runner_id and the ref IS the runner',
+    destinationForSystemRef({ refId: RUNNER, title: OPS_PAYOUT_DUE_TITLE }) === `/ops/payout/${RUNNER}`,
+    show(destinationForSystemRef({ refId: RUNNER, title: OPS_PAYOUT_DUE_TITLE })));
+  {
+    const d = destinationForSystemRef({ refId: BID, title: OPS_HANDOFF_STUCK_TITLE });
+    t('인계 확인 멈춤 → the /ops/handoffs LIST, carrying the booking id so the list can mark the row',
+      !!d && d.pathname === '/ops/handoffs' && d.params && d.params.bid === BID, show(d));
+  }
+  t('반환 좌초 → /ops/returns/{bid} — the one ops title with a per-booking ACTION behind it',
+    destinationForSystemRef({ refId: BID, title: OPS_RETURN_STRAND_TITLE }) === `/ops/returns/${BID}`,
+    show(destinationForSystemRef({ refId: BID, title: OPS_RETURN_STRAND_TITLE })));
+  t('굿즈 수령 신청 → /ops/gear/{claim}, and the ref is a gear_claims id, not a booking',
+    destinationForSystemRef({ refId: CLAIM, title: OPS_GEAR_CLAIM_TITLE }) === `/ops/gear/${CLAIM}`,
+    show(destinationForSystemRef({ refId: CLAIM, title: OPS_GEAR_CLAIM_TITLE })));
+
+  // ── the honest negatives ──
+  t('an UNLISTED system title routes NOWHERE (null is an answer — the inbox draws it as text, never as a dead button)',
+    destinationForSystemRef({ refId: BID, title: '어떤 새 운영 알림' }) === null);
+  t("a system row with NO ref routes nowhere — every ops title's whole content is its ref (0084 §E keeps the body identifier-free)",
+    OPS_SYSTEM_TITLES.every((x) => destinationForSystemRef({ refId: null, title: x }) === null
+      && destinationForSystemRef({ refId: undefined, title: x }) === null
+      && destinationForSystemRef({ refId: '', title: x }) === null));
+  t('every listed ops title has a destination (the table is complete — an entry with no route would be the hole this closes)',
+    OPS_SYSTEM_TITLES.every((x) => destinationForSystemRef({ refId: BID, title: x }) !== null));
+  t('OPS_SYSTEM_TITLES is exactly the four ops titles and carries no customer title',
+    OPS_SYSTEM_TITLES.length === 4
+    && OPS_SYSTEM_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !RETURN_TITLES.includes(x)
+                                      && !LIVE_TITLES.includes(x) && x !== CHAT_TITLE));
+
+  // ── push.ts must actually CONSULT the table, and its false sentence must be gone ──
+  // A pure function nobody calls leaves every pin above green over an inbox that still draws text.
+  const push = fs.readFileSync(path.resolve(__dirname, '../src/lib/push.ts'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  t('push.ts routes the system kind through destinationForSystemRef',
+    /kind === 'system'/.test(push) && /destinationForSystemRef\(/.test(push));
+  t('hasNotificationRoute answers for system through the same table (not a bare true, which would restore the dead tap in the other direction)',
+    /if \(kind === 'system'\) return destinationForSystemRef\(/.test(push));
+  t('🔴 push.ts no longer returns false for every system row',
+    !/shop · system · 미지의 kind/.test(push));
+  // 🔴 **THE HEADER SENTENCE ITSELF GETS NO PIN, AND THAT IS THE COMMENT-QUOTING LAW, MEASURED
+  //    HERE RATHER THAN REASONED.** The first draft of this block asserted
+  //    `!/NOTHING writes them \(zero writers across/.test(rawPushSource)` — 「the false claim is
+  //    gone」. It FAILED on the corrected file, because the correction paragraph QUOTES the false
+  //    sentence in order to say it was false. Documenting-a-fix and failing-to-fix are
+  //    indistinguishable to a grep over raw text, which is exactly the standing law, and the arm
+  //    was measuring the documentation rather than the code.
+  //    The property that actually matters is BEHAVIOURAL and is pinned above: `system` is routed
+  //    through the table, and `hasNotificationRoute` answers through the same table instead of
+  //    returning a blanket false. The corrected prose is PROSE — it belongs in the file, not in an
+  //    assertion, and an arm that could only ever measure its wording would be a pin nobody could
+  //    trust in either direction.
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

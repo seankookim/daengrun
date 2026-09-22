@@ -6614,6 +6614,147 @@ export async function opsMarkGearShipped(input: {
   };
 }
 
+// ── [0206] THE TWO LISTS BEHIND THE TWO OPS BELLS, AND THE DOOR OUT OF A STRAND ───────────────
+// 0198 put the PAYOUT desk on a phone. The strand bell (「반환 좌초 — 확인 필요」, sweep arm ⓕ) and
+// the stalled-handoff bell (「인계 확인 멈춤 — 확인 필요」, 0183 arm ⓓ/ⓔ) had no list and no screen,
+// and `resolve_return` — a fully built, roster-gated edge action with a complete Korean refusal
+// map — had ZERO callers in `app/`. So the bells summoned an operator to a psql prompt.
+//
+// 🔴 **EACH LIST IS GATED ON ITS OWN ROSTER, NOT ON `payout_due`** (0206 §0b): the strand list on
+//    `return_strand` (the roster `ops_resolve_return_tx` gates on, so the list and its only action
+//    agree) and the handoff list on `handoff_unanswered` (the roster that is actually paged). The
+//    console therefore draws each section only when `opsMe().kinds` carries that class — a section
+//    drawn on `isOps` alone would be a button that opens onto `not_ops`. 237 `0206-R1`/`0206-H1`
+//    pin that `kinds` and each door agree in BOTH directions, so this client-side decision cannot
+//    quietly become a lie.
+// ⚠ Neither list carries money, a phone, an address or the operator's memo — 0206 §0c states the
+//   disclosure and 237 `0206-R3` asserts the strand list's column set by name.
+
+/** One stranded return, from `ops_stranded_returns()` (0206 §A) — the rows the sweep's arm ⓕ
+ *  considers or has already belled.
+ *  ⚠ `status` is the RAW server word (`active` | `incident_review`) and is NEVER rendered: gate on
+ *    it, print a mapped sentence (the standing STATUS_MAP law).
+ *  ⚠ `notifiedAt === null` means the bell has not rung for this booking YET — it is in the list
+ *    because it is past the deadline. Absent, not zero. */
+export interface OpsStrandedReturn {
+  bookingId: string;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawStatus: string;
+  runEndedAt: string | null;
+  runnerStamped: boolean;
+  ownerStamped: boolean;
+  minutesStranded: number | null;
+  /** `ops_flags.return_strand_minutes` as it stands. NULL = the sweep's arm is switched off, so
+   *  nothing new will be belled; the screen says so rather than implying a live deadline. */
+  strandMinutes: number | null;
+  notifiedAt: string | null;
+}
+
+export async function fetchOpsStrandedReturns(): Promise<OpsStrandedReturn[]> {
+  const { data, error } = await supabase.rpc('ops_stranded_returns');
+  if (error) throw opsError(error, 'ops_stranded_returns');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    bookingId: String(r.booking_id),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawStatus: String(r.status),
+    runEndedAt: typeof r.run_ended_at === 'string' ? r.run_ended_at : null,
+    runnerStamped: r.runner_stamped === true,
+    ownerStamped: r.owner_stamped === true,
+    // `Number(null)` is 0, so the null is tested BEFORE the cast — a minute count we do not have
+    // is absent, never a measured zero (the fetchFitness law).
+    minutesStranded: r.minutes_stranded == null ? null : Number(r.minutes_stranded),
+    strandMinutes: r.strand_minutes == null ? null : Number(r.strand_minutes),
+    notifiedAt: typeof r.notified_at === 'string' ? r.notified_at : null,
+  }));
+}
+
+/** One stalled pickup handoff, from `ops_stalled_handoffs()` (0206 §B). READ ONLY — 0183 arm ⓓ's
+ *  header rules that what a stuck handoff should BECOME is Sean's decision, not a clock's, and the
+ *  same sentence covers an operator's button. The existing 0185 tools stay the tools.
+ *  ⚠ `opsAlertedAt === null` while `escalatedAt` is set is NOT missing information: it is 0183's
+ *    durable PENDING state (the parties were told while the ops roster was empty; arm ⓔ retries
+ *    every tick). The screen says that in words. */
+export interface OpsStalledHandoff {
+  bookingId: string;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawStatus: string;
+  scheduledAt: string | null;
+  ownerStamped: boolean;
+  runnerStamped: boolean;
+  stampedAt: string | null;
+  minutesStalled: number | null;
+  escalatedAt: string | null;
+  opsAlertedAt: string | null;
+}
+
+export async function fetchOpsStalledHandoffs(): Promise<OpsStalledHandoff[]> {
+  const { data, error } = await supabase.rpc('ops_stalled_handoffs');
+  if (error) throw opsError(error, 'ops_stalled_handoffs');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    bookingId: String(r.booking_id),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawStatus: String(r.status),
+    scheduledAt: typeof r.scheduled_at === 'string' ? r.scheduled_at : null,
+    ownerStamped: r.owner_stamped === true,
+    runnerStamped: r.runner_stamped === true,
+    stampedAt: typeof r.stamped_at === 'string' ? r.stamped_at : null,
+    minutesStalled: r.minutes_stalled == null ? null : Number(r.minutes_stalled),
+    escalatedAt: typeof r.escalated_at === 'string' ? r.escalated_at : null,
+    opsAlertedAt: typeof r.ops_alerted_at === 'string' ? r.ops_alerted_at : null,
+  }));
+}
+
+export interface OpsResolveReturnResult {
+  resolved: boolean;
+  settled: boolean;
+  unchanged: boolean;
+  resolutionId: string | null;
+  fromStatus: string | null;
+  runnerStamped: boolean;
+  ownerStamped: boolean;
+}
+
+/** 🔴 **THE OPS EXIT FROM A STRANDED RETURN** — the `resolve_return` action of the ALREADY
+ *  DEPLOYED `transition-booking` edge function (0193 §C-b, hardened by 0201 §C). Nothing about the
+ *  server changes here; this is the caller it never had.
+ *
+ *  It seals the return, settles the run and writes one `return_resolutions` journal row. The memo
+ *  is REQUIRED by the server (`memo_required`) and is an internal audit note — 0193:446, and 230
+ *  `0199-V5` pins that it never reaches a party's phone. What the parties see is the fixed Korean
+ *  sentence `my_return_resolution` chooses from `rescued_from`.
+ *
+ *  ⚠ **THE OPERATOR ID IS NOT A PARAMETER AND MUST NEVER BECOME ONE.** `resolve_return.ts` §2
+ *    takes the `uid` the edge verified from the JWT; an id read out of `meta` would let anyone
+ *    name an operator and settle any stranded booking they liked. The roster check itself is SQL's
+ *    (`ops_is_member('return_strand', uid)` before the booking is even read, then
+ *    `ops_recipients_for('return_strand')` inside the RPC).
+ *
+ *  ⚠ Refusals arrive as the edge's own Korean sentences (`mapResolveError`) — 담당자만·메모·클럽·
+ *    아직 안 끝남·이미 봉인·지금은 불가·정산 계산 실패·종료 기록 불완전. `invokeTransition` passes a
+ *    Korean message through untouched and replaces a non-Korean one with the generic sentence, so
+ *    a screen rendering `e.message` never prints an English server string. Do NOT re-map them here:
+ *    the server chose the words and a second table would drift from them. */
+export async function opsResolveReturn(bookingId: string, memo: string): Promise<OpsResolveReturnResult> {
+  const data = await invokeTransition(bookingId, 'resolve_return', { memo });
+  return {
+    resolved: !!data?.resolved,
+    settled: !!data?.settled,
+    unchanged: !!data?.unchanged,
+    resolutionId: typeof data?.resolution_id === 'string' ? data.resolution_id : null,
+    fromStatus: typeof data?.from_status === 'string' ? data.from_status : null,
+    runnerStamped: !!data?.runner_stamped,
+    ownerStamped: !!data?.owner_stamped,
+  };
+}
+
 /** Every refusal the seven ops functions raise BY NAME, read out of the migrations rather than
  *  guessed: 0186 §B/§C (`not_signed_in` · `not_ops` · `no_runner` · `no_items` · `bad_amount` ·
  *  `not_runner_item` · `already_paid` · `not_settled` · `amount_mismatch` · `mark_lost`),
