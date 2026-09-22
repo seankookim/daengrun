@@ -3651,11 +3651,11 @@ export interface LiveLedgerItem {
    *  row while it is false (`not_settled`), so calling it 「지급 대기」 would promise money the
    *  server will not move. `payout-status.ts` is where that distinction is made and pinned. */
   settled: boolean;
-  /** [0210] `ledger_items.created_at` in epoch ms, or null when the server sent nothing
-   *  parseable. `when` above is a KST LABEL and a label cannot be subtracted, so this is what an
-   *  age is measured from — `payoutStuckDays` is the one reader. Additive: the earnings list
-   *  keeps using `when`. */
-  createdAtMs: number | null;
+  // [0213] `createdAtMs` was here from 0210 and is GONE. It existed for one reader —
+  // `payoutStuckDays` measuring an age off this capped list — and that computation moved to the
+  // server (`my_ledger_stuck_state`, 0213 §A) precisely because the cap made it wrong. A field
+  // whose only caller has left is dead weight on a money surface, and 0121 §B's header records
+  // the same deletion for the same reason. The earnings list keeps using `when`, the KST label.
 }
 
 /** [0132] The `end_reason` enum's SIX members (0001:18), every one mapped.
@@ -3708,10 +3708,8 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
       paidPayoutId: l.paid_payout_id ?? null,
       paidAtMs: msOrNull(l.paid_at),
       settled: l.settled === true,
-      // [0210] the row's OWN instant, as epoch ms, beside the formatted `when`. `when` is a KST
-      // label and cannot be subtracted; this is the field an AGE is computed from, and it is null
-      // (never 0, never NaN) when the server gave nothing parseable — `msOrNull`'s whole point.
-      createdAtMs: msOrNull(l.created_at),
+      // [0213] `createdAtMs` was mapped here from 0210 and is gone with its only reader — an age
+      // derived from a `limit 30` list is the defect 0213 §A exists to close, not a field to keep.
     };
   });
 }
@@ -3824,6 +3822,54 @@ export async function fetchLedgerUnpaidTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_ledger_unpaid_total');
   if (error) throw foldRpcError(error, { fn: 'my_ledger_unpaid_total', empty: '미지급 합계를 불러오지 못했어요' });
   return Number(data ?? 0);
+}
+
+/** [0213 §A] 미지급 상태 한 행 — the whole of this runner's unpaid ledger, with NO cap.
+ *
+ *  ⚠ THIS IS NOT A RE-READ OF `fetchLedger`, and the difference is the reason the function
+ *    exists. `my_ledger_rows` carries `limit 30` ordered `created_at desc`, so it keeps the
+ *    thirty NEWEST rows — while every question here is about the OLDEST one. Deriving a stuck-age
+ *    from that list is silently wrong for exactly the runners who work most, which is the
+ *    `fetchRunnerJobs` cap class arriving through an aggregate (0209 §0 made the same move for
+ *    month totals). The server counts.
+ *
+ *  ⚠ TWO MODULI, AND THEY ARE NOT THE SAME NUMBER (0213 §0c). `unpaidWon` is 0192 §B's predicate
+ *    — unpaid, settled or not, because an open run's money is still ours to pay. `oldestAwaitingMs`
+ *    and `awaitingCount` are the WRITER's predicate — unpaid AND 0186 §0d ⓒ's 「no run on this
+ *    booking is still open」, the same candidate set `ops_payouts_stuck_sweep` pays out of. They
+ *    are equal on most accounts and collapsing them would put rows the server refuses to pay into
+ *    an age the screen then promises.
+ *
+ *  ⚠ `oldestAwaitingMs` is NULL when nothing qualifies, and NULL means 「nothing to say」 — never
+ *    「everything is fine」 and never 0. `msOrNull` is what keeps an unreadable instant from
+ *    becoming NaN and flowing into a subtraction.
+ *  ⚠ `?? 0` / `?? false` on the other three is a MISSING KEY becoming an absent value on a client
+ *    running ahead of 0213's deploy, not a claim: a count of 0 with a NULL instant draws nothing,
+ *    which is the same thing an unread answer draws. */
+export interface LedgerStuckState {
+  /** 0192 §B's predicate. Equal to `fetchLedgerUnpaidTotal()` on the same account. */
+  unpaidWon: number;
+  /** The oldest SETTLED-unpaid row's `created_at` in epoch ms, or null when none qualifies. */
+  oldestAwaitingMs: number | null;
+  /** How many rows that predicate matched. A measured 0, never a loading state. */
+  awaitingCount: number;
+  /** Whether this runner has registered a payout account — the same `exists` read 0210 §E does
+   *  before choosing its sentence. A boolean and nothing else: no bank, no holder, no number. */
+  hasBankAccount: boolean;
+}
+
+export async function fetchLedgerStuckState(): Promise<LedgerStuckState> {
+  const { data, error } = await supabase.rpc('my_ledger_stuck_state');
+  if (error) throw foldRpcError(error, { fn: 'my_ledger_stuck_state', empty: '정산 상태를 불러오지 못했어요' });
+  // `returns table` arrives as an array of one row. An absent row is a shape we do not understand,
+  // and the safe direction on a money surface is 「nothing to say」 rather than a fabricated zero.
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  return {
+    unpaidWon: Number(row?.unpaid_won ?? 0),
+    oldestAwaitingMs: msOrNull(row?.oldest_awaiting_at as string | null | undefined),
+    awaitingCount: Number(row?.awaiting_count ?? 0),
+    hasBankAccount: row?.has_bank_account === true,
+  };
 }
 
 /** 월별 수익 — one row per KST month this runner earned in, newest first (0209 §A).

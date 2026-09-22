@@ -1,18 +1,19 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
   fetchNotifications, fetchOpsGearClaimsPending, fetchOpsPayoutsDue, fetchOpsStalledHandoffs,
   fetchOpsStrandedReturns, LiveNoti, OpsGearClaim, OpsPayoutDue, OpsStalledHandoff,
-  OpsStrandedReturn, opsMe,
+  OpsStrandedReturn,
 } from '../../src/lib/api';
 import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { destinationForSystemRef, OPS_SYSTEM_TITLES } from '../../src/lib/notification-route';
 import { strandAgeLabel } from '../../src/lib/ops-console';
+import { useOps } from '../../src/lib/ops-context';
 import { wonLabel } from '../../src/lib/ops-payout';
 // RAW server text for the log. Both strips render `e.message`, which is now the mapped Korean
 // (api.ts `opsError` → `foldRpcError`), so the log is the only place the server's own words live.
@@ -49,8 +50,11 @@ type Phase = 'loading' | 'error' | 'ready';
 export default function OpsHome() {
   const insets = useSafeAreaInsets();
 
-  // `null` = not read yet. NOT an empty list — the difference decides whether a section is drawn.
-  const [kinds, setKinds] = useState<string[] | null>(null);
+  // [0213] `null` = not read yet. NOT an empty list — the difference decides whether a section is
+  // drawn, and an unread answer is not a 'no'. It is the LAYOUT'S value now: the gate already
+  // asked `ops_me()` to decide whether to render this stack at all, and asking again here was two
+  // round trips on open plus one per return from a desk (`ops-context.tsx` carries the why).
+  const { kinds, refresh } = useOps();
 
   const [duePhase, setDuePhase] = useState<Phase>('loading');
   const [due, setDue] = useState<OpsPayoutDue[]>([]);
@@ -142,20 +146,16 @@ export default function OpsHome() {
       });
   }, []);
 
-  // `kinds` decides which desks exist for this operator. A failure here leaves it `null`, which
-  // draws neither new section and claims nothing — the `_layout` has already established that the
-  // caller is an operator, so this is about WHICH desks, never about access.
-  const loadKinds = useCallback(() => {
-    opsMe()
-      .then((me) => setKinds(me.kinds))
-      .catch((e) => { console.warn('[ops] ops_me:', rpcRaw(e)); setKinds(null); });
-  }, []);
-
   // Re-read on every return: paying a runner, posting a box or resolving a strand on a detail
   // screen changes exactly these lists, and a stale count here is an operator acting twice.
+  // 🔴 [0213] `loadKinds()` IS GONE FROM THIS EFFECT and its `opsMe()` call with it. It re-asked
+  //    the same RPC the `_layout` had already answered — two round trips on every console open and
+  //    another on every return from a desk — for a value that is ROSTER MEMBERSHIP, which nothing
+  //    inside this console can change. `kinds` now comes from `useOps()`, and the one way to
+  //    re-ask it is the pull-to-refresh below.
   useFocusEffect(useCallback(() => {
-    loadKinds(); loadDue(); loadGear(); loadAlerts();
-  }, [loadKinds, loadDue, loadGear, loadAlerts]));
+    loadDue(); loadGear(); loadAlerts();
+  }, [loadDue, loadGear, loadAlerts]));
 
   // The two 0206 desks are fetched only when the caller actually holds the class — an unconditional
   // fetch would write a `not_ops` line into the log on every console open for a payout-only
@@ -167,11 +167,30 @@ export default function OpsHome() {
     if (hasStallDesk) loadStall();
   }, [hasStrandDesk, hasStallDesk, loadStrand, loadStall]));
 
+  // [0213] THE ONE REFRESH PATH, and the only thing in this stack that re-asks `ops_me()`. Every
+  // section plus the roster answer — an operator who pulls expects the whole screen re-asked, not
+  // a subset. `refreshing` is the control's own state and is NOT a section phase: each section
+  // keeps its own four states and goes back to saying 「불러오는 중이에요…」 in words.
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadDue(); loadGear(); loadAlerts();
+    if (hasStrandDesk) loadStrand();
+    if (hasStallDesk) loadStall();
+    // Only the roster re-ask is awaited, because it is the one whose progress this screen has no
+    // section phase for. A refresh that FAILS keeps the last known answer (see `_layout`): the
+    // spinner stops and nothing claims the operator lost a desk.
+    refresh().finally(() => setRefreshing(false));
+  }, [loadDue, loadGear, loadAlerts, loadStrand, loadStall, hasStrandDesk, hasStallDesk, refresh]);
+
   return (
     <>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.cream }}
         contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={paper.dim} />
+        }
       >
         <Row style={{ justifyContent: 'space-between' }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">

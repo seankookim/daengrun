@@ -174,64 +174,68 @@ export function sortPayoutsNewestFirst(rows: readonly PayoutRow[]): PayoutRow[] 
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// [0210 §E] IS THIS RUNNER'S OWN PAYOUT STUCK — the client half of the sweep's sentence
+// [0210 §E · 0213 §A] IS THIS RUNNER'S OWN PAYOUT STUCK — the client half of the sweep's sentence
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // `ops_payouts_stuck_sweep` decides the same thing server-side and writes the runner a
 // notification. This is what lets the SCREEN say it too, so a runner who never taps a push still
-// finds out. The threshold is the sweep's `STUCK_AFTER`, transcribed, and the predicate is the
-// sweep's own candidate shape read through `my_ledger_rows`' three columns:
-//     unpaid   — `paidPayoutId == null`, the marker 0186 writes and 0192 §A returns
-//     settled  — `settled === true`, 0186 §0d ⓒ's 「no run on this booking is still open」, which
-//                is the same `not exists` the sweep's candidate query uses
-//     old      — `createdAtMs` older than the threshold
+// finds out. The threshold is the sweep's `STUCK_AFTER`, transcribed and pinned EQUAL to the
+// migration by `app/test/payout-status.test.cjs` rather than merely retyped.
 //
-// 🔴 **IT CAN ONLY UNDER-REPORT, AND THAT IS SAID OUT LOUD RATHER THAN HIDDEN.** `my_ledger_rows`
-// carries `limit 30` ordered `created_at desc`, so a runner past thirty rows may have an unpaid
-// row OLDER than anything this function can see. The oldest visible qualifying row is therefore a
-// LOWER BOUND on the true age: a positive answer is always true, and a negative answer can be
-// wrong for exactly the runners who work most — the `fetchRunnerJobs` cap class arriving through
-// an aggregate. The uncapped answer is the SERVER's, and it is the notification; this strip is the
-// echo, not the mechanism. Widening it would mean a new RPC, which 0210 deliberately did not add
-// because the deliverable is that the runner is TOLD.
+// 🔴 **0213 MOVED THE PREDICATE TO THE SERVER, AND THAT IS THE WHOLE POINT OF THIS BLOCK.**
+// Until 0213 this function filtered `my_ledger_rows()` itself — unpaid, settled, old — and that
+// list carries **`limit 30` ordered `created_at desc`**. But the answer is the OLDEST qualifying
+// row, and a cap on a DESCENDING order keeps the thirty NEWEST and discards precisely the end the
+// answer lives at. A runner past thirty rows got a SHORTER number or no strip at all: the
+// `fetchRunnerJobs` cap class arriving through an aggregate, wrong in the flattering direction,
+// for the busiest people — who are exactly the runners 0210 §E exists for — and silently.
+// ⚠ 0210 SAID SO, in a 🔴 paragraph that used to sit where this one does. **A documented defect is
+//   still a defect**; saying 「it can only under-report」 in a file nobody reads at runtime made the
+//   behaviour honest and left the screen wrong. `my_ledger_stuck_state()` (0213 §A) computes the
+//   instant over EVERY row the runner owns — no limit, no order to fall outside of — and 244
+//   `0213-A1` pins it at the exact row the cap hid.
+//
+// ⚠ THE PREDICATE IS NOT RE-IMPLEMENTED HERE. 「unpaid AND settled」 now lives in one place, in the
+//   same SQL the writer pays out of (0186 §0d ⓒ), and 244 `0213-A3` measures reader and writer
+//   agreeing on one real sweep tick. A second copy on this side would be free to drift from it —
+//   which is why `ledgerPaymentState` still decides the ROW labels above and is not consulted
+//   here: this function no longer sees rows.
 // ⚠ NO DEVICE CLOCK FACT IS DERIVED HERE. `nowMs` is an argument and the result is a count of
 //   elapsed days from two epoch numbers — no calendar, no weekday, no timezone. `check-device-clock`
 //   has nothing to flag and there is nothing for a phone in New York to get wrong.
-// ⚠ Returns null for 「not stuck」 AND for 「nothing to say」 (no rows, an unreadable instant, a
-//   fetch that failed and handed us an empty list). The screen draws nothing on null, which is the
-//   only honest rendering of an unknown — the alternative is a 0 or a 「확인 중」 that asserts
+// ⚠ Returns null for 「not stuck」 AND for 「nothing to say」 (nothing qualifies, an unreadable
+//   instant, a fetch that failed and handed us nothing). The screen draws nothing on null, which is
+//   the only honest rendering of an unknown — the alternative is a 0 or a 「확인 중」 that asserts
 //   something nobody measured.
 
 /** The sweep's own threshold (`STUCK_AFTER`, 0186 §D → 0190 §A → 0210 §E). Exported so the pin can
  *  compare it against the migration rather than against a retyped number. */
 export const PAYOUT_STUCK_DAYS = 7;
 
-/** The payment fields plus the row's own instant — exactly what `LiveLedgerItem` carries. Kept
- *  structural so the pin can build one without the screen or the network. */
-export interface LedgerAgeFields extends LedgerPaymentFields {
-  /** `ledger_items.created_at` in epoch ms, or null when the server sent nothing parseable. */
-  createdAtMs: number | null;
+/** The one field an age is measured from, exactly as `my_ledger_stuck_state()` (0213 §A) hands it
+ *  over and `LedgerStuckState` carries it. Kept structural so the pin can build one without the
+ *  screen or the network.
+ *  ⚠ This is the AWAITING instant — unpaid **and** settled — and never the plain unpaid one. The
+ *    server computes both and names them apart for the reason 0213 §0c gives: an open run's money
+ *    is owed but not yet payable, and an age built over it would complain about money the writer
+ *    deliberately refuses to release (0186 §0d ⓒ). */
+export interface LedgerStuckFields {
+  /** The oldest settled-unpaid row's instant in epoch ms, or null when no row qualifies. */
+  oldestAwaitingMs: number | null;
 }
 
-/** Whole days since the OLDEST row that is settled, unpaid and older than the threshold — or null
- *  when no such row is visible. A positive number is a fact; null is 「nothing to say」, never
- *  「everything is fine」 (see the cap note above). */
+/** Whole days since the OLDEST settled-unpaid row — or null when there is nothing to say.
+ *  A positive number is a fact about EVERY row the runner owns, not about a visible window. */
 export function payoutStuckDays(
-  rows: readonly LedgerAgeFields[] | null | undefined,
+  state: LedgerStuckFields | null | undefined,
   nowMs: number,
 ): number | null {
-  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (state == null) return null;                  // an unread answer is not 「you are fine」
   if (!Number.isFinite(nowMs)) return null;
-  let oldest: number | null = null;
-  for (const r of rows) {
-    // `ledgerPaymentState` is the one place paid/awaiting/unsettled is decided — re-deriving it
-    // here would be a second implementation of the same rule, free to drift from the screen's.
-    if (ledgerPaymentState(r) !== 'awaiting') continue;
-    const t = r.createdAtMs;
-    if (t == null || !Number.isFinite(t)) continue;   // an instant we cannot read is not an age
-    if (oldest == null || t < oldest) oldest = t;
-  }
-  if (oldest == null) return null;
-  const days = Math.floor((nowMs - oldest) / 86400000);
+  const t = state.oldestAwaitingMs;
+  // null ⇒ nothing qualifies. NaN ⇒ an instant we cannot read, which is not an age — and a `?? 0`
+  // here would read as the epoch and report every runner as 20,000 days stuck.
+  if (t == null || !Number.isFinite(t)) return null;
+  const days = Math.floor((nowMs - t) / 86400000);
   return days >= PAYOUT_STUCK_DAYS ? days : null;
 }
 

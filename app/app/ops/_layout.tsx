@@ -1,9 +1,10 @@
 import { Stack } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { opsMe } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
+import { OpsProvider } from '../../src/lib/ops-context';
 // ⚠ The pure module, NOT api.ts's mapper. `opsMe` already folds through `opsError`, so this is a
 // second, idempotent pass: a Korean message comes back unchanged and only an English one is
 // replaced. It is belt rather than duplication — the policy (which token means what) stays in
@@ -34,12 +35,26 @@ import { colors, paper } from '../../src/theme';
 //   `charge_dispatch_stale` and not to `payout_due` IS staff — telling them 「you are not an
 //   operator」 would be false, and they would go and ask to be given a permission they have. That
 //   distinction is exactly why `ops_me()` returns both fields (0198 §0d).
+//
+// 🔴 **[0213] THIS ANSWER IS NOW THE WHOLE STACK'S, THROUGH `OpsProvider`.** `ops/index.tsx` used
+//    to call `opsMe()` again inside a `useFocusEffect` to decide which desks to draw, so opening
+//    the console cost TWO round trips to the same RPC and every return from a desk screen cost
+//    another — an N+1 on roster membership, which nothing inside this console can change. The gate
+//    asks here; the screens read `useOps()`.
+//    ⚠ **THE GATE SEMANTICS BELOW ARE UNCHANGED AND MUST STAY SO**: a non-operator still meets the
+//    refusal face, a failed check is still 'error' and never 'refused' (a network blip must not
+//    tell a real operator they have been removed from the roster), and `kinds` is null until read
+//    rather than `[]` — 0206's two desk sections must not be drawn on an unknown, and an unread
+//    answer is not a 'no'.
 type Phase = 'checking' | 'error' | 'refused' | 'ops';
 
 export default function OpsLayout() {
   const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>('checking');
-  const [kinds, setKinds] = useState<string[]>([]);
+  // null = not read yet, and it must NOT become `[]`: `[]` is a measured 「you hold no classes」,
+  // which the desk gating is entitled to act on, and an unread answer is not.
+  const [kinds, setKinds] = useState<string[] | null>(null);
+  const [isOps, setIsOps] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
 
   const check = useCallback(() => {
@@ -50,6 +65,7 @@ export default function OpsLayout() {
       .then((me) => {
         if (!alive) return;
         setKinds(me.kinds);
+        setIsOps(me.isOps);
         setPhase(me.isOps ? 'ops' : 'refused');
       })
       .catch((e) => {
@@ -72,20 +88,44 @@ export default function OpsLayout() {
   }, []);
   useEffect(() => check(), [check]);
 
+  // [0213] THE ONE REFRESH PATH for this answer, handed to the console's pull-to-refresh.
+  // ⚠ It deliberately does NOT go through `check()`: that sets 'checking', which unmounts the
+  //   whole `Stack` — so a pull-to-refresh would tear the console down and rebuild it under the
+  //   operator's finger. It re-asks silently and updates in place.
+  // ⚠ A FAILED refresh keeps the last known answer and only logs. Dropping a working console into
+  //   the error face because one re-ask timed out would be the same mistake as mapping a failure
+  //   to 'refused' — a failure to ASK is not an answer. A refresh that succeeds and says
+  //   `is_ops: false` DOES flip to the refusal face: that is the server answering, and it is the
+  //   direction that refuses.
+  const refresh = useCallback(async () => {
+    try {
+      const me = await opsMe();
+      setKinds(me.kinds);
+      setIsOps(me.isOps);
+      setPhase(me.isOps ? 'ops' : 'refused');
+    } catch (e: any) {
+      console.warn('[ops] ops_me refresh:', rpcRaw(e));
+    }
+  }, []);
+
+  const ctx = useMemo(() => ({ isOps, kinds, refresh }), [isOps, kinds, refresh]);
+
   if (phase === 'ops') {
     return (
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.cream },
-          animation: 'fade',
-          animationDuration: 70,
-        }}
-      />
+      <OpsProvider value={ctx}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.cream },
+            animation: 'fade',
+            animationDuration: 70,
+          }}
+        />
+      </OpsProvider>
     );
   }
 
-  const otherDesks = kinds.length > 0;
+  const otherDesks = (kinds?.length ?? 0) > 0;
 
   return (
     <View style={[s.wrap, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
@@ -109,7 +149,7 @@ export default function OpsLayout() {
           <Text style={s.body}>운영자 전용 화면이에요</Text>
           <Text style={s.sub}>
             {otherDesks
-              ? `운영 담당자로 등록돼 있지만 이 창구(정산·배송)는 아니에요 · 현재 담당: ${kinds.join(', ')}`
+              ? `운영 담당자로 등록돼 있지만 이 창구(정산·배송)는 아니에요 · 현재 담당: ${(kinds ?? []).join(', ')}`
               : '정산과 배송을 처리하는 담당자만 들어올 수 있어요'}
           </Text>
         </>

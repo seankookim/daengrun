@@ -13,7 +13,7 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedger, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedgerStuckState, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
   fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { payoutStuckDays, payoutStuckLine } from '../../src/lib/payout-status';
@@ -385,13 +385,16 @@ export default function RunnerHome() {
   // [honesty 2026-08-11] weekly stats used to seed {net: 0} → the money hero printed
   // ₩0 in flight and on failure. null = not known yet → '—' (0원 위장 금지).
   const [stats, setStats] = useState<RunnerWeekStats | null>(null);
-  // [0210 §E] 내 정산이 막혀 있는지 — 서버의 ops_payouts_stuck_sweep 이 같은 판정으로 러너에게
-  // 알림을 쓴다. 이 줄은 그 알림을 안 눌러본 러너도 홈에서 알게 하려는 **메아리**지 근거가
-  // 아니다. null 은 「할 말 없음」이고(막히지 않았거나, 못 읽었거나, 읽기가 실패했거나) 그때는
-  // 아무것도 그리지 않는다 — 안 읽힌 값을 「이상 없음」으로 그리는 건 0 을 로딩으로 그리는 것과
-  // 같은 거짓말이다. ⚠ my_ledger_rows 의 limit 30 때문에 이 값은 **아래로만 틀린다**(가장 많이
-  // 일한 러너에게 침묵할 수 있다) — payout-status.ts 헤더에 적혀 있고, 그래서 서버 알림이
-  // 딜리버러블이고 이 줄은 아니다.
+  // [0210 §E · 0213 §A] 내 정산이 막혀 있는지 — 서버의 ops_payouts_stuck_sweep 이 같은 판정으로
+  // 러너에게 알림을 쓴다. 이 줄은 그 알림을 안 눌러본 러너도 홈에서 알게 하려는 **메아리**지
+  // 근거가 아니다. null 은 「할 말 없음」이고(막히지 않았거나, 못 읽었거나, 읽기가 실패했거나)
+  // 그때는 아무것도 그리지 않는다 — 안 읽힌 값을 「이상 없음」으로 그리는 건 0 을 로딩으로 그리는
+  // 것과 같은 거짓말이다.
+  // 🔴 [0213] 출처가 바뀌었다. 0210 은 fetchLedger()(= my_ledger_rows, `limit 30` · created_at
+  //    DESC)를 읽고 **가장 오래된** 행을 찾으려 했다 — 내림차순에 걸린 캡은 가장 **최신** 30행만
+  //    남기고 답이 있는 쪽 끝을 버린다. 그래서 30행을 넘긴 러너, 즉 0210 §E 가 존재하는 이유인 바로
+  //    그 사람들에게 이 줄은 짧은 숫자를 보여주거나 아예 안 그려졌다. 이제 fetchLedgerStuckState()
+  //    (0213 §A)가 캡 없이 전부를 훑은 시각을 준다. 244 0213-A1 이 그 캡이 가렸던 행에서 핀한다.
   const [stuckDays, setStuckDays] = useState<number | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
@@ -550,9 +553,11 @@ export default function RunnerHome() {
     loadChatUnread();
     fetchMyName().then(setName).catch(() => {});
     fetchRunnerWeekStats().then(setStats).catch((e) => console.warn('[rhome] stats:', e?.message ?? e));
-    // [0210 §E] 실패하면 null 로 남긴다 — 줄이 안 그려질 뿐, 「이상 없음」을 그리지는 않는다.
-    fetchLedger()
-      .then((rows) => setStuckDays(payoutStuckDays(rows, Date.now())))
+    // [0210 §E · 0213 §A] 실패하면 null 로 남긴다 — 줄이 안 그려질 뿐, 「이상 없음」을 그리지는
+    // 않는다. Date.now() 는 인자로만 쓰이고 payoutStuckDays 는 두 epoch 수의 뺄셈이라 달력도
+    // 요일도 타임존도 읽지 않는다(check-device-clock 이 볼 것이 없다).
+    fetchLedgerStuckState()
+      .then((s) => setStuckDays(payoutStuckDays(s, Date.now())))
       .catch((e) => { console.warn('[rhome] stuck:', e?.message ?? e); setStuckDays(null); });
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
     loadJobs();
