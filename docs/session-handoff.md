@@ -312,6 +312,20 @@ because `_layout` gates on `payout_due` (widening it widens entry to the bank de
 deployed 0202; harness 1444 pass / 0 fail · npm 2495/0 · deno 377/0 · babel 174 · routes 74. Held: 0204 push outbox (Sean's ⓐ/ⓑ/ⓒ).
 The Codex review of the wave hit the QUOTA WALL at 03:11 (「try again at Sep 24th, 2026 1:44 AM」 — a parse-error stub, 0 findings, no verdict); re-scheduled 2026-09-24 01:50 KST (session-only cron — if this session is gone by then, run it by hand: `adversarial-review --wait --base 440b77a` from a detached worktree at trunk). Until then the second `db push` stands on the builders' batteries (0203: 8 plants · 0205: 7 · 0206: 8 · 0207: 10 · 0208: 10), like yesterday's — Sean's call. Sim rebuild of the wave running.
 
+**WAVE 6 (2026-09-23 03:19, gap finder v4 — the PMF loop and safety):** `feat/recurring-loop` (the server's recurring series —
+`create_recurring_series` idempotent + party-gated + the hourly cron with same-runner preference — is reachable from
+ONE collapsed fold on the first booking; now 「매주 반복으로 바꾸기」 on the report / schedule sheet / home, 「반복 다시
+시작」 for a series 0080 auto-paused on a payment failure (the client only ever wrote paused=true), and the two
+recurring pushes routed — one fell through to the post-run report of a booking still `matching`, the other has a NULL
+ref and was a dead inbox line), `feat/reviews-surfaced` (the runner's dog review was write-only — zero readers; the
+runner-profile star was the mean of the LAST FIVE beside 「N개의 후기」; a runner has no 내 후기 surface),
+`fix/incident-doors` (`runner/run.tsx` has NO 사고 신고 door at all; owner/live's SOS bounced through /safety though it
+holds the bid; a resolved incident reverts both parties to a blank form because `fetchOpenIncident` filters
+`resolved_at`), `feat/earnings-month-dog-fields` (0209 `my_ledger_month_totals` KST-bucketed net/count/paid — no fee
+columns per the margin-secrecy ruling; earnings rows link to their run; `dogs.neutered` collected and never rendered).
+Not started, Sean's: runner→owner reviews (`target_kind='owner'` is admitted by the 0001 CHECK and nothing writes it —
+owner reputation is a product decision). Sim: Release build of `dc32df0` installed.
+
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
 bank slice). Candidates for wave 2 once the numbers above land.
