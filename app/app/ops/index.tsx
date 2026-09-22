@@ -390,6 +390,23 @@ export default function OpsHome() {
             <Text style={s.chev}>›</Text>
           </Pressable>
         ))}
+
+        {/* ── 운영자 명단 ───────────────────────────────────────────────────────────────── */}
+        {/* 0208. A LINK and not a section: the roster is not a queue, so it has no count to
+            print and nothing about it can be stale in a way that costs money. It sits last
+            because it is the thing an operator touches once a quarter, not once a shift. */}
+        <Pressable
+          onPress={() => router.push('/ops/roster')}
+          accessibilityRole="button"
+          accessibilityLabel="운영자 명단"
+          style={({ pressed }) => [s.row, { marginTop: 22 }, pressed && s.rowPressed]}
+        >
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={s.rowTitle}>운영자 명단</Text>
+            <Text style={s.rowHint}>누가 어떤 운영 알림을 받는지 · 콘솔에 들어올 수 있는 사람</Text>
+          </View>
+          <Text style={s.chev}>›</Text>
+        </Pressable>
       </ScrollView>
       <StatusBarCover color={colors.cream} />
     </>
