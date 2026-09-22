@@ -1,7 +1,7 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../../src/components/ui';
 import { AckStack } from '../../../src/components/club-acks';
 import {
@@ -1910,11 +1910,9 @@ export default function ClubSessionShell() {
       </ScrollView>
 
       {/* ---------- O5 — 결제 시트 (법적 문장의 자리) ---------- */}
-      <Modal visible={!!payTarget} transparent animationType="slide" onRequestClose={() => setPayTarget(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setPayTarget(null)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        <View style={s.sheet}>
-          <View style={s.grab} />
+      <Modal visible={!!payTarget} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setPayTarget(null)}>
+        <SafeAreaView style={s.sheet}>
+          <SheetActions onClose={() => setPayTarget(null)} onDone={doPay} doneDisabled={!methodOk || busy} doneLabel="완료 — 동의하고 자리 확정" />
           {/* 시트 머리에 있던 요금 숫자는 승낙서로 갔다 (재정 ④). 남는 것은 '무엇을 확정하는가'다 —
               두 동의 문장과 파일럿 고지는 그대로: 법적으로 묶이는 순간의 문장은 줄이지 않는다. */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -1952,7 +1950,7 @@ export default function ClubSessionShell() {
             </Text>
           </View>
           <ClubCta label="동의하고 자리 확정 →" onPress={doPay} disabled={!methodOk} busy={busy} />
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* ---------- ④ 호스트 창구 1:1 시트 (드로어가 길어지면 시트로 확장) ---------- */}
@@ -1960,13 +1958,11 @@ export default function ClubSessionShell() {
       {/* 승낙서를 시트 안에 그대로 둔다: 약속은 처음 참여할 때와 같다. 다만 이 RPC는 승낙서 버전을
           저장할 자리가 없어(p_session/p_dog만 받는다) 「동의」라 부르지 않는다 — 저장하지 못하는
           동의를 주장하지 않기 위해서다. 버전을 남기는 문은 RPC가 인자를 받은 뒤에. */}
-      <Modal visible={addSheet != null} transparent animationType="slide" onRequestClose={() => { if (!busy) setAddSheet(null); }}>
+      <Modal visible={addSheet != null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal={!busy} onRequestClose={() => { if (!busy) setAddSheet(null); }}>
         {/* [codex r4] RPC가 날아가는 중에는 스크림/뒤로가기로 닫히지 않는다 — 닫혀도 요청은 계속되므로
             결과를 못 보여주는 화면만 남는다. */}
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => { if (!busy) setAddSheet(null); }}
-          accessibilityRole="button" accessibilityLabel="닫기" accessibilityState={{ disabled: busy }} />
-        <View style={[s.sheet, { maxHeight: '75%' }]}>
-          <View style={s.grab} />
+        <SafeAreaView style={s.sheet}>
+          <SheetActions onClose={() => { if (!busy) setAddSheet(null); }} disabled={busy} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이를 데려가나요?</Text>
           <Text style={{ fontSize: 15, lineHeight: 21, color: L.text, marginTop: 10 }}>{WAIVER}</Text>
           {/* [codex r4] flexShrink 없이는 긴 목록이 시트 밖으로 닫기 버튼을 밀어낸다 */}
@@ -1984,17 +1980,15 @@ export default function ClubSessionShell() {
             ))}
           </ScrollView>
           <ClubCta label="닫기" tone="quiet" onPress={() => setAddSheet(null)} disabled={busy} />
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* ---------- 함께 뛰기 다견 피커 ([review #7] retires the Alert picker) ---------- */}
       {/* No waiver text here: the '참여 전 확인' alert immediately before this sheet already took it.
           Repeating it would read as a second, different consent. */}
-      <Modal visible={rsvpSheet != null} transparent animationType="slide" onRequestClose={() => setRsvpSheet(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setRsvpSheet(null)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        <View style={[s.sheet, { maxHeight: '75%' }]}>
-          <View style={s.grab} />
+      <Modal visible={rsvpSheet != null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setRsvpSheet(null)}>
+        <SafeAreaView style={s.sheet}>
+          <SheetActions onClose={() => setRsvpSheet(null)} onDone={() => setRsvpSheet(null)} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이와 뛰나요?</Text>
           {/* flexShrink for the same reason as the add sheet: a long list must not push 닫기 off it */}
           <ScrollView style={{ marginTop: 14, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
@@ -2010,14 +2004,12 @@ export default function ClubSessionShell() {
             ))}
           </ScrollView>
           <ClubCta label="닫기" tone="quiet" onPress={() => setRsvpSheet(null)} />
-        </View>
+        </SafeAreaView>
       </Modal>
 
-      <Modal visible={hostThread != null} transparent animationType="slide" onRequestClose={() => setHostThread(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setHostThread(null)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        <View style={[s.sheet, { maxHeight: '75%' }]}>
-          <View style={s.grab} />
+      <Modal visible={hostThread != null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setHostThread(null)}>
+        <SafeAreaView style={s.sheet}>
+          <SheetActions onClose={() => setHostThread(null)} onDone={() => setHostThread(null)} />
           <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>
             호스트 창구{isHostView && hostThread ? ` — ${nameOf(hostThread)}` : ''}
           </Text>
@@ -2043,15 +2035,13 @@ export default function ClubSessionShell() {
           ) : (
             <Text style={s.closedLine}>채팅이 닫혔어요</Text>
           )}
-        </View>
+        </SafeAreaView>
       </Modal>
 
       {/* ---------- 공용 사유 입력 시트 (Alert.prompt 대체 — iOS 전용 API의 안드로이드 죽은 버튼 해소) ---------- */}
-      <Modal visible={!!askText} transparent animationType="slide" onRequestClose={() => setAskText(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.45)' }} onPress={() => setAskText(null)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        <View style={s.sheet}>
-          <View style={s.grab} />
+      <Modal visible={!!askText} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setAskText(null)}>
+        <SafeAreaView style={s.sheet}>
+          <SheetActions onClose={() => setAskText(null)} />
           <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{askText?.title}</Text>
           <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 18 }}>{askText?.message}</Text>
           <TextInput
@@ -2072,9 +2062,24 @@ export default function ClubSessionShell() {
               }}
             />
           ))}
-        </View>
+        </SafeAreaView>
       </Modal>
     </DawnCanvas>
+  );
+}
+
+function SheetActions({ onClose, onDone, disabled = false, doneDisabled = false, doneLabel = '완료' }: {
+  onClose: () => void; onDone?: () => void; disabled?: boolean; doneDisabled?: boolean; doneLabel?: string;
+}) {
+  return (
+    <Row style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+      <Pressable onPress={onClose} disabled={disabled} accessibilityRole="button" hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 16, color: disabled ? paper.faint : L.head }}>닫기</Text>
+      </Pressable>
+      {onDone && <Pressable onPress={onDone} disabled={doneDisabled} accessibilityRole="button" accessibilityLabel={doneLabel} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: doneDisabled ? paper.faint : L.head }}>완료</Text>
+      </Pressable>}
+    </Row>
   );
 }
 
@@ -2137,10 +2142,8 @@ const s = StyleSheet.create({
   phoneChipTxt: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: L.voltDeep, fontVariant: ['tabular-nums'] },
   phoneNotice: { fontSize: 15, lineHeight: 18, color: L.dim, marginTop: 10, textAlign: 'center' },
   sheet: {
-    backgroundColor: L.bg, borderTopLeftRadius: lilacRadius.screen, borderTopRightRadius: lilacRadius.screen,
-    padding: 16, paddingBottom: 34,
+    flex: 1, backgroundColor: L.bg, padding: 16,
   },
-  grab: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: L.hair, marginBottom: 12 },
   legal: {
     flexDirection: 'row', gap: 9, alignItems: 'flex-start',
     backgroundColor: L.card, borderRadius: lilacRadius.inner, borderWidth: 1, borderColor: L.hair,

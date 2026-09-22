@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState, useMemo } from 'react';
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, FlatList, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgLinear, Rect, Stop } from 'react-native-svg';
 import { Icon, Row } from '../../src/components/ui';
 import {
@@ -195,7 +195,7 @@ export default function ClubPage() {
   // 날짜·시각은 이제 따로 고른다 (프리셋 3개 은퇴). 기본값 = 내일, 09:00 — 가장 흔한 선택이지
   // 유일한 선택이 아니다.
   const [dateIdx, setDateIdx] = useState(1);
-  const [timeIdx, setTimeIdx] = useState(CLUB_TIMES.findIndex((t) => t.h === 9 && t.m === 0));
+  const [timeIdx, setTimeIdx] = useState(() => CLUB_TIMES.findIndex((t) => t.h === 9 && t.m === 0));
   const CLUB_DATES = useMemo(() => buildClubDates(), []);   // inline form — 린트 규칙이 참조 전달을 거부한다
   const [meetup, setMeetup] = useState('');
   const [cap, setCap] = useState(12);   // 서버 기본값과 같은 값 (0037:365)
@@ -893,16 +893,16 @@ export default function ClubPage() {
       </ScrollView>
 
       {/* ---------- 세션 개설 시트 (호스트, S1 프리셋 — 라일락 재도장) ---------- */}
-      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(28,24,55,.5)' }} onPress={() => setSheetOpen(false)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        {/* ⚠ [2026-08-26 Sean] 이 시트는 스크롤이 없었고, 그래서 두 가지가 동시에 깨졌다:
-            내용이 길어지면 백드롭(flex:1)이 0으로 눌려 시트가 노치 밑까지 올라가 제목이 잘렸고
-            (「세션 열기」가 다이내믹 아일랜드에 겹쳐 렌더된 스크린샷), 화면을 넘긴 아래쪽 —
-            정원·매주 반복·CTA — 에는 **닿을 방법이 자체가 없었다** (「not scrollable to any
-            extent」). 높이를 화면의 88%로 묶어 백드롭이 항상 남게 하고, 본문만 스크롤시키고,
-            CTA는 스크롤 밖에 고정한다: 목록이 아무리 길어도 여는 버튼은 늘 같은 자리에 있다. */}
-        <View style={s.sheet}>
+      <Modal visible={sheetOpen} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setSheetOpen(false)}>
+        <SafeAreaView style={s.sheet}>
+          <Row style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+            <Pressable onPress={() => setSheetOpen(false)} accessibilityRole="button" hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 16, color: L.head }}>취소</Text>
+            </Pressable>
+            <Pressable onPress={createSession} disabled={busy} accessibilityRole="button" accessibilityLabel="완료 — 세션 열기" accessibilityState={{ busy }} hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: L.head }}>{busy ? '여는 중…' : '완료'}</Text>
+            </Pressable>
+          </Row>
           <Text style={[{ fontSize: 19, lineHeight: 24, color: L.head }, df]}>세션 열기</Text>
           <Text style={{ fontSize: 15, lineHeight: 20, color: L.dim, marginTop: 3 }}>{/* CLUB15 */}시간·집결지·정원 — 열리면 바로 멤버에게 보여요</Text>
           <ScrollView
@@ -913,25 +913,27 @@ export default function ClubPage() {
           >
           {/* 날짜 — 21일. 프리셋 3개로는 화요일 저녁 세션을 열 방법이 없었다. */}
           <Text style={s.fieldLbl}>날짜</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-            {CLUB_DATES.map((d, i) => (
-              <Pressable key={d.key} onPress={() => setDateIdx(i)} style={[s.dcell, dateIdx === i && s.dcellOn]}
+          <FlatList horizontal data={CLUB_DATES} extraData={dateIdx} keyExtractor={(d) => d.key}
+            showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+            renderItem={({ item: d, index: i }) => (
+              <Pressable onPress={() => setDateIdx(i)} style={[s.dcell, dateIdx === i && s.dcellOn]}
                 accessibilityRole="radio" accessibilityState={{ selected: dateIdx === i }}>
                 <Text style={[s.dcellW, dateIdx === i && s.dcellTxtOn]}>{d.label ?? d.w}</Text>
                 <Text style={[s.dcellD, dateIdx === i && s.dcellTxtOn]}>{d.d}</Text>
               </Pressable>
-            ))}
-          </ScrollView>
+            )}
+          />
           {/* 시각 — 05:00~21:00, 30분 간격. 그의 「integer times like at half an hour or the hour」. */}
           <Text style={s.fieldLbl}>시각</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
-            {CLUB_TIMES.map((t, i) => (
-              <Pressable key={t.label} onPress={() => setTimeIdx(i)} style={[s.chip, timeIdx === i && s.chipOn]}
+          <FlatList horizontal data={CLUB_TIMES} extraData={timeIdx} keyExtractor={(t) => t.label}
+            showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
+            renderItem={({ item: t, index: i }) => (
+              <Pressable onPress={() => setTimeIdx(i)} style={[s.chip, timeIdx === i && s.chipOn]}
                 accessibilityRole="radio" accessibilityState={{ selected: timeIdx === i }}>
                 <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: timeIdx === i ? '#fff' : L.text }}>{t.label}</Text>
               </Pressable>
-            ))}
-          </ScrollView>
+            )}
+          />
           <TextInput
             value={meetup} onChangeText={setMeetup} autoCorrect={false}
             placeholder="집결지 — 예: 잠수교 북단 계단 앞" placeholderTextColor={L.dim} style={s.input}
@@ -1011,7 +1013,7 @@ export default function ClubPage() {
           {/* [Sean 규칙] 여백 화면 = 큰 버튼 — 그리고 스크롤 **밖**에 있다. 목록이 길어도
               여는 버튼이 화면 밖으로 밀려나지 않는다 (위 주석의 두 번째 고장). */}
           <ClubCta label={busy ? '여는 중...' : '세션 열기'} onPress={createSession} busy={busy} style={{ paddingVertical: 17, marginTop: 12 }} />
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -1191,13 +1193,8 @@ const s = StyleSheet.create({
   // ⚠ lineHeight 명시 (BUG A) — 코스 이름에 km 숫자가 들어온다.
   sl: { fontSize: 15.5, lineHeight: 21, fontWeight: '800', color: L.text },
   slOn: { color: L.head },
-  // maxHeight 88% — 백드롭이 늘 남아 있어야 시트가 노치 밑으로 올라가지 못하고, 그래야 제목이
-  // 상태바에 겹치지 않는다. 본문은 안쪽 ScrollView가 맡고 CTA는 그 밖에 고정된다.
-  sheet: {
-    backgroundColor: paper.canvas, borderTopLeftRadius: 0, borderTopRightRadius: 0,
-    padding: 18, paddingBottom: 34, borderTopWidth: 1, borderTopColor: paper.line,
-    maxHeight: '88%',
-  },
+  // Native sheet chrome owns the safe area; the form scrolls above its fixed action.
+  sheet: { flex: 1, backgroundColor: paper.canvas, padding: 18 },
   chip: {
     borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
     backgroundColor: L.card, borderWidth: 1.3, borderColor: L.hair,

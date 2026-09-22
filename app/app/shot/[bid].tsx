@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { fetchRunReportOrNull, fetchRunStandings, RunReport, RunStandings } from '../../src/lib/api';
 import { homePath } from '../../src/components/bottomnav';
@@ -131,8 +131,8 @@ function Lockup({ df, small, light = true }: { df: any; small?: boolean; light?:
 
 // ── 사진 레이어 — 핀치 줌 · 드래그 팬 · 더블탭 리셋 (스탯·로고 레이어는 고정) ──
 function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number; resetKey: string }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const pan = useRef(new Animated.ValueXY()).current;
+  const [scale] = useState(() => new Animated.Value(1));
+  const [pan] = useState(() => new Animated.ValueXY());
   const st = useRef({ baseScale: 1, baseX: 0, baseY: 0, startDist: 0, lastTap: 0 }).current;
 
   // 새 사진 = transform 리셋 (이전 사진의 크롭 유령 방지)
@@ -142,7 +142,7 @@ function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
-  const responder = useRef(PanResponder.create({
+  const [responder] = useState(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2,
     onPanResponderGrant: (e) => {
@@ -172,7 +172,7 @@ function PhotoLayer({ uri, w, h, resetKey }: { uri: string; w: number; h: number
       scale.stopAnimation((v: number) => { st.baseScale = Math.min(3.5, Math.max(1, v)); });
       st.startDist = 0;
     },
-  })).current;
+  }));
 
   return (
     <Animated.View
@@ -251,7 +251,8 @@ export default function ShotStudio() {
   const [photoOn, setPhotoOn] = useState<{ A: boolean; Bp: boolean }>({ A: false, Bp: true });
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
-  const activeRef = useRef(0); // onScroll compares against this, not the closure's possibly-stale `active`; state stays for render
+  const activeRef = useRef(0);
+  const [scrollX] = useState(() => new Animated.Value(0));
   const cardRefs = useRef<Record<SkinKey, View | null>>({ S: null, A: null, Bp: null, G: null, I: null });
 
   // ── 경로 모양 스위치 ── Sean, round 6: 「route trace should be optionally
@@ -883,18 +884,19 @@ export default function ShotStudio() {
             // review N2: the indicator is the ONLY hint that the switch exists below the card.
             showsVerticalScrollIndicator
           >
-          <ScrollView
+          <Animated.ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             snapToInterval={SNAP}
             decelerationRate="fast"
             disableIntervalMomentum
             contentContainerStyle={{ paddingHorizontal: (W - CARD_W) / 2, gap: GAP, alignItems: 'center' }}
-            onScroll={(e) => {
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
+            onMomentumScrollEnd={(e) => {
               const i = Math.min(order.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / SNAP)));
               if (i !== activeRef.current) { activeRef.current = i; setActive(i); haptic('light'); }
             }}
-            scrollEventThrottle={32}
+            scrollEventThrottle={16}
             style={{ flexGrow: 0, marginTop: 8 }}
           >
             {order.map((key) => {
@@ -921,7 +923,7 @@ export default function ShotStudio() {
                 </View>
               );
             })}
-          </ScrollView>
+          </Animated.ScrollView>
 
           {/* 도트 + 스킨명 */}
           <View style={s.dots}>
@@ -1069,11 +1071,17 @@ export default function ShotStudio() {
       )}
 
       {/* ── 사진 시트 — 러너 사진 월 + 갤러리 폴백 ── */}
-      <Modal visible={sheetOpen} transparent animationType="slide" onRequestClose={() => setSheetOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,.5)' }} onPress={() => setSheetOpen(false)}
-          accessibilityRole="button" accessibilityLabel="닫기" />
-        <View style={s.sheet}>
-          <View style={s.grab} />
+      <Modal visible={sheetOpen} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setSheetOpen(false)}>
+        <SafeAreaView style={s.sheet}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Pressable onPress={() => setSheetOpen(false)} accessibilityRole="button" hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 16, color: paper.ink }}>취소</Text>
+            </Pressable>
+            <Pressable onPress={confirmPhoto} disabled={!photos[sheetKey]} accessibilityRole="button" accessibilityLabel="완료 — 이 사진으로 만들기" hitSlop={8} style={{ minHeight: 44, justifyContent: 'center' }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: photos[sheetKey] ? paper.ink : paper.faint }}>완료</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingBottom: 12 }}>
           <Text style={[{ fontSize: 19, fontWeight: '900', color: paper.ink }, df]}>사진 고르기</Text>
           <Text style={{ fontSize: 15, color: colors.dim, marginTop: 3 }}>
             {runPhotos.length > 0 ? '이 러닝에서 러너가 담아온 순간들이에요' : '이 러닝엔 러너 사진이 없어요 — 갤러리에서 골라주세요'}
@@ -1115,7 +1123,8 @@ export default function ShotStudio() {
           >
             <Text style={{ fontSize: 15, fontWeight: '900', color: photos[sheetKey] ? colors.neon : paper.faint }}>이 사진으로 만들기 ›</Text>
           </Pressable>
-        </View>
+          </ScrollView>
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -1182,8 +1191,7 @@ const s = StyleSheet.create({
   actRow: { flexDirection: 'row', gap: 9, paddingHorizontal: 18, marginTop: 12, marginBottom: 34 },
   actGhost: { flex: 1, borderWidth: 1.5, borderColor: '#2c4034', borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   actMain: { flex: 1.4, backgroundColor: colors.neon, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
-  sheet: { backgroundColor: colors.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 30 },
-  grab: { width: 40, height: 4.5, borderRadius: 3, backgroundColor: '#DCD6C4', alignSelf: 'center', marginBottom: 12 },
+  sheet: { flex: 1, backgroundColor: colors.cream, padding: 16 },
   wallGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
   wph: { width: (W - 32 - 12) / 3, aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DCD6C4' },
   wphSel: { borderWidth: 3, borderColor: colors.neon },
