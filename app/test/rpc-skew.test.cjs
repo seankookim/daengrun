@@ -17,9 +17,19 @@ let pass = 0, fail = 0;
 const t = (n, f) => { try { f(); console.log('PASS ' + n); pass++; } catch (e) { console.log('FAIL ' + n + ' — ' + e.message); fail++; } };
 const ok = (c, m) => { if (!c) throw new Error(m); };
 
-t('the REAL list is consulted by the shipped predicate (empty today → never a skew)', () => {
+// [0215, 2026-09-23] This pin USED to read 「empty today → never a skew」 and assert only the
+// negative. The list is no longer empty (`runner_offered_slots`), so the pin was updated in the
+// same slice that changed what it asserts — leaving it would have made the harness red for a true
+// reason. It now measures BOTH directions against the REAL list, which is strictly more than it
+// did before: a listed name is a skew, an unlisted one never is.
+t('the REAL list is consulted by the shipped predicate — a LISTED function is a skew', () => {
+  ok(isPendingDeploy('runner_offered_slots',
+    { code: 'PGRST202', message: NOT_FOUND('runner_offered_slots') }),
+    'runner_offered_slots is on PENDING_DEPLOY but the shipped predicate did not read it');
+});
+t('the REAL list is consulted by the shipped predicate — an UNLISTED function is never a skew', () => {
   ok(!isPendingDeploy('session_add_my_dog', { code: 'PGRST202', message: NOT_FOUND('session_add_my_dog') }),
-    'the real list is not empty, or the shipped predicate is not reading it');
+    'session_add_my_dog is not on the list, yet the shipped predicate translated it');
 });
 
 t('an allowlisted function with PGRST202 is a skew', () =>
@@ -77,7 +87,9 @@ t('⚠ the PENDING_DEPLOY list is pinned — it must SHRINK, and a change must b
   const keys = Object.keys(PENDING_DEPLOY).sort();
   // 2026-08-27: session_record_companion_run 추가 (0143 동반 러닝 기록 writer, 같은 커밋에서 작성 —
   // 배포 전까지 PGRST202가 뜨는 창이 실재한다). 배포되면 두 곳을 함께 지운다.
-  ok(JSON.stringify(keys) === JSON.stringify([]),
+  // 2026-09-23: runner_offered_slots 추가 (0215 §A 후보 슬롯 달력 리더, 같은 커밋에서 작성).
+  // 배포되면 rpc-skew.ts의 줄과 이 배열을 함께 지워 다시 [] 로 돌린다.
+  ok(JSON.stringify(keys) === JSON.stringify(['runner_offered_slots']),
     'list changed to ' + JSON.stringify(keys) + ' — EMPTY is the correct resting state. If you '
     + 'ADDED one, say why in the entry and update this pin; if a migration deployed, delete it here too.');
   for (const [k, why] of Object.entries(PENDING_DEPLOY))

@@ -17,6 +17,12 @@ export const PENDING_DEPLOY: Record<string, string> = {
   // 2026-08-27: session_add_my_dog(0134) · session_record_companion_run(0146) 배포 확인 후 제거.
   //   확인 방법은 푸시 리포트가 아니라 프로덕션 카탈로그다:
   //   select count(*) from pg_proc where proname='session_add_my_dog'  → 1
+  // 2026-09-23: runner_offered_slots(0215 §A) 추가 — 후보 슬롯 달력 리더를 같은 커밋에서 작성했고,
+  //   db push 전까지 PGRST202가 뜨는 창이 실재한다. 이 함수만은 스큐가 화면 오류가 아니라 **주간
+  //   그리드 폴백**으로 접힌다 (api.ts fetchOfferedSlots) — 0215 이전의 동작 그대로다.
+  //   배포되면 두 곳(이 줄과 test/rpc-skew.test.cjs의 목록 핀)을 함께 지운다:
+  //   select count(*) from pg_proc where proname='runner_offered_slots'  → 1
+  runner_offered_slots: '0215 후보 슬롯 달력 — db push 전까지 주간 그리드로 폴백',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */

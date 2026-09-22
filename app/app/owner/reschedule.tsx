@@ -5,15 +5,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import {
-  AvailRule, checkSlot, fetchRescheduleInfo, fetchRunnerAvailability, NOT_FOUND,
-  requestReschedule, RescheduleInfo, withdrawReschedule,
+  AvailRule, checkSlot, fetchOfferedSlots, fetchRescheduleInfo, fetchRunnerAvailability, NOT_FOUND,
+  OfferedSlotRow, requestReschedule, RescheduleInfo, withdrawReschedule,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
-import { kstCal, kstInstant } from '../../src/lib/kst';
+import { kstCal, kstInstant, type KstCal } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
+// [0215] 후보 슬롯 규칙은 순수 모듈 한 벌 — 이 화면과 runner-profile/[id] 가 같은 것을 읽는다.
+import { EXTRA_CHIP_KO, kstDayKey, OfferedSource, slotStartsForDay, windowsFromRules } from '../../src/lib/offered-slots';
 
 // 일정 변경 = 제안 (reschedule-as-proposal, 0016)
 // 확정 예약은 계약 — 여기서 고른 새 시간은 '요청'일 뿐, 러너가 수락해야 실제로 바뀐다.
@@ -74,6 +76,11 @@ export default function Reschedule() {
   // and cancels a CONFIRMED booking instead of moving it, which is the 10% fee tier
   // (`cancelBooking`, src/lib/api.ts:1124). An empty grid must mean the server said empty.
   const [rules, setRules] = useState<AvailRule[] | null | 'error'>(null);
+  // [0215] 후보 슬롯의 달력 — 주간 그리드 ∪ 추가 근무 − 휴가. 0215 이전에는 이 화면이 `rules`만
+  // 열거해서 러너가 연 추가 근무 창을 **내줄 방법이 없었다** (판정은 이미 true였다 — review F2 ③④).
+  // 'fallback' = 이 빌드가 0215보다 앞서 나갔다; 그때만 주간 그리드로 접는다(0215 이전 동작 그대로).
+  const [offered, setOffered] = useState<OfferedSlotRow[]>([]);
+  const [offeredState, setOfferedState] = useState<'loading' | 'ready' | 'fallback' | 'error'>('loading');
   const [dayIdx, setDayIdx] = useState(0);
   // null = 확인 중 · 'error' = check failed (availability UNKNOWN — never painted 가능)
   const [slotOk, setSlotOk] = useState<Record<string, boolean | null | 'error'>>({});
@@ -93,7 +100,7 @@ export default function Reschedule() {
         setInfo(i);
         // A confirmed booking always carries a runner. If one is somehow missing there is no
         // availability to read at all — say that instead of spinning on a fetch we never fire.
-        if (i.runnerId) loadRules(i.runnerId); else setRules('error');
+        if (i.runnerId) loadRules(i.runnerId); else { setRules('error'); setOfferedState('error'); }
       })
       // Never render `e.message`: PostgREST's English reached this screen verbatim. Not-found and
       // failure are different states — only the second one can be retried.
@@ -108,13 +115,38 @@ export default function Reschedule() {
     return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
   }), []);
 
+  // [0215] 가용 달력 로드. `rules`와 나란히 사는 이유: `rules`는 요일 점과 폴백이 쓰고, 이쪽은
+  // 후보 칸이 쓴다. 둘 다 실패를 '빈 달력'으로 접지 않는다.
+  const loadOffered = (runnerId: string) => {
+    setOfferedState('loading');
+    fetchOfferedSlots(runnerId, kstDayKey(days[0].cal), kstDayKey(days[days.length - 1].cal))
+      .then((rows) => {
+        if (rows === null) { setOffered([]); setOfferedState('fallback'); return; }
+        setOffered(rows); setOfferedState('ready');
+      })
+      .catch(() => { setOffered([]); setOfferedState('error'); });
+  };
+  const offeredRunnerId = info?.runnerId ?? null;
+  useEffect(() => {
+    // ⚠ info가 아직 없을 때는 아무것도 하지 않는다 — 'loading'이 그 순간의 정확한 상태다.
+    // 러너가 없는 예약(있을 수 없지만)은 load() 안에서 rules와 함께 'error'로 간다.
+    if (offeredRunnerId) loadOffered(offeredRunnerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offeredRunnerId]);
+  // 점이 말하는 것: 배포 후에는 **그 날 열린 칸이 있는가**(휴가는 점을 잃고 추가 근무는 점을 얻는다),
+  // 배포 전에는 예전대로 **규칙이 있는 요일인가**. 아래 카피가 그 둘을 다르게 말한다.
+  const offerDayKeys = useMemo(() => new Set(offered.map((o) => o.day)), [offered]);
+
   // [S② 2026-08-24] 러너가 **규칙을 가진 요일** — 이미 로드된 배열에서 파생, 새 fetch 0.
   // rules가 배열이 아닐 때(확인 중·실패)는 빈 Set이고, 렌더는 그 경우 점 자체를 그리지 않는다.
   const ruleWeekdays = useMemo(
     () => new Set((Array.isArray(rules) ? rules : []).map((r) => r.weekday)),
     [rules],
   );
-  const dotsReady = Array.isArray(rules) && rules.length > 0;
+  const dotsFromOffer = offeredState === 'ready';
+  const dotsReady = dotsFromOffer || (Array.isArray(rules) && rules.length > 0);
+  const dayHasOffer = (cal: KstCal) =>
+    (dotsFromOffer ? offerDayKeys.has(kstDayKey(cal)) : ruleWeekdays.has(cal.wd));
 
   // [지속시간 드리프트] 이 화면은 슬롯을 60분으로 검증했는데, 수락 시 서버(transition-booking)는
   // km×8+25분으로 본다 — owner/request.tsx의 slotAllowed가 쓰는 것과 같은 식이다. 10km 예약이면
@@ -123,21 +155,23 @@ export default function Reschedule() {
   const durMin = expectedDurationMs(info?.km ?? 5) / 60_000; // 한 벌: src/lib/lateness.ts
   const daySlots = useMemo(() => {
     const day = days[dayIdx];
-    const wd = day.cal.wd; // KST 요일 — rules.weekday가 KST 고정이다
-    const out: { key: string; label: string; start: Date }[] = [];
+    const dayKey = kstDayKey(day.cal); // KST 날짜 — 서버의 day 칸과 같은 어휘다
+    const out: { key: string; label: string; start: Date; source: OfferedSource }[] = [];
     const minStart = Date.now() + 2 * 3600_000; // 최소 2시간 통보 (예약 규칙과 동일)
-    // Loading ('null') and failure ('error') produce no slots, but they are NOT an empty
-    // availability — the render below tells those three apart before it draws anything.
-    (Array.isArray(rules) ? rules : []).filter((r) => r.weekday === wd).forEach((r) => {
-      // 시작 칸은 60분 간격이되(그리드 눈금), 규칙 창 안에 **실소요**가 들어가야 칸이 산다.
-      for (let m = r.startMin; m + durMin <= r.endMin; m += 60) {
-        const start = kstInstant(day.cal, Math.floor(m / 60), m % 60);
-        if (start.getTime() < minStart) continue;
-        out.push({ key: start.toISOString(), label: fmtMin(m), start });
-      }
+    // Loading and failure produce no slots, but they are NOT an empty availability — the render
+    // below tells those apart before it draws anything. [0215] 폴백은 0215 미배포일 때만이다.
+    const windows = offeredState === 'ready' ? offered
+      : offeredState === 'fallback' ? windowsFromRules(Array.isArray(rules) ? rules : [], day.cal)
+      : [];
+    // 시작 칸은 60분 간격이되(그리드 눈금), **한 창 안에** 실소요가 들어가야 칸이 산다 — 창을
+    // 붙여서 넓히지 않는다(is_slot_available §1도 한 행이 담기를 요구한다). offered-slots.ts 참조.
+    slotStartsForDay(windows, dayKey, durMin).forEach((sl) => {
+      const start = kstInstant(day.cal, Math.floor(sl.startMin / 60), sl.startMin % 60);
+      if (start.getTime() < minStart) return;
+      out.push({ key: start.toISOString(), label: fmtMin(sl.startMin), start, source: sl.source });
     });
     return out;
-  }, [rules, dayIdx, days, durMin]);
+  }, [rules, dayIdx, days, durMin, offered, offeredState]);
 
   // 슬롯별 서버 검증 — 러너 프로필 그리드와 동일 (규칙 + 예약 충돌 + 휴식 버퍼)
   // [honesty P1 2026-08-11] a failed check used to paint the slot 가능 — a booking
@@ -309,7 +343,9 @@ export default function Reschedule() {
             <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', marginTop: 18 }}>
               <Text style={{ fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.ink }}>언제로 옮길까요</Text>
               {dotsReady && (
-                <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim }}>● {info.runnerName ?? '러너'} 러너 운영 요일</Text>
+                <Text style={{ fontSize: 15, lineHeight: 18, color: paper.dim }}>
+                  ● {info.runnerName ?? '러너'} 러너 {dotsFromOffer ? '가능한 날' : '운영 요일'}
+                </Text>
               )}
             </Row>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 8 }}>
@@ -322,13 +358,15 @@ export default function Reschedule() {
                     style={[s.dayChip, on && s.dayChipOn]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
-                    accessibilityLabel={`${d.label ?? `${d.w}요일`} ${d.d}일${dotsReady ? (ruleWeekdays.has(d.cal.wd) ? ' · 러너 운영 요일' : '') : ''}`}
+                    accessibilityLabel={`${d.label ?? `${d.w}요일`} ${d.d}일${dotsReady && dayHasOffer(d.cal) ? (dotsFromOffer ? ' · 가능한 날' : ' · 러너 운영 요일') : ''}`}
                   >
                     <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '700', color: on ? ON_INK_SOFT : paper.dim }}>{d.label ?? d.w}</Text>
                     <Text style={{ fontSize: 17, lineHeight: 22, fontWeight: '900', color: on ? '#FFFFFF' : paper.ink, marginTop: 2 }}>{d.d}</Text>
-                    {/* 점은 '규칙이 있는 요일'만 말한다. rules가 아직/영영 없으면 아무 점도 찍지 않는다 */}
+                    {/* [0215] 점이 말하는 것이 달라졌다: 배포 후에는 '그 날 열린 칸이 있다'(휴가는
+                        점을 잃고 추가 근무는 점을 얻는다), 배포 전에는 예전대로 '규칙이 있는 요일'.
+                        어느 쪽도 모를 때는 아무 점도 찍지 않는다 — 없는 점이 '쉬는 날'이 되면 안 된다. */}
                     <View style={{ height: 5, marginTop: 4, justifyContent: 'center' }}>
-                      {dotsReady && ruleWeekdays.has(d.cal.wd) && <View style={[s.dayDot, on && { backgroundColor: '#FFFFFF' }]} />}
+                      {dotsReady && dayHasOffer(d.cal) && <View style={[s.dayDot, on && { backgroundColor: '#FFFFFF' }]} />}
                     </View>
                   </Pressable>
                 );
@@ -336,18 +374,24 @@ export default function Reschedule() {
             </ScrollView>
             {dotsReady && (
               <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 10 }}>
-                점이 없는 날은 이 러너가 뛰지 않는 요일이에요 — 칸이 열려도 실제 가능 여부는 칸마다 확인해요
+                {dotsFromOffer
+                  ? '점이 없는 날은 이 러너가 쉬는 날이에요 — 칸이 열려도 실제 가능 여부는 칸마다 확인해요'
+                  : '점이 없는 날은 이 러너가 뛰지 않는 요일이에요 — 칸이 열려도 실제 가능 여부는 칸마다 확인해요'}
               </Text>
             )}
 
             {/* 슬롯 그리드 — 이 러너의 실가용 시간만 */}
             {/* Three states come before the grid because they mean three different things to
                 the owner: a failed load is not an empty calendar, nor is a load still in flight. */}
-            {rules === 'error' ? (
+            {rules === 'error' || offeredState === 'error' ? (
               <View style={s.failStrip}>
                 <Text style={{ flex: 1, fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical }}>가능 시간을 불러오지 못했어요</Text>
                 <Pressable
-                  onPress={() => (info.runnerId ? loadRules(info.runnerId) : load())}
+                  onPress={() => {
+                    // [0215] 두 읽기가 있으니 재시도도 둘 다 — 한쪽만 다시 걸면 실패가 남은 채로
+                    // 화면이 정상으로 보인다.
+                    if (info.runnerId) { loadRules(info.runnerId); loadOffered(info.runnerId); } else load();
+                  }}
                   style={{ minHeight: 44, justifyContent: 'center' }}
                   accessibilityRole="button"
                   accessibilityLabel="다시 시도"
@@ -355,7 +399,7 @@ export default function Reschedule() {
                   <Text style={s.failAction}>다시 시도</Text>
                 </Pressable>
               </View>
-            ) : rules === null ? (
+            ) : rules === null || offeredState === 'loading' ? (
               <Text style={[s.noticeText, { marginTop: 16, textAlign: 'left' }]}>가능 시간을 불러오는 중…</Text>
             ) : daySlots.length === 0 ? (
               <Text style={[s.noticeText, { marginTop: 16, textAlign: 'left' }]}>이 날은 {info.runnerName ?? '러너'} 러너의 가능 시간이 없어요</Text>
@@ -420,6 +464,16 @@ export default function Reschedule() {
                         }}>
                           {isCur ? '현재' : ok === null || ok === undefined ? '확인 중' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === false ? '마감' : '가능'}
                         </Text>
+                        {/* [0215] 추가 근무 칩 — 서버의 source 를 그대로 묶는다, 추측하지 않는다.
+                            주간 그리드가 덮지 않는 시간일 때만 뜬다 (offered-slots.ts 의 라벨 규칙). */}
+                        {sl.source === 'extra' && (
+                          <Text style={{
+                            fontSize: 15, lineHeight: 18, fontWeight: '700', marginTop: 2,
+                            color: isPicked ? ON_INK_SOFT : paper.ink,
+                          }}>
+                            {EXTRA_CHIP_KO}
+                          </Text>
+                        )}
                       </Pressable>
                     );
                   })}
