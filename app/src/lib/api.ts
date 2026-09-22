@@ -18,6 +18,7 @@ import { isPendingDeploy } from './rpc-skew';
 // else with no Hangul → the fold. Pure, pinned by `test/rpc-error-fold.test.cjs`. See its header
 // for the measurement that produced it (a Release build printed a PostgREST sentence at
 // `daengrun://ops`). ⚠ `custodyPing` below is the ONE deliberate exception and says why.
+import type { MonthTotal } from './earnings-month';
 import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
@@ -1225,6 +1226,14 @@ export interface OpenRequest {
    *  they are distinguished is the requests screen's door, which asks `fetchMyRunnerBase()`
    *  directly rather than inferring from a null here — see requests.tsx. */
   distanceBand: string | null;
+  /** [0209 §B] `dogs.neutered`, straight off the request view. THREE states and the third is not
+   *  a value: `true` 중성화 완료, `false` 안 함, and **null when the owner never answered** —
+   *  `owner/dog.tsx` offers no 「모름」 and writes `neutered ?? undefined`, so an unanswered dog
+   *  has NULL in the column. The card draws nothing at all for null; an absent answer is not a
+   *  third answer, and 「중성화 정보 없음」 would be this screen inventing one.
+   *  Collected since 0001:44 and shown to no runner until 0209 appended it to the two request
+   *  views — the field was a question we asked an owner and then dropped. */
+  neutered: boolean | null;
 }
 
 // [0121] ONE mapper for BOTH request legs: runner_open_requests and my_directed_requests are
@@ -1251,6 +1260,9 @@ function mapRunnerRequest(r: any, directed: boolean): OpenRequest {
     vaccines: ((r.vaccinations as any[]) ?? []).map((v) => v.type),
     routeId: r.route_id ?? null,
     routeName: r.route_name ?? null,
+    // [0209 §B] `?? null` and never `!!r.neutered`: a boolean coercion turns 「the owner never
+    // answered」 into 「중성화 안 함」, which is a claim about a dog nobody made.
+    neutered: r.neutered ?? null,
     pickupDong: null,   // [0122] filled by fetchRunnerInbox's dong leg, keyed by booking id
     distanceBand: null, // [0123] filled by the distance leg, same keying — see fetchRunnerInbox
   };
@@ -3825,6 +3837,32 @@ export async function fetchLedgerUnpaidTotal(): Promise<number> {
   const { data, error } = await supabase.rpc('my_ledger_unpaid_total');
   if (error) throw foldRpcError(error, { fn: 'my_ledger_unpaid_total', empty: '미지급 합계를 불러오지 못했어요' });
   return Number(data ?? 0);
+}
+
+/** 월별 수익 — one row per KST month this runner earned in, newest first (0209 §A).
+ *
+ *  ⚠ THIS IS NOT A RE-READ OF `fetchLedger`. `my_ledger_rows` carries `limit 30`, so bucketing
+ *    its rows in JS would be silently WRONG for exactly the runners who work most — the
+ *    `fetchRunnerJobs` cap class arriving through an aggregate. The server counts.
+ *  ⚠ The month bucket is a KST calendar fact the SERVER decided (`at time zone 'Asia/Seoul'`),
+ *    and `monthStart` is carried as TEXT so this client never re-parses a date it has already
+ *    been given in the right zone. `earnings-month.ts` formats it from the text.
+ *  ⚠ Net only. No gross, no fee, no rate — a month total is a sum of numbers the runner already
+ *    reads per row, and any component beside it hands the margin back by subtraction
+ *    (Sean 2026-08-24). `paidWon` is that same net split by 0186's payout marker.
+ *  ⚠ `?? 0` on the three numbers and `?? ''` on the month is a MISSING KEY becoming an absent
+ *    value, never a claim: a client running ahead of 0209's deploy gets a month it renders
+ *    nothing for rather than a fabricated zero month. An unparseable `monthStart` is dropped by
+ *    `monthLabel` downstream, which is where that decision already lives. */
+export async function fetchLedgerMonthTotals(months?: number): Promise<MonthTotal[]> {
+  const { data, error } = await supabase.rpc('my_ledger_month_totals', { p_months: months ?? null });
+  if (error) throw foldRpcError(error, { fn: 'my_ledger_month_totals', empty: '월별 수익을 불러오지 못했어요' });
+  return ((data ?? []) as any[]).map((m) => ({
+    monthStart: String(m.month_start ?? ''),
+    netWon: Number(m.net_won ?? 0),
+    runCount: Number(m.run_count ?? 0),
+    paidWon: Number(m.paid_won ?? 0),
+  }));
 }
 
 // ---------- chat (Realtime) ----------

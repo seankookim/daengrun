@@ -524,11 +524,30 @@ export default function Requests() {
               </Text>
             </View>
           </Row>
-          {(req.vaccines.length > 0 || (!preAccept && req.prefTags.length > 0)) && (
+          {(req.vaccines.length > 0 || req.neutered != null || (!preAccept && req.prefTags.length > 0)) && (
             <Row style={{ gap: 5, marginTop: 9, flexWrap: 'wrap' }}>
               {req.vaccines.length > 0 && (
                 <View style={[s.metaChip, { backgroundColor: '#E3EFF9' }]}>
                   <Text style={{ fontSize: 15, fontWeight: '700', color: '#2D6DA8' }}>백신 {req.vaccines.length}종</Text>
+                </View>
+              )}
+              {/* [0209 §B] 중성화 — `dogs.neutered`는 0001부터 모아 온 칸인데 러너가 볼 수 있는
+                  곳이 한 군데도 없었다(0209 §0f: 보호자에게 묻고 버리던 질문). 백신 칩 옆이
+                  자리인 이유는 같은 부류의 사실이기 때문이다 — 보호자가 **러너를 위해** 적은,
+                  혼자 데리고 나갈 그 동물에 대한 사육 정보다.
+                  🔴 **`!= null`이지 truthiness가 아니다.** 세 상태이고 셋째는 값이 아니다:
+                    true 「중성화」 · false 「중성화 안 함」 · **무응답은 아무것도 안 그린다**.
+                    `owner/dog.tsx`에는 「모름」 선택지가 없고 `neutered ?? undefined`로 쓰므로
+                    답하지 않은 강아지는 NULL이고, 그걸 「중성화 안 함」으로 접으면 아무도 한 적
+                    없는 주장을 러너에게 사실로 파는 것이다. 자리표시자도 없다 — 없는 답은 세
+                    번째 답이 아니다(이 화면이 동·거리 밴드·품종·체중에 이미 쓰는 법 그대로).
+                  ⚠ 중립 칩이다. 어느 쪽도 좋은 소식도 나쁜 소식도 아니고, 색을 주면 한쪽이
+                    경고처럼 읽힌다. 15pt — 한국어는 kicker 면제를 타지 않는다 (DESIGN.md §3). */}
+              {req.neutered != null && (
+                <View style={[s.metaChip, { backgroundColor: GREY_CHIP }]}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>
+                    {req.neutered ? '중성화' : '중성화 안 함'}
+                  </Text>
                 </View>
               )}
               {!preAccept && req.prefTags.map((t) => (

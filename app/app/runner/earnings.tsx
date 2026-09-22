@@ -7,11 +7,15 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import {
-  fetchLedger, fetchLedgerTotal, fetchLedgerUnpaidTotal, fetchMyBankAccount, fetchMyPayouts,
-  fetchMyPayoutMethodLabels, LiveLedgerItem, MyBankAccount, MyPayout,
+  fetchLedger, fetchLedgerMonthTotals, fetchLedgerTotal, fetchLedgerUnpaidTotal, fetchMyBankAccount,
+  fetchMyPayouts, fetchMyPayoutMethodLabels, LiveLedgerItem, MyBankAccount, MyPayout,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import {
+  monthLabel, MONTHS_EMPTY_KO, MONTHS_WINDOW, type MonthTotal, netAmount, paidLine, runLine,
+  sortMonthsNewestFirst,
+} from '../../src/lib/earnings-month';
 import {
   ledgerPaymentLabel, ledgerPaymentState, payoutPeriodLabel, payoutStatusWithMethod,
   sortPayoutsNewestFirst,
@@ -109,6 +113,28 @@ export default function Earnings() {
   //   for the failure that actually matters.
   const [methodLabels, setMethodLabels] = useState<Map<string, string>>(new Map());
 
+  // [0209] 월별 수익 — **자기 로드 그룹**이고, 0192가 지급 내역을 떼어 낸 것과 같은 이유다: 한
+  // 읽기의 실패가 다른 읽기의 성공을 지우면 그건 실패를 실패로 보이게 하는 게 아니라 성공을
+  // 실패로 지우는 것이다. 여기엔 실패 스트립이 **있다** — 0200의 수단 라벨과 달리 이건 행 위에
+  // 얹는 형용사가 아니라 그 자체로 한 섹션이고, 없으면 섹션이 통째로 빈다. 빈 섹션과 못 읽은
+  // 섹션은 러너에게 전혀 다른 사실이다.
+  const [months, setMonths] = useState<MonthTotal[]>([]);
+  const [moLoaded, setMoLoaded] = useState(false);
+  const [moErr, setMoErr] = useState(false);
+  const loadMonths = () => {
+    setMoErr(false);
+    return fetchLedgerMonthTotals(MONTHS_WINDOW)
+      .then((rows) => { setMonths(sortMonthsNewestFirst(rows)); setMoLoaded(true); })
+      .catch((e) => {
+        // 같은 법(requests.tsx:99-106): 실패하면 **값을 버린다**. 실패 스트립 아래에 지난번 달
+        // 목록을 그대로 두면, 방금 끝난 이번 달이 없는 것처럼 읽힌다.
+        console.warn('[earnings] months:', rpcRaw(e));
+        setMoLoaded(false);
+        setMonths([]);
+        setMoErr(true);
+      });
+  };
+
   const loadLedger = () => {
     setLoadErr(false);
     return Promise.all([
@@ -150,7 +176,7 @@ export default function Earnings() {
         setPoErr(true);
       });
   };
-  const load = () => Promise.all([loadLedger(), loadPayouts()]);
+  const load = () => Promise.all([loadLedger(), loadPayouts(), loadMonths()]);
   useFocusEffect(useCallback(() => { load(); }, []));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
@@ -309,6 +335,80 @@ export default function Earnings() {
           </Pressable>
         )}
 
+        {/* ---------- [0209] 월별 수익 — my_ledger_month_totals, 최근 6개 KST 달 ---------- */}
+        {/* 러닝별 내역 **바로 위**다. 아래 목록은 서버에서 30행으로 잘려 오므로(0121 §A의 limit
+            30) 많이 뛴 러너일수록 그 목록만으로는 지난달을 볼 수 없고, 이 섹션이 그 공백을
+            메운다 — 클라가 30행을 달로 묶으면 바로 그 러너에게 조용히 틀린 숫자가 나온다.
+            ⚠ 달 경계도 달 이름도 서버가 고른 KST 사실이다. month_start는 문자열로 들고 다니고
+              earnings-month.ts가 **글자에서** 이름을 만든다 — new Date로 되돌리면 서울이 아닌
+              폰에서 9월이 8월로 찍힌다(app/test/earnings-month.test.cjs가 세 존에서 핀).
+            ⚠ 서버가 안 준 달은 **없는 달**이고, 0원 행을 만들어 채우지 않는다. 그 러너가 아직
+              없던 달에 대해 「0원을 벌었다」고 쓰게 된다 (0209 §0e의 클라 쪽 절반).
+            ⚠ 이 섹션에 수수료·요율·총액은 없다. 한 달 net은 아래 행들이 이미 보여 준 숫자의
+              합이라 뺄셈할 상대가 없지만, 구성요소가 한 칸이라도 붙는 순간 마진이 돌아온다
+              (2026-08-24 Sean). 「지급 완료」 줄은 그 net을 0186의 표식으로 가른 같은 축이다. */}
+        <View style={s.rule} />
+        <Text style={[s.secTitle, { marginBottom: 10 }]}>월별 수익</Text>
+        {!moLoaded && !moErr && (
+          // 로딩 스켈레톤 — 0이 아니고 빈 상태도 아니다. 두 줄인 이유는 이 섹션이 목록이라는
+          // 것이 로딩 중에도 읽혀야 하기 때문이고, 숫자는 한 글자도 그리지 않는다.
+          <View>
+            {[0, 1].map((i) => (
+              <Row key={i} style={[s.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+                <View style={[s.skel, { width: 92 }]} />
+                <View style={[s.skel, { width: 68 }]} />
+              </Row>
+            ))}
+          </View>
+        )}
+        {moErr && (
+          <View style={s.failStrip}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>월별 수익을 불러오지 못했어요</Text>
+            <Pressable onPress={loadMonths} style={s.retryBtn} accessibilityRole="button">
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+        {moLoaded && !moErr && months.length === 0 && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
+              {MONTHS_EMPTY_KO}
+            </Text>
+          </View>
+        )}
+        {moLoaded && !moErr && months.map((m) => {
+          // 이름이 없는 달은 그리지 않는다 — 읽을 수 없는 month_start는 우리가 갖지 못한 달이고,
+          // 그 자리에 원문을 찍으면 한국어 화면에 '2026-09-01'이 뜬다 (END_REASON_LABEL의 법).
+          const label = monthLabel(m.monthStart);
+          if (label == null) return null;
+          const runs = runLine(m);
+          const paid = paidLine(m);
+          return (
+            <Row key={m.monthStart} style={s.row}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ fontSize: 16.5, lineHeight: 22, fontWeight: '800', color: paper.ink }}>{label}</Text>
+                {/* 러닝 횟수는 0이면 **말하지 않는다**: 취소 보상만 있는 달은 진짜로 0회이고
+                    진짜 돈이 있어서, 「러닝 0회」가 금액 쪽 버그처럼 읽힌다 (0209 §0c). */}
+                {runs != null && (
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 2 }}>{runs}</Text>
+                )}
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Row style={{ alignItems: 'baseline' }}>
+                  {/* Oswald — lineHeight 24 = 1.26× (BUG A) */}
+                  <Text style={[s.netNum, nf]}>{netAmount(m)}</Text>
+                  <Text style={s.netUnit}>원</Text>
+                </Row>
+                {/* 지급된 금액이 있을 때만. 0원은 상태가 아니라 평범한 기다림이고,
+                    「지급 완료 0원」은 실패한 이체처럼 읽힌다. */}
+                {paid != null && (
+                  <Text style={[s.payLine, { color: paper.readyDeep }]}>{paid}</Text>
+                )}
+              </View>
+            </Row>
+          );
+        })}
+
         {/* ledger — §3b section header: full-bleed coral rule + 20/800 ink */}
         <View style={s.rule} />
         <Text style={[s.secTitle, { marginBottom: 10 }]}>러닝별 내역</Text>
@@ -336,8 +436,26 @@ export default function Earnings() {
         {/* 러닝 하나 = 한 줄. 왼쪽은 어떤 러닝이었는지, 오른쪽은 실수령 하나.
             '실수령' 낱말은 지킨다 — 랩의 '적립'과 달리 이 숫자가 **무엇인지** 말한다. 산수는 말하지
             않는다 (2026-08-24 마진 비밀 규칙: 최종 금액 하나만). */}
-        {ledger.map((l) => (
-          <Row key={l.id} style={s.row}>
+        {/* [0209] 행이 **문**이 됐다 — 그 러닝의 기록으로. `my_ledger_rows`는 0192부터
+            booking_id를 돌려주고 매퍼도 들고 있었는데(api.ts LiveLedgerItem.bookingId) 이
+            화면에서는 아무 데도 쓰이지 않았다: 러너가 「이 8,300원이 무슨 러닝이었지」를 물을
+            곳이 없었고, 이 화면의 유일한 탭 가능한 것은 계좌 두 버튼이었다.
+            ⚠ 목적지는 `/runner/done?bid=`이고, **bid가 있을 때만** 이 화면이 콜드 진입에
+              안전하다: 0193이 그 화면을 고쳐서, bid가 오면 모든 숫자를 그 예약에 대해 서버에서
+              다시 읽고(fetchReturnSeal + 원장) 세 상태로 그린다 — 로딩은 0이 아니고 실패는
+              재시도가 붙은 실패다. bid 없이 들어가면 그 화면은 런타임 메모리(runResult)를
+              읽으므로, 며칠 전 러닝을 여기서 열면 **직전에 끝난 다른 러닝의 숫자**가 이 예약의
+              제목 아래 찍힌다 — codex A7이 이름 붙인 바로 그 결함이다. 그래서 파라미터는 선택이
+              아니다.
+            🔴 취소 보상 행은 **버튼이 아니다.** runs 행이 없으므로(0080/0085가 러닝 없이 쓰는
+              행이다) fetchReturnSeal이 null을 내고 목적지는 「기록을 불러오지 못했어요」만
+              그린다 — 있지도 않은 기록을 못 읽었다고 말하는 실패 화면이고, 그건 죽은 버튼보다
+              나쁘다. cancelComp가 그 판별자이고 서버가 정한다(0121 §A: runs 행의 존재).
+              그런 행은 종전 그대로 평범한 텍스트로 남는다 — 눌리지 않고, 눌리는 척도 안 한다. */}
+        {ledger.map((l) => {
+          const openable = !l.cancelComp && !!l.bookingId;
+          const Body = (
+            <>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Row style={{ gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 {/* ⚠ A ledger row does not imply a run happened.
@@ -393,8 +511,21 @@ export default function Earnings() {
                 );
               })()}
             </View>
-          </Row>
-        ))}
+            </>
+          );
+          if (!openable) return <Row key={l.id} style={s.row}>{Body}</Row>;
+          return (
+            <Pressable
+              key={l.id}
+              onPress={() => router.push({ pathname: '/runner/done', params: { bid: l.bookingId } })}
+              accessibilityRole="button"
+              accessibilityLabel={`${l.dogName} 러닝 기록 보기`}
+              style={({ pressed }) => [s.row, { flexDirection: 'row' }, pressed && { backgroundColor: paper.wash }]}
+            >
+              {Body}
+            </Pressable>
+          );
+        })}
 
         {/* ---------- [0192] 지급 내역 — payouts 자기 행 (RLS + 0186의 열 제한 그랜트) ---------- */}
         {/* 0186이 payouts에 쓰는 쪽(ops_record_manual_payout)을 만들기 전까지 이 표는 영원히 비어
@@ -512,6 +643,10 @@ const s = StyleSheet.create({
   // 대기라서, 주의를 끄는 색은 행동을 요구하는 것처럼 읽힌다.
   payLine: { fontSize: 15, lineHeight: 20, fontWeight: '700', marginTop: 2, textAlign: 'right' },
   emptyBox: { backgroundColor: paper.canvas, paddingVertical: 26, alignItems: 'center' },
+  // [0209] 월별 수익의 로딩 스켈레톤 — 숫자를 그리지 않으려고 존재한다. 높이는 그 자리에 올
+  // 16.5/22 한 줄과 같아서, 도착했을 때 목록이 튀지 않는다. 중립 헤어라인 색(#EEEEEE)과 같은
+  // 계열의 면이라 이 화면에 새 색을 들이지 않는다.
+  skel: { height: 14, borderRadius: 2, backgroundColor: '#EEEEEE' },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },
   // [액션 시스템 2026-08-11] 잉크 테두리 박스 은퇴. 이 버튼은 criticalWash 라우드-페일 스트립
