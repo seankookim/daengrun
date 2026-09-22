@@ -83,6 +83,45 @@ Deno.serve(handle(async (req) => {
     if (isOps !== true) throw new HttpError(403, "담당자만 반환을 대신 정리할 수 있어요");
   }
 
+  // ═══ [0214 F4] `runner_accept` IS THE SIBLING NAMED IN THE SAME `if`, AND IT NEEDED THE SAME
+  // ═══ TREATMENT (executing review 2026-09-23, F4) ══════════════════════════════════════════════
+  // 0201 §C closed the exemption above and left this one. MEASURED by that reviewer, with a signed-in
+  // caller who is not a runner:
+  //     present = 403 {"error":"runner only"}
+  //     absent  = 404 {"error":"booking not found"}   ← and the privileged read happened either way
+  // So any signed-in caller could tell a booking uuid from a non-booking uuid, and got a
+  // service-role `select *` on a stranger's booking done on the way.
+  //
+  // 🔴 THE FIX IS THE SAME SHAPE: the caller's own eligibility is resolved BEFORE the booking is
+  // read. `runner_accept`'s eligibility is 「are you a runner at all」 — a fact about `uid` and about
+  // nothing else — so it can be answered without the row. A non-runner now gets the SAME sentence
+  // and the SAME status for a real booking id and for one that does not exist, because neither is
+  // ever looked at.
+  //
+  // ⚠ WHAT THIS DOES **NOT** CLOSE, said plainly so nobody reports a bigger win than this is. The
+  // exemption exists so a runner can accept a booking they are not yet a party to (the open pool),
+  // so a REGISTERED runner still reaches the read and can still distinguish a real booking id from
+  // an absent one. That is inherent to the feature — `marketplace_open_requests` already shows
+  // active runners the open pool — and narrowing it further would need the row the gate is trying
+  // to avoid reading. The oracle is reduced from 「any signed-in account」 to 「a runner row」; it is
+  // not removed.
+  // ⚠ ONE READ, NOT TWO. The result is carried into the `runner_accept` case below rather than
+  // re-fetched there, so this is a MOVE and not an added round trip.
+  let acceptingRunner: { profile_id: string; tier: string } | null = null;
+  if (action === "runner_accept") {
+    const { data: r, error: rErr } = await db.from("runners")
+      .select("profile_id, tier").eq("profile_id", uid).single();
+    // ⚠ FAIL CLOSED, for 0201 §C's reason: a transport failure or a missing row are both 「we could
+    // not establish that you are a runner」, and the failure direction must be 「a runner retries」
+    // rather than 「a stranger is told a booking exists」. `.single()` over zero rows arrives as an
+    // error, so the log line is the only thing that distinguishes them afterwards.
+    if (rErr && !r) {
+      console.error(`[transition-booking] runner_accept runner lookup by=${uid}: ${rErr.message}`);
+    }
+    if (!r) throw new HttpError(403, "runner only");
+    acceptingRunner = r as { profile_id: string; tier: string };
+  }
+
   const { data: bk, error } = await db.from("bookings").select("*").eq("id", booking_id).single();
   if (error || !bk) throw new HttpError(404, "booking not found");
   const isOwner = bk.owner_id === uid;
@@ -142,7 +181,11 @@ Deno.serve(handle(async (req) => {
     // [O-5 §C.2] `case "payment_ok"` stood HERE and is deleted — see the file header. The CAS
     // statement it ran survives, in `create-booking-hold/handler.ts`, which is now its only writer.
     case "runner_accept": {
-      const { data: r } = await db.from("runners").select("profile_id, tier").eq("profile_id", uid).single();
+      // [0214 F4] Resolved ABOVE the booking read and carried here — see the block beside the
+      // `resolve_return` pre-flight. The refusal is restated rather than assumed away: it is
+      // unreachable while the two sites agree on the action name, and it is what keeps this case
+      // correct on its own terms if a later edit ever separates them.
+      const r = acceptingRunner;
       if (!r) throw new HttpError(403, "runner only");
       if (bk.runner_id && bk.runner_id !== uid) throw new HttpError(409, "assigned to another runner");
       // 이미 내가 수락한 예약 재탭(낡은 푸시·인박스 카드) = 무동작 — 자기충돌 제외(.neq) 도입 후

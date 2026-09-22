@@ -307,8 +307,21 @@ begin
     v_bad := '';
     if _noti_push_category('safety'::noti_kind, '아무거나') is distinct from 'safety'
     then v_bad := v_bad || ' safety→' || coalesce(_noti_push_category('safety'::noti_kind, '아무거나'),'NULL'); end if;
-    if _noti_push_category('system'::noti_kind, '아무거나') is distinct from 'ops'
-    then v_bad := v_bad || ' system→' || coalesce(_noti_push_category('system'::noti_kind, '아무거나'),'NULL') || ' (expected ops)'; end if;
+    -- 🔴 [0214] THIS ARM USED TO ASK `('system', '아무거나')` AND EXPECT `ops`, and that sentence
+    -- was 「a system row is the ops category」 — true of the KIND, which is what 0214 §B changes.
+    -- Membership in `ops` is now by TITLE (`_noti_ops_titles()`, the eleven measured writers), so
+    -- an arbitrary system title is `booking`: still sent by default, gated by a switch its reader
+    -- can see. Updated here rather than left stale (the standing law), and asked BOTH ways so this
+    -- suite still notices if either half moves. 245 `0214-T2`/`T3` own the new propositions in
+    -- full, through the real trigger.
+    if _noti_push_category('system'::noti_kind, '지급 대기 — 확인 필요') is distinct from 'ops'
+    then v_bad := v_bad || ' a LEDGERED system title→'
+                        || coalesce(_noti_push_category('system'::noti_kind, '지급 대기 — 확인 필요'),'NULL')
+                        || ' (expected ops)'; end if;
+    if _noti_push_category('system'::noti_kind, '아무거나') is distinct from 'booking'
+    then v_bad := v_bad || ' an UNLEDGERED system title→'
+                        || coalesce(_noti_push_category('system'::noti_kind, '아무거나'),'NULL')
+                        || ' (expected booking — [0214] only a ledgered title inherits the operator''s switch)'; end if;
     if _noti_push_category('booking'::noti_kind, '새 메시지') is distinct from 'chat'
     then v_bad := v_bad || ' the chat discriminator moved'; end if;
     if _noti_push_category('booking'::noti_kind, '응가 완료') is distinct from 'booking'
@@ -332,10 +345,14 @@ begin
     -- EXACT equality, not a prefix: a near miss is an ordinary row of its own kind
     if _noti_push_category('booking'::noti_kind, 'SOS ') is distinct from 'booking'
        or _noti_push_category('booking'::noti_kind, ' SOS') is distinct from 'booking'
-       or _noti_push_category('system'::noti_kind, 'SOS 접수') is distinct from 'ops'
+       -- [0214] `SOS 접수` is a near miss of an urgent title AND is not a ledgered ops title, so
+       -- it is an ordinary row of its own kind — which since 0214 §B means `booking`, not `ops`.
+       -- The arm's sentence (「a near miss is not urgent」) is unchanged; only the value it lands on
+       -- moved, for the same reason the arm above moved.
+       or _noti_push_category('system'::noti_kind, 'SOS 접수') is distinct from 'booking'
     then v_bad := v_bad || ' a near-miss title was treated as urgent'; end if;
 
-    if v_bad = '' then call _pass('ocp','0210-C1 매퍼의 답을 값으로 잰다 — safety→safety, system→ops, booking+새 메시지→chat, booking→booking, community→community, reward→reward, 그리고 유일하게 팔이 없는 멤버 shop→booking(끌 수 있는 최저 권한 칸); 긴급 제목은 kind가 booking이든 system이든 safety로 이기고, 앞뒤 공백이 붙은 근접 문자열은 평범한 행이다');
+    if v_bad = '' then call _pass('ocp','0210-C1 매퍼의 답을 값으로 잰다 — safety→safety, booking+새 메시지→chat, booking→booking, community→community, reward→reward, 그리고 유일하게 팔이 없는 멤버 shop→booking(끌 수 있는 최저 권한 칸); [0214] system 은 제목으로 갈린다 — 원장(_noti_ops_titles)에 있는 운영 제목이면 ops, 아니면 booking(역시 끌 수 있는 최저 권한 칸)이고 양쪽 다 값으로 잰다; 긴급 제목은 kind가 booking이든 system이든 safety로 이기고, 앞뒤 공백이 붙은 근접 문자열은 평범한 행이다');
     else v_msg := v_bad; call _fail('ocp','0210-C1 classifier answers', v_msg); end if;
   exception when others then call _fail('ocp','0210-C1 classifier answers', sqlerrm); end;
 

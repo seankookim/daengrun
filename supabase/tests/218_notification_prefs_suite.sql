@@ -362,11 +362,23 @@ begin
     --     fail-open rule and is what 241 `0210-F1`'s control arm holds. Moved out of this loop and
     --     asserted below in its new direction, so this suite still notices if the fallthrough
     --     changes again.
-    foreach k in array array['safety','system'] loop
-      v := t_npf_probe(o, k::noti_kind, '즉시 확인하세요');
-      if (v->>'pushes')::int is distinct from 1
-      then v_bad := v_bad || ' all-off ' || k || ' was SILENCED (' || coalesce(v->>'pushes','NULL') || ') — safety is not disableable, and `system` is gated by the `ops` column which these four arguments do not touch'; end if;
-    end loop;
+    -- 🔴 [0214] AND THIS ARM MOVED AGAIN, FOR THE SAME REASON AND IN THE SAME DIRECTION. 0210 made
+    -- `system` mean 「the ops category」 on the strength of the KIND alone; 0214 §B makes it
+    -- title-keyed, so only a title in `_noti_ops_titles()` is the operator's. 「즉시 확인하세요」 is
+    -- not one — it is this suite's own probe string — so under 0214 a `system` row carrying it is
+    -- `booking` and IS silenced by these four arguments. The arm keeps its sentence by asking the
+    -- question with a REAL ops title instead of an arbitrary one, which is what it always meant:
+    --   · `safety` — no column, never disableable. Unchanged.
+    --   · `system` + a LEDGERED ops title — gated by the `ops` column, which `t_npf_set`'s four
+    --     arguments do not touch, so it keeps its default of true and still pushes.
+    -- The UNLEDGERED case is a new proposition and 245 `0214-T3` owns it (it classifies as
+    -- `booking`, is NOT silenced by `ops = false`, and IS silenced by `booking = false`).
+    v := t_npf_probe(o, 'safety'::noti_kind, '즉시 확인하세요');
+    if (v->>'pushes')::int is distinct from 1
+    then v_bad := v_bad || ' all-off safety was SILENCED (' || coalesce(v->>'pushes','NULL') || ') — safety has no column and must never acquire one'; end if;
+    v := t_npf_probe(o, 'system'::noti_kind, '지급 대기 — 확인 필요');
+    if (v->>'pushes')::int is distinct from 1
+    then v_bad := v_bad || ' all-off system (a ledgered ops title) was SILENCED (' || coalesce(v->>'pushes','NULL') || ') — `system` is gated by the `ops` column, which these four arguments do not touch'; end if;
     v := t_npf_probe(o, 'shop'::noti_kind, '즉시 확인하세요');
     if (v->>'pushes')::int is distinct from 0
     then v_bad := v_bad || ' all-off shop still pushed (' || coalesce(v->>'pushes','NULL')
@@ -422,7 +434,7 @@ begin
     then v_bad := v_bad || ' the OTHER profile was silenced by MY preferences (' || coalesce(v->>'pushes','NULL') || ')'; end if;
 
     delete from notification_prefs where profile_id = o;
-    if v_bad = '' then call _pass('npf','0187-N5 발송 경로 — 행이 없으면 전부 발송(컨트롤), 네 칸을 끄면 booking·chat·community·reward 만 조용해지고 safety 와 system 은 그대로 나간다([0210] system 이 나가는 이유는 이제 「끌 수 없어서」가 아니라 「이 네 인자가 ops 칸을 건드리지 않아서」다 — 241 0210-O1 이 새 성질을 가진다); [0210] 미분류 kind(shop)는 booking 칸이 꺼지면 조용해진다(폴스루가 safety 에서 booking 으로 내려갔다 — 기본은 여전히 발송, 241 0210-F1); 각 칸은 자기 카테고리만 끈다(교차 팔); 모든 팔에서 notifications 행은 남는다(선호는 푸시만 막는다); 남의 선호는 내 푸시를 막지 않는다');
+    if v_bad = '' then call _pass('npf','0187-N5 발송 경로 — 행이 없으면 전부 발송(컨트롤), 네 칸을 끄면 booking·chat·community·reward 만 조용해지고 safety 와 **원장에 있는 운영 제목을 단** system 은 그대로 나간다([0210] system 이 나가는 이유는 이제 「끌 수 없어서」가 아니라 「이 네 인자가 ops 칸을 건드리지 않아서」다 — 241 0210-O1 이 새 성질을 가진다; [0214] 그리고 그 팔이 묻는 제목이 임의의 문자열에서 실제 운영 제목으로 바뀌었다 — 분류가 kind 가 아니라 제목으로 결정되므로, 원장에 없는 system 제목은 booking 이고 이 네 인자에 꺼진다: 245 0214-T3 가 그 새 명제를 가진다); [0210] 미분류 kind(shop)는 booking 칸이 꺼지면 조용해진다(폴스루가 safety 에서 booking 으로 내려갔다 — 기본은 여전히 발송, 241 0210-F1); 각 칸은 자기 카테고리만 끈다(교차 팔); 모든 팔에서 notifications 행은 남는다(선호는 푸시만 막는다); 남의 선호는 내 푸시를 막지 않는다');
     else v_msg := v_bad; call _fail('npf','0187-N5 send path', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', true);
     call _fail('npf','0187-N5 send path', sqlerrm); end;

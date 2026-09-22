@@ -295,15 +295,42 @@ t("the fallthrough is a real preference column (it must be a key this screen can
 
 // ④c [0210] AND `system` MUST HAVE ITS OWN ARM, mapping to a column this screen renders. Without
 // one it falls through to ④b's default and an ops escalation is silenced by the 예약·러닝 switch.
-const systemArm = /when\s+p_kind\s*=\s*'system'\s*then\s*'([a-z]+)'/.exec(mapperSrc);
-t('the mapper has an explicit `system` arm', !!systemArm, String(systemArm && systemArm[0]));
-t('the `system` arm maps to a column PREF_KEYS offers (a category with no column would be silently always-on again)',
-  !!systemArm && PREF_KEYS.includes(systemArm[1]), systemArm ? systemArm[1] : 'none');
-t('the ops ROW binds the same key the `system` arm answers — a row whose key the server never produces is a switch that saves nothing',
-  !!systemArm && !!opsRow && opsRow.key === systemArm[1],
-  `row=${opsRow && opsRow.key} sql=${systemArm && systemArm[1]}`);
-t('the urgent family is consulted ABOVE the `system` arm (below it, a system row carrying an urgent title would become disableable)',
-  !!systemArm && mapperSrc.indexOf('_noti_urgent_noti_titles()') < mapperSrc.indexOf(systemArm[0]));
+//
+// 🔴 [0214] THERE ARE NOW **TWO** `system` ARMS AND THIS BLOCK HAD TO LEARN THE DIFFERENCE. 0210
+// wrote one arm keyed on the KIND, which handed the operator's switch to every present and future
+// `system` row; 0214 §B makes membership title-keyed against `_noti_ops_titles()` (the eleven
+// writers, measured) and sends anything else to `booking`. The old single-arm regex matched the
+// SECOND arm and read `booking`, which is a true fact about an unledgered title and the wrong
+// answer to the question this block asks — 「what column does the ops row's switch actually
+// produce?」. Both arms are asked for separately now, and the ledger's own drift gate is
+// `test/ops-system-titles.test.cjs` (it re-derives the eleven from the writers, `_shared/ops.ts`
+// included, which no SQL pin can see).
+// ⚠ The arms are PARSED, not regex-matched as one line, so that writing the two conjuncts in the
+// other order — a legitimate, behaviour-identical respelling — does not redden this file. A gate
+// that cries on correct code is `--no-verify`'d within a day and then protects nothing.
+const caseArms = mapperSrc.split(/\bwhen\b/).slice(1).map((chunk) => {
+  const m = /then\s*'([a-z]+)'/.exec(chunk);
+  return m ? { src: 'when' + chunk.slice(0, m.index + m[0].length), cond: chunk.slice(0, m.index), to: m[1] } : null;
+}).filter(Boolean);
+const armOf = (pred) => caseArms.find(pred) || null;
+const opsArm = armOf((a) => /p_kind\s*=\s*'system'/.test(a.cond) && /_noti_ops_titles\(\)/.test(a.cond));
+const systemElseArm = armOf((a) => /p_kind\s*=\s*'system'/.test(a.cond) && !/_noti_ops_titles\(\)/.test(a.cond));
+t('the mapper has an explicit LEDGERED-`system` arm', !!opsArm, String(opsArm && opsArm.src));
+t('the ledgered-`system` arm maps to a column PREF_KEYS offers (a category with no column would be silently always-on again)',
+  !!opsArm && PREF_KEYS.includes(opsArm.to), opsArm ? opsArm.to : 'none');
+t('the ops ROW binds the same key the ledgered-`system` arm answers — a row whose key the server never produces is a switch that saves nothing',
+  !!opsArm && !!opsRow && opsRow.key === opsArm.to,
+  `row=${opsRow && opsRow.key} sql=${opsArm && opsArm.to}`);
+t('[0214] an UNLEDGERED `system` title has its own arm and it is NOT the ops column — it would otherwise be muted by a switch its reader is not even shown (PREF_ROWS hides the ops row from a non-operator)',
+  !!systemElseArm && systemElseArm.to !== (opsRow && opsRow.key),
+  systemElseArm ? systemElseArm.to : 'none');
+t('[0214] …and it is a real preference column, not `safety` — still sent by default, and stoppable by the person receiving it',
+  !!systemElseArm && systemElseArm.to !== 'safety' && PREF_KEYS.includes(systemElseArm.to),
+  systemElseArm ? systemElseArm.to : 'none');
+t('[0214] the ledgered arm is read BEFORE the catch-all `system` arm (below it, every system row would be `booking` and the ops column would gate nothing)',
+  !!opsArm && !!systemElseArm && caseArms.indexOf(opsArm) < caseArms.indexOf(systemElseArm));
+t('the urgent family is consulted ABOVE the `system` arms (below them, a system row carrying an urgent title would become disableable)',
+  !!opsArm && mapperSrc.indexOf('_noti_urgent_noti_titles()') < mapperSrc.indexOf(opsArm.src));
 
 // ⑤ RUN_STOP_TITLE exists TWICE on the client (api.ts and notification-route.ts, whose own comment
 //    says "change one, change both"). That comment is not a mechanism; this is.
