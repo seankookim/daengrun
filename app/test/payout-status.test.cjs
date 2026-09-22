@@ -189,23 +189,37 @@ t('sorting is deterministic across repeated calls on the same data',
 t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 0);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// [0210 §E] IS MY OWN PAYOUT STUCK — the client half of the sweep's sentence
+// [0210 §E · 0213 §A] IS MY OWN PAYOUT STUCK — the client half of the sweep's sentence
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// The property: the line appears only for a row that is SETTLED, UNPAID and older than the
-// sweep's own threshold, the age is measured from the OLDEST such row, and everything else — a
-// paid row, an unsettled row, a young row, a row with no readable instant, no rows at all —
-// produces silence rather than a number. Silence is the honest rendering of 「nothing to say」;
-// the alternative is a strip that asserts something nobody measured.
+// 🔴 **THESE ARMS CHANGED IN 0213 AND THE REASON IS A DECISION, NOT A TIDY-UP** (the standing law:
+// a suite whose pinned behaviour legitimately changes is updated in the same slice, with WHY, and
+// naming which new pin owns the moved property). Until 0213, `payoutStuckDays` took the LIST from
+// `my_ledger_rows()` and applied the predicate itself — unpaid, settled, oldest. That list carries
+// `limit 30` ordered `created_at desc`, so it keeps the thirty NEWEST rows while the answer is the
+// OLDEST one: the arms below were pinning a filter that could not see the row it needed. The
+// filter is now the SERVER's (`my_ledger_stuck_state`, 0213 §A) and this function takes the
+// instant it computed.
 //
-// The mutations that redden it: count an unsettled row (the server REFUSES to pay those, so the
-// strip would complain about money nobody owes yet) · count a paid row · use the NEWEST
-// qualifying row instead of the oldest (which makes a runner with one old and one fresh unpaid
-// row silent) · treat a null `createdAtMs` as 0 (epoch — every runner instantly 20,000 days
-// stuck) · drop the threshold to 0 · return 0 instead of null.
+// WHERE THE MOVED PROPOSITIONS LIVE NOW — each is pinned, none was dropped:
+//   · unpaid AND settled, never unsettled     → 244 `0213-A3` (measured against one real
+//                                               `ops_payouts_stuck_sweep()` tick, so reader and
+//                                               writer are shown to see one world)
+//   · the OLDEST qualifying row, not a visible one → 244 `0213-A1` (35 rows, the answer is row 35,
+//                                               with the capped read proven unable to see it)
+//   · a paid row never counts                 → 244 `0213-A2` / the server's `paid_payout_id is null`
+//
+// WHAT STAYS THIS FILE'S, because it is pure and the server cannot hold it: the THRESHOLD and its
+// equality with the migration, the boundary at exactly the threshold, silence below it, and the
+// null/NaN/unreadable-instant handling that keeps a missing answer from becoming the epoch.
+//
+// The mutations that redden what remains: treat a null instant as 0 (epoch — every runner
+// instantly 20,000 days stuck) · drop the threshold to 0 · return 0 instead of null · accept a
+// NaN `nowMs` · read a null STATE as 「fine」 rather than as 「unknown」.
 {
   const DAY = 86400000;
   const NOW = Date.parse('2026-09-21T03:00:00Z');
-  const row = (o) => Object.assign({ paidPayoutId: null, paidAtMs: null, settled: true, createdAtMs: NOW }, o);
+  // The aggregate's one age-bearing field, exactly as `LedgerStuckFields` declares it.
+  const st = (oldestAwaitingMs) => ({ oldestAwaitingMs });
 
   t('the threshold is the sweep\'s own 7 days', PAYOUT_STUCK_DAYS === 7, String(PAYOUT_STUCK_DAYS));
   // 🔴 READ FROM THE MIGRATION, so the client's number cannot drift from the one that decides.
@@ -228,41 +242,31 @@ t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 
       !!m && Number(m[1]) === PAYOUT_STUCK_DAYS, m ? `sql=${m[1]} client=${PAYOUT_STUCK_DAYS}` : '');
   }
 
-  t('a settled unpaid row exactly at the threshold is stuck, and the number is the whole days elapsed',
-    payoutStuckDays([row({ createdAtMs: NOW - 7 * DAY })], NOW) === 7);
+  t('an awaiting instant exactly at the threshold is stuck, and the number is the whole days elapsed',
+    payoutStuckDays(st(NOW - 7 * DAY), NOW) === 7);
   t('one day short of the threshold is silence, not 6 — the strip has no opinion below the line',
-    payoutStuckDays([row({ createdAtMs: NOW - 6 * DAY })], NOW) === null);
+    payoutStuckDays(st(NOW - 6 * DAY), NOW) === null);
   t('a long wait reports its real length',
-    payoutStuckDays([row({ createdAtMs: NOW - 31 * DAY })], NOW) === 31);
-  t('🔴 the age is the OLDEST qualifying row, not the newest — a fresh row beside an old one must not hide the old one',
-    payoutStuckDays([row({ createdAtMs: NOW - 1 * DAY }), row({ createdAtMs: NOW - 20 * DAY })], NOW) === 20);
-  t('… and order in the array does not matter',
-    payoutStuckDays([row({ createdAtMs: NOW - 20 * DAY }), row({ createdAtMs: NOW - 1 * DAY })], NOW) === 20);
+    payoutStuckDays(st(NOW - 31 * DAY), NOW) === 31);
+  t('a wait far past any 30-row window reports its real length — the instant is the server\'s and no client cap can shorten it (244 0213-A1 owns the uncapped half)',
+    payoutStuckDays(st(NOW - 400 * DAY), NOW) === 400);
+  t('a same-day instant is silence, never 0 — 0 would print a line claiming a zero-day wait',
+    payoutStuckDays(st(NOW), NOW) === null);
 
-  t('🔴 an UNSETTLED row never counts — 0186 §0d ⓒ makes the server refuse to pay it, so complaining about it would be complaining about money nobody owes yet',
-    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, settled: false })], NOW) === null);
-  t('a PAID row never counts, even an ancient one',
-    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, paidPayoutId: 'p1', paidAtMs: NOW })], NOW) === null);
-  t('a paid row with NO readable date is still paid (paidPayoutId decides, never paidAtMs)',
-    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, paidPayoutId: 'p1', paidAtMs: null })], NOW) === null);
-  t('a paid ancient row does not mask a genuinely stuck one beside it',
-    payoutStuckDays([row({ createdAtMs: NOW - 90 * DAY, paidPayoutId: 'p1' }),
-                     row({ createdAtMs: NOW - 9 * DAY })], NOW) === 9);
+  t('🔴 a null instant is 「nothing qualifies」, never the epoch — a `?? 0` here would report every runner as 20,000 days stuck',
+    payoutStuckDays(st(null), NOW) === null);
+  t('a NaN instant is null too (Date.parse returns NaN, not null, on anything it cannot read)',
+    payoutStuckDays(st(NaN), NOW) === null);
+  t('an undefined instant is null, never a crash', payoutStuckDays(st(undefined), NOW) === null);
 
-  t('🔴 a null createdAtMs is SKIPPED, never read as the epoch — a `?? 0` here would report every runner as 20,000 days stuck',
-    payoutStuckDays([row({ createdAtMs: null })], NOW) === null);
-  t('a NaN instant is skipped too (Date.parse returns NaN, not null, on anything it cannot read)',
-    payoutStuckDays([row({ createdAtMs: NaN })], NOW) === null);
-  t('an unreadable instant does not hide a readable stuck row beside it',
-    payoutStuckDays([row({ createdAtMs: null }), row({ createdAtMs: NOW - 8 * DAY })], NOW) === 8);
-
-  t('no rows ⇒ null (a failed fetch hands us an empty list, and "no data" is not "you are fine")',
-    payoutStuckDays([], NOW) === null);
   for (const empty of [null, undefined]) {
-    t(`payoutStuckDays(${String(empty)}) is null, never a crash`, payoutStuckDays(empty, NOW) === null);
+    t(`payoutStuckDays(${String(empty)}) is null — an unread answer is not 「you are fine」`,
+      payoutStuckDays(empty, NOW) === null);
   }
   t('an unusable now is null (never a negative or NaN day count leaking to the screen)',
-    payoutStuckDays([row({ createdAtMs: NOW - 9 * DAY })], NaN) === null);
+    payoutStuckDays(st(NOW - 9 * DAY), NaN) === null);
+  t('a future instant is null, never a negative day count',
+    payoutStuckDays(st(NOW + 9 * DAY), NOW) === null);
 
   // ── the line ──
   t('the line names the wait in days', payoutStuckLine(9) === '정산 지급이 9일째 밀려 있어요');
@@ -273,8 +277,8 @@ t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 
   t('a value below the threshold still prints nothing, even if a caller hands one in',
     payoutStuckLine(6) === null && payoutStuckLine(0) === null);
   t('the two functions compose: a stuck fixture produces a line, a young one produces none',
-    payoutStuckLine(payoutStuckDays([row({ createdAtMs: NOW - 12 * DAY })], NOW)) === '정산 지급이 12일째 밀려 있어요'
-    && payoutStuckLine(payoutStuckDays([row({ createdAtMs: NOW - 2 * DAY })], NOW)) === null);
+    payoutStuckLine(payoutStuckDays(st(NOW - 12 * DAY), NOW)) === '정산 지급이 12일째 밀려 있어요'
+    && payoutStuckLine(payoutStuckDays(st(NOW - 2 * DAY), NOW)) === null);
 }
 
 console.log(`\n${pass} pass / ${fail} fail`);
