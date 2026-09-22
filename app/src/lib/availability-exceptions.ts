@@ -49,9 +49,12 @@ export type ExceptionDraft = Omit<AvailException, 'id'>;
 export const MAX_RANGE_DAYS = 90;
 export const MAX_NOTE_CHARS = 40;
 export const MAX_LIVE_EXCEPTIONS = 20;
-/** the grid's own floor/ceiling, so a 추가 근무 cannot be written outside a plausible day. */
-export const DAY_MIN = 0;
-export const DAY_MAX = 1440;
+/** the grid's own floor/ceiling, so a 추가 근무 cannot be written outside a plausible day.
+ *  Module-private: the only reader is `validateException` below. They were exported when this
+ *  module was written and nothing ever imported them — an export is a promise to other modules,
+ *  and an unkept one makes the module's surface look wider than it is. */
+const DAY_MIN = 0;
+const DAY_MAX = 1440;
 
 export type ExceptionRefusal =
   | 'not_authenticated' | 'not_runner' | 'bad_kind' | 'bad_range'

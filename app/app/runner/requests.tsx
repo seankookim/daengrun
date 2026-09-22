@@ -633,7 +633,12 @@ export default function Requests() {
                 : `새 요청 ${live.length}건${resched.length > 0 ? ` · 변경 요청 ${resched.length}건` : ''}`}
             </Text>
           </View>
-          <Pressable style={({ pressed }) => [s.refreshChip, pressed && { backgroundColor: paper.wash }]} onPress={load}>
+          <Pressable
+            style={({ pressed }) => [s.refreshChip, pressed && { backgroundColor: paper.wash }]}
+            onPress={load}
+            accessibilityRole="button"
+            accessibilityLabel="새로고침"
+          >
             <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>↻ 새로고침</Text>
           </Pressable>
         </Row>

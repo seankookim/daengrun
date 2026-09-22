@@ -135,7 +135,7 @@ export default function Alerts() {
           </Pressable>
           <Text style={[s.crumb, nf]}>MY / ALERTS</Text>
           {unreadCount > 0 ? (
-            <Pressable onPress={markAll} style={s.markAll}>
+            <Pressable onPress={markAll} style={s.markAll} accessibilityRole="button" accessibilityLabel="모두 읽음">
               <Text style={[s.markAllTxt, nf]}>✓ 모두 읽음</Text>
             </Pressable>
           ) : (
@@ -161,7 +161,13 @@ export default function Alerts() {
             {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다.
                 셰브런(›)은 '누를 수 있다'는 신호라, 목적지가 없으면 티커도 셰브런도 버튼이 아니다 */}
             {latestUnread && (isRoutable(latestUnread) ? (
-              <Pressable onPress={() => openNoti(latestUnread)} style={s.ticker}>
+              <Pressable
+                onPress={() => openNoti(latestUnread)}
+                style={s.ticker}
+                accessibilityRole="button"
+                accessibilityLabel={`${latestUnread.timeLabel} ${latestUnread.title}`}
+                accessibilityHint="알림 열기"
+              >
                 <View style={s.liveDot} />
                 <Text style={[s.tickTime, nf]}>{latestUnread.timeLabel}</Text>
                 <Text numberOfLines={1} style={s.tickTxt}>{latestUnread.title}</Text>
@@ -273,7 +279,14 @@ export default function Alerts() {
                     </>
                   );
                   return isRoutable(n) ? (
-                    <Pressable key={n.id} onPress={() => openNoti(n)} style={[s.evt, unread && s.evtNew]}>{cell}</Pressable>
+                    <Pressable
+                      key={n.id}
+                      onPress={() => openNoti(n)}
+                      style={[s.evt, unread && s.evtNew]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${unread ? '안 읽음 · ' : ''}${n.timeLabel} ${n.title}${n.body ? ` · ${n.body}` : ''}`}
+                      accessibilityHint="알림 열기"
+                    >{cell}</Pressable>
                   ) : (
                     <View key={n.id} style={[s.evt, unread && s.evtNew]}>{cell}</View>
                   );

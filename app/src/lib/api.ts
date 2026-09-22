@@ -413,11 +413,6 @@ export async function fetchMyDogs(): Promise<DogProfile[]> {
   return (data ?? []).map(mapDog);
 }
 
-export async function fetchMyDog(): Promise<DogProfile | null> {
-  const dogs = await fetchMyDogs();
-  return dogs[0] ?? null;
-}
-
 export async function addDog(name: string): Promise<string> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) throw new Error('not signed in');
@@ -1362,17 +1357,6 @@ export async function fetchRunnerInbox(): Promise<OpenRequest[]> {
   return all;
 }
 
-export async function fetchOpenRequests(): Promise<OpenRequest[]> {
-  // [0042→0121] 오픈 풀 = net 전용 뷰 (요금 컬럼 부재는 뷰의 구조다 — 계약 §D)
-  const { data, error } = await supabase
-    .from('runner_open_requests')
-    .select('*')
-    .order('scheduled_at')
-    .limit(10);
-  if (error) throw error;
-  return (data ?? []).map((r: any) => mapRunnerRequest(r, false));
-}
-
 async function invokeTransition(bookingId: string, action: string, meta?: Record<string, unknown>): Promise<any> {
   const { data, error } = await supabase.functions.invoke('transition-booking', {
     body: { booking_id: bookingId, action, meta },
@@ -1455,28 +1439,6 @@ export async function fetchAvailableRunnersFor(bookingId: string): Promise<LiveR
       : raw.includes('not_open') ? '이 예약은 지금 러너 선택 단계가 아니에요'
       : raw);
   }
-  return (data ?? []).map((r: any) => {
-    const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
-    return {
-      profileId: r.profile_id,
-      name: r.name ?? '러너',
-      district: r.district ?? '',
-      tier: runnerTierLabel(r.tier),
-      totalRuns: r.total_runs ?? 0,
-      paceLabel: pace != null ? `${Math.floor(pace / 60)}'${String(pace % 60).padStart(2, '0')}"` : null,
-      paceSec: pace,
-      respondRate: r.respond_rate_pct,
-      avatarUrl: r.avatar_url ?? null,
-      bio: r.bio ?? null,
-    };
-  });
-}
-
-// 가용 러너 — 온라인이면서 러닝 중(확정~진행)이 아닌 러너만 (0015 뷰).
-// find-now 히어로 카운트/레이더용: 바쁜 러너에게 기대를 걸게 하지 않는다.
-export async function fetchAvailableRunners(): Promise<LiveRunner[]> {
-  const { data, error } = await supabase.from('available_runners').select('*').limit(10);
-  if (error) throw error;
   return (data ?? []).map((r: any) => {
     const pace: number | null = r.avg_pace_sec_per_km ?? null;   // null = no record; not invented
     return {
@@ -6266,18 +6228,21 @@ export async function fetchRunReport(bookingId: string): Promise<RunReport> {
 // ── 멤버 메타 (홈 마스트헤드 시리얼 행) ──────────────────────────────────
 // since = auth 유저의 created_at (세션에 이미 있는 실데이터 — profiles.created_at은 0088이
 // 의도적으로 클라이언트에 안 열었고, auth 쪽은 열려 있다).
-// no = 가입 순번. ⚠ 정직법: 클라이언트가 계산할 수 없다(타인 프로필 read 불가). 서버가
-// my_member_no() 류의 definer RPC를 주기 전까지 null이고, null이면 화면은 그 칸을 그리지
-// 않는다 — NO. 0001을 지어내는 순간 모든 번호가 거짓이 된다.
-export async function fetchMemberMeta(): Promise<{ since: string | null; no: number | null }> {
+// ⚠ `no` (가입 순번) was a field of this return and is GONE (2026-09-23). It was hard-coded
+// `null` on every one of the three return paths — the client cannot compute it (no read on other
+// profiles) and no server RPC supplies it — and its single consumer was a `useState` on owner home
+// that nothing rendered. A field that is always null is not a placeholder for a future feature; it
+// is a shape every caller has to handle and no caller can use. When a server `my_member_no()`
+// definer RPC exists, the field comes back with a value behind it.
+export async function fetchMemberMeta(): Promise<{ since: string | null }> {
   const { data } = await supabase.auth.getUser();
   const iso = data.user?.created_at ?? null;
-  if (!iso) return { since: null, no: null };
+  if (!iso) return { since: null };
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return { since: null, no: null };
+  if (Number.isNaN(t)) return { since: null };
   // 가입 월은 KST 로 읽는다 — created_at 은 서버 instant 라 월말 가입이 기기 로컬로는 전 달이 된다.
   const c = kstCal(t);
-  return { since: `${c.y}.${String(c.m + 1).padStart(2, '0')}`, no: null };
+  return { since: `${c.y}.${String(c.m + 1).padStart(2, '0')}` };
 }
 
 export async function fetchUnreadCount(): Promise<number> {

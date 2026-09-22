@@ -152,7 +152,6 @@ export default function OwnerHome() {
   // 워드마크가 본문 900으로 내려가면서(A③(b)) 이 파일엔 df 사용처가 없다.
   const nf = useNumFont();     // [V4] 숫자 = Oswald
   const [memberSince, setMemberSince] = useState<string | null>(null);
-  const [memberNo, setMemberNo] = useState<number | null>(null);
   // 감소된 모션 — GO 디스크의 breath와 함께 이 화면에서 사라졌지만, 남은 두 루프(그리팅
   // 수직 플립 rotateX 0→86deg, 랭킹 티커 마퀴)는 정확히 법이 "전부 멈추라"고 말한 종류다
   // (DESIGN.md §7c · reducedMotion.ts: 루프/유휴 모션 → 완전 정지). 문구와 티커 자체는 남는다 —
@@ -313,7 +312,7 @@ export default function OwnerHome() {
     // sentence about a dot, four times louder than the thing it describes. The bell itself is the
     // retry — tapping it opens /alerts, which reads the real rows.
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[home] unread:', e?.message ?? e));
-    fetchMemberMeta().then((m) => { setMemberSince(m.since); setMemberNo(m.no); })
+    fetchMemberMeta().then((m) => { setMemberSince(m.since); })
       .catch(() => { /* 모르면 행을 안 그린다 — 시리얼 행은 실데이터 전용 */ });
     loadMoments();
     loadTicker();
@@ -721,7 +720,12 @@ export default function OwnerHome() {
           <QuietFail text="동네 리그를 불러오지 못했어요" onRetry={loadTicker} a11y="동네 리그 다시 불러오기" />
         )}
         {ticker.length > 0 && (
-          <Pressable onPress={() => router.push('/leaderboard')} style={s.rankticker}>
+          <Pressable
+            onPress={() => router.push('/leaderboard')}
+            style={s.rankticker}
+            accessibilityRole="button"
+            accessibilityLabel="동네 리그 랭킹 보기"
+          >
             <Animated.View style={{ flexDirection: 'row', transform: [{ translateX: tickerX }] }}>
               {[0, 1].map((dup) => (
                 <View
@@ -786,7 +790,13 @@ export default function OwnerHome() {
             <ModH title="대기 중인 러너" link="주간 랭킹 ›" onLink={() => router.push('/leaderboard')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
               {(localRunners ?? []).map((r) => (
-                <Pressable key={r.profileId} onPress={() => router.push(`/runner-profile/${r.profileId}`)} style={s.rosterCard}>
+                <Pressable
+                  key={r.profileId}
+                  onPress={() => router.push(`/runner-profile/${r.profileId}`)}
+                  style={s.rosterCard}
+                  accessibilityRole="button"
+                  accessibilityHint="러너 프로필 보기"
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Avatar url={r.avatarUrl} char={r.name[0]} bg={lilac.accent} size={30} />
                     <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: lilac.coral, position: 'absolute', left: 22, top: 0, borderWidth: 1.5, borderColor: lilac.card }} />
@@ -905,7 +915,12 @@ export default function OwnerHome() {
         )}
         {beaconLoaded && beacon && (beacon.balance > 0 || nextGradeName !== null) && (
           <View style={[s.beacon, { backgroundColor: p.card, borderColor: p.line2 }]}>
-            <Pressable onPress={() => router.push('/shop')} style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+            <Pressable
+              onPress={() => router.push('/shop')}
+              style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+              accessibilityRole="button"
+              accessibilityHint="샵 열기"
+            >
               {/* 잔액은 profile 스코프 — 듀얼롤 계정에선 러너 적립분이 합쳐진다. '보호자 포인트'라
                   부르면 스코프를 속이는 것이라 앱 전역 어휘 그대로 '하이 포인트' */}
               <Text style={[s.beaconKick, { color: p.dim }]}>하이 포인트</Text>
@@ -917,7 +932,12 @@ export default function OwnerHome() {
             {beacon.next !== null && nextGradeName !== null && (
               <>
                 <View style={[s.beaconDiv, { backgroundColor: p.line }]} />
-                <Pressable onPress={() => router.push('/cards')} style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}>
+                <Pressable
+                  onPress={() => router.push('/cards')}
+                  style={({ pressed }) => [s.beaconCell, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                  accessibilityRole="button"
+                  accessibilityHint="컬렉션 카드 열기"
+                >
                   <Text style={[s.beaconKick, { color: p.dim }]}>다음 승급</Text>
                   <Text style={[s.beaconLine, { color: p.textStrong }]} numberOfLines={1}>
                     {nextGradeName}까지 <Text style={[s.beaconNum, nf]}>{beacon.next.toNext}</Text>회
