@@ -824,8 +824,20 @@ export default function Live() {
               : !hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
           </Text>
         </View>
-        {/* SOS = 긴급 어포던스 — 라우드 페일 토큰이 정확히 이 자리를 위한 색이다 */}
-        <Pressable onPress={() => router.push('/safety')} style={s.sosBtn}>
+        {/* SOS = 긴급 어포던스 — 라우드 페일 토큰이 정확히 이 자리를 위한 색이다.
+            🔴 [2026-09-23] 이 버튼은 `/safety` 로 갔다. 안심 센터는 「지금 달리고 있는 예약」을
+            서버에 다시 물어 `/incident/[bid]` 를 찾아주는 화면인데 — 이 화면은 그 bid 를 **이미
+            들고 있다**. 급한 사람을 자기가 아는 답을 모르는 척하는 화면으로 한 번 더 보내는
+            셈이었다. 사고 접수로 곧장 간다. bid 가 아직 안 잡힌 동안에만 `/safety` 로 — 그때는
+            안심 센터의 재조회가 이 화면보다 아는 게 많고, 죽은 버튼을 만들지 않는 유일한 길이다.
+            안심 센터 자체는 아래 홀드 스트립의 「안전 센터 열기」로 그대로 닿는다. */}
+        <Pressable
+          onPress={() => router.push(bookingId ? `/incident/${bookingId}` : '/safety')}
+          style={s.sosBtn}
+          accessibilityRole="button"
+          accessibilityLabel="사고 신고"
+          accessibilityHint={bookingId ? '이 러닝의 사고 접수 화면을 열어요' : '안심 센터를 열어요'}
+        >
           <Text style={s.sosTxt}>SOS</Text>
         </Pressable>
       </Row>

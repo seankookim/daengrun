@@ -5,9 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row } from '../../src/components/ui';
 import {
-  fetchIncidentRunContext, fetchOpenIncident, openBookingIncident, verifyBookingIncident,
-  IncidentKind, IncidentRunContext, IncidentSeverity, OpenIncident, NOT_FOUND,
+  fetchIncidentOutcome, fetchIncidentRunContext, fetchOpenIncident, openBookingIncident, verifyBookingIncident,
+  IncidentKind, IncidentOutcome, IncidentRunContext, IncidentSeverity, OpenIncident, NOT_FOUND,
 } from '../../src/lib/api';
+import { incidentOutcomeFace } from '../../src/lib/incident-outcome';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
@@ -17,10 +18,19 @@ import { paper } from '../../src/theme';
 //
 // 🔴 한 화면이 두 상태를 산다. 서버 모델이 「한 예약에 열린 인시던트는 하나」이므로 (0114 §3 ⑤),
 //    이 화면도 예약 id 하나로 열리고 그 예약에 열린 건이 있느냐로 갈린다:
+//      · 없다 + 해소된 건이 있다 → 처리 결과 (아래)
 //      · 없다 + 접수 가능  → 접수 폼
 //      · 없다 + 접수 불가  → 서버가 쓰는 그 문장 (수락 전이거나 종료된 예약)
 //      · 있다             → 사건 상태 + 내 확인 도장
-//    해소된 건은 '열린 건' 이 아니다 — 그래서 해소 뒤에는 다시 폼이 된다. 서버가 그렇게 판단한다.
+//
+// 🔴 [2026-09-23] 이 헤더는 원래 「해소 뒤에는 다시 폼이 된다 — 서버가 그렇게 판단한다」 였고,
+//    그 문장이 이 화면 최악의 치환을 정당화하고 있었다. 서버가 판단하는 것은 **새로 접수할 수
+//    있다**는 것 하나뿐이지, 방금 일어난 사고를 잊어도 된다는 뜻이 아니다. 해소되는 순간 양측이
+//    보던 사고 기록이 빈 접수 폼으로 바뀌었고 — 실패가 아니므로 아무 데서도 붉어지지 않았다.
+//    이제 해소된 건은 `fetchIncidentOutcome` 으로 따로 읽어 **처리 결과**를 그린다. 접수 문은
+//    사라지지 않는다: 접수 가능한 상태라면 「새로 사고 접수하기」 로 남는다 (서버가 허용하는
+//    일을 화면이 막으면 그것도 거짓말이다). 결과 문장의 출처·금액 줄이 없는 이유는
+//    `src/lib/incident-outcome.ts` 헤더에 있다.
 //
 // 🔴 두 집합이 다르고, 그 차이가 이 화면의 버튼을 정한다 (0114):
 //      접수 가능(§3) = accepted + cancelled_owner + refund_pending
@@ -69,6 +79,10 @@ export default function IncidentScreen() {
   const { bid } = useLocalSearchParams<{ bid: string }>();
   const [ctx, setCtx] = useState<IncidentRunContext | null>(null);
   const [inc, setInc] = useState<OpenIncident | null>(null);
+  const [out, setOut] = useState<IncidentOutcome | null>(null);
+  // 결과 화면에서 **사용자가 명시적으로** 연 새 접수 폼. 기본은 false — 결과가 있는데 폼이
+  // 먼저 보이면 이 슬라이스가 고친 바로 그 치환이 이름만 바꿔 돌아온다.
+  const [reopen, setReopen] = useState(false);
   // 네 가지 사실을 네 가지로 둔다. 'gone' 은 재시도가 의미 없는 사실(없는 예약 · 내 예약이 아님 —
   // RLS 가 둘을 구분하지 않는다), 'error' 는 다시 눌러볼 값이 있는 실패다.
   const [state, setState] = useState<'loading' | 'ready' | 'gone' | 'error'>('loading');
@@ -83,7 +97,10 @@ export default function IncidentScreen() {
     try {
       const c = await fetchIncidentRunContext(bid);
       const i = await fetchOpenIncident(bid);
-      setCtx(c); setInc(i); setState('ready');
+      // 열린 건이 있으면 그것이 지금의 진실이라 결과를 읽을 필요가 없다 (해소 → 재접수 뒤에는
+      // 낡은 결과와 새 사건이 같은 화면에서 서로를 부정하게 된다). 왕복도 그만큼 아낀다.
+      const o = i ? null : await fetchIncidentOutcome(bid);
+      setCtx(c); setInc(i); setOut(o); setState('ready');
     } catch (e) {
       const m = (e as Error).message ?? '';
       console.warn('[incident] load:', m);
@@ -103,6 +120,7 @@ export default function IncidentScreen() {
     try {
       const r = await openBookingIncident(ctx, kind, severity, note.trim() || null);
       haptic('success');
+      setReopen(false);   // 새 건이 열렸으므로 이 화면은 다시 '열린 건' 화면이다
       await load();
       // 접수와 알림은 두 개의 사실이다 — 알림이 실패했거나 애초에 닫혀 있었으면 그렇게 말한다.
       // 접수 자체는 성공했으므로 어느 쪽도 '접수 실패' 가 아니다.
@@ -192,6 +210,51 @@ export default function IncidentScreen() {
       );
     }
 
+    // ── 처리 완료된 건 ─────────────────────────────────────────────────────────────────
+    // 🔴 `!ctx.reportable` **앞**에 선다. 0072 §④ 가 환불이 있는 정산을 `refund_pending` 으로
+    //    옮기고, 그 상태는 0114 §3 의 접수 가능 집합에 들어 있다 — 즉 정산이 끝난 예약일수록
+    //    빈 폼으로 떨어졌다. 순서가 곧 수정이다.
+    const face = incidentOutcomeFace(out);
+    if (face.resolved && out && !reopen) {
+      return (
+        <>
+          <Text style={s.secTitle}>처리 결과</Text>
+          <Text style={s.resolvedHead}>{face.headline}</Text>
+          {/* 서버가 말하지 않은 결정은 이 화면도 말하지 않는다 (알 수 없는 상태 = 문장 없음). */}
+          {face.decision ? <Text style={s.resolvedDecision}>{face.decision}</Text> : null}
+          {face.established ? <Text style={s.meta}>{face.established}</Text> : null}
+
+          {/* 접수 내용은 남는다 — 결과만 보여주고 무슨 일이었는지를 지우면 기록이 아니다. */}
+          <Text style={s.secTitle}>접수 내용</Text>
+          <Text style={s.kind}>{KIND_LABEL[out.kind] ?? out.kind}</Text>
+          <Text style={s.meta}>
+            {SEVERITY_LABEL[out.severity] ?? out.severity} · {out.reportedByMe ? '내가 접수' : `${counterLabel}이(가) 접수`}
+          </Text>
+          {out.note ? <Text style={s.note}>{out.note}</Text> : null}
+
+          {ctx.contactable && (
+            <PaperBtn
+              label="채팅으로 문의하기" variant="secondary" style={s.cta}
+              onPress={() => router.push({ pathname: '/chat', params: { bid: ctx.bookingId } })}
+            />
+          )}
+          {/* 서버는 해소 뒤 새 접수를 허용한다 (0114 §3). 그 문을 없애면 두 번째 사고를 신고할
+              길이 사라진다 — 다만 **기본 화면이 폼이 되지는 않는다**. 누르면 폼이 열린다. */}
+          {ctx.reportable && (
+            <Pressable
+              onPress={() => { setReopen(true); haptic('light'); }}
+              style={s.reopenBtn}
+              accessibilityRole="button"
+              accessibilityLabel="새로 사고 접수하기"
+              accessibilityHint="이 러닝에 새 사고를 접수하는 폼을 열어요"
+            >
+              <Text style={s.reopenTxt}>새로 사고 접수하기</Text>
+            </Pressable>
+          )}
+        </>
+      );
+    }
+
     // ── 접수할 수 없는 상태 ────────────────────────────────────────────────────────────
     if (!ctx.reportable) {
       return <Text style={s.plain}>수락 전이거나 종료된 예약에는 사고를 접수할 수 없어요</Text>;
@@ -200,6 +263,18 @@ export default function IncidentScreen() {
     // ── 접수 폼 ────────────────────────────────────────────────────────────────────────
     return (
       <>
+        {/* 결과 화면에서 직접 열고 들어온 폼이라면 돌아갈 길이 있어야 한다 — 지난 기록은
+            지워지지 않았고, 그 사실을 말하는 링크가 곧 증거다. */}
+        {face.resolved && reopen && (
+          <Pressable
+            onPress={() => setReopen(false)}
+            style={s.backToResult}
+            accessibilityRole="button"
+            accessibilityLabel="이전 처리 결과 보기"
+          >
+            <Text style={s.backToResultTxt}>‹ 이전 처리 결과 보기</Text>
+          </Pressable>
+        )}
         <Text style={s.secTitle}>무슨 일인가요?</Text>
         <Row style={s.chips}>
           {KINDS.map((k) => (
@@ -305,6 +380,20 @@ const s = StyleSheet.create({
   stampDone: { fontSize: 16, fontWeight: '800', color: paper.readyDeep },
   stampWait: { fontSize: 16, fontWeight: '700', color: paper.text },
   verified: { fontSize: 17, fontWeight: '800', color: paper.readyDeep, marginTop: 14 },
+  // 처리 결과 — 판정이 아니라 사실이라 중립 잉크다. readyDeep(확인 완료)과 섞지 않는다:
+  // '해소됐다'와 '양쪽이 확인했다'는 이 화면이 이미 구분해 온 두 사실이다.
+  resolvedHead: { fontSize: 19.5, lineHeight: 25, fontWeight: '900', color: paper.ink, marginTop: 12 },
+  resolvedDecision: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: paper.ink, marginTop: 6 },
+  // 세컨더리 문법(wash 면 + line 보더 + actionInk) — PaperBtn 과 같은 매트릭스지만 결과 화면의
+  // 주역이 아니므로 조금 작다. 44pt 터치 타깃은 지킨다.
+  reopenBtn: {
+    marginTop: 18, minHeight: 44, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: paper.wash, borderWidth: 1, borderColor: paper.line, borderRadius: 0,
+    paddingVertical: 12, paddingHorizontal: 14,
+  },
+  reopenTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
+  backToResult: { alignSelf: 'flex-start', marginTop: 16, minHeight: 44, justifyContent: 'center' },
+  backToResultTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
   // §3b 선택칩 — 샤프 코너 · 선택은 코랄 워시 면 + 코랄 보더 + actionInk (review/dog 와 같은 문법)
   chips: { gap: 8, flexWrap: 'wrap', marginTop: 12 },
   chip: {

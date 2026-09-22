@@ -4286,6 +4286,78 @@ export async function fetchOpenIncident(bookingId: string): Promise<OpenIncident
   };
 }
 
+export interface IncidentOutcome {
+  incidentId: string;
+  /** 서버 원시값. 라벨 매핑은 화면이 한다 — OpenIncident 와 같은 규율. */
+  kind: string;
+  severity: string;
+  note: string | null;
+  reportedByMe: boolean;
+  /** `incidents.resolved_at` — 이 행이 결과인 이유 그 자체라 **non-null** 이다. */
+  resolvedAtIso: string;
+  verifiedAtIso: string | null;
+  forcedBy: string | null;
+  /**
+   * `bookings.status` **원시값**. 0072 §④ 가 「부킹을 옮기는 것이 곧 그 선언이고」 라고 쓴
+   * 그 값이고, 당사자가 읽을 수 있는 유일한 정산 선언이다. 라벨로 그리지 않는다 —
+   * `incident-outcome.ts` 가 두 상태에 대해서만 문장을 돌려주고 나머지는 null 로 닫는다.
+   */
+  bookingRawStatus: string | null;
+}
+
+/**
+ * 이 예약의 **해소된** 인시던트 하나 — `fetchOpenIncident` 의 반대쪽 절반.
+ *
+ * 🔴 왜 필요한가. `fetchOpenIncident` 의 `.is('resolved_at', null)` 은 서버의 술어 그대로라
+ *    옳지만, 그 결과 해소되는 순간 양측 화면이 「열린 건 없음」 → **빈 접수 폼**으로 떨어졌다.
+ *    실제로 일어난 사고의 기록이 빈 종이로 바뀌는 치환이고, 아무 데서도 실패가 나지 않아
+ *    누구도 신고하지 않는 종류의 거짓이다. 이 함수는 그 행을 읽어 화면이 잊지 않게 한다.
+ *
+ * ⚠ RLS: `incidents party`(0002:151-153, SELECT) 가 `reporter_id = auth.uid() or
+ *    is_booking_party(booking_id)` 이므로 **양측 모두** 자기 예약의 인시던트 행을 읽는다.
+ *    0094 §8 이 드롭한 것은 INSERT 정책이고 이 SELECT 정책은 그대로다.
+ *
+ * ⚠ 금액은 없다. 0072 는 `ledger_items`·`club_fee_items`(클럽 테이블, `club_incidents` 용)에
+ *    쓰고, 전자는 `ledger self read`(0002:124)로 러너 전용인 데다 클라이언트에는 봉인돼 있으며
+ *    후자는 클럽 스코프다. 그래서 결과 화면에 **돈 줄이 없다** — 없는 값을 파생하지 않는다.
+ *
+ * ⚠ 두 번 읽는다. 인시던트 행과 부킹 상태는 서로 다른 테이블의 서로 다른 사실이고, 둘을 한
+ *    임베드로 묶으면 `check-embed-fk` 가 지키는 FK 계약에 새 의존이 생긴다. 이 화면은 이미
+ *    두 번 읽으므로 왕복 하나가 더 늘 뿐이다.
+ */
+export async function fetchIncidentOutcome(bookingId: string): Promise<IncidentOutcome | null> {
+  const { data: user } = await supabase.auth.getUser();
+  const uid = user.user?.id ?? null;
+  const { data, error } = await supabase.from('incidents')
+    .select('id, kind, severity, note, reporter_id, resolved_at, verified_at, verify_forced_by')
+    .eq('booking_id', bookingId)
+    .not('resolved_at', 'is', null)
+    // 가장 최근에 해소된 건. `fetchOpenIncident` 가 가장 먼저 열린 건을 보는 것과 방향이 반대인
+    // 이유는 질문이 반대라서다 — 저쪽은 「지금 무엇이 열려 있나」, 이쪽은 「무엇으로 끝났나」.
+    .order('resolved_at', { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  const r = (data ?? [])[0] as any;
+  if (!r) return null;
+  // 부킹 상태는 별도의 사실이고, 못 읽는 것과 없는 것은 다르다: 읽기가 실패하면 throw 해서
+  // 화면이 '실패'를 그리게 한다 (침묵 강등 금지). 행이 없으면 `bookings party read` 가 남의
+  // 예약을 0행으로 만든 경우이므로 상태를 **주장하지 않고** null 로 둔다.
+  const { data: b, error: berr } = await supabase.from('bookings')
+    .select('status').eq('id', bookingId).maybeSingle();
+  if (berr) throw berr;
+  return {
+    incidentId: r.id,
+    kind: r.kind,
+    severity: r.severity,
+    note: r.note ?? null,
+    reportedByMe: !!uid && r.reporter_id === uid,
+    resolvedAtIso: r.resolved_at,
+    verifiedAtIso: r.verified_at ?? null,
+    forcedBy: r.verify_forced_by ?? null,
+    bookingRawStatus: (b as any)?.status ?? null,
+  };
+}
+
 /** 접수 결과의 **알림** 쪽 사실. 접수 성공과 별개의 사실이라 별개의 값이다. */
 export type IncidentNotify = 'sent' | 'failed' | 'unavailable';
 
