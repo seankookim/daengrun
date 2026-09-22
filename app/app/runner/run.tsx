@@ -1031,6 +1031,13 @@ export default function ActiveRun() {
   // 지운다 (api.ts). 'completed'는 여기서 말하지 않는다: 그건 정산이 이미 끝났다는 뜻이고,
   // 정산 실패 알림이 이미 그 문장을 들고 있다 (:767 "'이미 정산됐다'고 하면 정산은 끝난 거예요").
   const incidentBid = bookingWatch?.status === 'incident_review' ? bookingWatch.bid : null;
+  // 사고 신고 문이 열 예약 id. 위 배너와 달리 **상태를 묻지 않는다** — 배너는 '서버가 확인을
+  // 시작했다'는 긍정 주장이라 상태가 필요하지만, 이 문은 러너가 지금 들고 있는 예약으로 가는
+  // 길일 뿐이고 접수 가능 여부는 서버(0114 §3)와 접수 화면이 판정한다. 여기서 한 번 더 판정하면
+  // 같은 규칙의 사본이 하나 더 생기고, 둘 중 하나는 반드시 낡는다.
+  // 감시값을 먼저 보는 이유는 :1012와 같다 — `runnerJob.bookingId`는 정산 성공 시 null이 되는
+  // 가변 모듈 값이다. 감시가 아직 한 번도 성공하지 않은 동안은 그 모듈 값이 유일하게 아는 길이다.
+  const incidentDoorBid = bookingWatch?.bid ?? runnerJob.bookingId ?? null;
 
   // ---------- 사진 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
   // Verbatim: "For the runner done screen (C), make sure there's a mandatory nudge for pictures
@@ -1443,6 +1450,33 @@ export default function ActiveRun() {
           <Text style={{ fontSize: 15, color: colors.volt }}>채팅 ›</Text>
         </Pressable>
 
+        {/* ---------- 사고 신고 ----------
+            🔴 [2026-09-23] 이 화면에는 사고를 신고할 문이 **하나도 없었다** (`/safety` 0건,
+            `/incident/` 0건). 개를 데리고 실제로 달리고 있는 유일한 사람이, 사고가 나는 유일한
+            시점에, 서버가 두 달 전부터 갖고 있던 접수 경로(`open_incident_tx` · 0094 ⑪)에 닿을
+            길이 없었다는 뜻이다. 보호자에게는 SOS가 있었고 러너에게는 없었다.
+
+            왜 **컨트롤 영역에 상시**인가. 종료 시트 뒤에 두면 「사고를 신고하려면 먼저 러닝을
+            끝내라」는 요구가 되고, 그건 사고 상황에서 정확히 반대로 된 순서다 — 접수는 러닝을
+            멈추지 않고(이 파일 :94의 frozen 노트), 서버도 `accepted` 에서 접수를 받는다.
+            채팅 핀 바로 아래에 두는 이유는 그 둘이 같은 질문의 두 답이기 때문이다: 알린다.
+            ⚠ 슬라이드·길게 누르기가 아니라 **한 번 탭**이다. 급한 손에 제스처를 요구하지 않는다.
+
+            bid 가 아직 안 잡혔으면 그리지 않는다 — `/incident/[bid]` 는 bid 로만 열리므로
+            빈 라우트를 미는 버튼은 죽은 버튼이다 (resolve 는 몇 초 안에 끝난다). */}
+        {incidentDoorBid && (
+          <Pressable
+            onPress={() => router.push(`/incident/${incidentDoorBid}`)}
+            style={s.incidentBtn}
+            accessibilityRole="button"
+            accessibilityLabel="사고 신고"
+            accessibilityHint="이 러닝의 사고 접수 화면을 열어요. 러닝은 종료되지 않아요"
+          >
+            <Text style={s.incidentBtnTxt}>사고 신고</Text>
+            <Text style={s.incidentBtnNote}>러닝은 계속돼요</Text>
+          </Pressable>
+        )}
+
         {/* ⑥ 천장: km은 **멈춘 값**으로 남고 볼트(= 지금 뛰는 중)를 내려놓는다. 페이스도 비운다 —
             기록이 멈춘 뒤의 페이스는 '지금'이 아니고, 그건 paceStale이 90초 뒤에 할 말을
             천장이 이미 확정지은 것이다. */}
@@ -1809,6 +1843,18 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: '#222222', borderRadius: 0, padding: 12,
   },
+  // 사고 신고 문 — criticalWash 면 + critical 잉크. 다크 패널(#111111) 위에서 critical
+  // (#B3261E)을 그냥 쓰면 2.2:1 이라 읽히지 않는다: 워시가 **자기 배경을 들고 오기 때문에**
+  // 대비가 칩 안에서 완결된다 (이 파일 페이스 칩이 쓰는 바로 그 문법, :1824). 측정:
+  // #B3261E on #FBEAE7 = 6.9:1. critical 은 강조 예산 면제 토큰이고(theme.ts:202) coral 면을
+  // 늘리지 않는다 — 이 화면의 코랄(colors.runLive)과 다른 색, 다른 역할이다.
+  incidentBtn: {
+    marginTop: 10, minHeight: 48, borderRadius: 0, paddingVertical: 11, paddingHorizontal: 12,
+    backgroundColor: paper.criticalWash, alignItems: 'center', justifyContent: 'center',
+  },
+  incidentBtnTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical },
+  // 보조 문장이 본 라벨보다 작아지지 않게 15pt 바닥 그대로 (DESIGN.md §디테일 바닥)
+  incidentBtnNote: { fontSize: 15, lineHeight: 19, color: paper.critical, marginTop: 2 },
   // [2026-08-24] 다크 패널의 스트립 스타일(failStrip/failTxt/incidentTxt/failAction/
   // mutedTxt/mutedAction/noteStrip/guideTxt/guideNote)은 은퇴했다 — 스택이 지도 위 종이
   // 레인으로 옮겨가면서 종이 문법(pStrip 계열)이 그 자리를 가져갔다. 문장과 심각도 체인은
