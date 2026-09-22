@@ -11,7 +11,7 @@
 --     row IS the stored row.
 --   · N4 a NULL uid refuses BY NAME (`not_signed_in`) on both RPCs, and writes nothing.
 --   · N5 THE SEND PATH — the whole point of the slice. With a live Expo token, a `notifications`
---     INSERT either reaches `net._stub_calls` or it does not, and the preference decides:
+--     INSERT either becomes a push or it does not, and the preference decides:
 --       ‣ CONTROL: no prefs row ⇒ every category pushes (this is what proves the machinery runs —
 --         a `notify_push` that threw would give 0 everywhere and read as 「suppressed」).
 --       ‣ each of booking · chat · community · reward is silenced by ITS OWN column and by no
@@ -33,9 +33,13 @@
 --     `position(x in NULL)` is NULL and a bare IF on NULL does not fire).
 --
 -- ─── WHAT THIS SUITE DOES NOT PROVE (prose, not pins — the harness cannot reach it) ───
---   · The push itself. `00_shim.sql` stubs `net.http_post` into `net._stub_calls`, so what is
---     measured is 「the row→HTTP step was taken」, never that Expo delivered anything. A revoked OS
---     permission, an expired token, a dead APNs cert are all invisible here and always will be.
+--   · The push itself. What is measured is 「the row was allowed to become a push」, never that
+--     Expo delivered anything. A revoked OS permission, an expired token, a dead APNs cert are all
+--     invisible here and always will be. ⚠ AMENDED 2026-09-22 (0204): this line used to say
+--     「the row→HTTP step was taken」 and named `net._stub_calls`, which was true while
+--     `notify_push` decided and posted in one statement. It no longer does — see the `[0204]` note
+--     on `t_npf_probe` below. The step measured here is now row→outbox; outbox→HTTP is
+--     `235_push_outbox_suite.sql`'s.
 --   · That safety NEVER READS `notification_prefs`. The observable half (safety pushes with every
 --     column false) is N5; 「does not touch the table at all」 is source-only and belongs to S1's
 --     ordering arm. There is no way to observe a read that did not happen, so no pin claims it.
@@ -102,24 +106,34 @@
 --  ① `request.jwt.claim.sub` is set and cleared explicitly in every arm. A leftover claim from an
 --     earlier suite would make N4's 「no caller」 arm silently measure the wrong thing.
 --  ② Every push measurement is a DELTA around one INSERT, never an absolute count: other suites in
---     this same database have already written to `net._stub_calls`.
+--     this same database have already produced pushes for their own fixtures. [0204] The delta is
+--     now taken over `push_outbox` — `t_npf_probe` scopes it to the notification's own id, the chat
+--     probe to (recipient, title).
 --  ③ The fixture profile holds a real `ExponentPushToken…` in `push_tokens`. Without it
---     `notify_push` returns before the HTTP call for a reason that has nothing to do with
+--     `notify_push` returns before the enqueue for a reason that has nothing to do with
 --     preferences, and every arm would read 0 — the fixture must contain the defect's precondition.
 set client_min_messages = warning;
 
--- One INSERT, measured both ways: how many stub calls it produced, and whether the row landed.
+-- One INSERT, measured both ways: how many pushes it produced, and whether the row landed.
+-- ⚠ [0204] `pushes` NOW COUNTS `push_outbox` ROWS, NOT `net._stub_calls`, AND NOT ONE PIN IN THIS
+--   FILE CHANGES MEANING OR EXPECTED VALUE. `notify_push` used to decide AND post in one
+--   statement; 0204 splits that into row → outbox (here, still inside `notify_push`, still under
+--   every preference rule this file pins) and outbox → HTTP one tick later, because pg_net is
+--   asynchronous and a deletion committing between the check and the send was never re-examined
+--   (Codex B8). The preference decision — which is this file's entire subject — did not move;
+--   only what happens after it. The second arrow is owned by `235_push_outbox_suite.sql`
+--   (`0204-R1`…`R4`). Scoped to the notification's own id so a drained queue cannot be counted as
+--   this probe's work.
 create or replace function t_npf_probe(p_profile uuid, p_kind noti_kind, p_title text)
 returns jsonb language plpgsql as $$
-declare v0 int; v1 int; v_row int; v_id uuid;
+declare v1 int; v_row int; v_id uuid;
 begin
-  select count(*) into v0 from net._stub_calls;
   insert into notifications (profile_id, kind, title, body, ref_id)
        values (p_profile, p_kind, p_title, 'npf-probe', null)
     returning id into v_id;
-  select count(*) into v1 from net._stub_calls;
+  select count(*) into v1 from push_outbox where noti_id = v_id;
   select count(*) into v_row from notifications where id = v_id;
-  return jsonb_build_object('pushes', v1 - v0, 'row', v_row);
+  return jsonb_build_object('pushes', v1, 'row', v_row);
 end $$;
 
 -- A chat nudge driven through 0090's REAL trigger, measured the same way.
@@ -131,9 +145,12 @@ begin
   -- measurement in an arm silently writes nothing and reads as 「the preference suppressed it」.
   update notifications set read_at = now()
    where profile_id = p_to and title = '새 메시지' and read_at is null;
-  select count(*) into v0 from net._stub_calls;
+  -- [0204] the same substitution as `t_npf_probe` above, and for the same reason; here the
+  -- notification's id is not in hand (0090's trigger writes it), so the delta is scoped to the
+  -- recipient and the title instead.
+  select count(*) into v0 from push_outbox where profile_id = p_to and title = '새 메시지';
   insert into chat_messages (thread_id, sender_id, body) values (p_thread, p_sender, 'npf 채팅');
-  select count(*) into v1 from net._stub_calls;
+  select count(*) into v1 from push_outbox where profile_id = p_to and title = '새 메시지';
   select count(*) into v_row from notifications
    where profile_id = p_to and title = '새 메시지' and read_at is null;
   select max(_noti_push_category(n.kind, n.title)) into v_cat from notifications n

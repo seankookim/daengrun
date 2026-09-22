@@ -132,9 +132,11 @@
 --     orphan shape can only be manufactured the way it actually arose — a deletion that ran under
 --     the OLD code. A fixture built with today's function could not contain the defect (0151's
 --     measured lesson, in the one direction where the current code is the wrong fixture).
---  ⑤ B5 counts `net._stub_calls` rows BY THEIR PAYLOAD (`body->>'to'` and `body->>'title'`), not as
---     a global delta: the sweep is a janitor and runs over every leftover row in the database, so a
---     count that is not scoped to this fixture's token measures the other suites.
+--  ⑤ B5 counts pushes BY THEIR PAYLOAD (token and title), not as a global delta: the sweep is a
+--     janitor and runs over every leftover row in the database, so a count that is not scoped to
+--     this fixture's token measures the other suites. ⚠ AMENDED 2026-09-22 (0204): the rows
+--     counted are `push_outbox` rows, not `net._stub_calls` rows — see the `[0204]` note on
+--     `t_crs_pushes` below. The payload scoping, which is what this note is about, is unchanged.
 set client_min_messages = warning;
 
 -- ---------- suite-local fixtures ① ----------
@@ -169,11 +171,20 @@ language sql as $$
   update runs set ended_at = now() - p_ago where booking_id = (select id from b)
 $$;
 
--- pushes actually dispatched for ONE token and ONE title ⑤
+-- pushes produced for ONE token and ONE title ⑤
+-- ⚠ [0204] THIS NOW COUNTS `push_outbox` ROWS, NOT `net._stub_calls`, AND B5's THREE DELTAS AND
+--   THEIR EXPECTED VALUES ARE UNCHANGED. `notify_push` used to decide AND post in one statement;
+--   0204 splits that into row → outbox and outbox → HTTP one cron tick later, because pg_net is
+--   asynchronous and a deletion committing in between was never re-examined (Codex B8). B5's
+--   subject is the CLASSIFICATION — a `귀가 확인이 필요해요` row reaches the send boundary even
+--   with `booking = false`, under both `kind = 'safety'` and the pre-0193 `kind = 'booking'` — and
+--   that decision still happens where it did. The payload match is kept (token + title), so the
+--   pin still identifies its own push rather than counting anything that moved. outbox → HTTP is
+--   owned by `235_push_outbox_suite.sql` (`0204-R1`…`R4`).
 create or replace function t_crs_pushes(p_token text, p_title text) returns int
 language sql as $$
-  select count(*)::int from net._stub_calls
-   where body->>'to' = p_token and body->>'title' = p_title
+  select count(*)::int from push_outbox
+   where token = p_token and title = p_title
 $$;
 
 do $$

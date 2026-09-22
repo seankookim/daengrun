@@ -690,3 +690,61 @@ if [ "$P_RET" = "0" ] && [ "$P_DURING" = "0" ] && [ "$P_AFTER" = "2" ] && [ "$P_
 else
   psql -qc "call _fail('race','RP 지급 스윕 두 틱','ret=$P_RET during=$P_DURING after=$P_AFTER err=$P_ERR (0·0·2·0 기대 — during>0 = 둘째 틱이 락을 무시하고 썼다)')"
 fi
+
+# ---------- [0204] RQ: two ticks of push_outbox_dispatch — the second SKIPS, nobody is pushed twice ----------
+# `push_outbox_dispatch` marks a row `dispatched_at` AFTER the post, which is the only order that can
+# be honest (writing it first would mark a push that never left). That makes the scan a read-then-post
+# across every pending row, and no unique key can catch a duplicate — `dispatched_at is null` is the
+# whole candidate predicate and two ticks read it in their own snapshots. 0204 §C puts a TRY xact job
+# lock before the first candidate is read. `235 0204-L1` can see the lock in SOURCE; only two
+# processes can see the SKIP, because an advisory lock is re-entrant within a session — a second call
+# from one connection would acquire it again and run.
+#
+# Shape is 0190's RP, and so is the mutation story: the leader holds the lock and sends nothing, so
+# the dispatched count is 2 either way once the lock clears. What the plant (deleting the try-lock
+# from 0204 §C) changes is Q_RET (0 -> 2) and Q_DURING (0 -> 2): the follower RAN and POSTED while
+# the leader held the lock. Both are asserted, and the count-only assertion alone would be green on
+# the defect.
+psql -v ON_ERROR_STOP=1 -q <<'SQL' || { psql -qc "call _fail('race','RQ 셋업','world builder 실패')"; exit 0; }
+create or replace function race_setup_q() returns text
+language plpgsql as $$
+declare ow uuid; tok text := 'ExponentPushToken[race-q]';
+begin
+  ow := t_user('race_q_owner', 'owner');
+  insert into push_tokens (profile_id, token) values (ow, tok);
+  -- Written straight into the queue rather than through a notification: this arm's subject is the
+  -- JOB LOCK, and going through `notify_push` would add its own classification decisions to a
+  -- measurement about serialisation. The dispatcher's recheck still has to pass, so the profile is
+  -- real, live, and holds exactly this token.
+  insert into push_outbox (profile_id, token, title, body, data, kind)
+  values (ow, tok, 'RQ 하나', 'race q', jsonb_build_object('kind','safety','ref_id',null), 'safety'),
+         (ow, tok, 'RQ 둘',  'race q', jsonb_build_object('kind','safety','ref_id',null), 'safety');
+  return tok;
+end $$;
+SQL
+RQ_TOKEN=$(psql -qt -c "select race_setup_q()" | xargs)
+psql -q > .pgtest/race_q1.out 2>&1 <<SQL &
+begin;
+select pg_try_advisory_xact_lock(hashtextextended('push_outbox_dispatch', 0));
+select pg_sleep(2);
+commit;
+SQL
+sleep 0.6
+Q_RET=$(psql -qt -c "select push_outbox_dispatch();" 2> .pgtest/race_q2.err | xargs)
+Q_DURING=$(psql -qt -c "select count(*) from push_outbox where token = '$RQ_TOKEN' and dispatched_at is not null" | xargs)
+wait
+psql -qt -c "select push_outbox_dispatch();" > .pgtest/race_q3.out 2>&1
+Q_AFTER=$(psql -qt -c "select count(*) from push_outbox where token = '$RQ_TOKEN' and dispatched_at is not null" | xargs)
+Q_POSTS=$(psql -qt -c "select count(*) from net._stub_calls where body->>'to' = '$RQ_TOKEN'" | xargs)
+Q_ERR=$(cat .pgtest/race_q1.out .pgtest/race_q2.err .pgtest/race_q3.out | grep -ciE "^ERROR|FATAL" || true)
+psql -qc "drop function if exists race_setup_q();" > /dev/null
+# PUT THE WORLD BACK, for 0190 RP's reason: this file runs BEFORE every suite from 95 on, and the
+# dispatcher is a global janitor — it drains whatever is pending, not only this fixture. The two rows
+# are removed so no later suite counting `push_outbox` meets them. The `net._stub_calls` rows stay:
+# they are evidence this arm ran, and every later assertion is scoped to its own token.
+psql -qc "delete from push_outbox where token = '$RQ_TOKEN';" > /dev/null
+if [ "$Q_RET" = "0" ] && [ "$Q_DURING" = "0" ] && [ "$Q_AFTER" = "2" ] && [ "$Q_POSTS" = "2" ] && [ "$Q_ERR" = "0" ]; then
+  psql -qc "call _pass('race','RQ 아웃박스 디스패치 두 틱 — 잡 락을 쥔 틱이 있으면 둘째 틱은 0을 돌려주고 아무것도 발송하지 않는다; 락이 풀린 뒤의 틱이 대기 행 2개를 각각 한 번씩만 보낸다 (try xact 잡 락 = 겹치면 건너뜀. 락이 없으면 겹친 두 틱이 각각 dispatched_at is null 을 보고 각각 보낸다 — 표시는 발송 뒤에 찍히므로 유니크 키로는 막을 수 없다)')"
+else
+  psql -qc "call _fail('race','RQ 아웃박스 디스패치 두 틱','ret=$Q_RET during=$Q_DURING after=$Q_AFTER posts=$Q_POSTS err=$Q_ERR (0·0·2·2·0 기대 — during>0 = 둘째 틱이 락을 무시하고 발송했다, posts>2 = 같은 행이 두 번 나갔다)')"
+fi

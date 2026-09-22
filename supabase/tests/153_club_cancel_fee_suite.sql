@@ -588,7 +588,17 @@ begin
       then v_bad := v_bad || ' 🔴 전제 실패: 진짜 노쇼여야 하는 fixture에 출석 증거가 있다'; end if;
     insert into push_tokens(profile_id,token)
     values(o4,'ExponentPushToken[ccf153-noshow]');
-    select coalesce(max(id),0) into v_push_base from net._stub_calls;
+    -- ⚠ [0204] THE EXPO PAYLOAD IS NOW READ OUT OF `push_outbox`, NOT `net._stub_calls`, AND THIS
+    -- PIN'S PROPOSITION IS UNCHANGED. `notify_push` used to decide AND post in one statement, so the
+    -- payload an AFTER INSERT trigger produced was observable as a stub call the moment the row
+    -- landed. 0204 splits that into row → outbox (still inside `notify_push`, still assembling the
+    -- same four fields from the same sources) and outbox → HTTP one cron tick later, because pg_net
+    -- is asynchronous and a deletion committing in between was never re-examined (Codex B8). What P4
+    -- asserts — that the fee copy is FROZEN INTO the push at write time rather than recomputed — is a
+    -- property of the row the trigger writes, so it is asserted where that row now is. `v_push` is
+    -- rebuilt into the same Expo body shape so the four assertions below did not have to change.
+    -- outbox → HTTP is owned by `235_push_outbox_suite.sql` (`0204-R1`).
+    select coalesce(max(id),0) into v_push_base from push_outbox;
     update ops_flags set payments_live_since=now()-interval '7 days', updated_at=now() where id;
     perform set_config('request.jwt.claim.sub', h::text, false); perform club_finish_session(s_ns);
     select round(total_price*club_cfg('cancel_post_accept_pct')/100.0)::int into v_fee from bookings where id=b_ns;
@@ -606,9 +616,11 @@ begin
        or not exists (select 1 from club_acks where profile_id=o4 and ref_id=b_ns
                       and title='위탁 미진행 — 취소 수수료')
       then v_bad := v_bad || ' collectable 노쇼에 전액 환불 거짓 문구가 남았다'; end if;
-    select body into v_push from net._stub_calls
-    where id > v_push_base and body->'data'->>'ref_id'=b_ns::text
-    order by id desc limit 1;
+    select jsonb_build_object('to', o.token, 'title', o.title, 'body', o.body,
+                              'sound', 'default', 'data', o.data)
+      into v_push from push_outbox o
+     where o.id > v_push_base and o.data->>'ref_id' = b_ns::text
+     order by o.id desc limit 1;
     if v_push is null or v_push->>'title' like '%전액 환불%'
        or v_push->>'body' like '%전액 환불%'
        or v_push->>'body' not like '%결제 예정%'

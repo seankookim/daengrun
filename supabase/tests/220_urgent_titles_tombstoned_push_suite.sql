@@ -28,8 +28,11 @@
 --     properties restated because 0189 recreates both functions.
 --
 -- ─── WHAT THIS SUITE DOES NOT PROVE (prose, not pins) ───
---   · Delivery. `00_shim.sql` stubs `net.http_post` into `net._stub_calls`; what is measured is
---     「the row→HTTP step was taken」, never that Expo delivered anything.
+--   · Delivery. What is measured is 「the row was allowed to become a push」, never that Expo
+--     delivered anything. ⚠ AMENDED 2026-09-22 (0204): this line used to say 「the row→HTTP step
+--     was taken」 and named `net._stub_calls`, which was true while `notify_push` decided and
+--     posted in one statement. It no longer does — see the `[0204]` note on `t_urg_probe` below.
+--     The step measured here is now row→outbox; outbox→HTTP is `235_push_outbox_suite.sql`'s.
 --   · That the CLIENT still writes these three titles. SQL cannot read a `.ts` file —
 --     `app/test/notification-prefs.test.cjs` reads `api.ts` and this migration as text, comments
 --     stripped, and asserts the three values agree in BOTH directions. A rename on either side
@@ -105,18 +108,29 @@
 --  ④ `request.jwt.claim.sub` is set and cleared explicitly around every arm.
 set client_min_messages = warning;
 
--- One INSERT, measured both ways: stub calls produced, and whether the row landed.
+-- One INSERT, measured both ways: pushes produced, and whether the row landed.
+-- ⚠ [0204] `pushes` NOW COUNTS `push_outbox` ROWS, NOT `net._stub_calls`, AND NOT ONE PIN IN THIS
+--   FILE CHANGES MEANING OR EXPECTED VALUE. Until 0204 `notify_push` decided AND posted in one
+--   statement, so 「the row → HTTP step was taken」 (this file's own header, §WHAT THIS SUITE DOES
+--   NOT PROVE) was measurable as a stub-call delta. 0204 splits that step in two — row → outbox,
+--   then outbox → HTTP one cron tick later — because pg_net is asynchronous and a deletion
+--   committing between the check and the send was never re-examined (Codex B8). The half THIS
+--   file owns is the FIRST arrow: which notifications are allowed to become a push, by kind, by
+--   title and by the recipient being alive. That decision still happens in `notify_push` and is
+--   still exactly what U1/U2/T1 assert. The SECOND arrow — outbox → HTTP, exactly once, and only
+--   for a recipient still live at dispatch — is owned by `235_push_outbox_suite.sql`
+--   (`0204-R1`…`R4`). Scoped to the notification's own id so a drained queue cannot be counted
+--   as this probe's work.
 create or replace function t_urg_probe(p_profile uuid, p_kind noti_kind, p_title text)
 returns jsonb language plpgsql as $$
-declare v0 int; v1 int; v_row int; v_id uuid;
+declare v1 int; v_row int; v_id uuid;
 begin
-  select count(*) into v0 from net._stub_calls;
   insert into notifications (profile_id, kind, title, body, ref_id)
        values (p_profile, p_kind, p_title, 'urg-probe', null)
     returning id into v_id;
-  select count(*) into v1 from net._stub_calls;
+  select count(*) into v1 from push_outbox where noti_id = v_id;
   select count(*) into v_row from notifications where id = v_id;
-  return jsonb_build_object('pushes', v1 - v0, 'row', v_row);
+  return jsonb_build_object('pushes', v1, 'row', v_row);
 end $$;
 
 -- A push_tokens write attempted AS a given role, with the failure NAMED rather than swallowed.
