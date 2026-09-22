@@ -3,10 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../src/components/status-bar-cover';
 import { Row } from '../src/components/ui';
-import { fetchNotificationPrefs, saveNotificationPrefs } from '../src/lib/api';
+import { fetchNotificationPrefs, opsMe, saveNotificationPrefs } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
 import { goBackOrHome } from '../src/lib/nav';
-import { NotiPrefs, PREF_ROWS, PREFS_NOTE, PrefKey } from '../src/lib/notification-prefs';
+import { NotiPrefs, PREFS_NOTE, PrefKey, visiblePrefRows } from '../src/lib/notification-prefs';
 import { colors, paper } from '../src/theme';
 
 // 알림 설정 — 0187. `settings.tsx`의 준비 중 카드에 「알림 설정 · 푸시 도입 후」로 앉아 있던 자리가
@@ -34,6 +34,15 @@ export default function NotificationSettings() {
   const [loadErr, setLoadErr] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<PrefKey | null>(null);
+  // 🔴 [0210] 운영 알림 행은 **운영자에게만** 그린다. `system` 푸시는 ops_recipients 에 있는
+  //   사람에게만 갈 수 있으므로(0084 §E), 나머지 모두에게는 받을 수 없는 알림의 스위치 —
+  //   죽은 버튼이다. 판정은 서버가 한다(`ops_me()` 0198 §A: 콘솔 문들이 쓰는 그 창구).
+  //   ⚠ null 은 **모름**이고(프로브 실패 포함) 그때는 행을 숨긴다. 양쪽 다 안전한 방향이다:
+  //     비운영자는 못 쓰는 스위치를 안 보고, 프로브가 실패한 운영자는 그리지 않은 행이
+  //     칸을 건드리지 않으므로 푸시를 그대로 받는다. 이 화면의 다른 다섯 상태와 달리
+  //     라우드-페일 스트립을 띄우지 않는 이유: 이건 **실패가 아니라 부재**다. 비운영자에게
+  //     「운영자 여부를 확인하지 못했어요」는 자기와 상관없는 일의 오류다.
+  const [isOps, setIsOps] = useState<boolean | null>(null);
 
   const load = useCallback(() => {
     setLoadErr(false);
@@ -44,8 +53,16 @@ export default function NotificationSettings() {
         console.warn('[noti-prefs] load:', (e as Error)?.message ?? e);
         setLoadErr(true);
       });
+    opsMe()
+      .then((m) => setIsOps(m.isOps))
+      .catch((e) => {
+        console.warn('[noti-prefs] ops_me:', (e as Error)?.message ?? e);
+        setIsOps(null);
+      });
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const rows = visiblePrefRows(isOps);
 
   // 낙관적 토글 + 롤백. 저장 성공 시에는 **서버가 돌려준 행**으로 덮어쓴다 — 낙관값을 그대로
   // 두면 화면이 서버가 실제로 가진 값이 아니라 우리가 추측한 값을 보여주게 된다.
@@ -123,7 +140,7 @@ export default function NotificationSettings() {
             )}
 
             <View style={[s.card, { marginTop: 10 }]}>
-              {PREF_ROWS.map((r, i) => {
+              {rows.map((r, i) => {
                 const on = r.key === null ? true : prefs[r.key];
                 return (
                   <View key={r.label}>

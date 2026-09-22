@@ -21,7 +21,10 @@
 const {
   ledgerPaymentState, ledgerPaymentLabel,
   payoutStatusLabel, payoutStatusWithMethod, payoutPeriodLabel, sortPayoutsNewestFirst,
+  payoutStuckDays, payoutStuckLine, PAYOUT_STUCK_DAYS,
 } = require('./payout-status.build.cjs');
+const fs = require('fs');
+const path = require('path');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -184,6 +187,95 @@ t('sorting is deterministic across repeated calls on the same data',
   sortPayoutsNewestFirst(tied).map((r) => r.id).join('')
     === sortPayoutsNewestFirst(sortPayoutsNewestFirst(tied)).map((r) => r.id).join(''));
 t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 0);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0210 §E] IS MY OWN PAYOUT STUCK — the client half of the sweep's sentence
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// The property: the line appears only for a row that is SETTLED, UNPAID and older than the
+// sweep's own threshold, the age is measured from the OLDEST such row, and everything else — a
+// paid row, an unsettled row, a young row, a row with no readable instant, no rows at all —
+// produces silence rather than a number. Silence is the honest rendering of 「nothing to say」;
+// the alternative is a strip that asserts something nobody measured.
+//
+// The mutations that redden it: count an unsettled row (the server REFUSES to pay those, so the
+// strip would complain about money nobody owes yet) · count a paid row · use the NEWEST
+// qualifying row instead of the oldest (which makes a runner with one old and one fresh unpaid
+// row silent) · treat a null `createdAtMs` as 0 (epoch — every runner instantly 20,000 days
+// stuck) · drop the threshold to 0 · return 0 instead of null.
+{
+  const DAY = 86400000;
+  const NOW = Date.parse('2026-09-21T03:00:00Z');
+  const row = (o) => Object.assign({ paidPayoutId: null, paidAtMs: null, settled: true, createdAtMs: NOW }, o);
+
+  t('the threshold is the sweep\'s own 7 days', PAYOUT_STUCK_DAYS === 7, String(PAYOUT_STUCK_DAYS));
+  // 🔴 READ FROM THE MIGRATION, so the client's number cannot drift from the one that decides.
+  // Comment-stripped: 0210's header quotes `interval '7 days'` in prose more than once, and an
+  // un-stripped read would be satisfied by the explanation rather than by the code.
+  {
+    const migDir = path.resolve(__dirname, '../../supabase/migrations');
+    const decls = fs.readdirSync(migDir)
+      .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+      .filter((f) => /create or replace function ops_payouts_stuck_sweep/.test(
+        fs.readFileSync(path.join(migDir, f), 'utf8').split('\n').map((l) => l.replace(/--.*$/, '')).join('\n')))
+      .sort();
+    t('a migration declares the sweep (absence must fail LOUDLY)', decls.length > 0, JSON.stringify(decls));
+    const src = decls.length
+      ? fs.readFileSync(path.join(migDir, decls[decls.length - 1]), 'utf8').split('\n').map((l) => l.replace(/--.*$/, '')).join('\n')
+      : '';
+    const m = /STUCK_AFTER\s+constant\s+interval\s*:=\s*interval\s*'(\d+)\s*days'/.exec(src);
+    t('STUCK_AFTER is parseable out of the latest sweep declaration', !!m, String(m && m[0]));
+    t('🔴 the client threshold EQUALS the server\'s STUCK_AFTER — a drift here makes the strip and the push disagree about the same money',
+      !!m && Number(m[1]) === PAYOUT_STUCK_DAYS, m ? `sql=${m[1]} client=${PAYOUT_STUCK_DAYS}` : '');
+  }
+
+  t('a settled unpaid row exactly at the threshold is stuck, and the number is the whole days elapsed',
+    payoutStuckDays([row({ createdAtMs: NOW - 7 * DAY })], NOW) === 7);
+  t('one day short of the threshold is silence, not 6 — the strip has no opinion below the line',
+    payoutStuckDays([row({ createdAtMs: NOW - 6 * DAY })], NOW) === null);
+  t('a long wait reports its real length',
+    payoutStuckDays([row({ createdAtMs: NOW - 31 * DAY })], NOW) === 31);
+  t('🔴 the age is the OLDEST qualifying row, not the newest — a fresh row beside an old one must not hide the old one',
+    payoutStuckDays([row({ createdAtMs: NOW - 1 * DAY }), row({ createdAtMs: NOW - 20 * DAY })], NOW) === 20);
+  t('… and order in the array does not matter',
+    payoutStuckDays([row({ createdAtMs: NOW - 20 * DAY }), row({ createdAtMs: NOW - 1 * DAY })], NOW) === 20);
+
+  t('🔴 an UNSETTLED row never counts — 0186 §0d ⓒ makes the server refuse to pay it, so complaining about it would be complaining about money nobody owes yet',
+    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, settled: false })], NOW) === null);
+  t('a PAID row never counts, even an ancient one',
+    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, paidPayoutId: 'p1', paidAtMs: NOW })], NOW) === null);
+  t('a paid row with NO readable date is still paid (paidPayoutId decides, never paidAtMs)',
+    payoutStuckDays([row({ createdAtMs: NOW - 40 * DAY, paidPayoutId: 'p1', paidAtMs: null })], NOW) === null);
+  t('a paid ancient row does not mask a genuinely stuck one beside it',
+    payoutStuckDays([row({ createdAtMs: NOW - 90 * DAY, paidPayoutId: 'p1' }),
+                     row({ createdAtMs: NOW - 9 * DAY })], NOW) === 9);
+
+  t('🔴 a null createdAtMs is SKIPPED, never read as the epoch — a `?? 0` here would report every runner as 20,000 days stuck',
+    payoutStuckDays([row({ createdAtMs: null })], NOW) === null);
+  t('a NaN instant is skipped too (Date.parse returns NaN, not null, on anything it cannot read)',
+    payoutStuckDays([row({ createdAtMs: NaN })], NOW) === null);
+  t('an unreadable instant does not hide a readable stuck row beside it',
+    payoutStuckDays([row({ createdAtMs: null }), row({ createdAtMs: NOW - 8 * DAY })], NOW) === 8);
+
+  t('no rows ⇒ null (a failed fetch hands us an empty list, and "no data" is not "you are fine")',
+    payoutStuckDays([], NOW) === null);
+  for (const empty of [null, undefined]) {
+    t(`payoutStuckDays(${String(empty)}) is null, never a crash`, payoutStuckDays(empty, NOW) === null);
+  }
+  t('an unusable now is null (never a negative or NaN day count leaking to the screen)',
+    payoutStuckDays([row({ createdAtMs: NOW - 9 * DAY })], NaN) === null);
+
+  // ── the line ──
+  t('the line names the wait in days', payoutStuckLine(9) === '정산 지급이 9일째 밀려 있어요');
+  t('🔴 the line promises NO payment date — there is no schedule table, no cycle and no cron that pays, so 「~에 지급돼요」 would be a date we cannot honour',
+    !/지급돼요|지급 예정|예정일|까지/.test(payoutStuckLine(9)), payoutStuckLine(9));
+  t('null in ⇒ null out (the screen draws nothing rather than an empty strip)',
+    payoutStuckLine(null) === null);
+  t('a value below the threshold still prints nothing, even if a caller hands one in',
+    payoutStuckLine(6) === null && payoutStuckLine(0) === null);
+  t('the two functions compose: a stuck fixture produces a line, a young one produces none',
+    payoutStuckLine(payoutStuckDays([row({ createdAtMs: NOW - 12 * DAY })], NOW)) === '정산 지급이 12일째 밀려 있어요'
+    && payoutStuckLine(payoutStuckDays([row({ createdAtMs: NOW - 2 * DAY })], NOW)) === null);
+}
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail > 0 ? 1 : 0);

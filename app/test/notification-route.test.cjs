@@ -17,7 +17,7 @@ const {
   OPS_SYSTEM_TITLES, OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE,
   OPS_GEAR_CLAIM_TITLE, destinationForSystemRef,
   RECURRING_CREATED_TITLE, RECURRING_PAUSED_TITLE, REFLESS_BOOKING_DESTINATIONS,
-  destinationForRefLessBookingTitle,
+  destinationForRefLessBookingTitle, PAYOUT_STUCK_TITLE,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -553,6 +553,51 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     && destinationForRefLessBookingTitle('') === null);
   t('the ref-less destination is STATIC — it interpolates no id (that is what lets a ref-less row have one at all)',
     Object.values(REFLESS_BOOKING_DESTINATIONS).every((v) => typeof v === 'string' && !v.includes('${') && !v.includes(BID)));
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // ③ [0210 §E] THE RUNNER'S OWN STUCK PAYOUT — the third ref-less `booking` title
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // `ops_payouts_stuck_sweep` (0186 §D → 0190 §A) found the runners whose oldest unpaid ledger row
+  // was past seven days and told the OPS ROSTER and nobody else. 0210 §E writes the runner a row
+  // of their own — `kind = 'booking'` because `noti_kind` has no payment member and `system` is now
+  // the operator's category, `ref_id` NULL because `/runner/earnings` is the whole ledger and takes
+  // no booking. Both halves are read out of the migration here, so the two spellings cannot part
+  // and a future writer that gives the insert a ref reddens this rather than losing the id.
+  const stuckDecls = fs.readdirSync(path.resolve(__dirname, '../../supabase/migrations'))
+    .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+    .filter((f) => /create or replace function ops_payouts_stuck_sweep/.test(stripped(f)))
+    .sort();
+  t('at least one migration declares ops_payouts_stuck_sweep (absence must fail LOUDLY, never read as "nothing to compare")',
+    stuckDecls.length > 0, JSON.stringify(stuckDecls));
+  const stuckFile = stuckDecls[stuckDecls.length - 1];
+  const sStuck = stuckFile ? stripped(stuckFile) : '';
+  console.log(`  (stuck-payout sweep read from ${stuckFile}; declared in ${JSON.stringify(stuckDecls)})`);
+  t(`the client's PAYOUT_STUCK_TITLE is the string ${stuckFile} writes to the runner`,
+    sStuck.includes("'" + PAYOUT_STUCK_TITLE + "'"),
+    'not found in ' + stuckFile + ': ' + PAYOUT_STUCK_TITLE);
+  t('the sweep writes it as kind=booking (noti_kind has no payment member, and `system` is the OPERATOR category since 0210 §B)',
+    /'booking'::noti_kind,\s*c_runner_title/.test(sStuck) || sStuck.includes("'booking'::noti_kind, '" + PAYOUT_STUCK_TITLE + "'"));
+  t('the sweep writes it with a NULL ref (which is why it needs a ref-LESS destination — /runner/earnings takes no booking)',
+    /c_runner_title,\s*v_body,\s*null/.test(sStuck),
+    'the runner insert no longer passes null as ref_id');
+  t('the sweep still rings the OPS roster too — the runner leg joined the escalation, it did not replace it',
+    sStuck.includes('ops_recipients_for'));
+  t('정산 지급이 늦어지고 있어요 → /runner/earnings, the screen that draws the ledger rows the push names',
+    destinationForRefLessBookingTitle(PAYOUT_STUCK_TITLE) === '/runner/earnings');
+  t('… and it is in the ref-less table, not RUNNER_ROUTES (that table is keyed by a ref-carrying tap)',
+    REFLESS_BOOKING_DESTINATIONS[PAYOUT_STUCK_TITLE] === '/runner/earnings'
+    && RUNNER_ROUTES[PAYOUT_STUCK_TITLE] === undefined);
+  t('it needs no club probe and is not on the club-session-ref list (a ledger row is never a session)',
+    !needsClubProbe(PAYOUT_STUCK_TITLE) && !refMayBeClubSession(PAYOUT_STUCK_TITLE));
+  t('it is not an owner meetup / handoff / return title (a money notice must not route to a screen with no CTA)',
+    !OWNER_MEETUP_TITLES.includes(PAYOUT_STUCK_TITLE) && !HANDOFF_TITLES.includes(PAYOUT_STUCK_TITLE)
+    && !RETURN_TITLES.includes(PAYOUT_STUCK_TITLE));
+  t('🔴 it is NOT a `system` title — filing the runner under the ops roster would put their own money notice on an operator console',
+    !OPS_SYSTEM_TITLES.includes(PAYOUT_STUCK_TITLE)
+    && destinationForSystemRef({ refId: BID, title: PAYOUT_STUCK_TITLE }) === null);
+  t('the two ref-less titles are distinct rows with distinct destinations (one owner, one runner — the map is role-agnostic and only the addressed party ever holds the row)',
+    PAYOUT_STUCK_TITLE !== RECURRING_PAUSED_TITLE
+    && REFLESS_BOOKING_DESTINATIONS[PAYOUT_STUCK_TITLE] !== REFLESS_BOOKING_DESTINATIONS[RECURRING_PAUSED_TITLE]);
 
   // ── push.ts must CONSULT the table in BOTH directions, or the pins above are green over an
   //    inbox that still draws text and a push that still does nothing. The two sites are the

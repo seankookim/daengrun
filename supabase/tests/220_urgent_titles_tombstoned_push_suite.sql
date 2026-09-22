@@ -405,8 +405,25 @@ begin
       if not (position('_noti_urgent_noti_titles' in v_src) > 0
               and position('_noti_urgent_noti_titles' in v_src) < position('''chat''' in v_src))
       then v_bad := v_bad || ' the urgent family is consulted BELOW a disableable arm'; end if;
+      -- 🔴 [0210] THE SENTENCE THIS ARM CARRIED IS NOW INVERTED, so it is re-stated rather than
+      -- left stale. It used to read 「the mapper no longer files ops escalations (system) under
+      -- safety」 — and 0210 §B moved `system` out from under safety ON PURPOSE, into a fifth
+      -- disableable category `ops`, because 「안전 알림은 끌 수 없어요 — 개와 사람이 걸린 일이라서예요」
+      -- is true of an SOS and false of 「굿즈 수령 신청 — 확인 필요」. What this arm still owns is
+      -- that `system` has an EXPLICIT arm rather than falling through to the unknown-kind default,
+      -- which matters more than before: 0210 moved that default to `'booking'`, so a mapper that
+      -- lost this arm would silence ops escalations with the 예약·러닝 switch. The category it
+      -- answers is asserted by VALUE, because source cannot say which. 241 `0210-C1` owns the full
+      -- answer table and `0210-O1` the behaviour.
       if position('''system''' in v_src) = 0
-      then v_bad := v_bad || ' the mapper no longer files ops escalations (system) under safety'; end if;
+      then v_bad := v_bad || ' the mapper has no explicit `system` arm — ops escalations would fall through to the unknown-kind default'; end if;
+      if _noti_push_category('system'::noti_kind, '반환 좌초 — 확인 필요') is distinct from 'ops'
+      then v_bad := v_bad || ' a system row no longer maps to the ops category ('
+                          || coalesce(_noti_push_category('system'::noti_kind, '반환 좌초 — 확인 필요'),'NULL') || ')'; end if;
+      -- …and the urgent family must still beat the kind for a `system` row too, now that `system`
+      -- has a disableable arm of its own BELOW it.
+      if _noti_push_category('system'::noti_kind, 'SOS') is distinct from 'safety'
+      then v_bad := v_bad || ' the urgent family no longer sits ABOVE the system arm'; end if;
     end if;
 
     select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
@@ -419,7 +436,7 @@ begin
       then v_bad := v_bad || ' the belt no longer raises account_deleted by name'; end if;
     end if;
 
-    if v_bad = '' then call _pass('urg','0189-S1 배포 형상 — 두 definer 는 prosecdef + 본문 search_path=public, pg_temp 이고 네 함수 모두 PUBLIC/anon 실행 불가(긴급 목록은 authenticated 도 못 부른다); push_tokens_live_owner 와 notifications_push 는 tgenabled=O(정의가 아니라 상태); notify_push 소스(주석 제거)는 live-recipient 조건을 카테고리 판정보다 먼저 두고 0187 의 두 성질을 그대로 유지하며, 매퍼는 긴급 목록을 모든 비활성화 가능 팔보다 위에서 읽고, 벨트는 deleted_at 을 보고 account_deleted 로 이름 붙여 거절한다');
+    if v_bad = '' then call _pass('urg','0189-S1 배포 형상 — 두 definer 는 prosecdef + 본문 search_path=public, pg_temp 이고 네 함수 모두 PUBLIC/anon 실행 불가(긴급 목록은 authenticated 도 못 부른다); push_tokens_live_owner 와 notifications_push 는 tgenabled=O(정의가 아니라 상태); notify_push 소스(주석 제거)는 live-recipient 조건을 카테고리 판정보다 먼저 두고 0187 의 두 성질을 그대로 유지하며, 매퍼는 긴급 목록을 모든 비활성화 가능 팔보다 위에서 읽고([0210] system 팔도 그 아래다 — kind=system + 제목 SOS 는 여전히 safety 다), system 에는 명시적 팔이 있으며 그 팔이 답하는 칸은 ops 다(0210 §B 가 일부러 옮겼다; 폴스루가 booking 으로 내려간 지금 이 팔이 없으면 운영 알림이 예약·러닝 스위치에 꺼진다), 벨트는 deleted_at 을 보고 account_deleted 로 이름 붙여 거절한다');
     else v_msg := v_bad; call _fail('urg','0189-S1 deployed shape', v_msg); end if;
   exception when others then call _fail('urg','0189-S1 deployed shape', sqlerrm); end;
 

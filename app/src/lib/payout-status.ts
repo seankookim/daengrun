@@ -172,3 +172,74 @@ export function sortPayoutsNewestFirst(rows: readonly PayoutRow[]): PayoutRow[] 
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0210 §E] IS THIS RUNNER'S OWN PAYOUT STUCK — the client half of the sweep's sentence
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// `ops_payouts_stuck_sweep` decides the same thing server-side and writes the runner a
+// notification. This is what lets the SCREEN say it too, so a runner who never taps a push still
+// finds out. The threshold is the sweep's `STUCK_AFTER`, transcribed, and the predicate is the
+// sweep's own candidate shape read through `my_ledger_rows`' three columns:
+//     unpaid   — `paidPayoutId == null`, the marker 0186 writes and 0192 §A returns
+//     settled  — `settled === true`, 0186 §0d ⓒ's 「no run on this booking is still open」, which
+//                is the same `not exists` the sweep's candidate query uses
+//     old      — `createdAtMs` older than the threshold
+//
+// 🔴 **IT CAN ONLY UNDER-REPORT, AND THAT IS SAID OUT LOUD RATHER THAN HIDDEN.** `my_ledger_rows`
+// carries `limit 30` ordered `created_at desc`, so a runner past thirty rows may have an unpaid
+// row OLDER than anything this function can see. The oldest visible qualifying row is therefore a
+// LOWER BOUND on the true age: a positive answer is always true, and a negative answer can be
+// wrong for exactly the runners who work most — the `fetchRunnerJobs` cap class arriving through
+// an aggregate. The uncapped answer is the SERVER's, and it is the notification; this strip is the
+// echo, not the mechanism. Widening it would mean a new RPC, which 0210 deliberately did not add
+// because the deliverable is that the runner is TOLD.
+// ⚠ NO DEVICE CLOCK FACT IS DERIVED HERE. `nowMs` is an argument and the result is a count of
+//   elapsed days from two epoch numbers — no calendar, no weekday, no timezone. `check-device-clock`
+//   has nothing to flag and there is nothing for a phone in New York to get wrong.
+// ⚠ Returns null for 「not stuck」 AND for 「nothing to say」 (no rows, an unreadable instant, a
+//   fetch that failed and handed us an empty list). The screen draws nothing on null, which is the
+//   only honest rendering of an unknown — the alternative is a 0 or a 「확인 중」 that asserts
+//   something nobody measured.
+
+/** The sweep's own threshold (`STUCK_AFTER`, 0186 §D → 0190 §A → 0210 §E). Exported so the pin can
+ *  compare it against the migration rather than against a retyped number. */
+export const PAYOUT_STUCK_DAYS = 7;
+
+/** The payment fields plus the row's own instant — exactly what `LiveLedgerItem` carries. Kept
+ *  structural so the pin can build one without the screen or the network. */
+export interface LedgerAgeFields extends LedgerPaymentFields {
+  /** `ledger_items.created_at` in epoch ms, or null when the server sent nothing parseable. */
+  createdAtMs: number | null;
+}
+
+/** Whole days since the OLDEST row that is settled, unpaid and older than the threshold — or null
+ *  when no such row is visible. A positive number is a fact; null is 「nothing to say」, never
+ *  「everything is fine」 (see the cap note above). */
+export function payoutStuckDays(
+  rows: readonly LedgerAgeFields[] | null | undefined,
+  nowMs: number,
+): number | null {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  if (!Number.isFinite(nowMs)) return null;
+  let oldest: number | null = null;
+  for (const r of rows) {
+    // `ledgerPaymentState` is the one place paid/awaiting/unsettled is decided — re-deriving it
+    // here would be a second implementation of the same rule, free to drift from the screen's.
+    if (ledgerPaymentState(r) !== 'awaiting') continue;
+    const t = r.createdAtMs;
+    if (t == null || !Number.isFinite(t)) continue;   // an instant we cannot read is not an age
+    if (oldest == null || t < oldest) oldest = t;
+  }
+  if (oldest == null) return null;
+  const days = Math.floor((nowMs - oldest) / 86400000);
+  return days >= PAYOUT_STUCK_DAYS ? days : null;
+}
+
+/** The one line the runner's home strip prints, or null to print NOTHING.
+ *  ⚠ It states the WAIT and never a payment date: there is no schedule table, no cycle and no cron
+ *    that pays, so 「~에 지급돼요」 would be a date we cannot honour — the same reason
+ *    `ledgerPaymentLabel`'s 「지급 대기」 carries none. */
+export function payoutStuckLine(days: number | null): string | null {
+  if (days == null || days < PAYOUT_STUCK_DAYS) return null;
+  return `정산 지급이 ${days}일째 밀려 있어요`;
+}

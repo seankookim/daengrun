@@ -3689,6 +3689,11 @@ export interface LiveLedgerItem {
    *  row while it is false (`not_settled`), so calling it 「지급 대기」 would promise money the
    *  server will not move. `payout-status.ts` is where that distinction is made and pinned. */
   settled: boolean;
+  /** [0210] `ledger_items.created_at` in epoch ms, or null when the server sent nothing
+   *  parseable. `when` above is a KST LABEL and a label cannot be subtracted, so this is what an
+   *  age is measured from — `payoutStuckDays` is the one reader. Additive: the earnings list
+   *  keeps using `when`. */
+  createdAtMs: number | null;
 }
 
 /** [0132] The `end_reason` enum's SIX members (0001:18), every one mapped.
@@ -3741,6 +3746,10 @@ export async function fetchLedger(): Promise<LiveLedgerItem[]> {
       paidPayoutId: l.paid_payout_id ?? null,
       paidAtMs: msOrNull(l.paid_at),
       settled: l.settled === true,
+      // [0210] the row's OWN instant, as epoch ms, beside the formatted `when`. `when` is a KST
+      // label and cannot be subtracted; this is the field an AGE is computed from, and it is null
+      // (never 0, never NaN) when the server gave nothing parseable — `msOrNull`'s whole point.
+      createdAtMs: msOrNull(l.created_at),
     };
   });
 }
@@ -6698,12 +6707,24 @@ export async function fetchNotificationPrefs(): Promise<NotiPrefs> {
 /** Save a PARTIAL change — an omitted category is sent as null, which the server reads as
  *  「leave that one alone」 (0187 §B), so one switch never rewrites the other three. Returns the
  *  row as STORED, which is what the screen shows afterwards. */
+// [0210 §D] `p_ops` is the fifth column. NAMED arguments, so a server that still has the
+// four-parameter function refuses this call by name rather than silently writing the wrong column —
+// and the reverse direction is safe by the setter's own rule (a NULL means 「leave it alone」), so a
+// build that never sends `p_ops` cannot reset an operator's choice.
+// ⚠ THIS PARAGRAPH SITS ABOVE THE CALL AND NOT INSIDE THE OBJECT LITERAL, deliberately.
+// `check-rpc-contracts.mjs` extracts argument names with `/(?:^|[,\s])([A-Za-z_]\w*)\s*:/` over the
+// literal's body and does NOT strip comments, so any prose containing `<word>:` inside those braces
+// is read as an argument. Measured 2026-09-23: this comment's own 「the setter's own rule: a NULL
+// …」 produced `❌ set_notification_prefs — 미지의 인자 ["rule"]` on correct code. A gate that cries
+// on correct code is `--no-verify`'d within a day; the gate's own repair is its own slice, and
+// until then no rpc literal in this file may contain prose.
 export async function saveNotificationPrefs(partial: Partial<NotiPrefs>): Promise<NotiPrefs> {
   const { data, error } = await supabase.rpc('set_notification_prefs', {
     p_booking: partial.booking ?? null,
     p_chat: partial.chat ?? null,
     p_community: partial.community ?? null,
     p_reward: partial.reward ?? null,
+    p_ops: partial.ops ?? null,
   });
   if (error) throw notiPrefsError(error, 'set_notification_prefs');
   const row = Array.isArray(data) ? data[0] : data;
