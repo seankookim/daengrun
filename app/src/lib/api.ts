@@ -6899,12 +6899,78 @@ export async function opsResolveReturn(bookingId: string, memo: string): Promise
   };
 }
 
-/** Every refusal the seven ops functions raise BY NAME, read out of the migrations rather than
+/** One flat roster row, from `ops_roster()` (0208 §B).
+ *  ⚠ INACTIVE rows come back too and are NOT filtered here — 0084 keeps the row so that 「who used
+ *  to be on call」 survives, and a client that dropped them would make re-seating a former operator
+ *  mean re-typing a uuid. `ops-roster.ts` groups them; the screen draws both states.
+ *  ⚠ `name`/`role` are NULL only if the profile row is gone: `ops_roster` left-joins on purpose so
+ *  such a row is SHOWN rather than silently omitted. */
+export interface OpsRosterWireRow {
+  profileId: string;
+  name: string | null;
+  role: string | null;
+  eventClass: string;
+  active: boolean;
+  createdAt: string | null;
+}
+
+export async function fetchOpsRoster(): Promise<OpsRosterWireRow[]> {
+  const { data, error } = await supabase.rpc('ops_roster');
+  if (error) throw opsError(error, 'ops_roster');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    profileId: String(r.profile_id),
+    name: typeof r.name === 'string' ? r.name : null,
+    role: typeof r.role === 'string' ? r.role : null,
+    eventClass: String(r.event_class),
+    active: r.active === true,
+    createdAt: typeof r.created_at === 'string' ? r.created_at : null,
+  }));
+}
+
+/** Seat someone on a class, or take them off (`ops_roster_set`, 0208 §C).
+ *  ⚠ `changed` is FALSE when the row was already in that state — the server journals CHANGES only,
+ *  so a repeat is a real no-op and not a silent failure. The screen must not report a save that
+ *  did not happen, and must not report a failure either.
+ *  🔴 `last_operator` is the server's refusal and the only rule: `wouldStrandConsole` in
+ *     `ops-roster.ts` is a pre-tap mirror whose wrong answer costs a round trip, never a lockout. */
+export async function opsRosterSet(input: {
+  profileId: string; eventClass: string; active: boolean;
+}): Promise<{ profileId: string; eventClass: string; active: boolean; changed: boolean }> {
+  const { data, error } = await supabase.rpc('ops_roster_set', {
+    p_profile: input.profileId, p_event_class: input.eventClass, p_active: input.active,
+  });
+  if (error) throw opsError(error, 'ops_roster_set');
+  const row = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
+  return {
+    profileId: typeof row?.profile_id === 'string' ? row.profile_id : input.profileId,
+    eventClass: typeof row?.event_class === 'string' ? row.event_class : input.eventClass,
+    active: row?.active === true,
+    changed: row?.changed === true,
+  };
+}
+
+/** Name prefix → at most ten candidates (`ops_profile_lookup`, 0208 §D).
+ *  ⚠ THREE FIELDS AND NO MORE: the server returns `id`, `name`, `role` and nothing else — no
+ *  phone, no email, no handle (0208 §0e). Nothing is added here. */
+export interface OpsProfileCandidate { id: string; name: string | null; role: string | null }
+
+export async function opsProfileLookup(query: string): Promise<OpsProfileCandidate[]> {
+  const { data, error } = await supabase.rpc('ops_profile_lookup', { p_query: query });
+  if (error) throw opsError(error, 'ops_profile_lookup');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    name: typeof r.name === 'string' ? r.name : null,
+    role: typeof r.role === 'string' ? r.role : null,
+  }));
+}
+
+/** Every refusal the ops RPCs raise BY NAME, read out of the migrations rather than
  *  guessed: 0186 §B/§C (`not_signed_in` · `not_ops` · `no_runner` · `no_items` · `bad_amount` ·
  *  `not_runner_item` · `already_paid` · `not_settled` · `amount_mismatch` · `mark_lost`),
  *  0194 §F④ (`not_signed_in` · `not_ops` · `no_runner`), 0195 §C/§D (`claim_not_found` ·
- *  `bad_carrier` · `bad_tracking` · `already_shipped` · `not_claimed` · `ship_race`) and
- *  0202 §B④ (`claim_redacted`).
+ *  `bad_carrier` · `bad_tracking` · `already_shipped` · `not_claimed` · `ship_race`),
+ *  0202 §B④ (`claim_redacted`) and 0208 §C/§D (`no_profile` · `bad_active` · `unknown_class` ·
+ *  `last_operator` · `short_query`).
  *
  *  ⚠ The lookup below matches each token as a SUBSTRING of the server's message, so it runs
  *  LONGEST-FIRST. Today no token contains another; the sort is what keeps that from mattering the
@@ -6914,7 +6980,8 @@ export type OpsRefusal =
   | 'not_signed_in' | 'not_ops' | 'no_runner' | 'no_items' | 'bad_amount'
   | 'not_runner_item' | 'already_paid' | 'not_settled' | 'amount_mismatch' | 'mark_lost'
   | 'claim_not_found' | 'bad_carrier' | 'bad_tracking' | 'already_shipped' | 'not_claimed'
-  | 'ship_race' | 'claim_redacted';
+  | 'ship_race' | 'claim_redacted'
+  | 'no_profile' | 'bad_active' | 'unknown_class' | 'last_operator' | 'short_query';
 
 export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
   not_signed_in: '세션이 만료된 것 같아요 — 다시 로그인해주세요',
@@ -6939,6 +7006,15 @@ export const OPS_ERROR_KO: Record<OpsRefusal, string> = {
   // answer is to cancel the claim, not to chase the address」). A redacted claim is also excluded
   // from `ops_gear_claims_pending`, so this is reachable only from a stale screen or a typed id.
   claim_redacted: '탈퇴한 회원의 신청이에요 — 배송지가 삭제돼서 발송할 수 없어요. 신청을 취소해주세요',
+  // 0208 §C/§D — the roster.
+  no_profile: '그 사람을 찾을 수 없어요 — 탈퇴했거나 목록이 오래된 것 같아요. 새로고침하고 다시 찾아주세요',
+  bad_active: '켜기인지 끄기인지 전달되지 않았어요 — 다시 시도해주세요',
+  unknown_class: '없는 알림 종류예요 — 앱을 업데이트하면 목록이 맞춰져요',
+  // 🔴 the one an operator will actually meet, so it says what to DO. Turning the last active
+  // `payout_due` operator off locks EVERY human out of 운영 콘솔 — including the person tapping,
+  // one tap later — and the only way back in is psql.
+  last_operator: '마지막 운영자는 해제할 수 없어요 — 다른 사람을 먼저 정산 지급 담당으로 추가해주세요',
+  short_query: '두 글자 이상 입력해주세요',
 };
 
 /** ⚠ An UNRECOGNISED error is never dressed as one of these. A real fault reported as
