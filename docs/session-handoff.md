@@ -28,7 +28,7 @@ a client build — the Codex review of the wave hit the quota wall twice; it reo
 re-runs it then, session permitting — pushing before it is the same call you made yesterday); (3) the EAS preview build
 for your phone was left at the ad-hoc profile step after device registration; (4) `return_seal_since` once your phone
 runs the new client. Waves 5–8 since your last message are itemised in the table below; every device-visual claim is
-UNVERIFIED except the sim boots. Sim: a Release build of the current trunk is being rebuilt now.
+UNVERIFIED except the sim boots. Sim: a Release build of `118c68b` (every slice through 0215) is installed on the iPhone 16 Pro sim and boots to login; no wave is running — the next gap finder waits for your word.
 
 ## ☀️ MORNING READ — 2026-09-22 (written 2026-09-22 05:21 KST; everything below measured and read back from origin)
 
