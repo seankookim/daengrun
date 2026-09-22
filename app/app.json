@@ -112,9 +112,7 @@
       "instagramAppId": "com.seankookim.dogshigh"
     },
     "owner": "seankookim",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/0436bc27-2933-4627-a0bf-9527e65c1ad9",
       "fallbackToCacheTimeout": 0
