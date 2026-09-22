@@ -109,8 +109,15 @@ export default function Rewards() {
       // mapped refusals are Korean (`RPC_TOKEN_MAP`: 「이미 열린 드랍이에요」 …) and pass through
       // `foldRpcError` untouched, but its UNMAPPED path throws `HttpError(500, 'internal')`
       // (`_shared/ctx.ts:112`), so the alert body read the literal English word `internal`.
-      // Folding here rather than in `openDrop` keeps the `FnError` (with its `code`/`detail`)
-      // intact for any future caller — this screen is the only one today.
+      // ⚠ [2026-09-23] THE FOLD MOVED INTO `openDrop` and this note is corrected rather than
+      // deleted, because the reasoning it records is still the trade that was made. It said
+      // 「folding here keeps the FnError (with its code/detail) intact for any future caller」 —
+      // true, and the cost was that `bad_body` / `missing drop_id` / `unauthorized` (the
+      // ENVELOPE, which no `RPC_TOKEN_MAP` covers) reached a Korean alert in English on any
+      // path that did NOT go through this screen. There is no other path today, so the wrapper
+      // now folds and this call is a PASSTHROUGH: a Hangul message comes back unchanged, same
+      // object, and `empty` is byte-identical on both sides (src/lib/edge-errors.ts).
+      // What is genuinely given up: `isFnError(e)` is false here now, and nothing reads it.
       console.warn('[rewards] open:', rpcRaw(e));
       Alert.alert('오픈 실패', foldRpcError(e, { empty: '드랍을 열지 못했어요' }).message);
     } finally {

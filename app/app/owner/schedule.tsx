@@ -300,8 +300,13 @@ export default function Schedule() {
   const runner = selected
     ? {
         id: 'live', name: selected.runnerName, char: selected.runnerName[0] ?? '러', color: '#5a7a3c',
-        rating: null as number | null, reviews: null as number | null, runs: null as number | null,
-        pace: null as string | null, badges: [] as string[], desc: null as string | null, // [정직] 신원인증 배지 은퇴 — 뒷받침 데이터 없음 (wave-1 meetup P1-6과 동일)
+        // [2026-09-23] `rating`/`reviews`/`runs`/`pace` are GONE with the line that read them.
+        // They were hard-coded `null`, so the sheet's 「★ …」 branch was unreachable and the card
+        // always fell to 「실러너 · 상세 프로필 준비 중」 — a sentence about a page that shipped
+        // weeks ago. The identity block is now a button to `/runner-profile/[id]`, which reads
+        // those same numbers from the server; four `null`s nobody can render belong there, not
+        // here. (`desc` stays: it is still read below, same null-today shape.)
+        badges: [] as string[], desc: null as string | null, // [정직] 신원인증 배지 은퇴 — 뒷받침 데이터 없음 (wave-1 meetup P1-6과 동일)
         distanceKm: 0,
       }
     : undefined;
@@ -805,20 +810,55 @@ export default function Schedule() {
                   ) : (
                   <View style={s.sheetCard}>
                     <Row style={{ gap: 12 }}>
-                      <Monogram char={runner.char} bg={runner.color} size={46} />
-                      <View style={{ flex: 1 }}>
-                        <Row style={{ gap: 6 }}>
-                          <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{runner.name} 러너</Text>
-                          {runner.badges.map((b) => (
-                            <View key={b} style={s.badgePill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
-                          ))}
-                        </Row>
-                        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 3 }}>
-                          {runner.rating != null
-                            ? `★ ${runner.rating} (${runner.reviews}) · 러닝 ${runner.runs}회 · 평균 ${runner.pace}`
-                            : '실러너 · 상세 프로필 준비 중'}
-                        </Text>
-                      </View>
+                      {/* [2026-09-23] 「실러너 · 상세 프로필 준비 중」 was a lie about our own product:
+                          `/runner-profile/[id]` has been live for weeks and owner home, 매칭 and
+                          레이더 all link to it. This card was the one place that told the owner the
+                          page did not exist yet — on the booking they had already paid for.
+                          ⚠ The monogram + identity block is now ONE button to that page. The chat
+                          chip stays a SIBLING, never a child: a Pressable inside a Pressable gives
+                          one tap two owners.
+                          ⚠ `selected.runnerId` (api.ts `mapMyBooking`) is the real profile uuid and
+                          the route takes a PROFILE id (`runners.profile_id` is that table's PK,
+                          0001:58) — the same value `owner/home.tsx:789` pushes. It is `''` before
+                          matching, which cannot be reached here: this whole branch is gated on
+                          `selected.matched`, and api.ts sets `matched: !!r.runner_id` (:6268). The
+                          `runnerId ?` guard below is the belt for a row that ever arrives with the
+                          two out of step — no button rather than a dead one. */}
+                      {selected.runnerId ? (
+                        <Pressable
+                          onPress={() => { const rid = selected.runnerId; close(); router.push(`/runner-profile/${rid}`); }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${runner.name} 러너 프로필 보기`}
+                          style={({ pressed }) => [{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.6 : 1 }]}
+                        >
+                          <Monogram char={runner.char} bg={runner.color} size={46} />
+                          <View style={{ flex: 1 }}>
+                            <Row style={{ gap: 6 }}>
+                              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{runner.name} 러너</Text>
+                              {runner.badges.map((b) => (
+                                <View key={b} style={s.badgePill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
+                              ))}
+                            </Row>
+                            {/* Ink, not the grey ramp — this file's own header carries the law
+                                (DESIGN.md §7a-bis): the ramp marks what a customer may SKIP, and
+                                the label of a button is never that. The retired sentence was dim
+                                because it was an apology; this one is an action. */}
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, marginTop: 3 }}>프로필 보기</Text>
+                          </View>
+                        </Pressable>
+                      ) : (
+                        <>
+                          <Monogram char={runner.char} bg={runner.color} size={46} />
+                          <View style={{ flex: 1 }}>
+                            <Row style={{ gap: 6 }}>
+                              <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>{runner.name} 러너</Text>
+                              {runner.badges.map((b) => (
+                                <View key={b} style={s.badgePill}><Text style={{ fontSize: 15, fontWeight: '800', color: '#4a6d1f' }}>{b}</Text></View>
+                              ))}
+                            </Row>
+                          </View>
+                        </>
+                      )}
                       {/* [0114 · ui2-1] 이 카드는 **무조건** 그려지고 runner.name은 미매칭 예약에서
                           "러너를 찾고 있어요"로 떨어지므로, 수락 전에도 이 칩이 떠 있었다. 0114 이후
                           서버는 그 예약의 chat_threads INSERT를 거부한다 — 탭한 뒤 실패하는 문이다.
