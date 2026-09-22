@@ -310,7 +310,7 @@ because `_layout` gates on `payout_due` (widening it widens entry to the bank de
 
 **2026-09-23 03:10 — WAVE 5 COMPLETE.** `868c064` 0207 and `da7c293` 0208 landed. Trunk carries 0203, 0205, 0206, 0207, 0208 above the
 deployed 0202; harness 1444 pass / 0 fail · npm 2495/0 · deno 377/0 · babel 174 · routes 74. Held: 0204 push outbox (Sean's ⓐ/ⓑ/ⓒ).
-Next: a Codex review of the whole post-deploy wave (running), a sim rebuild, then the SECOND `db push` letter (queue item 0b).
+The Codex review of the wave hit the QUOTA WALL at 03:11 (「try again at Sep 24th, 2026 1:44 AM」 — a parse-error stub, 0 findings, no verdict); re-scheduled 2026-09-24 01:50 KST (session-only cron — if this session is gone by then, run it by hand: `adversarial-review --wait --base 440b77a` from a detached worktree at trunk). Until then the second `db push` stands on the builders' batteries (0203: 8 plants · 0205: 7 · 0206: 8 · 0207: 10 · 0208: 10), like yesterday's — Sean's call. Sim rebuild of the wave running.
 
 Gap finder (read-only, 09-22 02:5x) also named: gear claim action (`gear_claims` claimable→claimed has no RPC), live
 regions on moving screens, reduce-motion coverage (L), sheet presentation (L), an ops payout console (behind the
