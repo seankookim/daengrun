@@ -16,9 +16,28 @@ import { createLiveActivity, type LiveActivityEnvironment } from 'expo-widgets';
 // preformatted STRING because the widget cannot compute (no clocks, no math over raw values).
 // While the owner's app is awake, owner/live.tsx also updates it locally from the same broadcast
 // that draws the map (5s throttle, runner LA convention).
+//
+// ── [2026-09-23] THE PHASE UNION WAS NARROWER THAN THE SERVER'S, AND THE GAP LIED ──────────────
+// The union above ended at 'ended' and every pill/title/foot chain below ended in a bare `else`.
+// 0083 has pushed `phase: 'homeward'` since it shipped (`_owner_la_run_end_tg`, plus the 귀가 arm
+// of `owner_la_sweep_stale` — 0177 carries the live body), so EVERY walk home fell through that
+// `else` and the owner's lock screen read: pill **ENDED**, title 「위치 수신 대기 중」, foot
+// 「러너가 달리기 시작하면 거리가 표시돼요」. Their dog was being walked back and the banner said the
+// run had ended AND had not started. The `else` is the defect, not the missing case: an unknown
+// phase must never inherit a terminal claim.
+//
+// The table + resolution below are MIRRORED in `src/lib/live-activity-face.ts` because this
+// function is STRINGIFIED (see the ⚠ at the top of the body) and cannot import it.
+// `app/test/live-activity-face.test.cjs` executes BOTH and requires them to agree phase by phase,
+// and reads every `'phase', '<x>'` literal out of `supabase/migrations/` so a phase the server
+// starts sending without a face here reddens the gate.
 
 export type OwnerRunActivityProps = {
-  phase: 'pre' | 'running' | 'stale' | 'done' | 'ended';
+  // Server-written: running · stale · homeward · done · ended (all five appear in a
+  // `_owner_la_push` payload). Client-written: pre (owner/meetup at handoff).
+  // `stopping` is 0168's vocabulary for the two-phase stop and is NOT pushed to this activity by
+  // anything today — it has a face so that the day it is, the banner does not say ENDED.
+  phase: 'pre' | 'running' | 'stale' | 'homeward' | 'stopping' | 'done' | 'ended';
   dogName: string;
   runnerName: string; // display-ready, without the '러너' suffix
   km: string;         // '2.34' — '' when the number does not exist yet (no-0.00 law)
@@ -67,43 +86,67 @@ const OwnerRunActivity = (props: OwnerRunActivityProps, env: LiveActivityEnviron
   const bannerAccent = env.colorScheme === 'dark' ? CORAL : CORAL_DEEP;
 
   const phase = props.phase;
-  const hasNum = props.km !== '';
-  const pillBg = phase === 'running' ? CORAL_DEEP : phase === 'done' ? SAGE : STALE_GREY;
-  const pillInk = phase === 'done' ? '#14210f' : '#ffffff';
-  const pillLabel =
-    phase === 'pre' ? 'HANDOFF'
-    : phase === 'running' ? 'RUNNING'
-    : phase === 'stale' ? 'NO SIGNAL'
-    : phase === 'done' ? 'DONE'
-    : 'ENDED';
+
+  // ── THE FACE TABLE ────────────────────────────────────────────────────────────────────────────
+  // ⚠ KEPT BYTE-IDENTICAL to `OWNER_RUN_FACES` in src/lib/live-activity-face.ts. It is duplicated
+  // here and not imported because of the ⚠ stringification law above; the test executes both.
+  // `numeric` = may this phase draw the hero distance at all. 귀가/마무리 say NO: 0083 froze the
+  // numbers and dropped the target and the pace precisely because 귀가 is not being measured, and
+  // 0168 writes km/durationSec as explicit NULL at the stop because phase 1 does not know them —
+  // a hero-sized number on either would be read as a live measurement.
+  const OWNER_RUN_FACES = {
+    pre: { pill: 'HANDOFF', tone: 'muted', title: '인계가 확인됐어요', foot: '곧 러닝이 시작돼요', numeric: false },
+    running: { pill: 'RUNNING', tone: 'live', title: '위치 수신 대기 중', foot: '러너가 달리기 시작하면 거리가 표시돼요', numeric: true },
+    stale: { pill: 'NO SIGNAL', tone: 'muted', title: '위치 수신 대기 중', foot: '러너가 달리기 시작하면 거리가 표시돼요', numeric: true },
+    homeward: { pill: '귀가 중', tone: 'settled', title: '집으로 가는 중', foot: '앱에서 자세히 확인하세요', numeric: false },
+    stopping: { pill: '마무리 중', tone: 'live', title: '러닝을 마무리하고 있어요', foot: '거리를 정리하고 있어요', numeric: false },
+    done: { pill: 'DONE', tone: 'settled', title: '러닝 완료', foot: '리포트 보기 ›', numeric: true },
+    ended: { pill: 'ENDED', tone: 'muted', title: '러닝이 종료됐어요', foot: '앱에서 자세히 확인하세요', numeric: true },
+  } as Record<string, { pill: string; tone: string; title: string; foot: string; numeric: boolean } | undefined>;
+  const UNKNOWN_FACE = { pill: '상태 확인 중', tone: 'muted', title: '상태 확인 중', foot: '앱에서 자세히 확인하세요', numeric: false };
+
+  const hit = OWNER_RUN_FACES[phase];
+  // `typeof hit.pill === 'string'` rather than a bare truthiness check: a phase of 'constructor'
+  // or 'toString' resolves through the prototype to a FUNCTION, which is truthy and has no pill.
+  const known = !!hit && typeof hit.pill === 'string';
+  const face = known ? hit! : UNKNOWN_FACE;
+
+  const hasNum = face.numeric && props.km !== '';
+  const pillBg = face.tone === 'live' ? CORAL_DEEP : face.tone === 'settled' ? SAGE : STALE_GREY;
+  const pillInk = face.tone === 'settled' ? '#14210f' : '#ffffff';
+  const pillLabel = face.pill;
   const numColor = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : CORAL;
   // Same value on the always-black island, material-aware on the banner/small surfaces.
   const numColorBanner = phase === 'done' ? SAGE : phase === 'stale' ? STALE_NUM : bannerAccent;
   const meta = props.dogName + ' · ' + props.runnerName + ' 러너';
 
-  // Title/foot pair for the numberless states (pre / ended / running-before-first-fix).
-  const noNumTitle =
-    phase === 'pre' ? '인계가 확인됐어요'
-    : phase === 'ended' ? '러닝이 종료됐어요'
-    : phase === 'done' ? '러닝 완료'
-    : '위치 수신 대기 중';
+  // Title/foot pair for the numberless states (pre / homeward / stopping / ended / unknown /
+  // running-before-first-fix).
+  //
+  // 귀가 is the one phase with logic, and it is an honesty rule in two halves:
+  //   · the TITLE is the server's own `statusLine`, verbatim — 「집으로 가는 중」 on the happy path
+  //     and the sweep's own 「N분째 위치 신호가 없어요」 once the custody heartbeat goes quiet. The
+  //     client NEVER composes that minute count; the server already decided the sentence and the
+  //     widget has no clock it could check it against.
+  //   · the FOOT carries the FROZEN km/elapsed the payload brought, each part only if it exists —
+  //     no 0.00km, no dangling separator.
+  const noNumTitle = phase === 'homeward' && props.statusLine !== '' ? props.statusLine : face.title;
+  const homewardParts: string[] = [];
+  if (props.km !== '') homewardParts.push(props.km + 'km');
+  if (props.elapsed !== '') homewardParts.push(props.elapsed);
   const noNumFoot =
-    phase === 'pre' ? '곧 러닝이 시작돼요'
-    : phase === 'ended' ? '앱에서 자세히 확인하세요'
-    : phase === 'done' ? '리포트 보기 ›'
-    : '러너가 달리기 시작하면 거리가 표시돼요';
+    phase === 'homeward' && homewardParts.length > 0 ? homewardParts.join(' · ') : face.foot;
 
   // Footer under the number: left spec + right status. Precomputed strings — the widget draws,
   // it does not think.
-  const numUnit = phase === 'done' ? 'km 완주' : '/ ' + props.targetKm + 'km';
+  // `'/ ' + '' + 'km'` used to render a naked '/ km' when no target existed; a goal that is not
+  // there is omitted, not printed as a slash.
+  const numUnit = phase === 'done' ? 'km 완주' : props.targetKm !== '' ? '/ ' + props.targetKm + 'km' : 'km';
   const footLeft =
     phase === 'running' ? (props.pace !== '' ? props.pace + ' · ' + props.elapsed : props.elapsed)
     : phase === 'done' ? (props.statusLine !== '' ? props.elapsed + ' · ' + props.statusLine : props.elapsed)
     : '';
-  const footRight =
-    phase === 'stale' ? props.statusLine
-    : phase === 'done' ? '리포트 보기 ›'
-    : props.statusLine;
+  const footRight = phase === 'done' ? '리포트 보기 ›' : props.statusLine;
   const footRightColor = phase === 'stale' ? STALE_TEXT : phase === 'done' ? bannerText : bannerDim;
 
   // The widget computes nothing — it only checks strings for emptiness (contract, line 15-17).

@@ -5,12 +5,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import { mergeMessageSnapshot } from '../src/lib/chat-messages';
+import {
+  CHAT_PAGE_SIZE, chatBubble, olderCursor, olderDoorLabel, olderDoorState, pageIsLast,
+} from '../src/lib/chat-window';
 import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
 import { CHAT_TITLE } from '../src/lib/notification-route';
 import {
   ChannelLink, ChatContext, ChatMsg, fetchCurrentOwnerBookingId, fetchCurrentRunnerJobId,
-  createChatClientKey, fetchMessages, openChatForBooking, sendChatMessage, sendChatPhoto, subscribeMessages,
+  createChatClientKey, fetchMessages, fetchOlderMessages, openChatForBooking, sendChatMessage,
+  sendChatPhoto, subscribeMessages,
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -39,6 +43,17 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  // ── [2026-09-23] 이전 메시지 더 보기 ────────────────────────────────────────────────────────
+  // The read below is the NEWEST page (api.ts `fetchMessages`; it used to be the OLDEST, which is
+  // the defect this door exists beside). `olderExhausted` starts FALSE and is settled by the first
+  // page's own length: a first page shorter than the window is the whole thread, so the door never
+  // appears. It is not a guess — `pageIsLast` reads the server's row count.
+  const [olderBusy, setOlderBusy] = useState(false);
+  const [olderExhausted, setOlderExhausted] = useState(false);
+  // Prepending older messages grows the content, and `onContentSizeChange` below jumps to the
+  // bottom on every growth — which would throw the reader back to the newest message the instant
+  // they asked to see older ones. This suppresses exactly one of those jumps.
+  const holdScroll = useRef(false);
   const pendingText = useRef<{ threadId: string; body: string; key: string } | null>(null);
   const sendInFlight = useRef<ChatContext | null>(null);
   const scroller = useRef<ScrollView>(null);
@@ -78,6 +93,7 @@ export default function Chat() {
     // 합류했다(머지가 합집합이라 A의 말풍선이 B 아래 남는다) — 진입마다 스레드 중립 상태로
     // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
+    setOlderBusy(false); setOlderExhausted(false);
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -89,6 +105,9 @@ export default function Chat() {
         if (!alive) return;
         setCtx(c);
         setMsgs((current) => mergeMessageSnapshot(current, history));
+        // The first page IS the newest window, so its own length settles whether anything older
+        // exists. A short page = the whole thread is on screen and the door never appears.
+        setOlderExhausted(pageIsLast(history.length, CHAT_PAGE_SIZE));
         setState('ready');
       } catch (e) {
         // [0114 · ui2-2] RLS 거부만 골라낸다. openChatForBooking → ensureThread의 INSERT가
@@ -272,8 +291,44 @@ export default function Chat() {
     setLink('connecting');
     setPollErr(false);
     setState('loading');
+    // Same reset list as the load effect above — 하나가 늘면 둘 다 늘어야 한다 (line 80).
+    setOlderBusy(false);
+    setOlderExhausted(false);
     setLoadAttempt((attempt) => attempt + 1);
   };
+
+  // ── 「이전 메시지 더 보기」 ─────────────────────────────────────────────────────────────────
+  // Pages strictly older than the oldest message on screen, by the SERVER's `created_at` on that
+  // message. A failure is a failure: the door comes back and `pollErr` says the screen is not
+  // receiving, rather than the tap silently doing nothing.
+  const loadOlder = async () => {
+    const opCtx = ctx;
+    if (!opCtx || olderBusy || olderExhausted) return;
+    const cursor = olderCursor(msgs);
+    if (cursor === null) return;
+    setOlderBusy(true);
+    try {
+      const older = await fetchOlderMessages(opCtx.threadId, cursor);
+      if (!mounted.current || ctxRef.current !== opCtx) return;
+      holdScroll.current = true;
+      // mergeMessageSnapshot is a union keyed by id, sorted by id — so it is direction-agnostic:
+      // an older page merges below the window exactly as a newer snapshot merges above it, and a
+      // message already held wins its own id either way.
+      setMsgs((current) => mergeMessageSnapshot(current, older));
+      setOlderExhausted(pageIsLast(older.length, CHAT_PAGE_SIZE));
+    } catch (e) {
+      console.warn('[chat] older:', (e as Error)?.message ?? e);
+      if (mounted.current && ctxRef.current === opCtx) setPollErr(true);
+    } finally {
+      if (mounted.current && ctxRef.current === opCtx) setOlderBusy(false);
+    }
+  };
+
+  const olderDoor = olderDoorState({
+    hasMessages: msgs.length > 0,
+    exhausted: olderExhausted,
+    busy: olderBusy,
+  });
 
   // Sending clears the draft; keep busy distinct from an unavailable or empty draft.
   const sendBlocked = !sending && (state !== 'ready' || input.trim().length === 0);
@@ -391,27 +446,69 @@ export default function Chat() {
           ref={scroller}
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: 18, gap: 8 }}
-          onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
+          onContentSizeChange={() => {
+            // An older page just landed above the reader — growing the content must NOT throw
+            // them back to the newest message. One jump is suppressed, then the normal
+            // follow-the-conversation behaviour resumes.
+            if (holdScroll.current) { holdScroll.current = false; return; }
+            scroller.current?.scrollToEnd({ animated: false });
+          }}
         >
+          {/* [2026-09-23] The door onto the rest of the thread. The read above is the NEWEST
+              hundred; before this existed the screen read the OLDEST hundred and said nothing
+              about the cap, so a long thread looked like a thread that had stopped. `olderDoor`
+              is 'none' once the server has returned a short page — the control disappears rather
+              than staying behind as a button that does nothing.
+              Busy follows the send button's grammar exactly (see the send Pressable below): a
+              LABEL SWAP that keeps its fill and reports `accessibilityState.busy` — never the
+              disabled state, which in this repo means unavailable. A second tap while a page is
+              in flight is a no-op because the page is already coming, not because the control is
+              dead. */}
+          {olderDoor !== 'none' && (
+            <Pressable
+              style={s.olderDoor}
+              onPress={() => { if (olderDoor === 'ready') void loadOlder(); }}
+              accessibilityRole="button"
+              accessibilityLabel={olderDoorLabel(olderDoor)}
+              accessibilityState={{ busy: olderDoor === 'busy' }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d453d' }}>{olderDoorLabel(olderDoor)}</Text>
+            </Pressable>
+          )}
           {state === 'ready' && msgs.length === 0 && (
             <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 20 }}>
               첫 메시지를 보내보세요 — 픽업 장소나 아이 성향을 미리 나누면 좋아요
             </Text>
           )}
-          {msgs.map((m) => (
-            <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
-              {m.mine && <Text style={s.time}>{m.when}</Text>}
-              <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer, m.mediaUrl != null && { padding: 4 }]}>
-                {m.mediaUrl ? (
-                  /* [0064] media_path는 프라이빗 버킷 경로 — MediaImage가 서명 URL로 풀고 만료를 명시 실패로 그린다 */
-                  <MediaImage source={m.mediaUrl} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
-                ) : (
-                  <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? paper.ink : '#2c332c' }}>{m.body}</Text>
-                )}
+          {msgs.map((m) => {
+            // [2026-09-23] `kind` is now selected and bound. Before this, a row that was neither
+            // plain text nor a photo drew an EMPTY bubble — visible, unreadable, unexplained.
+            const bubble = chatBubble({ kind: m.kind, body: m.body, mediaUrl: m.mediaUrl });
+            return (
+              <View key={m.id} style={[s.bubbleRow, m.mine && { justifyContent: 'flex-end' }]}>
+                {m.mine && <Text style={s.time}>{m.when}</Text>}
+                <View style={[s.bubble, m.mine ? s.bubbleMine : s.bubblePeer, bubble.shape === 'photo' && { padding: 4 }]}>
+                  {bubble.shape === 'photo' ? (
+                    /* [0064] media_path는 프라이빗 버킷 경로 — MediaImage가 서명 URL로 풀고 만료를 명시 실패로 그린다 */
+                    <MediaImage source={bubble.mediaUrl} style={{ width: 190, height: 190, borderRadius: 14 }} resizeMode="cover" />
+                  ) : bubble.shape === 'text' ? (
+                    <Text style={{ fontSize: 15.5, lineHeight: 22, color: m.mine ? paper.ink : '#2c332c' }}>{bubble.text}</Text>
+                  ) : (
+                    /* A kind this build cannot draw. It says what it is instead of showing
+                       nothing — and `chat_messages` carries no payload column, so 위치 메시지 is a
+                       label and never an invented coordinate. */
+                    <View>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: m.mine ? paper.ink : '#2c332c' }}>{bubble.label}</Text>
+                      {bubble.text !== '' && (
+                        <Text style={{ fontSize: 15.5, lineHeight: 22, marginTop: 3, color: m.mine ? paper.ink : '#2c332c' }}>{bubble.text}</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+                {!m.mine && <Text style={s.time}>{m.when}</Text>}
               </View>
-              {!m.mine && <Text style={s.time}>{m.when}</Text>}
-            </View>
-          ))}
+            );
+          })}
           {msgs.length > 0 && (
             <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 8 }}>
               안전을 위해 모든 대화는 러닝 종료 후 30일간 보관돼요
@@ -489,6 +586,8 @@ const s = StyleSheet.create({
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
   time: { fontSize: 15, color: colors.dim, marginBottom: 3 },
   quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
+  // The 「이전 메시지 더 보기」 door — the quick-reply chip grammar, centred at the top of the thread.
+  olderDoor: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center', marginBottom: 4 },
   inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
   attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#DCD6C4', color: paper.ink },

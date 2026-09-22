@@ -30,6 +30,7 @@ import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
+import { CHAT_PAGE_SIZE, toDisplayOrder } from './chat-window';
 // Star arithmetic — pure, pinned by `test/rating.test.cjs`. It lives outside this file because the
 // average it computes is printed beside a count computed here, and the two must not drift again;
 // see the [reviews-surfaced] block at the end of this file for what drifting cost.
@@ -3881,7 +3882,21 @@ export async function fetchLedgerMonthTotals(months?: number): Promise<MonthTota
 }
 
 // ---------- chat (Realtime) ----------
-export interface ChatMsg { id: number; mine: boolean; body: string; mediaUrl: string | null; when: string }
+export interface ChatMsg {
+  id: number;
+  mine: boolean;
+  body: string;
+  mediaUrl: string | null;
+  when: string;
+  // [2026-09-23] `chat_messages.kind` (0001: `text | photo | location`) was in the schema and in
+  // NO select. `mapMsg` inferred photo from `media_path` alone, so any other kind rendered as an
+  // empty bubble — a message you can see arrived and cannot read. Carried raw; chat-window.ts's
+  // `chatBubble` decides the shape and labels a kind this build cannot draw.
+  kind: string;
+  // The server's `created_at`, verbatim. The paging cursor for 「이전 메시지 더 보기」 — `when` is a
+  // display string and cannot be one.
+  createdAt: string;
+}
 
 function mapMsg(m: any, uid?: string | null): ChatMsg {
   // created_at 은 서버 instant 다 — 기기 로컬 getter 로 읽으면 서울이 아닌 기기에서 모든 말풍선의
@@ -3893,6 +3908,10 @@ function mapMsg(m: any, uid?: string | null): ChatMsg {
     body: m.body ?? '',
     mediaUrl: m.media_path ?? null,
     when: Number.isNaN(t) ? '' : kstAmPm(kstCal(t)),
+    // A row written before `kind` had a default, or a realtime payload that omitted it, reads as
+    // 'text' — the column's own default — rather than as an unknown kind.
+    kind: typeof m.kind === 'string' && m.kind !== '' ? m.kind : 'text',
+    createdAt: typeof m.created_at === 'string' ? m.created_at : '',
   };
 }
 
@@ -3915,6 +3934,23 @@ export async function ensureThread(bookingId: string): Promise<string> {
   return data.id;
 }
 
+const CHAT_MSG_COLUMNS = 'id, sender_id, body, kind, media_path, created_at';
+
+/**
+ * The NEWEST page of a thread, in display order (oldest → newest).
+ *
+ * 🔴 [2026-09-23] This read was `.order('created_at').limit(100)` — ASCENDING — so past a hundred
+ * messages the screen showed the FIRST hundred and silently dropped every message since. The
+ * 「5분 늦어요」 an owner waits for is by definition the newest one, and it was the one guaranteed to
+ * be missing; nothing on screen said the read had been capped, so a thread frozen at message 100
+ * looked like a thread where nobody had spoken. `fetchOlderMessages` is the other half — the cap
+ * now has a door instead of a cliff.
+ *
+ * Errors are rethrown RAW, deliberately, and must not be folded: `app/chat.tsx` keys its permanent
+ * 「러너가 수락하면 채팅을 열 수 있어요」 state on `.code === '42501'` surviving out of this family
+ * (0114 — see `ensureThread`'s header). A fold would replace the code with a sentence and turn a
+ * designed refusal into a 「잠시 후 다시 시도」 that will never come true.
+ */
 export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
   // [chat rescue 2026-08-31] getUser 실패·미로그인은 조용히 넘기지 않는다 — uid 없이 매핑하면
   // 내 메시지가 상대 것으로 그려진다(mapMsg의 isMe 판정). 실패는 실패로 던진다.
@@ -3923,12 +3959,36 @@ export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
   if (!user.user) throw new Error('not signed in');
   const { data, error } = await supabase
     .from('chat_messages')
-    .select('id, sender_id, body, media_path, created_at')
+    .select(CHAT_MSG_COLUMNS)
     .eq('thread_id', threadId)
-    .order('created_at')
-    .limit(100);
+    .order('created_at', { ascending: false })
+    .limit(CHAT_PAGE_SIZE);
   if (error) throw error;
-  return (data ?? []).map((m: any) => mapMsg(m, user.user.id));
+  return toDisplayOrder((data ?? []).map((m: any) => mapMsg(m, user.user.id)));
+}
+
+/**
+ * One page of messages OLDER than `beforeCreatedAt`, in display order (oldest → newest).
+ *
+ * `beforeCreatedAt` is the server's own `created_at` on the oldest message the screen holds
+ * (`olderCursor`), never a device clock. Strict `<` — see `chat-window.ts`'s note on why `<=`
+ * cannot guarantee the door makes progress.
+ *
+ * Same raw-rethrow law as `fetchMessages` above.
+ */
+export async function fetchOlderMessages(threadId: string, beforeCreatedAt: string): Promise<ChatMsg[]> {
+  const { data: user, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!user.user) throw new Error('not signed in');
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select(CHAT_MSG_COLUMNS)
+    .eq('thread_id', threadId)
+    .lt('created_at', beforeCreatedAt)
+    .order('created_at', { ascending: false })
+    .limit(CHAT_PAGE_SIZE);
+  if (error) throw error;
+  return toDisplayOrder((data ?? []).map((m: any) => mapMsg(m, user.user.id)));
 }
 
 // Expo's installed core provides UUID v4 on native and web; load it only when sending.
