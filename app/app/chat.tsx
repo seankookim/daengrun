@@ -165,6 +165,12 @@ export default function Chat() {
     setMsgs((current) => mergeMessageSnapshot(current, snapshot));
     const hole = snapshotGap(held, snapshot);
     const cursor = olderCursor(snapshot);
+    // ⚠ NAMED LIMITATION, not an oversight: while a fill is in flight a SECOND hole is dropped.
+    //   The screen holds one door, and the door it already holds sits BELOW any newer hole, so
+    //   keeping it is the conservative half. Reaching this needs the thread to jump a full window
+    //   TWICE inside one bounded backfill (≈3 requests); the honest cost is that the newer hole
+    //   stays unmarked until a later snapshot opens one again. Written down rather than pinned —
+    //   a pin for a state this harness cannot reach would be green by construction.
     if (hole === null || cursor === null || gapFilling.current) return;
     setGapDoor({ afterId: hole.afterId, cursor });
     gapFilling.current = true;
