@@ -207,3 +207,13 @@ club v2 ships in the pilot at all.
   WALLED at emit (「try again at 7:26 AM」) — four captured observations routed (`…client-since-da47510-codex-WALLED.md`):
   builder fix/client-review-1 (chat read-focus, chat pager gap, ops roster `saving` dead control); the a11y per-file-ledger
   blind spot stays prose. Re-run owed after 07:26. The gap sweep is in Find (5/9 lenses back: 19 · 15 · 13 · 8 · 15 findings).
+- 03:23 — LANDED (each merged on trunk, full chain green, pushed, read back by structural marker, worktree + branch removed):
+  `0113340` **0217** claim vs deletion lock (harness 1493/0 · deno 383/0 · npm 3328/0; reproduction on trunk's body 1487/6 incl. a
+  two-connection race; 6 mutations) · `1e7de7c` **0219** window intervals (harness 1504/0, +11; reproduction 1490/7 — the 23:30–00:19
+  request DID pass a 09:00–10:00 window; 246's midnight carve-out became equality; `runner_offered_slots` needed no re-declare, measured) ·
+  `21aa4fe` **fix/client-review-1** (harness 1504 pass / 0 fail · npm 3399/0, +71 pins: chat marks read only when focused, pager hole detected by
+  membership + a mid-thread 「빠진 메시지 불러오기」 door, ops roster `saving` reset in `finally` + refusal keeps the sheet open).
+  0218 (evidence seal + backfill, 1494/0, +8, ten mutations incl. a caught NO-OP PLANT) landing next; 0216 and 0220 still building.
+  Letter (d) refined by 0219: cross-midnight is admitted ONLY when adjacent offered windows cover it; Sean may still forbid it outright
+  (pins `250 0219-W3/W4` flip).
+

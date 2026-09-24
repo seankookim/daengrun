@@ -26,6 +26,8 @@ cross-midnight slots · the SECOND `db push` (0203–0215 → `functions deploy 
 re-reviews) never fired because the session was idle at fire time, and sat in the task list as running; both deleted. Seventeen idle
 Codex-plugin broker trees from finished 09-17…09-23 review/build runs (cwd gone, 0 % CPU) were stopped. Nothing was doing work.
 
+**03:23: three landed on trunk since the morning block — `0113340` 0217 (gear claim refused/hidden for a tombstoned profile, harness 1493/0), `1e7de7c` 0219 (availability windows compared as full KST intervals — a 23:30–00:19 request no longer passes a 09:00–10:00 window; harness 1504/0), `21aa4fe` client-review-1 (chat read receipts only while focused, chat pager hole door, ops roster 「명단에 추가」 re-enabled after success; npm 3399/0). Codex SERVER verdict on 0201–0215 was REJECT/6 (`docs/reviews/2026-09-25-server-0201-0215-codex-verdict.md`); the CLIENT half walled at emit (`…-codex-WALLED.md`, re-run after 07:26). 0218 landing; 0216 · 0220 still building. Production unchanged at 0202 — the second `db push` letter now covers 0203 through whatever lands today.**
+
 **Running now (02:3x):** (1) Workflow `finish-line-gap-sweep` — nine code-verified finders (owner/runner journeys, server↔client
 contracts, UI consistency measured, less-is-more, backend logic incl. inaction, ops+notifications, first-run, copy) → dedup →
 adversarial refuters → a planner emitting disjoint-file build slices + letters; builders spawn from its plan (numbers 0216+/247+).
@@ -328,7 +330,7 @@ harness 1392 → 1397/0 (+5) · deno 369/0 · npm 1738/0 · babel 165. Deploy: d
 both now assert the token + the memo's absence with 0201 named as owner. Named gaps kept as prose: the two-session torn
 read cannot be reached by a one-connection harness (0202 pins the SHAPE — one `from bank_accounts` per path — and
 `provolatile`); `force_return_tx` still writes free text to the same column but has zero callers (re-measured) and no
-pin blesses it; `return_force_evidence` is party-readable but carries no operator prose. A measurement corrected the
+pin blesses it; `return_force_evidence` is party-readable but carries no operator prose ⚠ STALE as of 0218 (2026-09-25): Codex found `p_evidence` copied verbatim into it — 0218 seals caller evidence in the journal and leaves five server-composed keys. A measurement corrected the
 finding's cost: in the late-stamped shape the runner is NOT work-gated (0092 reads the stamps, present but late) — only
 the money is stuck, the worse version because the one visible symptom is absent. Deploy: `db push` FIRST, then
 `functions deploy transition-booking` (0201's pre-flight calls a function that does not exist until the push) and
