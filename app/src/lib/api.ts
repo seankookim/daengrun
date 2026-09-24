@@ -6844,13 +6844,13 @@ export async function fetchNotificationPrefs(): Promise<NotiPrefs> {
 // four-parameter function refuses this call by name rather than silently writing the wrong column —
 // and the reverse direction is safe by the setter's own rule (a NULL means 「leave it alone」), so a
 // build that never sends `p_ops` cannot reset an operator's choice.
-// ⚠ THIS PARAGRAPH SITS ABOVE THE CALL AND NOT INSIDE THE OBJECT LITERAL, deliberately.
-// `check-rpc-contracts.mjs` extracts argument names with `/(?:^|[,\s])([A-Za-z_]\w*)\s*:/` over the
-// literal's body and does NOT strip comments, so any prose containing `<word>:` inside those braces
-// is read as an argument. Measured 2026-09-23: this comment's own 「the setter's own rule: a NULL
-// …」 produced `❌ set_notification_prefs — 미지의 인자 ["rule"]` on correct code. A gate that cries
-// on correct code is `--no-verify`'d within a day; the gate's own repair is its own slice, and
-// until then no rpc literal in this file may contain prose.
+// ⚠ This paragraph sits above the call rather than inside the object literal because on
+// 2026-09-23 `check-rpc-contracts.mjs` did not strip comments and read this comment's own 「the
+// setter's own rule: a NULL …」 as an argument (`❌ set_notification_prefs — 미지의 인자 ["rule"]`).
+// FIXED 2026-09-25: the gate strips `//` and `/* */` comments from the literal's body before the
+// key match (string- and template-aware; `test/check-rpc-contracts.test.cjs` pins it with this
+// exact comment as the fixture), so prose inside an rpc literal is allowed again. The paragraph
+// stays here only because moving it back would buy nothing.
 export async function saveNotificationPrefs(partial: Partial<NotiPrefs>): Promise<NotiPrefs> {
   const { data, error } = await supabase.rpc('set_notification_prefs', {
     p_booking: partial.booking ?? null,
