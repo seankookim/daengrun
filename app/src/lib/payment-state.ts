@@ -24,6 +24,16 @@
 //   the matching one for a PHONE that was built before a state existed — an old binary must
 //   admit it does not know rather than assert something false about money.
 //
+// ═══ [0220] THE SECOND SENTENCE THAT WAS FALSE ════════════════════════════════════════════════
+// 0207 fixed the settled-without-payment half and left a booking that ENDED WITHOUT A RUN reading
+// `awaiting_settlement` — 「정산이 끝나면 청구돼요」 — forever: a free cancellation, a runner's
+// cancellation, an expiry and a no-show all reached it, because the state ladder keyed on the RUN
+// and those bookings have no run. Reproduced on trunk's body before the fix (0220's header carries
+// the transcript), and `payments_reconciliation()` arm eight could not see them either, so this
+// screen was the only place saying anything at all. `no_charge` therefore carries four new reason
+// tokens and there is one new state, `fee_unminted`, for a recorded cancellation fee that was
+// never billed.
+//
 // ⚠ NOTHING HERE READS THE DEVICE CLOCK — `kst.ts` (fixed +9, no Intl; Korea has no DST), so a
 //   phone that is not in Seoul prints the same characters as one that is. `check-device-clock.mjs`
 //   is the gate; this module is what makes passing it free for the screens that use it.
@@ -42,7 +52,24 @@ export type PaymentStateName =
   | 'charged'
   | 'waived'
   | 'refunded'
+  | 'fee_unminted'   // [0220]
   | 'unknown';
+
+/** [0220] `no_charge`'s reason tokens. Until 0220 there was exactly one (`not_charging`) and
+ *  0207 §0a argued that collapse deliberately — splitting it would have handed every owner the
+ *  global rollout switch's state. The four below leak nothing: each is a restatement of
+ *  `bookings.status`, which this caller owns and already reads on the same screen. */
+export type NoChargeReason =
+  | 'not_charging'          // the mint's cutover pair (0084:264-266) — this booking predates charging
+  | 'cancelled_free'        // cancelled_owner with cancel_fee 0 (cancel_owner.ts:263, 0118:588)
+  | 'cancelled_by_runner'   // cancelled_runner — the owner's ladder never bills the runner's cancel
+  | 'expired'               // no runner was ever assigned
+  | 'no_show';              // 0117's pre-custody terminal: 「NEVER moves money」 (0117:57)
+
+/** The admission an old binary makes when the server hands it a word it was built before.
+ *  Exported because a PIN needs to tell 「this state has its own copy」 from 「this state fell
+ *  through」, and comparing to a retyped string would drift from the arm it is checking. */
+export const PAYMENT_UNKNOWN_TEXT = '결제 상태를 확인하고 있어요';
 
 /** The read's shape, exactly as `BookingPaymentState` (api.ts) carries it. Kept structural rather
  *  than importing the interface, so a pin can build one without api.ts. */
@@ -75,8 +102,42 @@ export interface PaymentFace {
  *  The section still renders for it when real receipt rows exist. */
 export const PAYMENT_STATES_THAT_SPEAK: readonly string[] = [
   'no_charge', 'settling', 'settled_without_payment', 'charge_pending',
-  'charge_retrying', 'arrears', 'charged', 'waived', 'refunded', 'unknown',
+  'charge_retrying', 'arrears', 'charged', 'waived', 'refunded', 'fee_unminted', 'unknown',
 ];
+
+/**
+ * [0220] A request guard for a screen that loads per-entity data and lets the person switch
+ * entities while a load is in flight.
+ *
+ * 🔴 WHY THIS IS NOT A DETAIL, and why it lives HERE rather than as an inline `useRef` counter:
+ * `owner/schedule.tsx` loads the payment state for the booking the sheet is showing. Clearing the
+ * state when the selection changes does NOT stop the previous booking's promise from resolving —
+ * it lands afterwards and calls `setPayState` with **another booking's money**. The Codex client
+ * review found the same shape on both reads in that effect. A sentence about a charge is the last
+ * place in this app where the wrong entity's data may be painted, and 「it resolved late」 is
+ * indistinguishable on screen from 「this is your booking」.
+ *
+ * `begin()` on the way out, `isCurrent(token)` before anything is applied — including the
+ * `catch` and the `finally`, because a late FAILURE that flips the error strip or clears the
+ * loading flag is the same bug wearing a different face.
+ *
+ * Pure, synchronous and allocation-free per call, so a pin can exercise an out-of-order resolve
+ * without a component, a renderer or a clock.
+ */
+export interface LatestOnly {
+  /** Register a load that is starting; returns its token. */
+  begin(): number;
+  /** True only while `token` is the newest `begin()` — i.e. this result may still be applied. */
+  isCurrent(token: number): boolean;
+}
+
+export function latestOnly(): LatestOnly {
+  let seq = 0;
+  return {
+    begin: () => (seq += 1),
+    isCurrent: (token: number) => token === seq,
+  };
+}
 
 /** `9월 22일` in KST, or null when there is nothing readable.
  *  ⚠ `new Date(x).getTime()` returns **NaN**, not null, on anything unparseable, and NaN flows
@@ -105,9 +166,42 @@ export function paymentFace(p: PaymentStateLike | null | undefined): PaymentFace
 
   switch (p.state) {
     // ── nothing is owed, and nothing ever will be ────────────────────────────────────────────
-    case 'no_charge':
-      return { text: '청구 없이 진행된 러닝이에요', sub: '결제가 시작되기 전 예약이라 청구되지 않아요',
-               tone: 'done', canRetry: false };
+    // ⚠ [0220] `no_charge` now has FIVE reasons and the headline cannot be shared. The shipped
+    //   one — 「청구 없이 진행된 러닝이에요」 — asserts that a run HAPPENED, which is true of the
+    //   cutover population (`not_charging`: the booking ran before charging went live) and FALSE
+    //   of every ending 0220 added, where there was no run at all.
+    // ⚠ An unrecognised reason gets the bare 「청구된 금액이 없어요」 and NO second line. It must
+    //   not inherit the cutover sentence: `no_charge` is a true claim about the money either way,
+    //   but 「결제가 시작되기 전 예약이라」 is a specific explanation and would be a guess. Same
+    //   fail-closed direction as the `default` arm at the bottom, one level down.
+    case 'no_charge': {
+      if (reason === 'not_charging') {
+        return { text: '청구 없이 진행된 러닝이에요', sub: '결제가 시작되기 전 예약이라 청구되지 않아요',
+                 tone: 'done', canRetry: false };
+      }
+      const why = reason === 'cancelled_free'
+        ? '취소 수수료 없이 취소된 예약이라 청구되지 않았어요'
+        : reason === 'cancelled_by_runner'
+        ? '러너가 취소한 예약이라 청구되지 않았어요'
+        : reason === 'expired'
+        ? '러너가 배정되지 않아 종료된 예약이라 청구되지 않았어요'
+        : reason === 'no_show'
+        ? '러닝이 진행되지 않아 청구되지 않았어요'
+        : null;
+      return { text: '청구된 금액이 없어요', sub: why, tone: 'done', canRetry: false };
+    }
+
+    // 🔴 [0220] A FEE IS RECORDED AND NO BILL EXISTS FOR IT. Deliberately not 「아직」 and not
+    //    「없어요」 on its own: 아직 promises the bill is coming (nothing is minting it — that is
+    //    the state), and a bare 「청구되지 않았어요」 reads as 「free」, which is the exact
+    //    misreading 0207 was written to end. No amount either: `bookings.cancel_fee` is a real
+    //    number, but a figure in this line means a payments row answered, and none did.
+    //    `canRetry` stays false — /payments retries a payments ROW, and there is none to retry;
+    //    a door that cannot open is a dead button (0220 §0c).
+    case 'fee_unminted':
+      return { text: '취소 수수료 청구가 확인되지 않았어요',
+               sub: '예약에 기록된 취소 수수료의 청구 내역이 없어요',
+               tone: 'alert', canRetry: false };
 
     case 'waived':
       return {
@@ -189,6 +283,6 @@ export function paymentFace(p: PaymentStateLike | null | undefined): PaymentFace
 
     // ── an old binary meeting a new server word ─────────────────────────────────────────────
     default:
-      return { text: '결제 상태를 확인하고 있어요', sub: null, tone: 'wait', canRetry: false };
+      return { text: PAYMENT_UNKNOWN_TEXT, sub: null, tone: 'wait', canRetry: false };
   }
 }
