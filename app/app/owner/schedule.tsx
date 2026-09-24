@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchChatUnread, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
-import { PAYMENT_STATES_THAT_SPEAK, paymentFace } from '../../src/lib/payment-state';
+import { PAYMENT_STATES_THAT_SPEAK, paymentFace, latestOnly, type LatestOnly } from '../../src/lib/payment-state';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -340,12 +340,30 @@ export default function Schedule() {
   // 결제 내역 (charge slice §0-bis) — 예약 하나의 payments 행. 이 목록은 **영수증 행**만 담당한다.
   const [payRows, setPayRows] = useState<PaymentRecord[]>([]);
   const [payErr, setPayErr] = useState(false);
+  // 🔴 [0220] 늦게 도착한 응답은 **남의 예약 돈 이야기**다. 시트를 다른 예약으로 바꿔도
+  //    앞선 예약의 promise 는 멈추지 않는다 — 아래 useEffect 의 초기화는 상태를 비울 뿐
+  //    뒤늦은 resolve 를 막지 못한다. 요청마다 토큰을 받고, 최신 토큰일 때만 반영한다.
+  //    `catch`/`finally` 도 똑같이 막는다: 늦은 실패가 실패 줄을 켜거나 로딩을 끄는 것도
+  //    같은 버그의 다른 얼굴이다. 두 읽기는 각자 가드를 갖는다 — 재시도가 한쪽만 다시
+  //    부를 때 공유 카운터라면 다른 쪽의 진행 중 요청을 무효로 만든다.
+  //    ⚠ 보관은 `useState`의 **게으른 초기화**다. 셋 다 재보기 전에 측정한 결과다:
+  //      `if (!ref.current) ref.current = …` 는 렌더 중 ref 변이로 에러 2건
+  //      (react-doctor/no-ref-current-in-render), `useRef(latestOnly())` 는 매 렌더 초기화로
+  //      경고 2건(rerender-lazy-ref-init), `useState(latestOnly)` 는 둘 다 0건이다 — 리액트가
+  //      초기화 함수를 한 번만 부르고, 세터는 쓰지 않으므로 리렌더도 일으키지 않는다.
+  const [payRowsGuard] = useState<LatestOnly>(latestOnly);
+  const [payStateGuard] = useState<LatestOnly>(latestOnly);
+
   const loadPayments = useCallback((bid: string) => {
+    const token = payRowsGuard.begin();
     setPayErr(false);
     fetchBookingPayments(bid)
-      .then(setPayRows)
-      .catch((e) => { console.warn('[schedule] payments:', e?.message ?? e); setPayErr(true); });
-  }, []);
+      .then((rows) => { if (payRowsGuard.isCurrent(token)) setPayRows(rows); })
+      .catch((e) => {
+        console.warn('[schedule] payments:', e?.message ?? e);
+        if (payRowsGuard.isCurrent(token)) setPayErr(true);
+      });
+  }, [payRowsGuard]);
 
   // 🔴 [0207] 결제 **상태**는 서버가 말한다 — 행 수가 아니다.
   //    여기 있던 판정은 `payRows.length === 0`이면 「아직 청구 내역이 없어요 — 정산이 끝나면
@@ -359,25 +377,33 @@ export default function Schedule() {
   const [payStateLoading, setPayStateLoading] = useState(false);
   const [payStateErr, setPayStateErr] = useState(false);
   const loadPayState = useCallback((bid: string) => {
+    const token = payStateGuard.begin();
     setPayStateErr(false);
     setPayStateLoading(true);
     fetchBookingPaymentState(bid)
-      .then((v) => { setPayState(v); setPayStateErr(false); })
-      .catch((e) => { console.warn('[schedule] payment state:', e?.message ?? e); setPayStateErr(true); })
-      .finally(() => setPayStateLoading(false));
-  }, []);
+      .then((v) => { if (payStateGuard.isCurrent(token)) { setPayState(v); setPayStateErr(false); } })
+      .catch((e) => {
+        console.warn('[schedule] payment state:', e?.message ?? e);
+        if (payStateGuard.isCurrent(token)) setPayStateErr(true);
+      })
+      .finally(() => { if (payStateGuard.isCurrent(token)) setPayStateLoading(false); });
+  }, [payStateGuard]);
 
   useEffect(() => {
     if (!selected) {
+      // ⚠ [0220] 시트를 닫을 때도 **토큰을 올린다**. 상태만 비우면 진행 중이던 읽기의 토큰은
+      //   여전히 '최신'이라, 닫은 뒤 도착한 응답이 비운 자리를 다시 채운다.
+      payRowsGuard.begin();
+      payStateGuard.begin();
       setPayRows([]); setPayErr(false);
       setPayState(null); setPayStateErr(false); setPayStateLoading(false);
       return;
     }
     setPayRows([]);
     setPayState(null);            // 다른 예약의 상태가 한 프레임이라도 남으면 남의 돈 이야기다
-    loadPayments(selected.id);
+    loadPayments(selected.id);    // 각 로더가 새 토큰을 받는다 — 이전 예약의 응답은 버려진다
     loadPayState(selected.id);
-  }, [selected, loadPayments, loadPayState]);
+  }, [selected, loadPayments, loadPayState, payRowsGuard, payStateGuard]);
 
   const payFace = paymentFace(payState);
   // ⚠ 완료(display status)는 더 이상 **유일한** 트리거가 아니다 — 0116:47-52가 이름으로 거절하는

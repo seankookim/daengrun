@@ -1036,7 +1036,10 @@ export async function fetchMyPayments(limit = 30): Promise<PaymentRecord[]> {
 // ⚠ 결제행이 없는 상태에서는 `amountWon` 이 null 이고 그대로 둔다 — 0173:100-101, 아무도 계산하지
 //   못한 행에 숫자를 적으면 그건 지어낸 숫자다.
 export interface BookingPaymentState {
-  /** 서버 어휘. 표시용이 아니다 — payment-state.ts 만 읽는다. */
+  /** 서버 어휘. 표시용이 아니다 — payment-state.ts 만 읽는다.
+   *  ⚠ 유니온이 아니라 `string` 인 것은 의도다: 서버가 이 앱보다 나중에 낱말을 늘릴 수 있고,
+   *  그때 낡은 바이너리는 **모른다고 말해야** 한다. 어휘 자체는 `PaymentStateName`(0220에서
+   *  `fee_unminted` 추가)이 들고 있고, 모르는 낱말은 `paymentFace` 의 fail-closed 팔로 간다. */
   state: string;
   /** 실제 payments 행이 답한 경우에만 숫자. 그 외에는 null이고 추정하지 않는다. */
   amountWon: number | null;
@@ -1044,7 +1047,11 @@ export interface BookingPaymentState {
   chargedAt: string | null;
   /** 청구서(인텐트)가 만들어진 시각 = payments 행의 created_at. */
   intentAt: string | null;
-  /** 서버 토큰(missing_end_reason · card_relink · incident_review …). 표시용이 아니다. */
+  /** 서버 토큰(missing_end_reason · card_relink · incident_review …). 표시용이 아니다.
+   *  ⚠ [0220] `no_charge` 의 토큰이 하나(`not_charging`)에서 다섯으로 넓어졌다
+   *  (`cancelled_free` · `cancelled_by_runner` · `expired` · `no_show` 추가). 값의 **뜻**이
+   *  넓어지면 손대지 않은 호출자가 깨진다 — 그 매핑은 `payment-state.ts` 한 곳에만 있고,
+   *  모르는 토큰은 일반 문장으로 **닫히게** 떨어진다(가장 가까운 문장을 추측하지 않는다). */
   reason: string | null;
 }
 
