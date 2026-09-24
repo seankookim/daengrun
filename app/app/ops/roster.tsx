@@ -15,6 +15,7 @@ import {
   chipLabel, classLabel, CONSOLE_CLASS, groupRoster, OpsRosterPerson, personSummary,
   SELECTABLE_CLASSES, wouldStrandConsole,
 } from '../../src/lib/ops-roster';
+import { runSeat, seatRefusalText } from '../../src/lib/ops-roster-seat';
 // RAW server text for the log. `e.message` is the MAPPED Korean (api.ts `opsError` →
 // `foldRpcError`), which is what a screen may render; a `console.warn` printing the folded copy
 // has thrown the diagnosis away.
@@ -122,27 +123,32 @@ export default function OpsRoster() {
     setChecked(new Set());
   }, []);
 
+  // The sequencing lives in `ops-roster-seat.ts` — sequential, first-refusal-wins, and testable,
+  // which it cannot be inside this module. Its header carries the reasoning for both.
+  // 🔴 [2026-09-25 · codex c4] `saving` clears in a `finally`. It used to clear only in the
+  //    `.catch`, so the SUCCESSFUL path left the busy label on a permanently disabled button —
+  //    a dead control that only a remount fixed.
   const seat = useCallback(() => {
     if (!picked || checked.size === 0 || saving) return;
+    const profileId = picked.id;
     setSaving(true);
     setSheetErr(null);
-    // ⚠ Sequential, not `Promise.all`: `last_operator` and the roster count are evaluated per
-    // call on the server, and a parallel burst would make a partial failure impossible to
-    // describe. One refusal stops the rest and says which class it was.
-    const classes = [...checked];
-    const run = async () => {
-      for (const c of classes) {
-        // eslint-disable-next-line no-await-in-loop
-        await opsRosterSet({ profileId: picked.id, eventClass: c, active: true });
-      }
-    };
-    run()
-      .then(() => { closeSheet(); load(); })
-      .catch((e) => {
-        console.warn('[ops] seat:', rpcRaw(e));
-        setSheetErr((e as Error)?.message || '추가하지 못했어요');
-        setSaving(false);
-      });
+    runSeat([...checked], (c) => opsRosterSet({ profileId, eventClass: c, active: true }))
+      .then((outcome) => {
+        if (outcome.refusal !== null) {
+          console.warn('[ops] seat:', rpcRaw(outcome.refusal.error));
+          // ⚠ A partial failure keeps the sheet OPEN with the pick and the chips intact: the
+          // operator has to read which class was refused and which ones are already seated, and
+          // the same button is the retry. Closing here would hide a half-finished write.
+          setSheetErr(seatRefusalText(outcome, classLabel));
+        } else {
+          closeSheet();
+        }
+        // Whatever landed is the roster's truth either way — a refusal on the third class does
+        // not undo the first two, so the list behind the sheet is reloaded on both paths.
+        load();
+      })
+      .finally(() => setSaving(false));
   }, [picked, checked, saving, closeSheet, load]);
 
   return (

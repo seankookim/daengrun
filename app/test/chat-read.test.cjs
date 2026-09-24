@@ -12,10 +12,15 @@
 //     server says nothing of the kind. Every 「unknown」 input returns null.
 //   · `shouldMarkRead`'s `appActive` arm: a chat screen left behind a lock screen keeps polling,
 //     and marking those messages read would assert a human action that did not happen.
+//   · `shouldMarkRead`'s `focused` arm (2026-09-25 · codex c1): the SAME lie by a different route,
+//     and the one the app was actually telling. Expo Router keeps the chat mounted behind a
+//     pushed screen with the app perfectly ACTIVE, so `appActive` was true, the poller was
+//     running, and every message arriving while the owner was on another screen was marked read.
 //
 // The mutations that redden it: draw 0 as a badge · treat `loading` as `ready` with no rows ·
 // return the caller's own newest message regardless of the read time · use `<` instead of `<=` on
-// the receipt boundary · drop the `appActive` arm · drop the peer-id gate on 'message'.
+// the receipt boundary · drop the `appActive` arm · drop the `focused` arm · drop the peer-id
+// gate on 'message'.
 const {
   unreadFor, unreadBadge, unreadBadgeLabel, totalUnread, totalUnreadBadge, formatUnreadBadge,
   UNREAD_BADGE_CAP, readReceiptMessageId, READ_RECEIPT_LABEL, shouldMarkRead,
@@ -136,7 +141,7 @@ t('the answer does not depend on array order',
 // ③ when a screen may record a read
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 const mk = (o) => Object.assign(
-  { reason: 'message', ready: true, appActive: true, newestPeerMessageId: 5, lastMarkedPeerMessageId: null }, o);
+  { reason: 'message', ready: true, appActive: true, focused: true, newestPeerMessageId: 5, lastMarkedPeerMessageId: null }, o);
 
 t('nothing is recorded before the thread is ready',
   shouldMarkRead(mk({ ready: false })) === false
@@ -157,6 +162,34 @@ t('an arriving message records only when it is NEWER than what this screen alrea
   && shouldMarkRead(mk({ newestPeerMessageId: 4, lastMarkedPeerMessageId: 5 })) === false);
 t('a quiet thread does not call the RPC on every poll tick',
   shouldMarkRead(mk({ newestPeerMessageId: null, lastMarkedPeerMessageId: null })) === false);
+
+// ── [2026-09-25 · codex c1] the screen is MOUNTED but nobody is looking at it ─────────────────
+// 🔴 The defect this closes was reachable every single day and left no trace: Expo Router keeps
+// the chat mounted behind a pushed screen, the app stays 'active', the poller keeps running — so
+// a message arriving while the owner is on 예약 상세 was marked read, and the runner who sent
+// 「5분 늦어요」 saw 「읽음」 about a message nobody had seen. `appActive` cannot catch this: it is
+// TRUE the whole time. The two facts are independent and the screen must pass both.
+t('🔴 an UNFOCUSED screen records nothing on an arriving message, however active the app is',
+  shouldMarkRead(mk({ focused: false, appActive: true })) === false);
+t('🔴 …and it refuses for EVERY reason, not just the arriving-message one',
+  shouldMarkRead(mk({ focused: false, reason: 'open' })) === false
+  && shouldMarkRead(mk({ focused: false, reason: 'focus' })) === false
+  && shouldMarkRead(mk({ focused: false, reason: 'message', lastMarkedPeerMessageId: null })) === false);
+t('the two facts are INDEPENDENT — neither one alone licenses a receipt',
+  shouldMarkRead(mk({ focused: true, appActive: false })) === false
+  && shouldMarkRead(mk({ focused: false, appActive: false })) === false
+  && shouldMarkRead(mk({ focused: true, appActive: true })) === true);
+// The other half of c1, and the half that makes the refusal above safe to ship: nothing is LOST
+// while the screen sits unfocused. The 'focus' arm returns true BEFORE the peer-id gate, so its
+// `newestPeerMessageId: null` means 「mark whatever is on screen」 — which is exactly the pile that
+// arrived while nobody was looking. This is the call `useFocusEffect` makes on the way back.
+t('🔴 a message that arrived while UNFOCUSED is marked on the next focus, not dropped',
+  shouldMarkRead(mk({ reason: 'message', focused: false, newestPeerMessageId: 7 })) === false
+  && shouldMarkRead(mk({ reason: 'focus', focused: true, newestPeerMessageId: null,
+    lastMarkedPeerMessageId: null })) === true);
+t('…and it is still marked when this screen had already marked an OLDER message',
+  shouldMarkRead(mk({ reason: 'focus', focused: true, newestPeerMessageId: null,
+    lastMarkedPeerMessageId: 3 })) === true);
 
 console.log('');
 console.log(pass + ' pass / ' + fail + ' fail');

@@ -167,6 +167,16 @@ export type MarkReadReason =
  * has looked at — the app asserting a human action that did not happen. A phone in a pocket reads
  * nothing.
  *
+ * 🔴 `focused` IS THE OTHER HALF, AND IT WAS MISSING (codex client review, 2026-09-25 · c1). The
+ * two facts are independent and neither implies the other: `appActive` says the APP is in front,
+ * `focused` says THIS SCREEN is the one the person is looking at. Expo Router keeps the chat
+ * mounted behind a pushed screen — 예약 상세, 설정, anything — with the app perfectly active and
+ * the poller still running, so every message arriving while the owner is somewhere else was
+ * marked read and the peer's 「읽음」 receipt said a human had seen it. Nobody had. A false receipt
+ * is worse than a missing one: the runner who sent 「5분 늦어요」 stops waiting for an answer.
+ * `false` refuses for EVERY reason, 'open' and 'focus' included — a screen that is not in front
+ * cannot have been read whatever brought us here.
+ *
  * `open` and `focus` mark unconditionally (while active): the person IS looking at the thread, so
  * recording that is correct even when it moves the position by nothing — and `chat_mark_read` is
  * monotonic, so a redundant call is a no-op by construction rather than by luck.
@@ -181,6 +191,8 @@ export function shouldMarkRead(s: {
   ready: boolean;
   /** `AppState.currentState === 'active'`. */
   appActive: boolean;
+  /** This screen holds navigation focus — `useFocusEffect`'s own ref, never a guess. */
+  focused: boolean;
   /** Highest peer message id on screen, or `null` when the peer has said nothing. */
   newestPeerMessageId: number | null;
   /** Highest peer message id this screen has already marked for, or `null`. */
@@ -188,6 +200,7 @@ export function shouldMarkRead(s: {
 }): boolean {
   if (!s.ready) return false;
   if (!s.appActive) return false;
+  if (!s.focused) return false;
   if (s.reason !== 'message') return true;
   if (s.newestPeerMessageId === null) return false;
   if (s.lastMarkedPeerMessageId === null) return true;

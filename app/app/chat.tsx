@@ -4,12 +4,15 @@ import { Alert, AppState, Image, KeyboardAvoidingView, Platform, Pressable, Scro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
-import { mergeMessageSnapshot } from '../src/lib/chat-messages';
+import {
+  GAP_DOOR_LABEL, gapClosedBy, mergeMessageSnapshot, snapshotGap,
+} from '../src/lib/chat-messages';
 import {
   MarkReadReason, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
 } from '../src/lib/chat-read';
 import {
-  CHAT_PAGE_SIZE, chatBubble, olderCursor, olderDoorLabel, olderDoorState, pageIsLast,
+  CHAT_PAGE_SIZE, chatBubble, OLDER_DOOR_BUSY_LABEL, olderCursor, olderDoorLabel, olderDoorState,
+  pageIsLast,
 } from '../src/lib/chat-window';
 import { MediaImage } from '../src/lib/media';
 import { goBackOrHome } from '../src/lib/nav';
@@ -32,6 +35,12 @@ import { colors, paper } from '../src/theme';
 // 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
 
 const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디쯤이세요?', '사진 부탁드려요'];
+
+// How many older pages the screen fetches on its own to close a reconnect hole before it stops
+// and hands the rest to a door. Bounded on purpose: a thread that moved on by thousands of
+// messages must not turn one poll tick into an unbounded backfill, and a door the reader taps is
+// honest about there being more, where a spinner that never ends is not.
+const GAP_FILL_MAX_PAGES = 3;
 
 export default function Chat() {
   const insets = useSafeAreaInsets();
@@ -71,6 +80,11 @@ export default function Chat() {
   // `state` 를 값으로 읽으면 언제나 'loading' 을 본다.
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
+  // [2026-09-25 · codex c1] 이 화면이 **내비게이션 포커스**를 쥐고 있는가. useFocusEffect 가 아래에서
+  // 세팅하지만 선언은 여기 있어야 한다 — 읽음 표시 effect(아래)와 AppState 리스너와 포커스 핸들러,
+  // 셋 다 이 값을 읽는다. 앱이 active 인 것과 **이 화면이 앞에 있는 것**은 서로 다른 사실이다:
+  // Expo Router 는 푸시된 화면 뒤에 채팅을 마운트한 채로 두고 폴러도 계속 돈다.
+  const screenFocused = useRef(false);
   // HIG A3 — the highest PEER message id this screen has already accounted for. `null` = the
   // thread's history has not landed yet, so the first snapshot primes instead of announcing 300
   // old messages at once. Reset with the thread below, or a new thread's history announces.
@@ -107,6 +121,90 @@ export default function Chat() {
     return () => { mounted.current = false; };
   }, []);
 
+  // ── [2026-09-25 · codex c3] 재연결 구멍 ──────────────────────────────────────────────────────
+  // 스냅샷은 **가장 최신 100개**다. 자리를 비운 사이 100개가 넘게 쌓였다면 그 페이지는 화면이 들고
+  // 있던 기록에 닿지 못하고, 합집합 머지는 그 둘을 **아무 말 없이** 이어 붙인다 — 가운데가 통째로
+  // 빠진 대화가 끊긴 적 없는 대화처럼 보인다. 위의 「이전 메시지 더 보기」는 가장 오래된 메시지에서
+  // 뒤로 가므로 구멍 아래를 판다: 그 문은 이 구멍을 절대 메우지 못한다.
+  // 순서는 (a) 스스로 메우기, 막히면 (b) 구멍 자리에 문. 지어내지 않고, 들고 있던 메시지도 버리지
+  // 않는다.
+  const msgsRef = useRef<ChatMsg[]>(msgs);
+  useEffect(() => { msgsRef.current = msgs; }, [msgs]);
+  /** 한 번에 하나의 메우기만 — 폴 간격(5~15초)은 한 번의 백필보다 짧을 수 있다. */
+  const gapFilling = useRef(false);
+  /** 스스로 메우지 못한 구멍. `afterId` 아래에 문이 그려지고, `cursor` 가 다음 페이지의 기준이다. */
+  const [gapDoor, setGapDoor] = useState<{ afterId: number; cursor: string } | null>(null);
+  const [gapBusy, setGapBusy] = useState(false);
+
+  /** 구멍 위에서 아래로 최대 `GAP_FILL_MAX_PAGES` 페이지를 당겨 온다. 닫혔는지와 다음 커서를
+   *  돌려주고, 쓰기는 전부 스레드 정체(ctxRef)로 게이트한다 — send/deliverPhoto 와 같은 관용구. */
+  const fillGap = useCallback(async (opCtx: ChatContext, afterId: number, fromCursor: string) => {
+    let cursor = fromCursor;
+    for (let i = 0; i < GAP_FILL_MAX_PAGES; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const page = await fetchOlderMessages(opCtx.threadId, cursor);
+      if (!mounted.current || ctxRef.current !== opCtx) return { closed: false, cursor };
+      // 읽는 사람 위로 자라는 것이므로 loadOlder 와 같은 스크롤 억제를 쓴다.
+      holdScroll.current = true;
+      setMsgs((current) => mergeMessageSnapshot(current, page));
+      if (gapClosedBy(afterId, page)) return { closed: true, cursor };
+      // 서버가 커서보다 오래된 걸 한 창보다 적게 줬다 = 더 줄 게 없다. 구멍은 비어 있었다.
+      if (pageIsLast(page.length, CHAT_PAGE_SIZE)) return { closed: true, cursor };
+      const next = olderCursor(page);
+      if (next === null) return { closed: true, cursor };
+      cursor = next;
+    }
+    return { closed: false, cursor };
+  }, []);
+
+  /** 최신 스냅샷을 화면에 들인다 — 머지 + 구멍 탐지 + (a) 자동 메우기.
+   *  ⚠ 구멍은 **이 순간에만** 관측된다: 머지가 끝나면 held 가 스냅샷을 포함하므로 다음 틱의
+   *    `snapshotGap` 은 영원히 null 이다. 그래서 메우기를 시도하기 **전에** 문을 먼저 기록한다. */
+  const absorbSnapshot = useCallback((opCtx: ChatContext, snapshot: ChatMsg[]) => {
+    const held = msgsRef.current;
+    setMsgs((current) => mergeMessageSnapshot(current, snapshot));
+    const hole = snapshotGap(held, snapshot);
+    const cursor = olderCursor(snapshot);
+    if (hole === null || cursor === null || gapFilling.current) return;
+    setGapDoor({ afterId: hole.afterId, cursor });
+    gapFilling.current = true;
+    setGapBusy(true);
+    fillGap(opCtx, hole.afterId, cursor)
+      .then((out) => {
+        if (!mounted.current || ctxRef.current !== opCtx) return;
+        if (out.closed) setGapDoor(null);
+        else setGapDoor({ afterId: hole.afterId, cursor: out.cursor });
+      })
+      .catch((e) => {
+        // 실패는 실패로 남는다 — 문이 그대로 있고, 탭하면 같은 지점에서 다시 시도한다.
+        console.warn('[chat] gap fill:', (e as Error)?.message ?? e);
+      })
+      .finally(() => {
+        gapFilling.current = false;
+        if (mounted.current && ctxRef.current === opCtx) setGapBusy(false);
+      });
+  }, [fillGap]);
+
+  /** (b) 문. 자동 메우기가 한도에 걸렸거나 실패했을 때만 존재한다. */
+  const loadGap = useCallback(() => {
+    const opCtx = ctxRef.current;
+    const door = gapDoor;
+    if (!opCtx || door === null || gapFilling.current) return;
+    gapFilling.current = true;
+    setGapBusy(true);
+    fillGap(opCtx, door.afterId, door.cursor)
+      .then((out) => {
+        if (!mounted.current || ctxRef.current !== opCtx) return;
+        if (out.closed) setGapDoor(null);
+        else setGapDoor({ afterId: door.afterId, cursor: out.cursor });
+      })
+      .catch((e) => console.warn('[chat] gap fill:', (e as Error)?.message ?? e))
+      .finally(() => {
+        gapFilling.current = false;
+        if (mounted.current && ctxRef.current === opCtx) setGapBusy(false);
+      });
+  }, [gapDoor, fillGap]);
+
   // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
   useEffect(() => {
     let alive = true;
@@ -115,6 +213,7 @@ export default function Chat() {
     // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
     setOlderBusy(false); setOlderExhausted(false); setPeerReadAt(null);
+    setGapDoor(null); setGapBusy(false); gapFilling.current = false;
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -125,6 +224,9 @@ export default function Chat() {
         const history = await fetchMessages(c.threadId);
         if (!alive) return;
         setCtx(c);
+        // ⚠ 여기만 `absorbSnapshot` 을 쓰지 않는다: 위에서 msgs 를 비웠고 msgsRef 는 아직 **이전
+        //   스레드**의 배열을 들고 있어(렌더 뒤에 갱신된다) 구멍 탐지가 남의 대화를 기준으로 돈다.
+        //   첫 페이지는 창 그 자체이므로 구멍이 있을 수 없고, 그 아래는 olderExhausted 가 맡는다.
         setMsgs((current) => mergeMessageSnapshot(current, history));
         // The first page IS the newest window, so its own length settles whether anything older
         // exists. A short page = the whole thread is on screen and the door never appears.
@@ -202,7 +304,8 @@ export default function Chat() {
         setPollErr(false);
         // mergeMessageSnapshot은 새 ID가 없으면 같은 배열을 돌려준다 — 매 틱 리렌더는
         // 스크롤을 흔들고 이미지 말풍선을 다시 태우므로 상태를 갈지 않는다.
-        setMsgs((prev) => mergeMessageSnapshot(prev, next));
+        // [c3] 재연결 뒤 구멍이 생기는 자리가 바로 여기다 — 머지와 탐지를 한 문으로 묶는다.
+        absorbSnapshot(ctx, next);
       } catch (e) {
         console.warn('[chat] poll:', (e as Error)?.message ?? e);
         if (alive) setPollErr(true); // 조용히 삼키면 헤더가 '받고 있다'고 우긴다
@@ -210,7 +313,7 @@ export default function Chat() {
     };
     const t = setInterval(tick, link === 'live' ? 15_000 : 5_000);
     return () => { alive = false; clearInterval(t); };
-  }, [ctx, state, link]);
+  }, [ctx, state, link, absorbSnapshot]);
 
   // ── [0212] 상대의 읽음 시각 — 기존 폴 케이던스를 그대로 탄다 ─────────────────────────────
   // 새 채널을 열지 않는다. `chat-<thread>` 는 chat_messages INSERT 만 싣는 postgres_changes 방이고
@@ -252,6 +355,10 @@ export default function Chat() {
       reason,
       ready: true,
       appActive: AppState.currentState === 'active',
+      // [codex c1] 앱이 앞에 있는 것만으로는 부족하다 — 이 화면이 다른 화면 뒤에 마운트된 채
+      // 폴링만 돌고 있을 수 있고, 그때 들어온 메시지를 읽음으로 찍으면 상대의 「읽음」이 거짓말이
+      // 된다. 포커스를 되찾는 순간 위 useFocusEffect 가 그때까지의 것을 한 번에 표시한다.
+      focused: screenFocused.current,
       newestPeerMessageId: newestPeer,
       lastMarkedPeerMessageId: lastMarkedPeer.current,
     })) return;
@@ -263,12 +370,17 @@ export default function Chat() {
   // 화면이 다시 앞으로 왔을 때. 내비게이션 포커스(useFocusEffect)와 **앱 복귀**(AppState)는 서로를
   // 대신하지 못한다 — 백그라운드는 포커스된 화면을 블러하지 않으므로, 앱을 내렸다 올리는 동안
   // 도착한 메시지는 포커스 이벤트를 만들지 않는다 (owner/home.tsx:334 가 같은 이유로 둘 다 둔다).
-  const screenFocused = useRef(false);
+  // ⚠ 이 팔이 c1 의 나머지 절반이다: 포커스가 없는 동안 도착한 메시지는 **표시되지 않고**, 여기서
+  //   표시된다. `reason: 'focus'` 는 `newestPeerMessageId` 게이트보다 앞에서 true 를 돌려주므로
+  //   `null` 은 「지금 화면에 있는 것까지 전부」라는 뜻이고 (chat-read.ts 의 'focus' 팔), 그래서
+  //   자리를 비운 사이 쌓인 메시지가 돌아온 순간 한 번에 읽음이 된다 — 잃어버리지 않는다.
   useFocusEffect(useCallback(() => {
     screenFocused.current = true;
     const c = ctxRef.current;
     if (c && stateRef.current === 'ready' && shouldMarkRead({
       reason: 'focus', ready: true, appActive: AppState.currentState === 'active',
+      // 이 콜백이 도는 것 자체가 포커스를 얻었다는 사실이다 (바로 위에서 세팅했다).
+      focused: true,
       newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
     })) recordRead(c.threadId);
     return () => { screenFocused.current = false; };
@@ -280,6 +392,9 @@ export default function Chat() {
       if (!screenFocused.current || !c) return;
       if (!shouldMarkRead({
         reason: 'focus', ready: stateRef.current === 'ready', appActive: st === 'active',
+        // 위의 early return 과 같은 사실을 **판정 함수에** 넘긴다 — 게이트가 한 군데에만 있으면
+        // 다음 사람이 위 줄을 건드릴 때 조용히 사라진다.
+        focused: screenFocused.current,
         newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
       })) return;
       recordRead(c.threadId);
@@ -325,7 +440,9 @@ export default function Chat() {
     try {
       const snapshot = await fetchMessages(opCtx.threadId);
       if (!mounted.current || ctxRef.current !== opCtx) return;
-      setMsgs((current) => mergeMessageSnapshot(current, snapshot));
+      // [c3] 이것도 「가장 최신 한 페이지」다 — 사진 한 장 보내는 동안 스레드가 한 창 넘게
+      // 움직였을 수 있고, 구멍은 폴 틱과 똑같이 여기서도 생긴다.
+      absorbSnapshot(opCtx, snapshot);
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
     } catch {
       if (mounted.current && ctxRef.current === opCtx) setPollErr(true);
@@ -365,7 +482,7 @@ export default function Chat() {
         if (!code) {
           fetchMessages(opCtx.threadId)
             .then((snap) => {
-              if (mounted.current && ctxRef.current === opCtx) setMsgs((cur) => mergeMessageSnapshot(cur, snap));
+              if (mounted.current && ctxRef.current === opCtx) absorbSnapshot(opCtx, snap);
             })
             .catch(() => {});
         }
@@ -376,7 +493,7 @@ export default function Chat() {
       // Realtime 에코가 못 오는 경우 대비 — 리페치로 정합. 실패는 폴 실패로만.
       const snapshot = await fetchMessages(opCtx.threadId);
       if (!mounted.current || ctxRef.current !== opCtx) return;
-      setMsgs((current) => mergeMessageSnapshot(current, snapshot));
+      absorbSnapshot(opCtx, snapshot);
       setTimeout(() => scroller.current?.scrollToEnd({ animated: true }), 60);
     } catch {
       if (mounted.current && ctxRef.current === opCtx) setPollErr(true);
@@ -396,6 +513,9 @@ export default function Chat() {
     // Same reset list as the load effect above — 하나가 늘면 둘 다 늘어야 한다 (line 80).
     setOlderBusy(false);
     setOlderExhausted(false);
+    setGapDoor(null);
+    setGapBusy(false);
+    gapFilling.current = false;
     setLoadAttempt((attempt) => attempt + 1);
   };
 
@@ -621,6 +741,23 @@ export default function Chat() {
                 <Text style={s.receipt} accessibilityLabel={`${READ_RECEIPT_LABEL} — 상대가 확인했어요`}>
                   {READ_RECEIPT_LABEL}
                 </Text>
+              )}
+              {/* [2026-09-25 · codex c3] 구멍 위의 문. 재연결 스냅샷이 화면의 기록에 닿지 못했고
+                  스스로 메우기가 한도에 걸렸을 때만 나온다 — 위의 「이전 메시지 더 보기」와 같은 칩
+                  문법이고, busy 는 같은 단어(OLDER_DOOR_BUSY_LABEL)를 쓴다. 메워지면 사라진다:
+                  아무것도 가져오지 못하는 문은 죽은 컨트롤이다. */}
+              {gapDoor !== null && m.id === gapDoor.afterId && (
+                <Pressable
+                  style={[s.olderDoor, { marginTop: 4 }]}
+                  onPress={() => { if (!gapBusy) loadGap(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={gapBusy ? OLDER_DOOR_BUSY_LABEL : GAP_DOOR_LABEL}
+                  accessibilityState={{ busy: gapBusy }}
+                >
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d453d' }}>
+                    {gapBusy ? OLDER_DOOR_BUSY_LABEL : GAP_DOOR_LABEL}
+                  </Text>
+                </Pressable>
               )}
               </View>
             );

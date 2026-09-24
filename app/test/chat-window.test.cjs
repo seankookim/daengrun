@@ -23,7 +23,9 @@ const {
   OLDER_DOOR_LABEL, OLDER_DOOR_BUSY_LABEL, chatBubble,
   CHAT_KIND_LOCATION_LABEL, CHAT_KIND_UNSUPPORTED_LABEL, CHAT_EMPTY_LABEL,
 } = require('./chat-window.build.cjs');
-const { mergeMessageSnapshot } = require('./chat-messages.build.cjs');
+const {
+  mergeMessageSnapshot, snapshotGap, gapClosedBy, GAP_DOOR_LABEL,
+} = require('./chat-messages.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -265,6 +267,110 @@ t('mapMsg binds kind onto every message',
   typeof mapper === 'string' && /\bkind:/.test(mapper));
 t('mapMsg carries the server createdAt through — the paging cursor cannot be a display string',
   typeof mapper === 'string' && /\bcreatedAt:/.test(mapper) && mapper.includes('m.created_at'));
+
+// ── ⑧ the reconnect HOLE — the fill loop's three decisions, composed ──────────────────────────
+// [2026-09-25 · codex c3] `chat-messages.ts` owns the detector and `chat-messages.test.ts` pins
+// it. What belongs HERE is the COMPOSITION, because the fill is made of this file's functions:
+// 「did that page reach back?」 (gapClosedBy) · 「was it the last one?」 (pageIsLast) · 「what is the
+// next cursor?」 (olderCursor). The three have to terminate together — a loop that cannot stop is
+// as bad as a screen that stops silently with the hole still there.
+//
+// ⚠ HONEST ABOUT WHAT THIS IS: the driver below is a driver over the REAL functions, not the
+//   screen. It proves the three decisions compose; that `chat.tsx` actually calls them is the
+//   SOURCE pin at ⑨, and NEITHER IS EVIDENCE FOR THE OTHER.
+const thread = [];
+for (let id = 1; id <= 400; id += 1) thread.push(msg(id, 't' + String(id).padStart(3, '0')));
+/** The server: every message strictly older than the cursor, newest first, capped at one window,
+ *  handed back in display order — exactly `fetchOlderMessages`. */
+const olderThan = (cursor) => thread.filter((m) => m.createdAt < cursor).slice(-CHAT_PAGE_SIZE);
+
+const fillDriver = (held, afterId, cursor, server, maxPages) => {
+  let list = held, pages = 0, closed = false;
+  while (pages < maxPages) {
+    const page = server(cursor);
+    pages += 1;
+    list = mergeMessageSnapshot(list, page);
+    if (gapClosedBy(afterId, page)) { closed = true; break; }
+    if (pageIsLast(page.length, CHAT_PAGE_SIZE)) { closed = true; break; }
+    const next = olderCursor(page);
+    if (next === null) { closed = true; break; }
+    cursor = next;
+  }
+  return { list, pages, closed, cursor };
+};
+
+// The screen holds the first 50 of a 400-message thread and reconnects to a window of 301..400.
+const heldOld = thread.slice(0, 50);
+const reconnect = thread.slice(300);
+const hole = snapshotGap(heldOld, reconnect);
+t('the reconnect leaves a hole, and it is between two real messages',
+  hole !== null && hole.afterId === 50 && hole.beforeId === 301, JSON.stringify(hole));
+const merged = mergeMessageSnapshot(heldOld, reconnect);
+
+const three = fillDriver(merged, hole.afterId, olderCursor(reconnect), olderThan, 3);
+t('🔴 a bounded fill closes a two-page hole and the thread is UNBROKEN afterwards',
+  three.closed === true && three.list.length === 400
+  && three.list.every((m, i) => i === 0 || m.id === three.list[i - 1].id + 1),
+  `closed=${three.closed} len=${three.list.length} pages=${three.pages}`);
+t('…and the same snapshot no longer reports a hole against the filled list',
+  snapshotGap(three.list, reconnect) === null);
+
+const two = fillDriver(merged, hole.afterId, olderCursor(reconnect), olderThan, 2);
+t('🔴 a bound that runs out STOPS — it does not spin, and it does not pretend to be finished',
+  two.closed === false && two.pages === 2);
+t('…and the cursor it stops on is further back than the one it started from, so the door resumes '
+  + 'rather than repeating a page',
+  two.cursor < olderCursor(reconnect) && two.list.length > merged.length);
+t('…and not one held message was dropped on the way',
+  heldOld.every((m) => two.list.some((x) => x.id === m.id)));
+
+// The hole that turns out to be empty — messages deleted between the two ends.
+const emptyHole = fillDriver(merged, hole.afterId, olderCursor(reconnect), () => [], 3);
+t('a hole the server has nothing for closes on the first page — a door that could only ever '
+  + 'return nothing is a dead control',
+  emptyHole.closed === true && emptyHole.pages === 1);
+
+t('the mid-thread door does not borrow the other door\'s word …', GAP_DOOR_LABEL !== OLDER_DOOR_LABEL);
+t('… but it DOES share the busy one — two words for one state is how a screen starts lying',
+  typeof OLDER_DOOR_BUSY_LABEL === 'string' && OLDER_DOOR_BUSY_LABEL === olderDoorLabel('busy'));
+
+// ── ⑨ the screen, as SOURCE ───────────────────────────────────────────────────────────────────
+// `app/test/*.cjs` cannot import a route module, so nothing above says the SCREEN does any of
+// this — the same division as `check-a11y-roles` beside the test chain, and the same warning:
+// neither is evidence for the other. Comments are stripped first (the stripper's own control is
+// at the top of this file), because this slice documents both fixes in comments that name the
+// very identifiers matched below.
+const CHAT = stripJsComments(fs.readFileSync(path.join(__dirname, '..', 'app', 'chat.tsx'), 'utf8'));
+t('chat.tsx is readable at all — an unreadable route module must fail LOUDLY, not be skipped',
+  CHAT.length > 2000);
+
+const marks = CHAT.split('shouldMarkRead({').length - 1;
+const focusArgs = CHAT.split('focused:').length - 1;
+t('🔴 [c1] EVERY shouldMarkRead call site passes the navigation-focus fact',
+  marks > 0 && marks === focusArgs, `${marks} calls / ${focusArgs} focused:`);
+t('[c1] …and there are three of them: open/message, focus regained, app returned',
+  marks === 3, String(marks));
+t('[c1] the AppState listener keeps its own early return as well — one gate removed must not '
+  + 'open the door on its own',
+  CHAT.includes('!screenFocused.current'));
+
+const absorbs = CHAT.split('absorbSnapshot(').length - 1;
+const reads = CHAT.split('fetchMessages(').length - 1;
+t('🔴 [c3] every newest-page read but the first goes through the gap-aware merge',
+  absorbs > 0 && absorbs === reads - 1, `${absorbs} absorb / ${reads} fetchMessages`);
+t('[c3] the screen detects the hole where it is observable — at the snapshot merge, which is the '
+  + 'only moment it exists',
+  CHAT.includes('snapshotGap('));
+t('🔴 [c3] the door is RECORDED before the fill is attempted, so a fill cut short by a thread '
+  + 'change cannot lose the only record of the hole',
+  /setGapDoor\(\{ afterId: hole\.afterId, cursor \}\);\s*gapFilling\.current = true;/.test(CHAT));
+t('[c3] the mid-thread door carries a role and the shared busy word (busy is a LABEL SWAP)',
+  /accessibilityLabel=\{gapBusy \? OLDER_DOOR_BUSY_LABEL : GAP_DOOR_LABEL\}/.test(CHAT)
+  && /accessibilityState=\{\{ busy: gapBusy \}\}/.test(CHAT));
+t('[c3] a closed hole REMOVES the door rather than leaving a control that fetches nothing',
+  CHAT.includes('setGapDoor(null)'));
+t('[c3] the fill is bounded by a named constant, not by a loop that decides for itself',
+  /const GAP_FILL_MAX_PAGES = \d+;/.test(CHAT) && CHAT.includes('i < GAP_FILL_MAX_PAGES'));
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
