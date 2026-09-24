@@ -216,4 +216,10 @@ club v2 ships in the pilot at all.
   0218 (evidence seal + backfill, 1494/0, +8, ten mutations incl. a caught NO-OP PLANT) landing next; 0216 and 0220 still building.
   Letter (d) refined by 0219: cross-midnight is admitted ONLY when adjacent offered windows cover it; Sean may still forbid it outright
   (pins `250 0219-W3/W4` flip).
+- 03:38 — ALL FIVE CORRECT-FORWARDS LANDED (trunk `1ec3f79`; harness **1527 pass / 0 fail** · deno 383/0 · npm **3633/0** + 39 ✅ · tsc 0 ·
+  checks 0): `973b9f6` **0218** evidence seal + pre-0205 backfill (1512/0, +8) · `d4a40a2` **0220** payment-state terminal arms +
+  `fee_unminted` + the schedule card race guard (1519/0, +7 SQL, +234 npm across three zones) · `1ec3f79` **0216** roster advisory lock
+  (1527/0, +8; the repo's first dblink two-session pins — reproduction showed session 2 NOT blocked and the console class EMPTY on trunk's
+  bodies). Every Codex server finding (#1–#6) now has a landed correct-forward; the Codex re-review of 0216–0220 and the client half are
+  owed after the 07:26 quota reset. Migrations on trunk above production: 0203–0220 (sixteen).
 
