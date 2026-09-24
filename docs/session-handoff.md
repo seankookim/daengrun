@@ -15,6 +15,28 @@ sheet for the Codex app).** Where a line below conflicts with the 09-15 block, t
 > work, so the review is a single diff-scoped `gpt-5.6-sol` high run when the deploy is actually
 > possible — not a repo sweep (three parallel sweeps burned 673K tokens for zero verdicts today).
 
+## ☀️ MORNING READ — 2026-09-25 (written 02:31 KST; measured, read back from origin)
+
+**Production is still at 0202. Trunk `b46adb9` + this session's docs carries 0203–0215 above it (harness 1486/0 · deno 383/0 ·
+npm 3328/0 + 39 ✅ · a11y ledger 162). Your letters are unchanged (queue item 0): 0204 ⓐ/ⓑ/ⓒ · 0211 ⓐ/ⓑ/ⓒ · F3 roster root ·
+cross-midnight slots · the SECOND `db push` (0203–0215 → `functions deploy transition-booking` → client build → delete the
+`runner_offered_slots` PENDING_DEPLOY line) · the EAS preview build (ad-hoc profile step) · `return_seal_since` once the phone runs the new client.**
+
+**The 「50-hour tasks」 (your 02:1x question):** two session-only one-shot crons (09-22 19:11 and 09-24 01:50 — the parked Codex
+re-reviews) never fired because the session was idle at fire time, and sat in the task list as running; both deleted. Seventeen idle
+Codex-plugin broker trees from finished 09-17…09-23 review/build runs (cwd gone, 0 % CPU) were stopped. Nothing was doing work.
+
+**Running now (02:3x):** (1) Workflow `finish-line-gap-sweep` — nine code-verified finders (owner/runner journeys, server↔client
+contracts, UI consistency measured, less-is-more, backend logic incl. inaction, ops+notifications, first-run, copy) → dedup →
+adversarial refuters → a planner emitting disjoint-file build slices + letters; builders spawn from its plan (numbers 0216+/247+).
+(2) The owed Codex adversarial review of everything since `da47510`, as two exports (server-only, then client-only), streams split
+under `scratchpad/codex-review/mig16-{srv,cli}.{out,err}`; verdict docs will be `docs/reviews/2026-09-25-*.md`. The master prompts
+(mine §A, your Codex batch §B, the wave ledger §C) are at `docs/prompts/2026-09-25-finish-line-master.md`.
+
+**Your Codex batch (read-only for me, measured 02:3x):** the three worktrees moved past the 09-22 snapshots — drafts were `git mv`'d
+to 0196/227 and 0197/228, uncommitted, not rebased (72 behind), nothing pushed since; `codex/sheets-lists` has four dirty client files,
+never pushed. §B of the master doc is the paste that resumes them.
+
 ## ☀️ MORNING READ — 2026-09-23 (written 2026-09-23 06:59 KST; everything measured and read back from origin)
 
 **Production is at 0202 (deployed 2026-09-22 16:02 on your word). Trunk `c6ecc34` carries NINE migrations above it —
