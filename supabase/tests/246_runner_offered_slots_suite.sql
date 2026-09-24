@@ -214,8 +214,18 @@ begin
 
     if v_sub is distinct from 0 then v_bad := v_bad || ' 🔴 목록이 판정이 거절하는 칸을 내준다 (⊆ 위반 ' || coalesce(v_sub::text,'NULL') || '칸) — 화면이 서버가 거절할 칸을 그린다'; end if;
     if v_sup is distinct from 0 then v_bad := v_bad || ' 🔴 판정이 받는데 목록에 없는 칸이 하루 안에 있다 (⊇ 위반 ' || coalesce(v_sup::text,'NULL') || '칸) — 러너가 연 시간을 아무도 못 예약한다'; end if;
-    if v_div_bad is distinct from v_div then v_bad := v_bad || ' 🔴 불일치가 자정 가족 밖에도 있다 [' || coalesce(v_div::text,'NULL') || ' 중 ' || coalesce(v_div_bad::text,'NULL') || ']'; end if;
-    if coalesce(v_div, 0) < 1 then v_bad := v_bad || ' 대조: 자정 가족이 비어 있다 — 0215 §0c가 실재하지 않는 예외를 적어 둔 것이 된다 (판정이 고쳐졌으면 §0c를 지워라)'; end if;
+    -- ═══ [0219] 자정 카브아웃이 **등식**이 됐다 — 이 두 줄이 그 자리에 있던 두 팔을 대체한다 ═══
+    -- 2026-09-25까지 이 자리는 「불일치는 전부 자정 가족 안에 있다」 + 「그 가족은 비어 있지 않다」
+    -- 였다. 후자는 **판정이 고쳐지는 날 붉어지도록 일부러** 그렇게 쓰여 있었고(원문:「판정이
+    -- 고쳐졌으면 §0c를 지워라」), 0219가 적용된 첫 런에서 정확히 그 한 줄만 붉어졌다 —
+    -- 1496 pass / 1 fail, 이 핀 하나. 0203 §1이 분-of-day를 비교해서 23:00–00:30 같은 칸을 규칙
+    -- 밖인데도 받았기 때문에 존재하던 가족이고, 0219가 §1을 **구체적 KST 구간의 합집합**으로
+    -- 바꾸면서 이 픽스처에서 비었다. 이제 카브아웃 없이 v_div = 0을 요구한다.
+    -- 새 주인: `250 0219-W8` (같은 모양의 픽스처에서 자정 칸을 포함한 전수 등식, 자정 후보가 실제로
+    -- 스캔되었다는 대조 포함) 과 `250 0219-W9` (0219가 **새로** 만든 두 발산 가족을 값으로 잰다 —
+    -- 목록이 구조적으로 낼 수 없는 자정 슬롯과, 같은 날 붙은 두 창을 가로지르는 슬롯. 이 픽스처에는
+    -- 둘 다 없다: rX의 창은 어디서도 서로 맞닿지 않는다).
+    if v_div is distinct from 0 then v_bad := v_bad || ' 🔴 목록과 판정이 어긋나는 칸이 남아 있다 [' || coalesce(v_div::text,'NULL') || '칸, 그 중 자정 가족 ' || coalesce(v_div_bad::text,'NULL') || '칸] — 0219 이후 이 픽스처에서는 카브아웃 없는 양방향 등식이어야 한다 (250 0219-W8이 같은 것을 자기 픽스처에서 잰다)'; end if;
     if coalesce(v_both, 0) < 1 then v_bad := v_bad || ' 대조: 둘 다 true인 칸이 없다 (빈 목록도 통과할 픽스처다)'; end if;
     if coalesce(v_none, 0) < 1 then v_bad := v_bad || ' 대조: 둘 다 false인 칸이 없다 (전부 열린 픽스처다)'; end if;
     if coalesce(v_xonly, 0) < 1 then v_bad := v_bad || ' 대조: 규칙 0건 요일에 산 칸이 없다 — 추가 근무 팔이 일치에 기여하지 않았다'; end if;
@@ -223,7 +233,7 @@ begin
     if v_x is distinct from 2 then v_bad := v_bad || ' 목록의 extra 행이 2가 아니다 [' || coalesce(v_x::text,'NULL') || ']'; end if;
     if v_n is distinct from 0 then v_bad := v_bad || ' 🔴 다른 러너의 종일 규칙이 rX 목록에 새어 들어왔다 [' || coalesce(v_n::text,'NULL') || '행] (runner_id 필터가 없다)'; end if;
 
-    if v_bad = '' then call _pass('ofs','0215-P3 목록 ≡ 판정 (양방향, 14일×48칸 전수) — 혼합 픽스처(두 요일 그리드 · 규칙 0건 요일의 추가 근무 · 그리드 밖 추가 근무 · 이틀 휴가 · 다른 러너의 종일 규칙)에서 목록이 내주는 후보 집합과 is_slot_available이 true를 주는 집합이 같다: ⊆ 위반 0 · 하루 안 ⊇ 위반 0 · 남는 불일치는 **전부** KST 자정을 넘거나 닿는 칸(0215 §0c, 판정 §1의 분-of-day 비교가 감싸는 쪽이 틀렸다)이고 그 가족은 비어 있지 않다. 대조 셋(둘 다 true · 둘 다 false · 규칙 0건 요일에 산 칸)이 모두 0이 아니고, grid 3행/extra 2행이며 다른 러너의 종일 규칙은 0행이다');
+    if v_bad = '' then call _pass('ofs','0215-P3 목록 ≡ 판정 (양방향, 14일×48칸 전수) — 혼합 픽스처(두 요일 그리드 · 규칙 0건 요일의 추가 근무 · 그리드 밖 추가 근무 · 이틀 휴가 · 다른 러너의 종일 규칙)에서 목록이 내주는 후보 집합과 is_slot_available이 true를 주는 집합이 같다: ⊆ 위반 0 · 하루 안 ⊇ 위반 0 · **불일치 0 (카브아웃 없음)**. ⚠ 2026-09-25 0219 이전에는 마지막 항목이 「남는 불일치는 전부 자정 가족이고 그 가족은 비어 있지 않다」였다 — 판정 §1의 분-of-day 비교가 자정을 넘는 칸을 규칙 밖인데도 받았기 때문이다(0215 §0c). 0219가 §1을 구체적 KST 구간의 합집합으로 바꾸면서 그 가족이 비었고, 「비어 있으면 실패」로 써 둔 대조가 설계대로 붉어져 이 줄이 등식으로 바뀌었다. 새 주인은 250 0219-W8 · 0219-W9 다. 대조 셋(둘 다 true · 둘 다 false · 규칙 0건 요일에 산 칸)이 모두 0이 아니고, grid 3행/extra 2행이며 다른 러너의 종일 규칙은 0행이다');
     else v_msg := v_bad; call _fail('ofs','0215-P3 목록 ≡ 판정 (양방향)', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('ofs','0215-P3 목록 ≡ 판정 (양방향)', v_msg);
   end;
