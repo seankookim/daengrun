@@ -1,15 +1,15 @@
--- 0175: rejected and withdrawn delegations remain actionable by their session hosts.
+-- 0197: rejected and withdrawn delegations remain actionable by their session hosts.
+-- Builds on 0168's CURRENT _club_delegation_board_impl, preserving every projected
+-- field and expression, including separate runStopping and runEnded meanings.
+-- The only function-body change is the terminal-row predicate below.
 -- Sean ruling 5 (docs/decisions/2026-08-31-sean-rulings.md): strangers get no dog rows.
--- Host and backup may see terminal applications, their owners retain their existing view,
--- and unrelated participants may not. Live/non-terminal dog visibility is unchanged.
--- dogs contains memo, vaccinations and preferences: do NOT widen its table SELECT policy.
--- The existing SECURITY DEFINER board projection already supplies dogName and collar;
--- it gives hosts the name without granting access to the rest of the dog record.
--- Keep 0153's internal-only ACL. Clients must use the access-deriving outer wrapper.
--- P3/0164 separately removes the stranger's session/me envelope; this slice owns dog rows.
-begin;
+-- Host and backup see terminal applications; owners retain their existing view,
+-- unrelated participants do not. Non-terminal dog visibility is unchanged.
+-- dogs contains private memo, vaccinations and preferences: no table policy is widened.
+-- The existing SECURITY DEFINER dogName/collar projection supplies the host's labels.
+-- Keep 0153's internal-only ACL. The outer wrapper is untouched: 0164 is HELD for Sean.
 
-create or replace function _club_delegation_board_impl(p_session uuid, p_access text)
+create or replace function public._club_delegation_board_impl(p_session uuid, p_access text)
 returns jsonb
 language sql
 stable
@@ -38,6 +38,7 @@ as $fn$
       'unassignedIncidents', (select count(*) from club_incidents i
                               where i.session_id = s.id and i.state <> 'resolved' and i.case_owner is null)
     ),
+    -- [rev2 P1] runners는 host/full에게만 (러너 실명·티어) — 그 외 등급은 []
     'runners', case when p_access in ('host', 'full') then coalesce((
       select jsonb_agg(jsonb_build_object(
         'profileId', a.runner_profile_id,
@@ -85,7 +86,22 @@ as $fn$
         'runnerConfirmed', (select runner_confirmed_handoff_at is not null from bookings b where b.id = d.booking_id),
         'custodyWithRunner', d.responsible_profile_id <> d.owner_profile_id,
         'checkedOut', d.checked_out_at is not null,
+        -- [0147] THE FREEZE, as a BOOLEAN not a timestamp. 0144 made the host's tap freeze a
+        -- pair's money numbers server-side; the run screen could not see that, so it kept
+        -- offering early-end reasons whose text settle-run DISCARDS (handler.ts:115-118 reads
+        -- km/endReason/durationSec/conditionNote from the frozen row and logs 'body ignored').
+        -- WARN: a boolean, deliberately. The neighbours here (ownerConfirmed, runnerConfirmed)
+        -- already project "... is not null" rather than the instant, and the client's only
+        -- question is whether the server has already decided. A timestamp would disclose WHEN
+        -- the host tapped to every board reader and answer nothing extra.
         'runEnded', coalesce((select b.run_ended_at is not null from bookings b where b.id = d.booking_id), false),
+        -- [0168] THE THIRD STATE, AS ITS OWN KEY. 러닝 종료를 눌렀지만 숫자는 아직 얼지 않았다.
+        -- ⚠ `runEnded` 를 넓히지 않는다 (contract §4.4, escalation ③): 넓히면 run/[sid].tsx:300 이
+        -- 서버 숫자가 없는 상태에서 GPS 거부 정산을 허용하고, :594 가 얼지도 않은 런의 조기 종료
+        -- 사유를 숨긴다 — 두 호출자 모두 오늘 옳고, 한 줄도 고치지 않은 채 깨진다.
+        'runStopping', coalesce((select b.run_stopping_at is not null and b.run_ended_at is null
+                                   from bookings b where b.id = d.booking_id), false),
+        -- [R2] 커스터디·payout 축 (디버그 스크린의 축 분리 표시 원천)
         'custodyPhase', d.custody_phase,
         'custodianType', d.custodian_type,
         'custodianProfileId', d.custodian_profile_id,
@@ -97,6 +113,7 @@ as $fn$
         'payoutHoldReason', d.payout_hold_reason,
         'pendingTransfer', d.pending_transfer,
         'returnOverrideKind', d.return_override->>'kind',
+        -- [R3] 배정 축 — 제안 후보는 호스트·피제안 러너에게만 (보호자는 상태만: 러너 프라이버시)
         'assignmentState', d.assignment_state,
         'objectionUsed', d.objection_used,
         'reviewNeeded', d.review_needed,
@@ -106,6 +123,7 @@ as $fn$
                                    then (select name from profiles where id = d.proposed_runner_profile_id) end,
         'proposalExpiresAt', case when s.host_profile_id = auth.uid() or d.proposed_runner_profile_id = auth.uid()
                                   then d.proposal_expires_at end,
+        -- [0052 §1] 이 강아지를 대상으로 한 이 세션의 미해소 인시던트 (케이스 딥링크 원천)
         'openIncidentId', (select i.id from club_incidents i
                            join club_incident_subjects sub on sub.incident_id = i.id
                            where i.session_id = s.id and i.state <> 'resolved'
@@ -115,17 +133,18 @@ as $fn$
       ) order by d.seq)
       from session_dogs d
       where d.session_id = s.id and d.custody = 'runner_delegated'
+        -- [0197] Terminal applications stay visible to their owner and session hosts.
         and case when d.approval in ('rejected', 'withdrawn') then
           (d.owner_profile_id = auth.uid()
            or s.host_profile_id = auth.uid()
            or s.backup_host_profile_id = auth.uid())
         else d.service_state is distinct from 'ended' or d.booking_id is not null end
+        -- [rev2 P1] host/full=전체 · limited=자기 개만 · none=[] (both false → 제외)
         and (p_access in ('host', 'full')
              or (p_access = 'limited' and d.owner_profile_id = auth.uid()))), '[]'::jsonb)
   )
   from club_sessions s where s.id = p_session;
 $fn$;
-
 
 revoke execute on function _club_delegation_board_impl(uuid, text) from public, anon, authenticated;
 grant execute on function _club_delegation_board_impl(uuid, text) to service_role;
@@ -136,7 +155,6 @@ begin
      or has_function_privilege('anon', 'public._club_delegation_board_impl(uuid,text)', 'execute') is distinct from false
      or has_function_privilege('authenticated', 'public._club_delegation_board_impl(uuid,text)', 'execute') is distinct from false
      or has_function_privilege('service_role', 'public._club_delegation_board_impl(uuid,text)', 'execute') is distinct from true then
-    raise exception '0175: board implementation ACL changed';
+    raise exception '0197: board implementation ACL changed';
   end if;
 end $verify$;
-commit;

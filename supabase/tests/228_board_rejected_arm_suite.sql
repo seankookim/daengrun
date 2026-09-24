@@ -1,10 +1,8 @@
--- 206: host reconsideration sees terminal applications without widening dog-record access.
+-- 228: host reconsideration sees terminal applications without widening dog-record access.
 -- Real delegation/rejection/withdrawal RPCs create the states, authenticated invokes the board.
 -- Mutation controls: remove host/backup arms -> B1/B2 fail; admit full participants -> B3 fails;
 -- remove the access-grade filter -> B4 fails; widen dogs policy -> B6 fails.
--- Measured 2026-09-17: clean control 7/0; each of six transaction-rolled-back plants
--- (host, backup, terminal participant, access grade, dog policy, internal ACL) produced
--- exactly its own failing pin (B1, B2, B3, B4, B6, B7). No mutation was retained.
+-- Current-tree mutation results are recorded after executing this suite.
 set client_min_messages = warning;
 do $suite$
 declare
@@ -73,6 +71,17 @@ begin
                          where d ? 'memo' or d ? 'vaccinations' or d ? 'preferences') then
     call _pass('bra','B6 name projection does not grant host full dog records or private fields');
   else call _fail('bra','B6 dog privacy','direct dog rows='||n); end if;
+
+  -- 0168 adds runStopping without changing runEnded. Pending, unbooked dogs
+  -- must still carry both booleans; a recreation from the old draft loses one key.
+  if exists (select 1 from jsonb_array_elements(board->'dogs') d
+             where (d->>'sdId')::uuid = pending_id
+               and jsonb_typeof(d->'runStopping') = 'boolean'
+               and d->'runStopping' = 'false'::jsonb
+               and jsonb_typeof(d->'runEnded') = 'boolean'
+               and d->'runEnded' = 'false'::jsonb) then
+    call _pass('bra','B8 unbooked dog retains separate false runStopping and runEnded booleans');
+  else call _fail('bra','B8 0168 projection preserved',coalesce(board::text,'NULL')); end if;
 
   if has_function_privilege('authenticated','public._club_delegation_board_impl(uuid,text)','execute') is not distinct from false
      and has_function_privilege('anon','public._club_delegation_board_impl(uuid,text)','execute') is not distinct from false
