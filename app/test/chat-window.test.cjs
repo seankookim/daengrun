@@ -350,6 +350,13 @@ t('🔴 [c1] EVERY shouldMarkRead call site passes the navigation-focus fact',
   marks > 0 && marks === focusArgs, `${marks} calls / ${focusArgs} focused:`);
 t('[c1] …and there are three of them: open/message, focus regained, app returned',
   marks === 3, String(marks));
+// ⚠ The count above cannot tell `focused: screenFocused.current` from a hard-wired `focused: true`
+// — and neither can tsc, which only demands the field. Stated without reference to any mutation:
+// a call site that can RUN while the screen is not focused must read the live ref; only the focus
+// callback may pass a constant, because its being called IS the fact. So at most one constant.
+t('🔴 [c1] at most one call site passes a constant — the rest read the live ref',
+  CHAT.split('focused: screenFocused.current').length - 1 >= marks - 1,
+  String(CHAT.split('focused: screenFocused.current').length - 1));
 t('[c1] the AppState listener keeps its own early return as well — one gate removed must not '
   + 'open the door on its own',
   CHAT.includes('!screenFocused.current'));
