@@ -1,4 +1,4 @@
-# Finish-line master prompts — 2026-09-25 (written 02:4x KST by the announcer session at trunk `b46adb9`)
+# Finish-line master prompts — 2026-09-25 (written 02:2x–02:3x KST by the announcer session at trunk `b46adb9`; header time corrected from an estimate to the measured range)
 
 Sean, 2026-09-25 02:1x, verbatim intent: *"keep making progress front and back end. let's soon finish the app,
 make sure all features and logic gaps are made done, and all ui and ux are easy to follow and make it easy for
@@ -201,3 +201,9 @@ club v2 ships in the pilot at all.
   `scratchpad/codex-review/mig16-{srv,cli}.{out,err}`.
 - 02:34 — Sean ruled ⓐ (*"a, keep going"*): club v2 is in the pilot; his Codex batch resumes per §B. Recorded verbatim in
   `docs/decisions/awaiting-sean.md`.
+- 02:43 — Codex SERVER verdict: REJECT / 6 (`docs/reviews/2026-09-25-server-0201-0215-codex-verdict.md`), routed to five
+  correct-forward builders now running: be/0216-roster-lock · be/0217-claim-deletion-lock · be/0218-force-evidence-seal ·
+  be/0219-window-intervals · be/0220-payment-state-terminal (+ the schedule payment-card response race). Codex CLIENT half
+  WALLED at emit (「try again at 7:26 AM」) — four captured observations routed (`…client-since-da47510-codex-WALLED.md`):
+  builder fix/client-review-1 (chat read-focus, chat pager gap, ops roster `saving` dead control); the a11y per-file-ledger
+  blind spot stays prose. Re-run owed after 07:26. The gap sweep is in Find (5/9 lenses back: 19 · 15 · 13 · 8 · 15 findings).
