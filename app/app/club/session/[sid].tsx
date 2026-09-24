@@ -26,7 +26,7 @@ import { MediaImage } from '../../../src/lib/media';
 // 그 요금은 승낙서로 옮겨갔다 (가격 비가시성, 재정 ④).
 import { haptic } from '../../../src/lib/haptics';
 import { goBackOrHome } from '../../../src/lib/nav';
-import { collarColors, CollarKey, lilac, lilacRadius } from '../../../src/theme';
+import { collarColors, CollarKey, lilac, lilacRadius, paper } from '../../../src/theme';
 
 // 세션 셸 v2 — 테일러드 라일락 (빌드 2a, 정본: master-lab O3~O8 + flow-lab O4·O5)
 // 셸 = 마스트 + 개요/참가자/채팅 탭. 접근은 club_my_shell_access 단일 판정 (신청은 문이 아니다).
@@ -1913,6 +1913,7 @@ export default function ClubSessionShell() {
       <Modal visible={!!payTarget} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setPayTarget(null)}>
         <SafeAreaView style={s.sheet}>
           <SheetActions onClose={() => setPayTarget(null)} onDone={doPay} doneDisabled={!methodOk || busy} doneLabel="완료 — 동의하고 자리 확정" />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 12 }}>
           {/* 시트 머리에 있던 요금 숫자는 승낙서로 갔다 (재정 ④). 남는 것은 '무엇을 확정하는가'다 —
               두 동의 문장과 파일럿 고지는 그대로: 법적으로 묶이는 순간의 문장은 줄이지 않는다. */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
@@ -1950,6 +1951,7 @@ export default function ClubSessionShell() {
             </Text>
           </View>
           <ClubCta label="동의하고 자리 확정 →" onPress={doPay} disabled={!methodOk} busy={busy} />
+          </ScrollView>
         </SafeAreaView>
       </Modal>
 
@@ -1988,7 +1990,7 @@ export default function ClubSessionShell() {
           Repeating it would read as a second, different consent. */}
       <Modal visible={rsvpSheet != null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setRsvpSheet(null)}>
         <SafeAreaView style={s.sheet}>
-          <SheetActions onClose={() => setRsvpSheet(null)} onDone={() => setRsvpSheet(null)} />
+          <SheetActions onClose={() => setRsvpSheet(null)} />
           <Text style={{ fontSize: 17, fontWeight: '800', color: L.head }}>어느 아이와 뛰나요?</Text>
           {/* flexShrink for the same reason as the add sheet: a long list must not push 닫기 off it */}
           <ScrollView style={{ marginTop: 14, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
@@ -2009,7 +2011,7 @@ export default function ClubSessionShell() {
 
       <Modal visible={hostThread != null} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setHostThread(null)}>
         <SafeAreaView style={s.sheet}>
-          <SheetActions onClose={() => setHostThread(null)} onDone={() => setHostThread(null)} />
+          <SheetActions onClose={() => setHostThread(null)} />
           <Text style={{ fontSize: 15, fontWeight: '800', color: L.head }}>
             호스트 창구{isHostView && hostThread ? ` — ${nameOf(hostThread)}` : ''}
           </Text>
@@ -2042,6 +2044,7 @@ export default function ClubSessionShell() {
       <Modal visible={!!askText} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={() => setAskText(null)}>
         <SafeAreaView style={s.sheet}>
           <SheetActions onClose={() => setAskText(null)} />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 12 }}>
           <Text style={{ fontSize: 16, fontWeight: '800', color: L.head }}>{askText?.title}</Text>
           <Text style={{ fontSize: 15, color: L.text, marginTop: 5, lineHeight: 18 }}>{askText?.message}</Text>
           <TextInput
@@ -2062,6 +2065,7 @@ export default function ClubSessionShell() {
               }}
             />
           ))}
+          </ScrollView>
         </SafeAreaView>
       </Modal>
     </DawnCanvas>

@@ -253,6 +253,15 @@ export default function ShotStudio() {
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
   const [scrollX] = useState(() => new Animated.Value(0));
+  const activeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const publishActive = useCallback(() => {
+    if (activeTimer.current != null) clearTimeout(activeTimer.current);
+    activeTimer.current = null;
+    setActive(activeRef.current);
+  }, []);
+  useEffect(() => () => {
+    if (activeTimer.current != null) clearTimeout(activeTimer.current);
+  }, []);
   const cardRefs = useRef<Record<SkinKey, View | null>>({ S: null, A: null, Bp: null, G: null, I: null });
 
   // ── 경로 모양 스위치 ── Sean, round 6: 「route trace should be optionally
@@ -891,11 +900,18 @@ export default function ShotStudio() {
             decelerationRate="fast"
             disableIntervalMomentum
             contentContainerStyle={{ paddingHorizontal: (W - CARD_W) / 2, gap: GAP, alignItems: 'center' }}
-            onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: true })}
-            onMomentumScrollEnd={(e) => {
-              const i = Math.min(order.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / SNAP)));
-              if (i !== activeRef.current) { activeRef.current = i; setActive(i); haptic('light'); }
-            }}
+            onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+              useNativeDriver: true,
+              listener: (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+                const i = Math.min(order.length - 1, Math.max(0, Math.round(e.nativeEvent.contentOffset.x / SNAP)));
+                if (i === activeRef.current) return;
+                // Sharing reads this ref live; labels can wait for the throttled render.
+                activeRef.current = i;
+                haptic('light');
+                if (activeTimer.current == null) activeTimer.current = setTimeout(publishActive, 100);
+              },
+            })}
+            onMomentumScrollEnd={publishActive}
             scrollEventThrottle={16}
             style={{ flexGrow: 0, marginTop: 8 }}
           >
@@ -1193,7 +1209,7 @@ const s = StyleSheet.create({
   actMain: { flex: 1.4, backgroundColor: colors.neon, borderRadius: 14, alignItems: 'center', paddingVertical: 13 },
   sheet: { flex: 1, backgroundColor: colors.cream, padding: 16 },
   wallGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
-  wph: { width: (W - 32 - 12) / 3, aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DCD6C4' },
+  wph: { width: '31%', aspectRatio: 1, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DCD6C4' },
   wphSel: { borderWidth: 3, borderColor: colors.neon },
   wphTick: { position: 'absolute', top: 5, right: 5, width: 19, height: 19, borderRadius: 10, backgroundColor: colors.neon, alignItems: 'center', justifyContent: 'center' },
   galBtn: { marginTop: 10, borderWidth: 1.5, borderColor: '#b9b39f', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },

@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import { Alert, Animated, Dimensions, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { StatusBarCover } from '../src/components/status-bar-cover';
@@ -40,7 +40,11 @@ const W = Dimensions.get('window').width;
 const GUTTER = 13;
 
 // 홀로 포일 스톱 (그라디언트 라이브러리 부재 — 세그먼트 View로 근사)
-const HOLO = ['#CFC4FF', '#FFD9CB', '#F3E9C6', '#CDEBDD', '#CFE0FF', '#CFC4FF'];
+const HOLO = [
+  { id: 'violet-start', color: '#CFC4FF' }, { id: 'peach', color: '#FFD9CB' },
+  { id: 'gold', color: '#F3E9C6' }, { id: 'mint', color: '#CDEBDD' },
+  { id: 'blue', color: '#CFE0FF' }, { id: 'violet-end', color: '#CFC4FF' },
+];
 // 코랄 텍스트 법: 흰 글자는 어두워진 종단 스톱(≥ #C6472C)에서만 4.5:1 통과
 const CORAL_INK = '#C6472C';
 
@@ -79,7 +83,7 @@ const fmtPace = (km?: number | null, sec?: number | null) => {
 function HoloEdge({ vertical, style }: { vertical?: boolean; style?: StyleProp<ViewStyle> }) {
   return (
     <View style={[{ flexDirection: vertical ? 'column' : 'row', overflow: 'hidden' }, style]}>
-      {HOLO.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}
+      {HOLO.map((stop) => <View key={stop.id} style={{ flex: 1, backgroundColor: stop.color }} />)}
     </View>
   );
 }
@@ -89,8 +93,8 @@ function HoloEdge({ vertical, style }: { vertical?: boolean; style?: StyleProp<V
 // 새로 가르칠 어휘가 아니다 — 인스타를 쓰는 사람은 하트를 이미 안다. 배울 게 없는 자리에서
 // 독창성을 쓰면 그건 개성이 아니라 마찰이다.
 function PawBurst({ trigger }: { trigger: number }) {
-  const scale = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [scale] = useState(() => new Animated.Value(0));
+  const [opacity] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (trigger === 0) return;
     scale.setValue(0.4);
@@ -110,6 +114,27 @@ function PawBurst({ trigger }: { trigger: number }) {
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity, transform: [{ scale }] }]}>
       <Icon name="Heart" glyph="♥" size={84} color={CORAL_INK} />
     </Animated.View>
+  );
+}
+
+type RailPerson = { postId: string; label: string; tint: string; face: string };
+function PersonRailItem({ person: r, onSelect }: { person: RailPerson; onSelect: (postId: string) => void }) {
+  return (
+              <Pressable
+                onPress={() => onSelect(r.postId)}
+                style={s.stItem}
+                accessibilityRole="button"
+                accessibilityLabel={`${r.label} 포스트로 이동`}
+              >
+                <View style={[s.stRing, s.stRingUser]}>
+                  <View style={s.stRingIn}>
+                    <View style={[s.stFace, { backgroundColor: r.tint }]}>
+                      <Text style={s.stFaceTxt}>{r.face}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Text style={s.stName} numberOfLines={1}>{r.label}</Text>
+              </Pressable>
   );
 }
 
@@ -211,6 +236,13 @@ export default function Community() {
   // 생긴 원이 아무 데도 안 가는 **가짜 어포던스**가 된다 (죽은 버튼 금지법).
   const scrollRef = useRef<ScrollView>(null);
   const postY = useRef<Record<string, number>>({});
+  const scrollToPost = useCallback((postId: string) => {
+    scrollRef.current?.scrollTo({ y: Math.max(0, (postY.current[postId] ?? 0) - 8), animated: true });
+  }, []);
+  const renderRailPerson = useCallback(({ item }: { item: RailPerson }) => (
+    <PersonRailItem person={item} onSelect={scrollToPost} />
+  ), [scrollToPost]);
+
 
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [comments, setComments] = useState<FeedComment[]>([]);
@@ -317,13 +349,12 @@ export default function Community() {
              원 = 사람(계정), 얼굴 = 그 사람 강아지의 이니셜을 칼라 컬러로, 라벨 = @아이디.
              클럽은 첫 자리 골드 링 (아티팩트 어휘), 사람은 바이올렛 링. */}
         {(club || railPeople.length > 0) && (
-          <ScrollView
-            horizontal
+          <FlatList horizontal data={railPeople} keyExtractor={(person) => person.postId}
             showsHorizontalScrollIndicator={false}
             style={{ marginTop: 4 }}
             contentContainerStyle={{ paddingHorizontal: GUTTER, gap: 14, paddingVertical: 10 }}
-          >
-            {club && (
+            ListHeaderComponent={club ? (
+
               <Pressable onPress={() => router.push(`/club/${club.id}`)} style={s.stItem} accessibilityRole="button" accessibilityLabel={`${club.name} 클럽 홈`}>
                 <View style={[s.stRing, s.stRingClub]}>
                   <View style={s.stRingIn}>
@@ -334,26 +365,9 @@ export default function Community() {
                 </View>
                 <Text style={s.stName} numberOfLines={1}>{club.name.replace('하이클럽', '').trim() || '클럽'}</Text>
               </Pressable>
-            )}
-            {railPeople.map((r) => (
-              <Pressable
-                key={r.postId}
-                onPress={() => scrollRef.current?.scrollTo({ y: Math.max(0, (postY.current[r.postId] ?? 0) - 8), animated: true })}
-                style={s.stItem}
-                accessibilityRole="button"
-                accessibilityLabel={`${r.label} 포스트로 이동`}
-              >
-                <View style={[s.stRing, s.stRingUser]}>
-                  <View style={s.stRingIn}>
-                    <View style={[s.stFace, { backgroundColor: r.tint }]}>
-                      <Text style={s.stFaceTxt}>{r.face}</Text>
-                    </View>
-                  </View>
-                </View>
-                <Text style={s.stName} numberOfLines={1}>{r.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
+            ) : null}
+            renderItem={renderRailPerson}
+          />
         )}
 
         {/* [2026-08-12] 하이클럽 사진 배너 은퇴 — Sean의 "story-circlify the club widget"은

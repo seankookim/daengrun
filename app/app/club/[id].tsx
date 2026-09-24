@@ -125,6 +125,25 @@ const KM_TOKEN = /\d+(?:\.\d+)?\s*km\s*$/i;
 const routeLabel = (r: { name: string; km: number }) =>
   KM_TOKEN.test(r.name) ? r.name : `${r.name} ${r.km}km`;
 
+function DateOption({ date, index, selected, onSelect }: {
+  date: ReturnType<typeof buildClubDates>[number]; index: number; selected: boolean; onSelect: (index: number) => void;
+}) {
+  return <Pressable onPress={() => onSelect(index)} style={[s.dcell, selected && s.dcellOn]}
+    accessibilityRole="radio" accessibilityState={{ selected }}>
+    <Text style={[s.dcellW, selected && s.dcellTxtOn]}>{date.label ?? date.w}</Text>
+    <Text style={[s.dcellD, selected && s.dcellTxtOn]}>{date.d}</Text>
+  </Pressable>;
+}
+
+function TimeOption({ time, index, selected, onSelect }: {
+  time: (typeof CLUB_TIMES)[number]; index: number; selected: boolean; onSelect: (index: number) => void;
+}) {
+  return <Pressable onPress={() => onSelect(index)} style={[s.chip, selected && s.chipOn]}
+    accessibilityRole="radio" accessibilityState={{ selected }}>
+    <Text style={[s.timeLabel, selected && s.timeLabelSelected]}>{time.label}</Text>
+  </Pressable>;
+}
+
 export default function ClubPage() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont();
@@ -196,6 +215,12 @@ export default function ClubPage() {
   // 유일한 선택이 아니다.
   const [dateIdx, setDateIdx] = useState(1);
   const [timeIdx, setTimeIdx] = useState(() => CLUB_TIMES.findIndex((t) => t.h === 9 && t.m === 0));
+  const renderDate = useCallback(({ item, index }: { item: ReturnType<typeof buildClubDates>[number]; index: number }) => (
+    <DateOption date={item} index={index} selected={dateIdx === index} onSelect={setDateIdx} />
+  ), [dateIdx]);
+  const renderTime = useCallback(({ item, index }: { item: (typeof CLUB_TIMES)[number]; index: number }) => (
+    <TimeOption time={item} index={index} selected={timeIdx === index} onSelect={setTimeIdx} />
+  ), [timeIdx]);
   const CLUB_DATES = useMemo(() => buildClubDates(), []);   // inline form — 린트 규칙이 참조 전달을 거부한다
   const [meetup, setMeetup] = useState('');
   const [cap, setCap] = useState(12);   // 서버 기본값과 같은 값 (0037:365)
@@ -915,24 +940,13 @@ export default function ClubPage() {
           <Text style={s.fieldLbl}>날짜</Text>
           <FlatList horizontal data={CLUB_DATES} extraData={dateIdx} keyExtractor={(d) => d.key}
             showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-            renderItem={({ item: d, index: i }) => (
-              <Pressable onPress={() => setDateIdx(i)} style={[s.dcell, dateIdx === i && s.dcellOn]}
-                accessibilityRole="radio" accessibilityState={{ selected: dateIdx === i }}>
-                <Text style={[s.dcellW, dateIdx === i && s.dcellTxtOn]}>{d.label ?? d.w}</Text>
-                <Text style={[s.dcellD, dateIdx === i && s.dcellTxtOn]}>{d.d}</Text>
-              </Pressable>
-            )}
+            renderItem={renderDate}
           />
           {/* 시각 — 05:00~21:00, 30분 간격. 그의 「integer times like at half an hour or the hour」. */}
           <Text style={s.fieldLbl}>시각</Text>
           <FlatList horizontal data={CLUB_TIMES} extraData={timeIdx} keyExtractor={(t) => t.label}
             showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}
-            renderItem={({ item: t, index: i }) => (
-              <Pressable onPress={() => setTimeIdx(i)} style={[s.chip, timeIdx === i && s.chipOn]}
-                accessibilityRole="radio" accessibilityState={{ selected: timeIdx === i }}>
-                <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '800', color: timeIdx === i ? '#fff' : L.text }}>{t.label}</Text>
-              </Pressable>
-            )}
+            renderItem={renderTime}
           />
           <TextInput
             value={meetup} onChangeText={setMeetup} autoCorrect={false}
@@ -1195,6 +1209,8 @@ const s = StyleSheet.create({
   slOn: { color: L.head },
   // Native sheet chrome owns the safe area; the form scrolls above its fixed action.
   sheet: { flex: 1, backgroundColor: paper.canvas, padding: 18 },
+  timeLabel: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: L.text },
+  timeLabelSelected: { color: '#fff' },
   chip: {
     borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14,
     backgroundColor: L.card, borderWidth: 1.3, borderColor: L.hair,
