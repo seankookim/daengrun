@@ -686,8 +686,16 @@ begin
     if (select r.memo from return_resolutions r where r.booking_id = b_a)
          is distinct from '보호자 연락 두절 — 운영이 인계를 판정'
       then v_bad := v_bad || ' 저널에 운영자 문장이 없다'; end if;
-    if (select b.return_force_evidence->>'kind' from bookings b where b.id = b_a) is distinct from 'ops_review'
-      then v_bad := v_bad || ' 증거 미기록'; end if;
+    -- 🔴 [0218] THIS ARM MOVED, AND IT MOVED BECAUSE THE PROPERTY MOVED. It used to read the
+    --    caller's `kind` key out of `bookings.return_force_evidence` — which after 0218 §B is
+    --    exactly the thing that must NOT be there (the column is party-readable, 0002:92; codex
+    --    2026-09-25 #3). The caller's object now lives VERBATIM in the sealed journal, and the
+    --    column carries only the server-composed shape. Same evidence, read from where it now
+    --    is. `249 0218-E2` / `E3` own the property.
+    if (select r.evidence->>'kind' from return_resolutions r where r.booking_id = b_a) is distinct from 'ops_review'
+      then v_bad := v_bad || ' 증거 미기록 (저널에 호출자 객체가 없다)'; end if;
+    if (select b.return_force_evidence->>'source' from bookings b where b.id = b_a) is distinct from 'force_return_tx'
+      then v_bad := v_bad || ' 당사자 칸의 증거가 서버 조합 모양이 아니다'; end if;
 
     -- 🔴 THE RULING ITSELF: the force wrote NEITHER party's confirmation.
     if (select b.runner_confirmed_return_at from bookings b where b.id = b_a) is not null

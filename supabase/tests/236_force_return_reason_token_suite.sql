@@ -21,12 +21,16 @@
 --  · **0205-S1** — the deployed shape of both re-declared functions and of the altered table.
 --
 -- ─── NAMED GAPS (facts about the system, not blind pins) ───
---  · 🔴 **`return_force_evidence` is NOT pinned and is a real residual.** `force_return_tx`
---    requires evidence and stores the caller's free-form jsonb in a party-readable column, so an
---    operator who types prose into it leaks prose. 0205 §0c enumerates it and leaves it, because
---    the evidence blob is 0083 §1's dispute record and a pin over 「the caller chose good jsonb」
---    would be a pin over the caller. There is no mutation that would redden such a pin, which by
---    the house law means it must be prose — this paragraph — and not an arm.
+--  · **`return_force_evidence` — the gap this paragraph used to name is CLOSED by 0218 (2026-09-25).**
+--    As of 0205 this file said: «`force_return_tx` requires evidence and stores the caller's
+--    free-form jsonb in a party-readable column, so an operator who types prose into it leaks
+--    prose … unpinned, because a pin over 「the caller chose good jsonb」 would be a pin over the
+--    caller.» That was true of 0205's body and codex 2026-09-25 #3 found the hole it described.
+--    0218 §B makes the column SERVER-COMPOSED (`_force_evidence_public`) and journals the
+--    caller's object verbatim in the sealed `return_resolutions.evidence`; the pin is now over
+--    the SERVER, and `249 0218-E1·E3·E4` own it (sentinel inside `p_evidence`, both parties,
+--    whole row and direct select). This suite's F1 still supplies memo-less evidence on purpose:
+--    its subject is the REASON column, and it is left as 0205 wrote it.
 --  · 🔴 **The `else` arm of 0201 §A's token `case` stays unreachable from THIS door and is not
 --    pinned here.** `force_return_tx` raises `not_active` on anything but `active`, so its journal
 --    rows can only ever carry `from_status = 'active'`. F2 asserts that value; it does not and
@@ -293,37 +297,43 @@ begin
 
     -- THE CHECKS. §A kept the resolver's invariant by moving it from the column to the source;
     -- these three arms are what make that a rule rather than a sentence in a comment.
+    -- ⚠ [0218] EVERY INSERT BELOW NOW CARRIES `evidence`. 0218 §A added a third CHECK
+    --    (`return_resolutions_evidence_check`: a force-kind row must carry evidence), so without
+    --    it the CONTROL insert is refused and the three refusal arms stop measuring the constraint
+    --    each is about — an evidence-less force row trips the evidence CHECK before the actor
+    --    CHECK, and `check_violation` cannot tell which fired. The fixture now sits where ONLY the
+    --    constraint under test disagrees. The evidence CHECK's own refusal is `249 0218-S1`'s.
     begin
       insert into return_resolutions (booking_id, resolved_by, from_status,
-                                      runner_stamped, owner_stamped, memo, source)
-      values (bF, ops, 'active', false, false, '위조된 행위자', 'force_return_tx');
+                                      runner_stamped, owner_stamped, memo, source, evidence)
+      values (bF, ops, 'active', false, false, '위조된 행위자', 'force_return_tx', '{"kind": "frt"}'::jsonb);
       v_bad := v_bad || ' 🔴 강제 행이 행위자를 들고 들어왔다';
     exception when check_violation then null;
              when others then v_bad := v_bad || ' 강제+행위자 거절 이름=' || sqlerrm;
     end;
     begin
       insert into return_resolutions (booking_id, resolved_by, from_status,
-                                      runner_stamped, owner_stamped, memo, source)
-      values (bF, null, 'active', false, false, '행위자 없는 해결기 행', 'ops_resolve_return_tx');
+                                      runner_stamped, owner_stamped, memo, source, evidence)
+      values (bF, null, 'active', false, false, '행위자 없는 해결기 행', 'ops_resolve_return_tx', '{"kind": "frt"}'::jsonb);
       v_bad := v_bad || ' 🔴 해결기 행이 행위자 없이 들어왔다 (0193의 불변식이 녹았다)';
     exception when check_violation then null;
              when others then v_bad := v_bad || ' 해결기-행위자 거절 이름=' || sqlerrm;
     end;
     begin
       insert into return_resolutions (booking_id, resolved_by, from_status,
-                                      runner_stamped, owner_stamped, memo, source)
-      values (bF, null, 'active', false, false, '모르는 기록자', 'somebody_else');
+                                      runner_stamped, owner_stamped, memo, source, evidence)
+      values (bF, null, 'active', false, false, '모르는 기록자', 'somebody_else', '{"kind": "frt"}'::jsonb);
       v_bad := v_bad || ' 🔴 모르는 source가 들어왔다';
     exception when check_violation then null;
              when others then v_bad := v_bad || ' 모르는 source 거절 이름=' || sqlerrm;
     end;
     -- CONTROL: the three refusals above are the CHECKs refusing, not the table refusing every
     -- insert. A well-shaped force row goes in — and comes straight back out, so no later arm and
-    -- no later suite inherits it.
+    -- no later suite inherits it. (0218: well-shaped now includes `evidence`.)
     begin
       insert into return_resolutions (booking_id, resolved_by, from_status,
-                                      runner_stamped, owner_stamped, memo, source)
-      values (bF, null, 'active', true, false, '모양이 맞는 행', 'force_return_tx');
+                                      runner_stamped, owner_stamped, memo, source, evidence)
+      values (bF, null, 'active', true, false, '모양이 맞는 행', 'force_return_tx', '{"kind": "frt"}'::jsonb);
       delete from return_resolutions where booking_id = bF and memo = '모양이 맞는 행';
     exception when others then
       v_bad := v_bad || ' 대조: 모양이 맞는 강제 행도 거절됐다 (CHECK이 전부를 막는다)=' || sqlerrm;
