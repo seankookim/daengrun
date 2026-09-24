@@ -1,5 +1,12 @@
 # Awaiting Sean — the return queue
 
+> **⚡ 2026-09-25 02:34 KST: CLUB V2 IS IN THE PILOT — RULED ⓐ.** Put to Sean at 02:5x with the 09-25 Codex batch prompt
+> (`docs/prompts/2026-09-25-finish-line-master.md` §B): ⓐ resume the batch as written · ⓑ park club until the
+> marketplace pilot launches · ⓒ resume only W1/W2. Sean, verbatim: *"a, keep going"* **[end of Sean's words]**
+> Applied: his Codex sessions resume W1 (0196/227) · W2 (0197/228) · W3 `codex/sheets-lists` · optional W4 club UI
+> consistency, exactly per §B; Claude's finish-line wave stays out of the club world; landing order when he says
+> 「ready」: 0196 → 0197 → sheets-lists, each on the combined tree with gates re-run, then the plugin review.
+
 > **⚡ 2026-08-20 evening: SECOND OVERNIGHT GRANT — Sean is asleep.** Sean, verbatim, to the client
 > session: *"keep going, dont stop, deploy multiple agents, im going to bed (tell everyone)."*
 > **[end of Sean's words]** Recorded here by the client session (`exciting-rosalind-e6ac13`) because

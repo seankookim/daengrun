@@ -199,3 +199,5 @@ club v2 ships in the pilot at all.
 - 02:3x — Workflow `finish-line-gap-sweep` launched (run `wf_ed4f322e-68e`); Codex reviews of da47510..b46adb9 launched
   as two exports (server `srv-b46adb9`, client `cli-b46adb9`), sequential, streams split under
   `scratchpad/codex-review/mig16-{srv,cli}.{out,err}`.
+- 02:34 — Sean ruled ⓐ (*"a, keep going"*): club v2 is in the pilot; his Codex batch resumes per §B. Recorded verbatim in
+  `docs/decisions/awaiting-sean.md`.
