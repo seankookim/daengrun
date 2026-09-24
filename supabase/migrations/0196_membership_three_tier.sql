@@ -1,10 +1,10 @@
--- 0165: Sean's 2026-08-31 ruling 4: public roster/pictures, unpaid readers,
+-- 0196: Sean's 2026-08-31 ruling 4: public roster/pictures, unpaid readers,
 -- paid participants. Approval retirement is a separate S2.5 slice: existing approval,
 -- payment signatures and _club_require_v2 entry gates remain unchanged. No flag flips.
 -- hold_expires_at is the existing approval-time + 20-minute deadline, not a second clock.
 -- A row predicate is necessary: using an owner's aggregate tier for capacity would let
 -- one paid dog retain that same owner's OTHER expired dog's slot.
-create or replace function public._club_delegation_tier(p_dog session_dogs) returns text
+create or replace function _club_delegation_tier(p_dog session_dogs) returns text
 language sql stable security definer set search_path = public, pg_temp as $$
   select case
     when p_dog.custody is distinct from 'runner_delegated'
@@ -15,10 +15,10 @@ language sql stable security definer set search_path = public, pg_temp as $$
       and p_dog.hold_status = 'active' and p_dog.hold_expires_at > now() then 'reader'
     else 'none' end;
 $$;
-revoke all on function public._club_delegation_tier(session_dogs) from public, anon, authenticated;
-grant execute on function public._club_delegation_tier(session_dogs) to service_role;
+revoke execute on function _club_delegation_tier(session_dogs) from public, anon, authenticated;
+grant execute on function _club_delegation_tier(session_dogs) to service_role;
 
-create or replace function public._club_session_tier(p_session uuid, p_uid uuid) returns text
+create or replace function _club_session_tier(p_session uuid, p_uid uuid) returns text
 language sql stable security definer set search_path = public, pg_temp as $$
   select case
     when p_uid is null or p_session is null then 'none'
@@ -29,25 +29,23 @@ language sql stable security definer set search_path = public, pg_temp as $$
       or exists (select 1 from session_runner_assignments a where a.session_id = p_session
         and a.runner_profile_id = p_uid and a.status = 'committed')
       or exists (select 1 from session_dogs sd where sd.session_id = p_session
-        and sd.owner_profile_id = p_uid and _club_delegation_tier(sd) = 'participant')
-      or exists (select 1 from session_dogs sd join bookings b on b.id = sd.booking_id
-        where sd.session_id = p_session and b.runner_id = p_uid
-          and _club_delegation_tier(sd) = 'participant') then 'participant'
+        and sd.owner_profile_id = p_uid and sd.service_state is distinct from 'ended'
+        and _club_delegation_tier(sd) = 'participant') then 'participant'
     when exists (select 1 from session_dogs sd where sd.session_id = p_session
       and sd.owner_profile_id = p_uid and _club_delegation_tier(sd) = 'reader') then 'reader'
     else 'none' end;
 $$;
-revoke all on function public._club_session_tier(uuid, uuid) from public, anon, authenticated;
-grant execute on function public._club_session_tier(uuid, uuid) to service_role;
+revoke execute on function _club_session_tier(uuid, uuid) from public, anon, authenticated;
+grant execute on function _club_session_tier(uuid, uuid) to service_role;
 
-create or replace function public.club_my_session_tier(p_session uuid) returns text
+create or replace function club_my_session_tier(p_session uuid) returns text
 language sql stable security definer set search_path = public, pg_temp as $$
   select _club_session_tier(p_session, auth.uid());
 $$;
-revoke all on function public.club_my_session_tier(uuid) from public, anon;
-grant execute on function public.club_my_session_tier(uuid) to authenticated;
+revoke execute on function club_my_session_tier(uuid) from public, anon;
+grant execute on function club_my_session_tier(uuid) to authenticated;
 
-create or replace function public._club_delegated_reserved(p_session uuid) returns int
+create or replace function _club_delegated_reserved(p_session uuid) returns int
 language sql stable security definer set search_path = public, pg_temp as $$
   select count(*)::int from session_dogs sd where sd.session_id = p_session
     and sd.custody = 'runner_delegated'
@@ -55,18 +53,18 @@ language sql stable security definer set search_path = public, pg_temp as $$
       or exists (select 1 from bookings b where b.id = sd.booking_id
         and b.status in ('matching', 'confirmed', 'picked_up', 'active')));
 $$;
-revoke all on function public._club_delegated_reserved(uuid) from public, anon, authenticated;
-grant execute on function public._club_delegated_reserved(uuid) to service_role;
+revoke execute on function _club_delegated_reserved(uuid) from public, anon, authenticated;
+grant execute on function _club_delegated_reserved(uuid) to service_role;
 
 -- Preserve the operational envelope's enum. 'limited' is still the owner's historical
 -- rejection/remedy card; it grants no group-chat membership or participation.
-create or replace function public._club_shell_access(p_session uuid, p_profile uuid) returns text
+create or replace function _club_shell_access(p_session uuid, p_profile uuid) returns text
 language sql stable security definer set search_path = public, pg_temp as $$
   select case
     when exists (select 1 from club_sessions s where s.id = p_session
                  and (s.host_profile_id = p_profile or s.backup_host_profile_id = p_profile)) then 'host'
     when exists (select 1 from session_people sp where sp.session_id = p_session
-                 and sp.profile_id = p_profile and sp.attendance <> 'no_show') then 'full'
+                 and sp.profile_id = p_profile and sp.attendance is distinct from 'no_show') then 'full'
     when exists (select 1 from session_runner_assignments a where a.session_id = p_session
                  and a.runner_profile_id = p_profile and a.status = 'committed') then 'full'
     when exists (select 1 from session_dogs sd where sd.session_id = p_session
@@ -77,11 +75,11 @@ language sql stable security definer set search_path = public, pg_temp as $$
     else 'none'
   end;
 $$;
-revoke all on function public._club_shell_access(uuid, uuid) from public, anon, authenticated;
-grant execute on function public._club_shell_access(uuid, uuid) to service_role;
+revoke execute on function _club_shell_access(uuid, uuid) from public, anon, authenticated;
+grant execute on function _club_shell_access(uuid, uuid) to service_role;
 
 
-create or replace function public._club_chat_writable(p_session uuid, p_profile uuid) returns boolean
+create or replace function _club_chat_writable(p_session uuid, p_profile uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select _club_session_tier(p_session, p_profile) = 'participant'
      and exists (
@@ -95,18 +93,25 @@ language sql stable security definer set search_path = public, pg_temp as $$
                                and sd.custody_phase not in ('resolved')
                                and sd.service_state is distinct from 'ended')
                     or exists (select 1 from club_incidents i where i.session_id = p_session
-                               and i.state <> 'resolved')))));
+                               and i.state is distinct from 'resolved')))));
 $$;
 
-revoke all on function public._club_chat_writable(uuid, uuid) from public, anon, authenticated;
-grant execute on function public._club_chat_writable(uuid, uuid) to service_role;
+revoke execute on function _club_chat_writable(uuid, uuid) from public, anon, authenticated;
+grant execute on function _club_chat_writable(uuid, uuid) to service_role;
 
-create or replace function public._club_incident_can_open(p_session uuid, p_profile uuid) returns boolean
+create or replace function _club_incident_can_open(p_session uuid, p_profile uuid) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
-  select _club_session_tier(p_session, p_profile) = 'participant';
+  -- Preserve 0067's historical dispute standing, but payment must have happened.
+  -- A completed/cancelled service must not reopen group chat merely to keep this remedy.
+  select p_profile is not null and (
+    _club_session_tier(p_session, p_profile) = 'participant'
+    or exists (select 1 from session_dogs sd where sd.session_id = p_session
+      and sd.owner_profile_id = p_profile and _club_delegation_tier(sd) = 'participant')
+    or exists (select 1 from session_dogs sd join bookings b on b.id = sd.booking_id
+      where sd.session_id = p_session and b.runner_id = p_profile));
 $$;
-revoke all on function public._club_incident_can_open(uuid, uuid) from public, anon, authenticated;
-grant execute on function public._club_incident_can_open(uuid, uuid) to service_role;
+revoke execute on function _club_incident_can_open(uuid, uuid) from public, anon, authenticated;
+grant execute on function _club_incident_can_open(uuid, uuid) to service_role;
 
 -- Host-channel read remains private correspondence. Group reads follow the new tier;
 -- ALL sends already call club_my_chat_writable, now participant-only.
@@ -117,7 +122,7 @@ create policy "club chat read" on public.club_chat_messages for select to authen
 );
 
 
-create or replace function public.club_session_roster(p_session uuid) returns jsonb
+create or replace function club_session_roster(p_session uuid) returns jsonb
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
   v_access text; v_people jsonb; v_dogs jsonb; s record;
@@ -193,7 +198,10 @@ begin
     'access', v_access,
     'people', coalesce(v_people, '[]'::jsonb),
     'dogs', v_dogs,
-    'pictures', (select coalesce(jsonb_agg(photo), '[]'::jsonb) from runs r join bookings b on b.id = r.booking_id cross join lateral unnest(r.photos) photo where b.club_session_id = p_session and club_run_photo_allowed(b.id)),
+    'pictures', (select coalesce(jsonb_agg(photo), '[]'::jsonb)
+      from runs r join bookings b on b.id = r.booking_id
+      cross join lateral unnest(r.photos) photo
+      where b.club_session_id = p_session and club_run_photo_allowed(b.id)),
     'capacityMeter', case when v_access = 'host' then jsonb_build_object(
       'reserved', _club_delegated_reserved(p_session),
       'capacity', s.delegated_dog_capacity,
@@ -201,11 +209,11 @@ begin
   );
 end $$;
 
-revoke all on function public.club_session_roster(uuid) from public, anon;
-grant execute on function public.club_session_roster(uuid) to anon, authenticated;
+revoke execute on function club_session_roster(uuid) from public, anon;
+grant execute on function club_session_roster(uuid) to anon, authenticated;
 
 
-create or replace function public.club_run_photo_allowed(p_booking uuid) returns boolean
+create or replace function club_run_photo_allowed(p_booking uuid) returns boolean
 language plpgsql stable security definer set search_path = public, pg_temp as $$
 begin
   if not exists (
@@ -230,18 +238,18 @@ begin
   end);
 end $$;
 
-revoke all on function public.club_run_photo_allowed(uuid) from public, anon;
-grant execute on function public.club_run_photo_allowed(uuid) to anon, authenticated;
+revoke execute on function club_run_photo_allowed(uuid) from public, anon;
+grant execute on function club_run_photo_allowed(uuid) to anon, authenticated;
 
 -- Public picture signing reads only explicitly referenced session run pictures, with the
 -- same latest consent gate as the roster. It does not widen runs/bookings table RLS or chat.
-create or replace function public.club_public_photo_path(p_path text) returns boolean
+create or replace function club_public_photo_path(p_path text) returns boolean
 language sql stable security definer set search_path = public, pg_temp as $$
   select exists (select 1 from runs r join bookings b on b.id = r.booking_id
     join club_sessions s on s.id = b.club_session_id
     where p_path = any(r.photos) and club_run_photo_allowed(b.id));
 $$;
-revoke all on function public.club_public_photo_path(text) from public, anon;
-grant execute on function public.club_public_photo_path(text) to anon, authenticated;
+revoke execute on function club_public_photo_path(text) from public, anon;
+grant execute on function club_public_photo_path(text) to anon, authenticated;
 create policy "club public pictures" on storage.objects for select to anon, authenticated
   using (bucket_id = 'media' and public.club_public_photo_path(name));

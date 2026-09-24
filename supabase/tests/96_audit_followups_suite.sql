@@ -111,8 +111,8 @@ begin
   -- F3: ruling 4 opens club pictures publicly, but does not waive photo consent.
   begin
     perform set_config('request.jwt.claim.sub', zz::text, false);
-    -- 0165 ruling 4: club pictures are public, latest consent still seals them.
-    -- Suite 205 P3/P4 owns anonymous object signing and consent withdrawal.
+    -- 0196 ruling 4: club pictures are public, latest consent still seals them.
+    -- Suite 227 P3/P4 owns anonymous object signing and consent withdrawal.
     v_err := club_run_photo_allowed(v_bo) is false;
     if not v_err then call _fail('af','F3 public consent','unconsented picture allowed');
     else
@@ -173,7 +173,7 @@ begin
         reset role;
         call _fail('af','F5 nonparticipant host send','write admitted');
       exception when insufficient_privilege then
-        reset role; call _pass('af','F5 group and host-channel send require participation (0165 ruling 4; suite 205 W2)');
+        reset role; call _pass('af','F5 group and host-channel send require participation (0196 ruling 4; suite 227 W2)');
       when others then reset role; call _fail('af','F5 host-channel refusal',sqlerrm);
       end;
     end if;
@@ -189,7 +189,7 @@ begin
     v_js2 := club_session_roster(v_s);
     if (v_js->'people') = '[]'::jsonb
        and (v_js->>'peopleCount')::int = v_n and v_n > 0
-       -- 0165 ruling 4: roster is public; detail endpoint retains its separate gate.
+       -- 0196 ruling 4: roster is public; detail endpoint retains its separate gate.
        and jsonb_array_length(v_js2->'people') > 0
        and not exists (select 1 from jsonb_array_elements(v_js2->'people') e where e->>'phone' is not null)
        and (v_js2->>'access') = 'limited' then

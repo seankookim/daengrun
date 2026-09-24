@@ -1,4 +1,4 @@
--- 0165, ruling 4. Real authenticated/anon boundaries, not helper-only promises.
+-- 0196, ruling 4. Real authenticated/anon boundaries, not helper-only promises.
 -- Mutation targets: reader writes (W2), expiry ignored (E2), payment clock-bound (E3),
 -- public phone leak (P2), consent bypass (P4), storage policy removed (P3).
 set client_min_messages = warning;
@@ -68,7 +68,7 @@ begin
  update session_dogs set hold_expires_at=now()+interval '1 minute' where id=dr;
  if _club_incident_can_open(s,reader) is distinct from false then call _fail('tier','I2 reader incident','unpaid reader has standing');
  else call _pass('tier','I2 active unpaid reader cannot open safety case'); end if;
- -- Check the EFFECTIVE 0171 helper through this 0165 roster after all migrations apply.
+ -- Check the EFFECTIVE 0171 helper through this 0196 roster after all migrations apply.
  select phone_collection_live_since into phflag from ops_flags;
  update profiles set phone='01012345678' where id in(h,paid);
  update ops_flags set phone_collection_live_since=null;
@@ -99,6 +99,21 @@ begin
  select count(*) into n from storage.objects where bucket_id='media' and name=path; reset role;
  if (j->'pictures'='[]'::jsonb and n=0) is true then call _pass('tier','P4 withdrawn consent seals public list and object');
  else call _fail('tier','P4 consent',j::text||' objects='||n); end if;
+ -- Existing cancellation RPC must revoke membership without reopening it through payment.
+ perform set_config('request.jwt.claim.sub',paid::text,true);
+ perform session_cancel_delegation(dp);
+ set local role authenticated;
+ select count(*) into n from club_chat_messages where session_id=s and audience='group';
+ denied := not club_my_chat_writable(s);
+ reset role;
+ if (_club_session_tier(s,paid)='none' and n=0 and denied) is true
+ then call _pass('tier','E5 paid withdrawal ends group read and write');
+ else call _fail('tier','E5 withdrawn paid','payment retained membership'); end if;
+ perform set_config('request.jwt.claim.sub',reader::text,true);
+ perform session_cancel_delegation(dr);
+ if (_club_session_tier(s,reader)='none' and _club_delegated_reserved(s)=0) is true
+ then call _pass('tier','E6 unpaid withdrawal ends reader access and hold');
+ else call _fail('tier','E6 withdrawn reader','hold retained membership'); end if;
  -- ACL positive and negative controls: public doors explicit, arbitrary-uid helpers private.
  ok:=true;
  foreach f in array array['club_session_roster(uuid)','club_run_photo_allowed(uuid)','club_public_photo_path(text)'] loop

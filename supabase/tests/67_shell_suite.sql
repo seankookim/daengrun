@@ -47,8 +47,8 @@ begin
     execute 'select count(*) from club_chat_messages where session_id = $1' into v_cnt using v_s;
     perform set_config('request.jwt.claim.sub', qq::text, true);
     execute 'select count(*) from club_chat_messages where session_id = $1 and audience = ''group''' into v_msg using v_s;
-    -- 0165 ruling 4: pending users can read addressed host correspondence, but cannot send.
-    -- Suite 205 W1/W2 owns the nonparticipant write refusal.
+    -- 0196 ruling 4: pending users can read addressed host correspondence, but cannot send.
+    -- Suite 227 W1/W2 owns the nonparticipant write refusal.
     perform set_config('request.jwt.claim.sub', hh::text, true);
     insert into club_chat_messages (session_id, sender_id, audience, recipient_profile_id, body)
     values (v_s, hh, 'host_channel', qq, '신청을 확인했어요');
@@ -204,7 +204,7 @@ begin
         perform set_config('request.jwt.claim.sub', qq::text, false);
         v_js := club_session_roster(v_s);
         if v_js->>'access' = 'limited'
-           -- 0165 ruling 4 makes the roster public; private detail still belongs to its party.
+           -- 0196 ruling 4 makes the roster public; private detail still belongs to its party.
            and jsonb_array_length(v_js->'dogs') = 2
            and exists (select 1 from jsonb_array_elements(v_js->'dogs') e where (e->>'isMine')::boolean)
            and not exists (select 1 from jsonb_array_elements(v_js->'dogs') e where not (e->>'isMine')::boolean and e->'detail' is distinct from 'null'::jsonb)
