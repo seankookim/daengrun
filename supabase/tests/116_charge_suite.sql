@@ -767,6 +767,12 @@ begin
 
       -- ⓑ switch on, still no card → skip + notify
       update ops_flags set payments_live_since = now() - interval '7 days', updated_at = now();
+      -- [0224 §H] the pause notice is now sent at most once per 24 h per owner per episode, and
+      -- C13's row was written in THIS transaction (same `now()`), so it would suppress this arm's
+      -- notice — which is the repeat 0224 removes, not the property C14 is about. The owner's
+      -- earlier pause rows are cleared so this arm measures what it owns: the switch-keyed gate
+      -- stops generation AND notifies. 255 `0224-C1` owns the dedupe itself.
+      delete from notifications where profile_id = o_rec and title = '반복 예약 일시 중지';
       select count(*) into v_noti_pre from notifications
         where profile_id = o_rec and title = '반복 예약 일시 중지';
       perform generate_recurring_bookings();

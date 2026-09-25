@@ -183,8 +183,12 @@ declare
   v jsonb; v_bad text; v_msg text; v_n int; v_txt text; v_src text;
   v_before int; v_after int; v_body text; v_net bigint;
   k text; ttl text;
+  -- [0224] + the three bells 0224 adds (two custody strands, the sealed-unsettled run): O2 walks
+  -- every one — gated by `ops`, and not a member of the urgent family. 255 `0224-B2` owns them.
   OPS_TITLES constant text[] := array['지급 대기 — 확인 필요', '인계 확인 멈춤 — 확인 필요',
-                                      '반환 좌초 — 확인 필요', '굿즈 수령 신청 — 확인 필요'];
+                                      '반환 좌초 — 확인 필요', '굿즈 수령 신청 — 확인 필요',
+                                      '러닝 시작 좌초 — 확인 필요', '러닝 종료 좌초 — 확인 필요',
+                                      '정산 미완료 — 확인 필요'];
   RUNNER_TITLE constant text := '정산 지급이 늦어지고 있어요';
 begin
   perform set_config('request.jwt.claim.sub', '', true);                                        -- ①
@@ -293,7 +297,7 @@ begin
     end loop;
 
     delete from notification_prefs where profile_id = ops1;
-    if v_bad = '' then call _pass('ocp','0210-O2 안전·긴급은 그대로다 — 다섯 칸을 모두 꺼도 kind=safety 행과 긴급 제목 4종(_noti_urgent_noti_titles의 실제 배열을 순회)은 그대로 나가고, 실제 운영 제목 4종은 조용해진다; 그리고 그 운영 제목 넷 중 어느 것도 긴급 배열의 멤버가 아니라는 것을 값으로 재므로 「원래 긴급이 아니었을 뿐」과 구별된다');
+    if v_bad = '' then call _pass('ocp','0210-O2 안전·긴급은 그대로다 — 다섯 칸을 모두 꺼도 kind=safety 행과 긴급 제목 4종(_noti_urgent_noti_titles의 실제 배열을 순회)은 그대로 나가고, 실제 운영 제목 7종(0224가 셋 추가)은 조용해진다; 그리고 그 운영 제목 일곱 중 어느 것도 긴급 배열의 멤버가 아니라는 것을 값으로 재므로 「원래 긴급이 아니었을 뿐」과 구별된다');
     else v_msg := v_bad; call _fail('ocp','0210-O2 safety did not move', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', true);
     call _fail('ocp','0210-O2 safety did not move', sqlerrm); end;
