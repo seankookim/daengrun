@@ -8,6 +8,7 @@ import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, acceptReschedule, AvailRule, declineBooking, declineReschedule, fetchMyAvailability, fetchMyRunnerApplication, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, fetchRunnerWorkGate, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerApplication, RunnerJob, RunnerWorkGate } from '../../src/lib/api';
 import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
+import { workGateDoor, type WorkGateRead } from '../../src/lib/work-gate-door';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -331,10 +332,13 @@ export default function Requests() {
   // 서버는 반환 봉인이 안 끝난 러너의 수락을 `transition-booking`의 work-gate 팔에서 409로 거절한다.
   // 이 화면은 그 사실을 모른 채 살아 있는 코랄 수락 문을 그리고, 확인창까지 띄우고, 탭 **뒤에**
   // 실패했다 — 죽은 버튼 금지법이 이름을 붙여 둔 바로 그 경우다.
-  // ⚠ `null`은 「막히지 않음」이 아니라 「모름」이다. 모를 때는 문을 살려 둔다(모르는 값이 살아 있는
-  // 행동을 숨기면 안 되고, 서버가 진짜 판단자다) — 홈이 gateKnown으로 가르는 것과 같은 규칙.
-  const [gate, setGate] = useState<RunnerWorkGate | null>(null);
-  const [gateKnown, setGateKnown] = useState(false);
+  // 🔴 [fix/client-review-3 · Codex 2026-09-25 c2] This used to be `gate` + `gateKnown`, and a
+  // FAILED read cleared both — so `gated` fell to false, every 수락 door went LIVE and the only
+  // explanation on the screen disappeared. The rule it followed (「unknown keeps the door alive; the
+  // server is the real judge」) is reversed for this screen: the read is now ONE state with four
+  // values (loading · failed · answered-with-nothing · a gate), and `workGateDoor()` opens the
+  // accept doors for exactly one of them — a read that answered 「not gated」. See its header.
+  const [gateRead, setGateRead] = useState<WorkGateRead<RunnerWorkGate>>('loading');
   // [onboarding-first-run-2] 내 지원서 — preCert 빈 인박스가 지금까지 모두에게 「지원하기」라고
   // 말하던 자리. 홈과 **같은 헬퍼**를 쓴다 (runner-application-copy.ts).
   const [rApp, setRApp] = useState<RunnerApplication | null>(null);
@@ -367,11 +371,14 @@ export default function Requests() {
     fetchMyRunnerBase()
       .then((b) => setBaseUnset(b != null && b.lat == null))
       .catch((e) => { console.warn('[requests] runner base:', e?.message ?? e); setBaseUnset(null); });
-    // [runner-journey-6] 게이트도 독립 로드다 (home.tsx:532-537과 같은 모양). 실패는 gateKnown을
-    // 내려 「못 읽었다」로 남긴다 — `false`(막히지 않음)로 접으면 실패가 안심으로 위장한다.
+    // [runner-journey-6] The gate is an independent read (same shape as home.tsx's loadGate).
+    // [c2] A failure is recorded AS a failure ('error'), never folded into 「not gated」. A known
+    // answer is kept while the re-read is in flight (focus reloads must not flash every door shut);
+    // only a retry out of 'error' shows 'loading', so 다시 시도 visibly does something.
+    setGateRead((cur) => (cur === 'error' ? 'loading' : cur));
     fetchRunnerWorkGate()
-      .then((g) => { setGate(g); setGateKnown(true); })
-      .catch((e) => { console.warn('[requests] work gate:', e?.message ?? e); setGate(null); setGateKnown(false); });
+      .then((g) => setGateRead(g))
+      .catch((e) => { console.warn('[requests] work gate:', e?.message ?? e); setGateRead('error'); });
     // [onboarding-first-run-2] 지원서도 독립 로드다. 실패는 **지원하기로 떨어지지 않는다** —
     // 헬퍼의 'error' 입력이 중립 재시도 줄을 돌려준다.
     setRAppErr(false);
@@ -397,9 +404,11 @@ export default function Requests() {
   const conflictOf = (req: OpenRequest): Conflict | null =>
     (overlapKnown && myJobs !== null ? findConflict(req, myJobs) : null);
 
-  // [runner-journey-6] 막혔다고 **말할 수 있는** 상태는 하나뿐이다: 읽었고, 답이 왔고, 답이 막힘이다.
-  // 이 셋 중 하나라도 빠지면 문은 살아 있고 판단은 서버가 한다.
-  const gated = gateKnown && gate !== null && gate.gated;
+  // [c2] ONE decision for every accept door, the confirm Alert and the line above the list —
+  // `workGateDoor` (src/lib/work-gate-door.ts, pinned by app/test/work-gate-door.test.cjs).
+  // `gate` is the answered gate object, or null in every other state; only the strip reads it.
+  const door = workGateDoor(gateRead);
+  const gate = gateRead !== null && typeof gateRead === 'object' ? gateRead : null;
   // [runner-journey-4] 지금 동작 중인 문 = 예약 × 액션. 나머지 문은 눌러도 아무 일이 없으므로
   // disabledFill로 내려간다 (theme.ts 매트릭스: 명시 fill, 불투명도 트릭 금지).
   const busyAny = accepting ?? declining;
@@ -415,10 +424,11 @@ export default function Requests() {
   // 보여주고 확인을 받는데, 정작 요청이 잔뜩 쌓이는 이 화면만 즉시 커밋이었다. 같은 계약으로 맞춘다.
   const accept = (req: OpenRequest) => {
     if (accepting || declining || asking) return;
-    // [runner-journey-6] 게이트가 닫혀 있으면 확인창 자체를 열지 않는다. 문은 이미 disabledFill로
-    // 그려져 있고, 이 줄은 그 그림이 **행동과 같은 규칙**을 쓰게 하는 자리다 — 그림만 비활성이고
-    // 핸들러가 살아 있으면 접근성 포커스나 더블탭 경합이 409로 떨어진다.
-    if (gated) return;
+    // [runner-journey-6 · c2] The confirm Alert opens only when the gate is KNOWN open — the same
+    // `door.acceptOpen` that draws the door, so the picture and the handler cannot disagree
+    // (a disabled-looking door with a live handler still fires via accessibility focus or a
+    // double-tap race). Loading, failed and shut all stop here.
+    if (!door.acceptOpen) return;
     setAsking(true);
     const dur = totalTimeLabel(req.km);
     // [lab B③] 겹침은 **결정하는 자리에서도** 말한다. 카드의 경고를 스쳐 지나간 러너에게 마지막 기회이고,
@@ -506,16 +516,16 @@ export default function Requests() {
 
   const renderRequest = (req: OpenRequest) => {
     const [wd, wt] = splitWhen(req.when);
-    const coral = req.bookingId === coralDirected && !gated;
+    const coral = req.bookingId === coralDirected && door.acceptOpen;
     // 다른 문이 동작 중이라 이 문은 눌러도 아무 일이 없다 — 그렇게 **보이게** 그린다
     // (theme.ts:206 매트릭스: disabled = disabledFill + faint, 불투명도 트릭 금지).
     // [runner-journey-4] 이제 한 카드에 문이 둘일 수 있어(지명), 동작 중인 문은 예약 × 액션으로
     // 특정한다 — 수락 중인 카드의 **거절** 문도 비활성이어야 하고 그 반대도 마찬가지다.
     const acceptActing = busyAny === req.bookingId && acting === 'accept';
     const declineActing = busyAny === req.bookingId && acting === 'decline';
-    // [runner-journey-6] 게이트가 닫혀 있으면 수락 문은 **모든 카드에서** 비활성이다 — 서버가
-    // 그 수락을 거절하므로, 누를 수 있게 그리면 탭 뒤에 실패하는 문이 된다.
-    const inert = (busyAny !== null && !acceptActing) || gated;
+    // [runner-journey-6 · c2] Unless the gate is KNOWN open, the accept door is inert on EVERY
+    // card — shut (the server would refuse), still loading, or failed (the screen cannot say).
+    const inert = (busyAny !== null && !acceptActing) || !door.acceptOpen;
     const declineInert = busyAny !== null && !declineActing;
     // [0114 residual · docs/contracts/party-membership-status-filter-contract.md §C.6]
     // `directed`는 곧 서버 상태 'runner_pending'이다 (api.ts fetchRunnerInbox의 지명 레그는
@@ -709,11 +719,11 @@ export default function Requests() {
                 : { borderBottomWidth: 4, borderBottomColor: CORAL_INK_DEEP }),
               !inert && !coral && pressed && { transform: [{ scale: 0.97 }] },
             ]}
-            disabled={busyAny !== null || gated}
+            disabled={busyAny !== null || !door.acceptOpen}
             accessibilityRole="button"
-            accessibilityState={{ disabled: busyAny !== null || gated, busy: acceptActing }}
-            accessibilityLabel={gated
-              ? `${req.dogName} 요청 수락 — 반환 확인이 끝나야 수락할 수 있어요`
+            accessibilityState={{ disabled: busyAny !== null || !door.acceptOpen, busy: acceptActing }}
+            accessibilityLabel={door.doorReason
+              ? `${req.dogName} 요청 수락 — ${door.doorReason}`
               : `${req.dogName} 요청 수락하기`}
             onPress={() => accept(req)}
           >
@@ -897,7 +907,28 @@ export default function Requests() {
               (0080 ⓐ). 홈의 같은 자리는 아직 옛 낱말을 쓰고 있었고 이번에 같이 고쳤다.
             ⚠ waitingOn === 'owner'면 출구가 없다. 러너는 이미 찍었고, 거기서 「반환 봉인 찍기」를
               그리면 자기 행동에 대한 거짓말이 된다 (0092 §6이 waiting_on을 나눠 주는 이유). */}
-        {gated && gate !== null && (
+        {/* [c2] The gate read's own line when it has not answered: 'checking' is a quiet dim line
+            with no control, drawn only while there are cards whose doors it is holding shut (with
+            no cards the inbox's own 「불러오는 중…」 already says the screen is loading); 'failed'
+            is always drawn, in critical ink, with a 다시 시도 that re-runs the read (load() re-runs
+            every read on this screen, the gate's included — the same door the inbox's fail strip
+            uses). Without this line a failed read disabled every door with no reason on screen,
+            which is the dead-button shape from the other side. */}
+        {door.notice === 'checking' && door.lead !== null && live.length > 0 && (
+          <View style={s.gateStrip}>
+            <Text style={[s.gateSub, { marginTop: 0 }]}>{door.lead}</Text>
+          </View>
+        )}
+        {door.notice === 'failed' && door.lead !== null && (
+          <View style={[s.failStrip, { marginTop: 14 }]}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>{door.lead}</Text>
+            <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button"
+              accessibilityLabel={`${door.lead} — ${door.retry ?? ''}`}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>{door.retry}</Text>
+            </Pressable>
+          </View>
+        )}
+        {door.notice === 'gated' && gate !== null && (
           <Pressable
             onPress={() => {
               if (gate.waitingOn === 'owner' || !gate.bookingId) return;

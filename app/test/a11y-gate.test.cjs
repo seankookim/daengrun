@@ -22,8 +22,14 @@
 //     to make it must not look identical — the standing comment-quoting law.)
 //   · A file the parser cannot read FAILS. A gate that skips what it could not read reports
 //     「nothing found」 for a file nobody checked.
-//   · `--rewrite-baseline` can shrink the ledger and can never grow it, so re-emitting after a
-//     rename is safe and cannot be used to absorb new debt.
+//   · `--rewrite-baseline` can only DELETE ledger lines — not grow the ledger, and not SWAP one
+//     line for another either (Codex 2026-09-25 c3 measured v2's total-only check accepting a
+//     fix beside a regression as +1/−1). A moved element is re-registered only by an explicit
+//     `--migrate '<old>=<new>'` pair, which the script checks mechanically (same file, old gone
+//     and in the ledger, new present and not in it, nothing claimed twice).
+//   ⚠ NAMED LIMIT (prose, not a pin): the script cannot check that a --migrate pair is the SAME
+//     element. A false pair launders; it now has to be written out by hand, in the command and
+//     in review, instead of being what the recommended command did by default.
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -184,6 +190,10 @@ try {
       /대장에 없는[^\n]*1건/.test(r.out) && /대장이 낡았다 1건/.test(r.out), r.out);
     t('the balanced mutation · the regressed element is named by file and LINE, so the fix is one jump',
       /app\/screen\.tsx:6/.test(r.out), r.out);
+    t('c3 · the hint leads with the ROLE and warns that a lost role is a regression, before it offers any --migrate pair',
+      r.out.indexOf('accessibilityRole="button"') >= 0
+      && r.out.indexOf('accessibilityRole="button"') < r.out.indexOf('--migrate')
+      && /LOST its role/.test(r.out), r.out);
   }
 
   // ── each half of the rule, on its own ───────────────────────────────────────────────────────
@@ -229,10 +239,24 @@ try {
     const r = run(lab);
     t('trade-off · renaming the enclosing component MOVES the fingerprint and the gate says so (one stale + one new), rather than going quietly green',
       r.code === 1 && /대장이 낡았다 1건/.test(r.out) && /대장에 없는[^\n]*1건/.test(r.out), `exit ${r.code}: ${r.out}`);
+    // [c3] This used to assert that a plain `--rewrite-baseline` repaired the rename because the
+    // COUNT did not grow — which is precisely the total-only rule Codex measured laundering a
+    // regression. A rename is now repaired only by the explicit pair the gate prints.
+    const before = readLedger(lab);
     const rw = run(lab, ['--rewrite-baseline']);
-    t('trade-off · and `--rewrite-baseline` repairs it in place, because the count did not grow',
-      rw.code === 0 && ledgerLines(lab).length === 4, `exit ${rw.code}: ${rw.out}`);
-    t('trade-off · after the re-emit the gate is green again',
+    t('🔴 c3 · a plain `--rewrite-baseline` REFUSES the renamed fingerprint (it may only delete), and writes nothing',
+      rw.code === 1 && /may only DELETE/.test(rw.out) && readLedger(lab) === before, `exit ${rw.code}: ${rw.out}`);
+    const m = /--migrate '([^'=]+)=([^']+)'/.exec(r.out);
+    t('c3 · the gate\'s failure prints the exact `--migrate` pair for a same-file stale + new, old → new',
+      !!m && m[1].startsWith('src/thing.tsx :: Thing :: ') && m[2].startsWith('src/thing.tsx :: Widget :: '),
+      r.out);
+    t('c3 · …and it no longer tells anyone to re-emit with --rewrite-baseline when a fingerprint moves',
+      !/--rewrite-baseline 으로 다시 뽑는다/.test(r.out) && /restore the role/.test(r.out), r.out);
+    const mg = m ? run(lab, ['--migrate', `${m[1]}=${m[2]}`]) : { code: -1, out: 'no pair printed' };
+    t('🔴 c3 · the printed `--migrate` pair re-registers the genuinely renamed element (exit 0, still 4 lines)',
+      mg.code === 0 && ledgerLines(lab).length === 4 && ledgerLines(lab).some((l) => l.includes(' :: Widget :: '))
+      && !ledgerLines(lab).some((l) => l.includes(' :: Thing :: ')), `exit ${mg.code}: ${mg.out}`);
+    t('trade-off · after the migration the gate is green again',
       run(lab).code === 0);
   }
 
@@ -245,7 +269,7 @@ try {
       r.code === 1 && /app\/quiet\.tsx/.test(r.out), `exit ${r.code}: ${r.out}`);
     const rw = run(lab, ['--rewrite-baseline']);
     t('🔴 --rewrite-baseline · REFUSES to grow the ledger, so re-emitting can never be used to absorb new debt',
-      rw.code === 1 && /늘어날 수 없다/.test(rw.out), `exit ${rw.code}: ${rw.out}`);
+      rw.code === 1 && /may only DELETE/.test(rw.out) && /app\/quiet\.tsx:\d+/.test(rw.out), `exit ${rw.code}: ${rw.out}`);
     t('--rewrite-baseline · and it leaves the ledger untouched when it refuses',
       ledgerLines(lab).length === 4, JSON.stringify(ledgerLines(lab)));
   }
@@ -257,6 +281,123 @@ try {
       rw.code === 0 && ledgerLines(lab).length === 3, `exit ${rw.code}: ${JSON.stringify(ledgerLines(lab))}`);
     t('--rewrite-baseline · keeps the file\'s prose header rather than overwriting it with its own',
       readLedger(lab).startsWith(HEADER.trim()), readLedger(lab).slice(0, 60));
+  }
+
+  // ── 🔴 c3 — THE BALANCED REGRESSION, then a plain rewrite (Codex 2026-09-25 client verdict) ──
+  // Codex MEASURED this on the real script: v2's rewrite compared only TOTALS, so it accepted the
+  // +1/−1 below and the gate then passed. The regression is a control that stopped announcing
+  // itself; the "fix" beside it is what makes the count net to zero.
+  {
+    const lab = seededLab();
+    const before = readLedger(lab);
+    edit(lab, 'app/screen.tsx', '<Pressable onPress={retry} accessibilityRole="button">', '<Pressable onPress={retry}>');
+    edit(lab, 'app/screen.tsx', '<Pressable onPress={openOne}>', '<Pressable onPress={openOne} accessibilityRole="button">');
+    const rw = run(lab, ['--rewrite-baseline']);
+    t('🔴 c3 · the balanced regression followed by a plain `--rewrite-baseline` EXITS 1 (v2 accepted it as +1/−1)',
+      rw.code === 1 && /may only DELETE/.test(rw.out), `exit ${rw.code}: ${rw.out}`);
+    t('🔴 c3 · …names the regressed element by file:line, and writes NOTHING (not even the legitimate deletion)',
+      /app\/screen\.tsx:6/.test(rw.out) && readLedger(lab) === before, rw.out);
+    t('🔴 c3 · …so the gate is STILL red afterwards — the regression was not laundered',
+      run(lab).code === 1);
+  }
+
+  // ── --migrate: every mechanical check, each on its own ───────────────────────────────────────
+  // The honest fixture for a pair: rename Thing → Widget (the old line is gone, the new element is
+  // there, same file). Each case below breaks exactly one precondition of that pair.
+  const renamedLab = () => {
+    const lab = seededLab();
+    const old = ledgerLines(lab).find((l) => l.startsWith('src/thing.tsx :: Thing :: '));
+    edit(lab, 'src/thing.tsx', 'export function Thing() {', 'export function Widget() {');
+    return { lab, old, neu: old.replace(' :: Thing :: ', ' :: Widget :: ') };
+  };
+  {
+    const { lab, old, neu } = renamedLab();
+    const before = readLedger(lab);
+    const r = run(lab, ['--migrate', `${old}=${neu}`]);
+    t('c3 · control: the correct pair for the renamed component exits 0 (so every refusal below is the pair\'s fault, not the lab\'s)',
+      r.code === 0 && readLedger(lab) !== before, `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // A different FILE, in a lab where the same-file check is the ONLY thing standing between the
+    // pair and exit 0: src/thing.tsx's bare element is GONE (so <old> is a genuinely stale line)
+    // and app/screen.tsx's Chip is off the ledger (so <new> is a genuinely unregistered bare
+    // element). Every other precondition holds, so a missing same-file check would exit 0 and
+    // move an allowance from one file to another.
+    const lab = seededLab();
+    const old = ledgerLines(lab).find((l) => l.startsWith('src/thing.tsx :: Thing :: '));
+    const other = ledgerLines(lab).find((l) => l.startsWith('app/screen.tsx :: Chip :: '));
+    edit(lab, 'src/thing.tsx', '<Pressable onPress={go}>', '<View onPress={go}>');
+    edit(lab, 'src/thing.tsx', '</Pressable>', '</View>');
+    writeLedger(lab, readLedger(lab).split('\n').filter((l) => l.trim() !== other).join('\n'));
+    const mid = readLedger(lab);
+    const r = run(lab, ['--migrate', `${old}=${other}`]);
+    t('🔴 c3 · a --migrate pair that maps to a DIFFERENT FILE exits 1, names the pair, and writes nothing',
+      r.code === 1 && /different files/.test(r.out) && r.out.includes(old) && readLedger(lab) === mid,
+      `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // <new> names an element that was never bare: the would-be fingerprint of a control that
+    // carries its role (so the parser never emits it as role-less).
+    const { lab, old } = renamedLab();
+    const before = readLedger(lab);
+    const neverBare = 'src/thing.tsx :: Widget :: 0badc0de :: 1';
+    const r = run(lab, ['--migrate', `${old}=${neverBare}`]);
+    t('🔴 c3 · a --migrate pair whose <new> is not a role-less element in the tree exits 1 and writes nothing',
+      r.code === 1 && /<new> is not a role-less element/.test(r.out) && readLedger(lab) === before, `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // <old> names an element that was never in the ledger (never recorded as bare).
+    const { lab, neu } = renamedLab();
+    const before = readLedger(lab);
+    const r = run(lab, ['--migrate', `src/thing.tsx :: Thing :: 0badc0de :: 1=${neu}`]);
+    t('🔴 c3 · a --migrate pair whose <old> was never a ledger line exits 1 and writes nothing',
+      r.code === 1 && /<old> is not in the ledger/.test(r.out) && readLedger(lab) === before, `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // <old> still exists in the tree: nothing moved, so the pair would ADD a second allowance.
+    // Same file, so this check is the only one that can refuse it: Chip stays bare (and in the
+    // ledger) while the 다시 시도 control LOSES its role — accepting `Chip=<retry>` would grow the
+    // ledger by one, which is the regression c3 is about wearing a pair's costume.
+    const lab = seededLab();
+    const before = readLedger(lab);
+    const keep = ledgerLines(lab).find((l) => l.startsWith('app/screen.tsx :: Chip :: '));
+    edit(lab, 'app/screen.tsx', '<Pressable onPress={retry} accessibilityRole="button">', '<Pressable onPress={retry}>');
+    const add = /app\/screen\.tsx:6\s+(\S.*)$/m.exec(run(lab).out)?.[1]?.trim();
+    const r = run(lab, ['--migrate', `${keep}=${add ?? 'x'}`]);
+    t('🔴 c3 · a --migrate pair whose <old> is STILL in the tree exits 1 (it did not move) and writes nothing',
+      !!add && r.code === 1 && /did not move/.test(r.out) && readLedger(lab) === before, `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // One ledger line cannot re-register two elements.
+    const lab = seededLab();
+    const before = readLedger(lab);
+    const old = ledgerLines(lab).find((l) => l.startsWith('src/thing.tsx :: Thing :: '));
+    edit(lab, 'src/thing.tsx', 'export function Thing() {', 'export function Widget() {');
+    edit(lab, 'src/thing.tsx', '    <Pressable onPress={go}>\n      <Text>하나</Text>\n    </Pressable>',
+      '    <View>\n    <Pressable onPress={go}>\n      <Text>하나</Text>\n    </Pressable>\n    <Pressable onPress={go2}>\n      <Text>둘</Text>\n    </Pressable>\n    </View>');
+    const adds = [...run(lab).out.matchAll(/^\s+src\/thing\.tsx:\d+\s+(\S.*)$/gm)].map((x) => x[1].trim());
+    const r = run(lab, ['--migrate', `${old}=${adds[0] ?? 'x'}`, '--migrate', `${old}=${adds[1] ?? 'y'}`]);
+    t('c3 · one <old> claimed by TWO pairs exits 1 — a ledger line re-registers exactly one element',
+      adds.length === 2 && r.code === 1 && /already claimed/.test(r.out) && readLedger(lab) === before,
+      `adds=${JSON.stringify(adds)} exit ${r.code}: ${r.out}`);
+  }
+  {
+    const { lab } = renamedLab();
+    const before = readLedger(lab);
+    const r = run(lab, ['--migrate', 'not-a-pair']);
+    t('c3 · a malformed --migrate argument exits 1 naming it, and writes nothing',
+      r.code === 1 && r.out.includes("'not-a-pair'") && readLedger(lab) === before, `exit ${r.code}: ${r.out}`);
+  }
+  {
+    // The v1 → v2 conversion is the other way lines are born: it must compare per FILE. Seed a v1
+    // ledger whose TOTAL (4) equals the tree's but whose split is wrong — src/thing.tsx recorded 0
+    // while it holds 1 bare element. A total-only conversion would accept it.
+    const lab = makeLab(FILES);
+    writeLedger(lab, `${HEADER}\napp/screen.tsx 4\nsrc/thing.tsx 0\n`);
+    const before = readLedger(lab);
+    const r = run(lab, ['--rewrite-baseline']);
+    t('c3 · the v1 → v2 conversion refuses a FILE that grew even when the total did not, and writes nothing',
+      r.code === 1 && /src\/thing\.tsx\s+v1 0 → now 1/.test(r.out) && readLedger(lab) === before, `exit ${r.code}: ${r.out}`);
   }
 
   // ── the escape hatch, both ways ─────────────────────────────────────────────────────────────
