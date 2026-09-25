@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
@@ -15,7 +15,8 @@ import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal } from '../../src/lib/kst';
-import { lateness, sinceLabel, LATENESS_CEILING_MS } from '../../src/lib/lateness';
+import { lateness, LATENESS_CEILING_MS } from '../../src/lib/lateness';
+import { deepLinkStep, nowBandLine, RETURN_PHASE_LABEL, returnOwed, returnSentence } from '../../src/lib/home-hero-route';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaperSheet } from '../../src/components/paper-sheet';
 import { PaymentRow } from '../../src/components/charge-states';
@@ -105,6 +106,11 @@ const stFor = (b: Booking): { label: string; bg: string; fg: string; rail: strin
     : b.rawStatus === 'incident_review' ? { bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }
     : b.rawStatus === 'expired' ? { bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
     : { bg: base.bg, fg: base.fg, rail: base.rail };
+  // [fix/owner-inflight-truth · owner-journey-2] The word table is keyed by raw status and cannot
+  // see `run_ended_at`, so for an `active` booking whose run has ENDED it says 「러닝 중 · LIVE」 —
+  // directly above the sheet's 「러닝이 끝났어요」. The return phase takes its own caption here (the
+  // table's `null`-is-the-caller's-call doctrine, applied to a phase the key cannot express).
+  if (b.rawStatus === 'active' && returnOwed(b)) return { label: RETURN_PHASE_LABEL, ...skin };
   return { label: bookingStateLabel(b.rawStatus) ?? base.label, ...skin };
 };
 
@@ -133,16 +139,9 @@ function kstDayDiff(iso: string, now = Date.now()): number | null {
   return Math.floor((box(t) - box(now)) / 86400_000);
 }
 
-/** 경과 라벨 — home-hero.tsx 의 elapsedLabel 과 같은 규칙(1분 미만·미래 소인·미상 = null → 절 생략).
- *  ⚠ 한 벌이 살 자리는 src/lib/lateness.ts 다 (sinceLabel 바로 옆). 위 kstDayDiff 와 같은 이유로
- *  아직 두 벌이며, 같은 규칙이 적용된다: 한쪽을 고치면 둘 다 고친다. */
-function elapsedLabel(iso: string | null | undefined, now: number = Date.now()): string | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  const ms = now - t;
-  return ms < 60_000 ? null : sinceLabel(ms);
-}
+// [fix/owner-inflight-truth] The second copy of `elapsedLabel` that lived here is gone: its one
+// caller was the 지금 band, whose sentence now comes from `nowBandLine` (src/lib/home-hero-route.ts),
+// which holds the one copy the hero also uses.
 
 // '지난 일정'의 경계 = 6시간 유예. 홈의 랭킹 타이브레이크와 **같은 값**이다 (home.tsx: past()).
 // 왜 '지금'이 아니라 6시간인가: 예정 시각을 막 지난 확정 건은 지난 일정이 아니라 **늦은 일정**이고,
@@ -321,6 +320,32 @@ export default function Schedule() {
   };
   const close = () => setSelected(null);
 
+  // A door that starts a NEW booking clears the last nomination first — home-hero.tsx's rule
+  // (review P1-3): a failed or abandoned nomination must not ride along into this booking. The ＋
+  // pushed `/owner/request` bare and skipped it; the empty state's button and the ＋ share this.
+  const startNewBooking = () => {
+    draft.preferredRunnerId = null;
+    draft.preferredRunnerName = null;
+    draft.autoEarliest = false;
+    router.push('/owner/request');
+  };
+
+  // ── [fix/owner-inflight-truth · owner-journey-5] `?bid=` — open THAT booking's sheet, once ──
+  // Every door into this screen used to land on the list: the late hero (「일정에서 정리하기 · 취소
+  // 조건을 확인하고 닫아요」), the check-in push, five pre-run pushes, home's rail rows and radar's
+  // exits. They now carry the booking, and the rule for consuming it is `deepLinkStep`
+  // (src/lib/home-hero-route.ts, pinned): after the first SUCCESSFUL load only, exactly once, and
+  // an id not in the list opens nothing. The param is then dropped so a re-render or coming back
+  // cannot reopen a sheet the owner closed. The ref is written inside the effect, never in render.
+  const { bid: bidParam } = useLocalSearchParams<{ bid?: string }>();
+  const deepHandled = useRef<string | null>(null);
+  useEffect(() => {
+    const step = deepLinkStep({ loaded, bid: bidParam, handled: deepHandled.current, rows: liveBookings });
+    deepHandled.current = step.handled;
+    if (step.open) { setSheetMode('detail'); setSelected(step.open); }
+    if (step.clear) router.setParams({ bid: undefined });
+  }, [loaded, bidParam, liveBookings]);
+
   // 반복 해지 (0026) — 시리즈만 멈추고, 이미 생성된 예약은 그대로 (개별 취소는 기존 플로우)
   const pauseSeries = () => {
     const sid = selected?.seriesId;
@@ -390,18 +415,19 @@ export default function Schedule() {
   };
   // ⚠ 러너가 정해지기 전에 끝난 예약(만료·매칭 중 취소)은 지명할 사람이 없다 — 그때는 지명 절이
   //   통째로 빠진다. `runnerProfileId` 가 그 유일한 근거이고, 프리필과 이 문장이 같은 값을 읽는다.
+  // [fix/owner-inflight-truth · ui-consistency-10] The three `ghostAction` doors on this sheet were a
+  // FOURTH secondary-button style ('#fff' face, '#EEE' border, ink label) beside PaperBtn's matrix.
+  // They are PaperBtn secondary now; a door's sub-line moves OUT of the face and sits under it, the
+  // 일정 변경 요청 idiom further down this file (a two-line face is not a matrix button).
   const rebookRow = selected ? (
-    <Pressable
-      style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-      onPress={rebook}
-      accessibilityRole="button"
-      accessibilityLabel="이대로 다시 예약"
-    >
-      <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>⟳ 이대로 다시 예약</Text>
-      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>
+    <>
+      {/* No ⟳ in the label: PaperBtn speaks its label as the accessibility label, and the old
+          face's explicit label was the words alone. ⟳ means 매주 반복 everywhere else on this sheet. */}
+      <PaperBtn label="이대로 다시 예약" variant="secondary" style={{ marginTop: 8 }} onPress={rebook} />
+      <Text style={s.btnSub}>
         같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요
       </Text>
-    </Pressable>
+    </>
   ) : null;
 
   // [2026-08-25] cancelFeeRateFor is RETIRED — the number now comes from quote_cancel_fee
@@ -520,7 +546,7 @@ export default function Schedule() {
         return (
           <View key={b.id}>
           <Pressable style={s.bookingCard} onPress={() => open(b)} accessibilityRole="button"
-            accessibilityActions={b.status === 'active' ? LIVE_A11Y_ACTIONS : undefined}
+            accessibilityActions={b.status === 'active' && !returnOwed(b) ? LIVE_A11Y_ACTIONS : undefined}
             onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'live') openLive(b.id); }}>
             <View style={[s.rail, { backgroundColor: st.rail }]} />
             {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
@@ -603,13 +629,16 @@ export default function Schedule() {
                   <Text style={{ fontSize: 16, color: paper.dim, alignSelf: 'center' }}>›</Text>
                 )}
               </Row>
-              {b.status === 'active' && (
+              {/* [owner-journey-2] Not for a run that has ENDED (`returnOwed`): a live map of a
+                  finished run is a door to nothing. (Every `active` row sits in the 지금 band today,
+                  so this card arm is a belt — it must not disagree with the band if that changes.) */}
+              {b.status === 'active' && !returnOwed(b) && (
                 <Pressable
                   onPress={(e) => { e.stopPropagation(); openLive(b.id); }}
                   style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                   accessibilityRole="button"
                 >
-                  <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                  <Text style={s.liveInk}>● 실시간 보기 ›</Text>
                 </Pressable>
               )}
             </View>
@@ -672,8 +701,11 @@ export default function Schedule() {
                   : `다가오는 ${upcomingCount}건 · 전체 ${liveBookings.length}건`}
             </Text>
           </View>
-          {/* ＋ = 백버튼 문법의 스퀘어 (40×40 · 캔버스 면 · 1px 코랄 · 잉크 글리프) */}
-          <Pressable onPress={() => router.push('/owner/request')} style={s.circleBtn}
+          {/* ＋ = 백버튼 문법의 스퀘어 (40×40 · 캔버스 면 · 1px 코랄 · 잉크 글리프)
+              [fix/owner-inflight-truth · less-is-more-1] Drawn exactly like the back key, so it is
+              NOT the empty state's only door any more — see the labelled button under 「예정된
+              러닝이 없어요」. Both go through `startNewBooking`. */}
+          <Pressable onPress={startNewBooking} style={s.circleBtn}
             accessibilityRole="button" accessibilityLabel="러닝 예약하기">
             <Text style={{ fontSize: 19.5, color: paper.ink }}>＋</Text>
           </Pressable>
@@ -688,8 +720,14 @@ export default function Schedule() {
             ⚠ 여기에 인계 CTA 는 없다. 도착에서 무엇이 켜지는가(A/B)는 Sean 의 재정 대기이고
             (docs/decisions/handoff-cta-gating.md), 밴드는 그 재정을 앞질러 결정하지 않는다 — 사실만
             말하고, 행 전체가 관리 시트로 가는 문이다.
-            색은 이 파일의 기존 라이브 어휘 그대로(#ffe9e2 면 · #ffc9b8 선 · #d84a2f 잉크 = "라이브는
-            상태색이지 버튼 스타일이 아니다") + 볼트 레일. 목록에는 여전히 코랄 표면이 0개다. */}
+            색은 이 파일의 기존 라이브 어휘 그대로(#ffe9e2 면 · #ffc9b8 선 = "라이브는
+            상태색이지 버튼 스타일이 아니다") + 볼트 레일. 목록에는 여전히 코랄 표면이 0개다.
+            [fix/owner-inflight-truth · ui-consistency-7] The label INK is paper.actionInk now (s.liveInk):
+            the old coral text measured 3.64:1 on the #ffe9e2 face, below AA for a 16/900 label (not
+            large text); actionInk is 5.72:1 in the same coral family. Face and border are unchanged.
+            [owner-journey-2] The row's sentence and its live door come from `nowBandLine`
+            (src/lib/home-hero-route.ts, pinned): an `active` row whose run has ENDED says the return
+            sentence the hero says — no elapsed clock, no 실시간 보기, no VoiceOver live action. */}
         {liveNow.length > 0 && (
           <View style={s.nowBand}>
             <Row style={{ gap: 6 }}>
@@ -697,19 +735,10 @@ export default function Schedule() {
               <View style={s.livePillSm}><Text style={{ fontSize: 15, fontWeight: '900', color: '#fff' }}>● LIVE</Text></View>
             </Row>
             {liveNow.map((b, i) => {
-              // 경과·대기는 실소인에서만 온다. 없으면(또는 1분 미만이면) 절이 통째로 빠진다.
-              const el = b.rawStatus === 'active' ? elapsedLabel(b.startedAt) : null;
-              const wait = b.rawStatus === 'runner_enroute' && b.arrivedAt ? elapsedLabel(b.arrivedAt) : null;
-              const line = b.rawStatus === 'active'
-                ? `${b.dogName}가 ${b.runnerName} 러너와 ${el ? `${el}째 ` : ''}달리는 중이에요`
-                : b.rawStatus === 'picked_up'
-                  ? `${b.runnerName} 러너가 ${b.dogName}를 데리고 있어요`
-                  : b.arrivedAt
-                    ? `${b.runnerName} 러너가 도착했어요${wait ? ` · ${wait}째 문 앞이에요` : ''}`
-                    : `${b.runnerName} 러너가 픽업으로 이동 중이에요`;
-              const sub = b.rawStatus === 'picked_up'
-                ? '출발하면 실시간으로 볼 수 있어요'
-                : `${b.routeName} · ${bookingKmLabel(b.km)}`;
+              // 경과·대기는 실소인에서만 온다. 없으면(또는 1분 미만이면) 절이 통째로 빠진다 (nowBandLine).
+              const band = nowBandLine(b);
+              const line = band.line;
+              const sub = band.sub ?? `${b.routeName} · ${bookingKmLabel(b.km)}`;
               return (
                 <Pressable
                   key={b.id}
@@ -717,20 +746,20 @@ export default function Schedule() {
                   style={({ pressed }) => [i > 0 && s.nowRowDiv, pressed && { backgroundColor: paper.wash }]}
                   accessibilityRole="button"
                   accessibilityLabel={line}
-                  accessibilityActions={b.rawStatus === 'active' ? LIVE_A11Y_ACTIONS : undefined}
-                  onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'live') openLive(b.id); }}
+                  accessibilityActions={band.liveDoor ? LIVE_A11Y_ACTIONS : undefined}
+                  onAccessibilityAction={(e) => { if (band.liveDoor && e.nativeEvent.actionName === 'live') openLive(b.id); }}
                 >
                   <Text style={s.nowT}>{line}</Text>
                   <Text style={s.nowS}>{sub}</Text>
                   {/* 실시간 지도는 러닝이 실제로 시작된 뒤에만 존재한다 — picked_up 은 아직 출발 전이라
                       버튼이 없고, 그 사실을 위 서브라인이 말한다 (없는 화면으로 보내는 버튼 금지). */}
-                  {b.rawStatus === 'active' && (
+                  {band.liveDoor && (
                     <Pressable
                       onPress={(e) => { e.stopPropagation(); openLive(b.id); }}
                       style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                       accessibilityRole="button" accessibilityLabel="실시간 보기"
                     >
-                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
+                      <Text style={s.liveInk}>● 실시간 보기 ›</Text>
                     </Pressable>
                   )}
                 </Pressable>
@@ -792,6 +821,15 @@ export default function Schedule() {
                   ? '지금 진행 중인 러닝 외에는 일정이 없어요'
                   : '이 조건의 일정이 없어요'}
             </Text>
+            {/* [fix/owner-inflight-truth · less-is-more-1] The TRUE empty (no bookings at all) gets
+                one labelled way forward. Its only door was the header ＋ — a glyph drawn exactly
+                like the back key (DESIGN.md chrome header). A filtered or band-only empty stays
+                text: there, the owner has bookings and the chips/band are the way forward. This is
+                not the retired footer CTA (less-is-more-18): that one drew unconditionally, under
+                every list; this exists only when there is nothing else on the screen to do. */}
+            {liveBookings.length === 0 && (
+              <PaperBtn label="러닝 예약하기" style={{ marginTop: 14 }} onPress={startNewBooking} />
+            )}
           </View>
         )}
         {/* [B①] 다가오는 순서 → 지난 일정 구분선 → 지난 것들. 카드 본체는 한 벌이다
@@ -1128,7 +1166,27 @@ export default function Schedule() {
                   )}
 
                   {/* actions — 상태별: 진행 중엔 라이브만, 완료엔 기록만, 시작 전에만 변경·취소 */}
-                  {selected.status === 'active' ? (
+                  {/* [fix/owner-inflight-truth · owner-journey-2] The RETURN phase comes before the
+                      live arm. `active` + `run_ended_at` is a run that has ENDED: 「러닝이 진행 중이에요」
+                      and a live map were false, and the one thing owed — the owner's return stamp,
+                      which lives on the bid-scoped report (⑫, 0188) — had no door here. The sentence
+                      is the hero's (`returnSentence`); the no-cancel note stays, because the server
+                      refuses a cancel in this phase exactly as it does mid-run. */}
+                  {selected.status === 'active' && returnOwed(selected) ? (
+                    <>
+                      <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10, lineHeight: 20 }}>
+                        러닝이 끝났어요 — {returnSentence(`${selected.runnerName} 러너`, selected.dogName)}
+                      </Text>
+                      <PaperBtn
+                        label="반환 확인하기"
+                        style={{ marginTop: 6 }}
+                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                      />
+                      <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
+                        이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
+                      </Text>
+                    </>
+                  ) : selected.status === 'active' ? (
                     <>
                       <Pressable
                         style={({ pressed }) => [s.primaryAction, { backgroundColor: '#ffe9e2', borderWidth: 1, borderColor: '#ffc9b8', transform: [{ scale: pressed ? 0.96 : 1 }] }]}
@@ -1136,10 +1194,13 @@ export default function Schedule() {
                         accessibilityRole="button"
                         accessibilityLabel="실시간 보기"
                       >
-                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
+                        {/* [ui-consistency-7] actionInk on the #ffe9e2 face — the old ink and sub ink
+                            measured 3.64:1 and 3.57:1; actionInk is 5.72:1. The face is Sean's
+                            2026-08-26 live-state keep and is untouched. */}
+                        <Text style={{ fontSize: 16.5, fontWeight: '900', color: paper.actionInk }}>● 실시간 보기</Text>
                         {/* [정직 배치 2.5 · Sean D3=B] 앱 전체에서 바디캠을 '앞으로'라고 말하는 자리는 여기 한 곳뿐 */}
-                        <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
-                        <Text style={{ fontSize: 15, color: '#b06a56', marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
+                        <Text style={{ fontSize: 15, color: paper.actionInk, marginTop: 2 }}>러닝이 진행 중이에요 — GPS 경로를 실시간으로 지켜보세요</Text>
+                        <Text style={{ fontSize: 15, color: paper.actionInk, marginTop: 2 }}>바디캠 뷰는 준비 중이에요</Text>
                       </Pressable>
                       <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
@@ -1161,14 +1222,15 @@ export default function Schedule() {
                         style={{ marginTop: 16 }}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                       />
-                      {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
-                      <Pressable
-                        style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                      {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅)
+                          [ui-consistency-10] quiet, not secondary: an optional flourish beside the
+                          report primary, and the rebook row under it already wears secondary. */}
+                      <PaperBtn
+                        label="인증샷 만들기"
+                        variant="quiet"
+                        style={{ marginTop: 8 }}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid, shot: '1' } }); }}
-                        accessibilityRole="button"
-                      >
-                        <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>인증샷 만들기</Text>
-                      </Pressable>
+                      />
                       {rebookRow}
                     </>
                   ) : selected.status === 'cancelled' ? (
@@ -1198,6 +1260,19 @@ export default function Schedule() {
                           ? '불발로 처리된 일정이에요 — 이 예약으로 더 진행할 작업은 없어요'
                           : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
                       </Text>
+                      {/* [fix/owner-inflight-truth · owner-journey-1] A review whose run ENDED
+                          (`run_ended_at`) is 0226's unstamped return: nobody confirmed it, and the
+                          owner's stamp is still accepted (`confirm_return_tx` takes incident_review,
+                          0096 §2; the report's ⑫ allow-list draws it). This was reachable only from
+                          the push. The case sentence above stays true — a person is looking — and
+                          the owner's own half is one tap away. */}
+                      {returnOwed(selected) && (
+                        <PaperBtn
+                          label="반환 확인하기"
+                          style={{ marginTop: 6 }}
+                          onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                        />
+                      )}
                       {selected.rawStatus === 'no_show' ? rebookRow : null}
                     </>
                   ) : (
@@ -1240,18 +1315,19 @@ export default function Schedule() {
                           서버도 matching/runner_pending에서만 request_runner를 받는다.
                           예전엔 /owner/request로 되돌려 두 번째 예약을 만들었고 dog_slot_clash에 걸렸다. */}
                       {(selected.rawStatus === 'matching' || selected.rawStatus === 'runner_pending') && (
-                        <Pressable
-                          style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                          onPress={() => {
-                            draft.bookingId = selected.id;
-                            close();
-                            router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '', pace: selected.paceLabel ?? '' } });
-                          }}
-                          accessibilityRole="button"
-                        >
-                          <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>러너 변경</Text>
-                          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
-                        </Pressable>
+                        <>
+                          <PaperBtn
+                            label="러너 변경"
+                            variant="secondary"
+                            style={{ marginTop: 8 }}
+                            onPress={() => {
+                              draft.bookingId = selected.id;
+                              close();
+                              router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '', pace: selected.paceLabel ?? '' } });
+                            }}
+                          />
+                          <Text style={s.btnSub}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
+                        </>
                       )}
                       {/* [0066] 이동 중 취소가 서버 전이로 열렸다(runner_enroute → cancelled_owner,
                           50% 수수료 = 러너 보상) — 숨김 게이트 은퇴. 링크 라벨이 티어를 예고하고,
@@ -1567,7 +1643,12 @@ const s = StyleSheet.create({
   // 라이브 면만 남는 이유는 Sean 2026-08-26 의 기록 그대로다 — 라이브는 상태색이지 버튼
   // 스타일이 아니고, 창백한 워시 아래 코랄 립은 다른 버튼이 된다.
   primaryAction: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 16 },
-  ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE', alignItems: 'center', paddingVertical: 13, marginTop: 8 },
+  // [ui-consistency-10] `ghostAction` (a fourth secondary style: '#fff' face · '#EEE' border · ink
+  // label) is retired — its three doors are PaperBtn now. A door's sub-line sits under the button.
+  btnSub: { fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 },
+  // [ui-consistency-7] The live label ink on the #ffe9e2 face — paper.actionInk (5.72:1), not the
+  // retired coral text (3.64:1). 16/900 is below the large-text threshold, so AA needs 4.5.
+  liveInk: { fontSize: 16, fontWeight: '900', color: paper.actionInk },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   cancelConfirm: { backgroundColor: paper.critical, alignItems: 'center', paddingVertical: 15, marginTop: 16 }, // 크리티컬 잉크 — 구 #e8492a는 line과 근친이라 분리 법 위반
 });

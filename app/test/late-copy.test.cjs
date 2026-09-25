@@ -58,7 +58,11 @@ const exactCases = [
     late: L({ custody: 'post', started: true }), side: 'owner', names: {},
     // [F2 2026-08-24] same strike, and this branch is the one F2 actually reaches: status
     // 'active' is exactly what arm ⓐ flips to incident_review mid-run.
-    expected: { kick: '직접 확인해주세요', head: '반려견가 아직\n돌아오지 않았어요', tone: 'critical',
+    // [fix/owner-inflight-truth · copy-hierarchy-1] This expectation USED TO READ 「반려견가」 — it
+    // pinned the defect: the fallback ends in a consonant, so the particle is 이. late-copy.ts now
+    // routes every particle after the dog's name through particle.ts; test/particle.test.cjs owns
+    // the particle rule itself, and this row is the call-site half on the fallback name.
+    expected: { kick: '직접 확인해주세요', head: '반려견이 아직\n돌아오지 않았어요', tone: 'critical',
       strip: '러너에게 연락하거나 긴급 도움을 요청하세요.' },
   },
   {

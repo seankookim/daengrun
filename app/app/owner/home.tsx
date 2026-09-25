@@ -20,8 +20,10 @@ import { type ChatUnreadState } from '../../src/lib/chat-read';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { heroPick, heroState, returnOwed, scheduleDoor } from '../../src/lib/home-hero-route';
 import { kstCal } from '../../src/lib/kst';
 import { lateness } from '../../src/lib/lateness';
+import { withParticle } from '../../src/lib/particle';
 import { registerPushToken } from '../../src/lib/push';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
 // [정직 배치 2026-08-06 · item 5] 목업 dog(초코 상수)·runners 임포트 퇴역 — 홈은 실데이터만 읽는다
@@ -185,6 +187,9 @@ export default function OwnerHome() {
   // 메모리에 들고 있으면서 하나만 쓰고 나머지를 버렸다 — 새 읽기 0개, 새 필드 0개.
   // 빈 배열이면 레일 자체가 렌더되지 않는다: 예약이 하나뿐인 계정에서 레일은 히어로를 되풀이할 뿐이다.
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
+  // [owner-journey-1] An `incident_review` booking with nothing for the owner to stamp. Only the
+  // empty hero reads it, to stop saying 「비어 있어요」 while a case is open (heroPick().review).
+  const [reviewRow, setReviewRow] = useState<Booking | null>(null);
   // [honesty 2026-08-11] fitErr와 같은 모델 — 예약 로드 실패가 "예정된 러닝이 없어요"로
   // 분장하던 것 교정. 로딩/실패/실빈을 히어로가 구분해 말한다.
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
@@ -220,38 +225,17 @@ export default function OwnerHome() {
         const rows = inFlight.length
           ? [...bs.map((b) => liveById.get(b.id) ?? b), ...inFlight.filter((b) => !seen.has(b.id))]
           : bs;
-        // 가장 액션 가능한 예약 우선: active > handoff > confirmed > pending —
-        // 스테일 '매칭 중'이 확정 러닝(인계 확인)을 가리는 사고 방지
-        const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
-        // [FIX] 동순위 타이브레이크 — bs는 scheduled_at DESC로 오고 Array.sort는 안정 정렬이라
-        // 같은 RANK 안에선 [0]이 '가장 먼 미래' 건이었다(모레 확정이 오늘 확정을 가림).
-        // 2차 키 = 미래 우선, 3차 = scheduledAt 오름차순 → 같은 순위면 '다가오는' 가장 임박한 건이
-        // 이긴다. 지난 건(6h 유예 — 지연 시작 케이스)은 뒤로 — 안 그러면 오름차순이 '가장 오래된
-        // 과거 잔재'를 NEXT RUN으로 박제한다 (confirmed엔 만료 크론이 없다 — 리뷰 P1). 없으면 맨 뒤.
-        const at = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) : Number.MAX_SAFE_INTEGER);
-        const past = (b: Booking) => (b.scheduledAt ? Date.parse(b.scheduledAt) < Date.now() - 6 * 3_600_000 : false);
-        // [정직] no_show·incident_review는 STATUS_MAP에 없어 'pending'으로 떨어진다 — 그대로 두면
-        // 히어로가 '지명 대기'라고 거짓말한다(불발·확인 중은 다가오는 러닝이 아니다).
-        // 이 두 원상태의 정직한 표시(불발 / 확인 중)는 일정 화면이 rawStatus로 전담한다 → NEXT에서 제외.
-        const stale = (b: Booking) => b.rawStatus === 'no_show' || b.rawStatus === 'incident_review';
-        const next = rows.filter((b) => b.status in RANK && !stale(b))
-          .sort((a, b) => RANK[a.status] - RANK[b.status] || Number(past(a)) - Number(past(b)) || at(a) - at(b))[0] ?? null;
-        setLiveNext(next);
-        // [A①] 히어로가 고른 행을 뺀 **다가오는** 예약 2건. 규칙 네 개, 전부 이미 있는 값으로:
-        //   ① 히어로의 행은 제외 — 레일은 정보지, 히어로의 메아리가 아니다.
-        //   ② 예정 시각이 미래인 행만 — 지난 건은 히어로의 지각 문장과 일정 화면의 몫이다.
-        //   ③ confirmed·pending 만 — 진행 중(handoff·active)은 히어로/라이브 위젯이 이미 말하고 있고,
-        //      레일 행에 코랄이나 라이브 어휘를 들이면 '내 차례'가 두 곳에서 켜진다.
-        //   ④ no_show·incident_review 는 히어로와 같은 stale() 로 제외 — 다가오는 러닝이 아니다.
-        // 가까운 순으로 2건. (#17 이후 창이 없으므로 이 정렬은 무조건 참이다.)
-        const nowMs = Date.now();
-        setUpcoming(
-          rows.filter((b) => b.id !== next?.id && !stale(b)
-            && (b.status === 'confirmed' || b.status === 'pending')
-            && !!b.scheduledAt && Date.parse(b.scheduledAt) > nowMs)
-            .sort((a, b) => at(a) - at(b))
-            .slice(0, 2),
-        );
+        // [fix/owner-inflight-truth · owner-journey-1] The pick moved to `heroPick`
+        // (src/lib/home-hero-route.ts) so a suite can hold it — the ranking (active > handoff >
+        // confirmed > pending), the 6h past-slot tiebreak and the rail's four rules are unchanged
+        // and documented there. What changed is ONE row shape: an `incident_review` booking whose
+        // run has ENDED (`run_ended_at`) is the owner's owed return and ranks like `active`; it
+        // used to be dropped with every other review, leaving 「비어 있어요」 over an unconfirmed
+        // return. A review with nothing owed is still not the hero — it comes back as `review`.
+        const pick = heroPick(rows);
+        setLiveNext(pick.next);
+        setUpcoming(pick.upcoming);
+        setReviewRow(pick.review);
         // completed는 IN_FLIGHT에 없으므로 rows와 bs가 같은 답을 준다 — 한 값을 읽게 rows로 통일.
         setLastDone(rows.find((b) => b.status === 'completed') ?? null);
         setBookingsLoaded(true);
@@ -381,7 +365,9 @@ export default function OwnerHome() {
   // [0188] `active` is no longer one phase. `run_ended_at` stamped means the run has ENDED and the
   // two-stamp return is open — an elapsed clock there counts a run that is over, off
   // `runs.started_at`, forever.
-  const returning = liveNext?.status === 'active' && !!liveNext.runEndedAt;
+  // [owner-journey-1] `returnOwed` — `active` OR `incident_review`, with `run_ended_at`. Gated on the
+  // server word: an `incident_review` row carries the display word 'pending'.
+  const returning = !!liveNext && returnOwed(liveNext);
   const runElapsed = liveNext?.status === 'active' && !returning ? elapsedLabel(liveNext.startedAt) : null;
   // [T6] 히어로가 '누구를 기다리다 늦었는지'를 말할 수 있게 판정을 넘긴다. 시계를 스스로 갖는 함수이고(기본값 Date.now) —
   // liveNext 가 이미 싣고 온 필드만 읽으므로 왕복이 늘지 않는다 (src/lib/lateness.ts).
@@ -424,16 +410,10 @@ export default function OwnerHome() {
   // liveNext는 이미 active > handoff > confirmed > pending 로 랭크된 '가장 액션 가능한 실예약'이고,
   // pending은 matched 여부로 오픈 브로드캐스트(searching) / 지명 대기(directed)로 갈린다.
   // → 여섯 상태가 상호 배타 + 빈틈 없음. 예약이 없으면 'none'. 데드 상태 없음.
-  const fnSearching = liveNext?.status === 'pending' && !liveNext.matched;
-  const fnDirected = liveNext?.status === 'pending' && !!liveNext.matched;
-  const goState: GoState =
-    returning ? 'returning'
-      : liveNext?.status === 'active' ? 'active'
-      : liveNext?.status === 'handoff' ? 'handoff'
-        : liveNext?.status === 'confirmed' ? 'confirmed'
-          : fnDirected ? 'directed'
-            : fnSearching ? 'searching'
-              : 'none';
+  // [fix/owner-inflight-truth] The ladder moved to `heroState` (home-hero-route.ts), arm for arm, so
+  // the `returning`-before-display-word order is pinned: an `incident_review` row reads 'pending'
+  // and would otherwise become 「지명 대기」.
+  const goState: GoState = heroState(liveNext);
 
   // HIG A3 — `active` is the one hero state `home-hero.tsx` deliberately stays silent on, because
   // its hero is the live widget below rather than the chip/phrase pair the hero announces. Same
@@ -445,7 +425,7 @@ export default function OwnerHome() {
   // frame that is not on screen.
   const liveHeroSentence = goState !== 'active' || !liveNext
     ? null
-    : `LIVE · ${liveNext.runnerName ?? '러너'} 러너 · ${liveNext.dogName ?? dogName ?? '아이'}가 달리는 중이에요`;
+    : `LIVE · ${liveNext.runnerName ?? '러너'} 러너 · ${withParticle(liveNext.dogName ?? dogName ?? '아이', '가/이')} 달리는 중이에요`;
   useAnnounceOnChange(liveHeroSentence);
 
   // ── 리워드 비컨 (rewards ①, Sean 승인 2026-08-05) — 실데이터만 ──────────────────────────
@@ -463,10 +443,11 @@ export default function OwnerHome() {
       ] ?? null
     : null;
 
-  // ── 다음 일정 레일의 문 — 행도 헤더 링크도 같은 목적지다 (A①). 일정 화면이 이 예약들의 관리
-  // 시트를 갖고 있으므로 죽은 버튼이 아니다. 행별 프리셀렉트는 파라미터 왕복이 필요해 이 슬라이스
-  // 밖이다 — 반쯤 되는 딥링크보다 확실한 목적지 하나가 낫다.
-  const openSchedule = () => { haptic('light'); router.push('/owner/schedule'); };
+  // ── 다음 일정 레일의 문 (A①). [fix/owner-inflight-truth · owner-journey-5] The deferral that stood
+  // here ("per-row preselect needs a param round trip — out of this slice") is paid: 내 일정 now
+  // reads `bid` and opens that booking's sheet once (home-hero-route.ts `deepLinkStep`). A ROW
+  // carries its booking; the header's 「전체 ›」 is the whole list and stays bare.
+  const openSchedule = (bid?: string) => { haptic('light'); router.push(scheduleDoor(bid)); };
 
   // ── 지난번처럼 다시 예약 — PMF 게이트(M1 재예약 60%)라 '오늘' 덩어리 안, 화면 위쪽에 앉는다.
   // 프리필은 실 마지막 완료 러닝에서만 온다 (km · 페이스 · 그 러너). 시각은 비워서 request가 묻는다.
@@ -597,6 +578,8 @@ export default function OwnerHome() {
             // primary CTA whenever this fetch simply failed or had not returned yet.
             onlineRunners={localRunners === null ? null : localRunners.length}
             chatUnread={chatUnread}
+            // [owner-journey-1] Read by the empty frame only — see the prop's note in home-hero.tsx.
+            onOpenReview={reviewRow ? () => openSchedule(reviewRow.id) : null}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             relLabel={relLabel}
@@ -617,7 +600,7 @@ export default function OwnerHome() {
                     에서만 온다 — 예약 시각으로 재면 20분 늦게 출발한 러닝이 20분 더 달린 것이 된다
                     (lateness.ts:147 이 같은 이유로 폴백을 금지한다). started_at 이 없거나 1분 미만이면
                     절이 통째로 빠진다: 문장은 여전히 참이고, 숫자만 없다. */}
-                <Text style={{ fontSize: 15, color: '#B9B3D9', marginTop: 8, lineHeight: 21 }}>{liveNext.runnerName ?? '러너'} 러너 · {liveNext.dogName ?? dogName ?? '아이'}가 {runElapsed ? `${runElapsed}째 ` : ''}달리는 중이에요 — 지도 보기 ›</Text>
+                <Text style={{ fontSize: 15, color: '#B9B3D9', marginTop: 8, lineHeight: 21 }}>{liveNext.runnerName ?? '러너'} 러너 · {withParticle(liveNext.dogName ?? dogName ?? '아이', '가/이')} {runElapsed ? `${runElapsed}째 ` : ''}달리는 중이에요 — 지도 보기 ›</Text>
               </Pressable>
             ) : null}
           />
@@ -645,7 +628,7 @@ export default function OwnerHome() {
             레일 행은 정보지 내 차례가 아니고, 코랄은 화면당 하나다. */}
         {upcoming.length > 0 && (
           <View>
-            <ModH title="다음 일정" link="전체 ›" onLink={openSchedule} />
+            <ModH title="다음 일정" link="전체 ›" onLink={() => openSchedule()} />
             <View style={s.upRail}>
               {upcoming.map((b) => {
                 const n = b.scheduledAt ? kstDayDiff(b.scheduledAt) : null;
@@ -653,7 +636,7 @@ export default function OwnerHome() {
                 return (
                   <Pressable
                     key={b.id}
-                    onPress={openSchedule}
+                    onPress={() => openSchedule(b.id)}
                     style={({ pressed }) => [s.upRow, pressed && { backgroundColor: paper.wash }]}
                     accessibilityRole="button"
                     accessibilityLabel={`${b.dateLabel} ${b.timeLabel} 예약 — 일정에서 보기`}
@@ -682,11 +665,16 @@ export default function OwnerHome() {
         {/* ══════════════════ 오늘 ══════════════════
             진행 중인 러닝이 있으면 이 덩어리는 통째로 없다 — 히어로의 알림 줄이 곧 티켓이다
             (v2 랩의 searching/directed/confirmed/handoff/active 프레임에 오늘 덩어리가 없는 이유).
-            로딩·실패도 마찬가지: 히어로가 이미 그렇게 말하고 있다. 중복 에러 스트립 금지. */}
-        {goState === 'none' && bookingsLoaded && !bookingsErr && (
+            로딩·실패도 마찬가지: 히어로가 이미 그렇게 말하고 있다. 중복 에러 스트립 금지.
+            [fix/owner-inflight-truth · less-is-more-6] The chunk's opening sentence is GONE and the
+            chunk now exists only when there is a last run to repeat. The empty hero already says
+            「empty」 twice (chip + headline); a third line said it again — and with an open
+            `incident_review` it was false (owner-journey-1). With no `lastDone` the chunk was that
+            one sentence and a kicker, so the kicker goes with it. Loading and failure were already
+            gated out, so this cannot hide either. */}
+        {goState === 'none' && bookingsLoaded && !bookingsErr && lastDone && (
           <View>
             <ChunkKick label="오늘" />
-            <Text style={s.quiet}>예정된 러닝이 없어요</Text>
             {/* 지난번처럼 — 재예약은 PMF 게이트(M1 60%)라 아홉 번째가 아니라 여기 앉는다.
                 조용한 행 하나(잉크/딤, 코랄 없음): 무게는 히어로의 '지금 찾기'가 독점한다. */}
             {lastDone && (
@@ -799,7 +787,11 @@ export default function OwnerHome() {
         )}
         {(localRunners?.length ?? 0) > 0 && (
           <View>
-            <ModH title="대기 중인 러너" link="주간 랭킹 ›" onLink={() => router.push('/leaderboard')} />
+            {/* [fix/owner-inflight-truth · less-is-more-5] No trailing link. 「주간 랭킹 ›」 under a
+                RUNNER roster opened the leaderboard on its default DOGS tab (leaderboard.tsx) — a
+                dog-distance board announced by a list of people. The ticker above and
+                community.tsx remain the leaderboard's doors. */}
+            <ModH title="대기 중인 러너" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 9, paddingLeft: layout.gutter, paddingRight: 12 }}>
               {(localRunners ?? []).map((r) => (
                 <Pressable
@@ -823,7 +815,11 @@ export default function OwnerHome() {
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 9, alignItems: 'baseline', borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 8 }}>
-                    <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}<Text style={{ fontSize: 15, color: lilac.dim }}> RUNS</Text></Text>
+                    {/* [copy-hierarchy-9] 「회 러닝」, not a latin 「RUNS」 — the unit is the only
+                        word in this pair, and it is read, not decoration. The number keeps Oswald
+                        as a NESTED span (the fitness row's idiom): Oswald has no Hangul glyphs, so
+                        the Korean unit must not inherit it. */}
+                    <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.dim }}><Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }, nf]}>{r.totalRuns}</Text>회 러닝</Text>
                     {r.paceLabel != null && (
                       <Text style={[{ fontSize: 15, lineHeight: 20, fontWeight: '900', color: lilac.head }, nf]}>{r.paceLabel}</Text>
                     )}
@@ -1041,8 +1037,6 @@ const s = StyleSheet.create({
     fontSize: 19, lineHeight: 25, fontWeight: '800', color: paper.dim, letterSpacing: 1,
     marginTop: 30, marginBottom: 6, paddingHorizontal: layout.gutter,
   },
-  // 덩어리 안의 조용한 한 줄 (예: "예정된 러닝이 없어요") — [2026-08-25] 14/20 → 15/21
-  quiet: { fontSize: 15, lineHeight: 21, color: paper.dim, paddingHorizontal: layout.gutter },
   // 모듈 헤더 — 15/800 잉크 타이틀 + 딤 트레일 링크, 한 베이스라인 행. 코랄 룰 없음.
   modh: {
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8,
