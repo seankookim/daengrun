@@ -246,7 +246,6 @@ const KNOWN_SPACED = {
   // runner/rewards.tsx's form (the client courtesy check and the server's refusal), so normalising
   // this half alone would spell one refusal two ways on one screen. Flips WITH api.ts.
   'src/lib/gear-claim-form.ts': 3,
-  'app/runner/rewards.tsx': 1,     // held by ui/chrome-consistency-2
 };
 const spacedIn = (stripped) => {
   const hits = []; let m; const re = new RegExp(SPACED.source, 'g');

@@ -8,6 +8,7 @@ import {
   fetchIncidentOutcome, fetchIncidentRunContext, fetchOpenIncident, openBookingIncident, verifyBookingIncident,
   IncidentKind, IncidentOutcome, IncidentRunContext, IncidentSeverity, OpenIncident, NOT_FOUND,
 } from '../../src/lib/api';
+import { alertFail } from '../../src/lib/alert-fail';
 import { incidentOutcomeFace } from '../../src/lib/incident-outcome';
 import { haptic } from '../../src/lib/haptics';
 import { paper, secTitle } from '../../src/theme';
@@ -58,20 +59,24 @@ const SEVERITY_LABEL: Record<string, string> = { normal: '보통', urgent: '급�
 const SEVERITIES: IncidentSeverity[] = ['normal', 'urgent', 'sos'];
 
 /** 접수 RPC 의 raise 를 사람 문장으로. ⚠ `booking_not_reportable` 의 문장은 서버가 detail 에
- *  달아둔 것과 **같은 문장**이다 (0114 §3 ⑥) — 두 벌을 쓰면 언젠가 서로 다른 주장을 하게 된다. */
-const openFailMessage = (m: string): string =>
-  m.includes('booking_not_reportable') ? '수락 전이거나 종료된 예약에는 사고를 접수할 수 없어요'
-  : m.includes('not_party') ? '이 러닝의 당사자만 접수할 수 있어요'
-  : m.includes('not_found') ? '이 러닝을 찾을 수 없어요'
-  : m;
+ *  달아둔 것과 **같은 문장**이다 (0114 §3 ⑥) — 두 벌을 쓰면 언젠가 서로 다른 주장을 하게 된다.
+ *  [fix/alert-fold-copy 2026-09-25] Was a ternary whose last arm returned the raw message — so
+ *  anything not named here (PostgREST, network) reached the alert in English. It is now the token
+ *  table `foldRpcError` matches (same substring rule, longest token first), and the unnamed rest
+ *  folds instead of leaking. */
+const OPEN_FAIL_KO: Record<string, string> = {
+  booking_not_reportable: '수락 전이거나 종료된 예약에는 사고를 접수할 수 없어요',
+  not_party: '이 러닝의 당사자만 접수할 수 있어요',
+  not_found: '이 러닝을 찾을 수 없어요',
+};
 
 /** 확인 RPC 의 raise. `incident_resolved` 와 `not_party` 는 서로 다른 사실이므로 문장도 다르다
  *  (0094 §10 이 서버 쪽에서 같은 규율을 지킨다). */
-const verifyFailMessage = (m: string): string =>
-  m.includes('incident_resolved') ? '이미 해소된 사고예요'
-  : m.includes('not_party') ? '이 러닝의 당사자만 확인할 수 있어요'
-  : m.includes('not_found') ? '사고 기록을 찾을 수 없어요'
-  : m;
+const VERIFY_FAIL_KO: Record<string, string> = {
+  incident_resolved: '이미 해소된 사고예요',
+  not_party: '이 러닝의 당사자만 확인할 수 있어요',
+  not_found: '사고 기록을 찾을 수 없어요',
+};
 
 export default function IncidentScreen() {
   const insets = useSafeAreaInsets();
@@ -124,12 +129,12 @@ export default function IncidentScreen() {
       // 접수와 알림은 두 개의 사실이다 — 알림이 실패했거나 애초에 닫혀 있었으면 그렇게 말한다.
       // 접수 자체는 성공했으므로 어느 쪽도 '접수 실패' 가 아니다.
       if (r.notify === 'failed') {
-        Alert.alert('접수됐어요', '상대방에게 알림을 보내지 못했어요 — 채팅으로 알려주세요');
+        Alert.alert('접수 완료', '상대방에게 알림을 보내지 못했어요 — 채팅으로 알려주세요');
       } else if (r.notify === 'unavailable') {
-        Alert.alert('접수됐어요', '이 예약은 알림이 닫혀 있어요 — 상대방에게 따로 알려주세요');
+        Alert.alert('접수 완료', '이 예약은 알림이 닫혀 있어요 — 상대방에게 따로 알려주세요');
       }
     } catch (e) {
-      Alert.alert('접수 실패', openFailMessage((e as Error).message ?? ''));
+      alertFail('접수 실패', e, null, { fold: { tokens: OPEN_FAIL_KO } });
     } finally {
       setBusy(false);
     }
@@ -143,7 +148,7 @@ export default function IncidentScreen() {
       haptic(r.verified ? 'success' : 'light'); // 양측 확정은 다른 사건이라 다른 감촉
       await load();
     } catch (e) {
-      Alert.alert('확인 실패', verifyFailMessage((e as Error).message ?? ''));
+      alertFail('확인 실패', e, null, { fold: { tokens: VERIFY_FAIL_KO } });
     } finally {
       setBusy(false);
     }

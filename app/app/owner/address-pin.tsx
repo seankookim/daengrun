@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row, ScreenHead } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../src/lib/api';
 import { BANPO, getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
@@ -174,7 +175,7 @@ export default function AddressPin() {
       haptic('success');
     } catch (e) {
       // 조용한 실패 금지 — 보호자는 러너가 읽을 문장을 바꿨다고 믿는다 (addresses.tsx와 같은 문장)
-      Alert.alert('메모 저장 실패', (e as Error).message);
+      alertFail('메모 저장 실패', e);
     } finally { setNoteBusy(false); }
   };
 

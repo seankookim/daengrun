@@ -10,6 +10,7 @@ import { HeatTrace } from '../../src/components/runcard';
 import { traceToBox } from '../../src/lib/trace';
 import { getNaverMap } from '../../src/lib/geo';
 import { fetchRouteById } from '../../src/lib/api';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { goBackOrHome } from '../../src/lib/nav';
 import { useReducedMotion } from '../../src/lib/reducedMotion';
@@ -206,7 +207,12 @@ export default function CourseScreen() {
     // 없음'으로 뜬다. 없는 코스(null)와 불러오기 실패(throw)는 다른 사실이라 분기도 다르다.
     fetchRouteById(id)
       .then((r) => { if (r) setRoute(r); else setErr({ msg: '코스를 찾을 수 없어요', retry: false }); })
-      .catch((e) => setErr({ msg: e?.message ?? '코스를 불러오지 못했어요', retry: true }));
+      // Folded: a failed READ used to print PostgREST's English as this box's headline, and the
+      // `??` sentence was dead on an Error (fix/alert-fold-copy 2026-09-25).
+      .catch((e) => {
+        console.warn('[course] load:', rpcRaw(e));
+        setErr({ msg: foldRpcError(e, { empty: '코스를 불러오지 못했어요' }).message, retry: true });
+      });
     // 사진은 CourseDetailBody가 소유한다 (실패해도 코스는 뜬다)
   }, [id]);
   useEffect(() => { load(); }, [load]);

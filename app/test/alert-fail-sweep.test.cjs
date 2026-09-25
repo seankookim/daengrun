@@ -9,7 +9,8 @@
 //     EXECUTED here: the real alert-fail.ts is bundled (run-alert-fail-sweep-tests.sh) with
 //     `react-native` external and a recording stand-in for `Alert`.
 //   Ⓑ the sweep — no route or component passes a raw `.message` into an `Alert.alert` title or
-//     body, outside a shrinking per-file ledger whose every line names who holds the file. This is
+//     body (or an `alertFail` title or tail), outside a shrinking per-file ledger whose every line
+//     names who holds the file. This is
 //     a SOURCE read, because a `.cjs` suite cannot import a `.tsx` route module — the same
 //     source-vs-runtime division as `check-device-clock.mjs` beside the KST pins, and the same
 //     warning: neither half is evidence for the other.
@@ -30,9 +31,16 @@
 // ⚠ WHAT IT CANNOT SEE, said as prose rather than pinned with an unfalsifiable arm: an indirect
 // read — `const m = (e as Error).message; … Alert.alert(t, m)` (card-link.tsx had exactly this
 // shape until today; it now keeps the error, not the message) — and inline fail strips
-// (`setErr((e as Error).message)` rendered in a `<Text>`), which the finder counted as three more
-// sites and which no Alert-shaped detector reaches. `login.tsx`'s strip is DELIBERATE
-// (login.tsx:92-93: the raw cause is the only clue a locked-out person can forward) and is not debt.
+// (`setErr(e?.message ?? '…')` rendered in a `<Text>`). This slice folded two strips by hand
+// (compose.tsx's load strip, course/[id].tsx's load box) and deliberately did NOT gate the class:
+// measured 2026-09-25, a setter-shaped version of this sweep flagged 36 sites in 21 judged files,
+// and many sit behind wrappers that ALREADY fold (the ops console, availability's exception sheet,
+// bank-account) — source cannot tell a pre-folded message from a raw one, so that gate would cry on
+// correct code. Left with the exact shape this slice fixed twice (a raw read plus a Korean `??`
+// that is dead on an Error), wrappers NOT checked: runner/apply.tsx:119/127 (not in this slice's
+// files), owner/matching.tsx:228 (HELD be/0211), community.tsx:177 (Codex batch). `login.tsx`'s
+// strip is DELIBERATE (login.tsx:92-93: the raw cause is the only clue a locked-out person can
+// forward).
 //
 // ═══ THE MUTATIONS THAT REDDEN IT ═══
 // put `Alert.alert('삭제 실패', (e as Error).message)` into any non-excluded file · add a site to a
@@ -151,13 +159,9 @@ const EXCLUDED = [
 // cannot silently absorb a regression on a site someone just fixed. ⚠ Named blind spot, as in
 // check-a11y-roles' ledger: fix one site and add one in the SAME file and the count nets to zero.
 const KNOWN_RAW = {
-  // held by ui/chrome-consistency-2 (wave 3 header/button sweep) while this slice ran
+  // this slice's brief: do not touch — chat.tsx was in flight on fix/chat-read-cursor when the
+  // brief was written, and be/0225 holds the chat send path these three failures come from.
   'app/chat.tsx': 3,
-  'app/compose.tsx': 3,
-  'app/incident/[bid].tsx': 2,
-  'app/owner/address-pin.tsx': 1,
-  'app/owner/addresses.tsx': 4,
-  'app/owner/review.tsx': 1,
   // held by fix/custody-strand-client (wave 3)
   'app/runner/home.tsx': 2,
   // HELD be/0211-owner-proximity (awaiting Sean's ruling) owns both screens
@@ -181,7 +185,6 @@ const KNOWN_RAW = {
 // forgotten: owner/meetup.tsx 「인계 확인이 전송되지 않았어요」 and runner/meetup.tsx's twin — a
 // failure in sentence form beside club/session's 「인계 확인 실패」, in files this slice may not edit.
 const KNOWN_TITLE = {
-  'app/compose.tsx': 2,        // ui/chrome-consistency-2
   'app/runner/home.tsx': 2,    // fix/custody-strand-client
   'app/owner/matching.tsx': 1, // HELD be/0211
   'app/owner/meetup.tsx': 2,   // frozen zone, not this slice's to edit
@@ -325,19 +328,26 @@ function dropFolds(code) {
   }
 }
 
-const RAW_READ = /\.\s*message\b(?!\s*\??\.\s*(includes|startsWith|endsWith)\s*\()/;
+// A predicate on the message (`.includes(…)`, `=== NOT_FOUND`) decides WHICH Korean to draw; it
+// renders nothing raw, so it is not a read for this sweep.
+const RAW_READ = /\.\s*message\b(?!\s*(\??\.\s*(includes|startsWith|endsWith)\s*\(|[!=]==?))/;
 
-/** Every `Alert.alert(` call in comment-stripped source: offset, title arg, body arg. */
+/** Every failure-Alert call in comment-stripped source: offset, title arg, drawn-text arg.
+ *  `Alert.alert(title, body, …)` and `alertFail(title, e, tail, …)` — for the helper, the drawn
+ *  text beside the (folded) error is the TAIL, and the title is a title like any other. ⚠ The
+ *  battery found the helper missing from the first draft of this function: a sentence title
+ *  handed to `alertFail` passed Ⓒ, because Ⓒ only read `Alert.alert(`. */
 function alertCalls(stripped) {
   const calls = [];
-  const re = /\bAlert\s*\.\s*alert\s*\(/g;
+  const re = /\b(Alert\s*\.\s*alert|alertFail)\s*\(/g;
   let m;
   while ((m = re.exec(stripped)) !== null) {
     const open = m.index + m[0].length - 1;
     const close = closeParen(stripped, open);
     if (close < 0) continue;
     const args = topArgs(stripped.slice(open + 1, close));
-    calls.push({ at: m.index, title: args[0] || '', body: args[1] || '' });
+    const helper = m[1] === 'alertFail';
+    calls.push({ at: m.index, title: args[0] || '', body: (helper ? args[2] : args[1]) || '' });
   }
   return calls;
 }
@@ -358,11 +368,13 @@ const STRIPPED = new Map(FILES.map((rel) => [rel, stripComments(SRC.get(rel))]))
 const judged = FILES.filter((rel) => !EXCLUDED.some((x) => rel.startsWith(x)));
 
 // A sweep of nothing reads exactly like a clean tree (§「a battery that never ran reads as success」),
-// so assert it walked a real tree with real Alerts in it first. Measured 2026-09-25: 196 files,
-// 294 `Alert.alert(` calls, 56 raw reads before exclusions.
+// so assert it walked a real tree with real Alerts in it first. Measured 2026-09-25 on the
+// post-sweep tree, with this file's own functions: 196 files, 293 failure-Alert calls (252
+// `Alert.alert(` + 41 `alertFail(`, the helper's own definition included), 44 raw reads and 10
+// sentence titles before exclusions (the excluded Codex/dev files hold the ones not ledgered).
 t('the sweep walked the app (≥150 source files)', FILES.length >= 150, String(FILES.length));
 const totalCalls = FILES.reduce((n, rel) => n + alertCalls(STRIPPED.get(rel)).length, 0);
-t('the sweep saw real Alert calls (≥200; 294 at write time)', totalCalls >= 200, String(totalCalls));
+t('the sweep saw real Alert calls (≥200; 293 at write time)', totalCalls >= 200, String(totalCalls));
 t('the ledger excludes nothing it names: every EXCLUDED prefix still matches a file (a dead exclusion hides nothing and should go)',
   EXCLUDED.every((x) => FILES.some((rel) => rel.startsWith(x))),
   EXCLUDED.filter((x) => !FILES.some((rel) => rel.startsWith(x))).join(' '));
@@ -398,6 +410,9 @@ const CONVERTED = [
   'app/runner-profile/[id].tsx', 'src/components/card-link-panel.tsx',
   'app/safety.tsx', 'app/owner/request.tsx', 'app/owner/schedule.tsx', 'app/runner/requests.tsx',
   'app/runner/done.tsx', 'app/runner/run.tsx',
+  // landed from ui/chrome-consistency-2 (59c3fdc) during this slice, then converted here
+  'app/compose.tsx', 'app/incident/[bid].tsx', 'app/owner/review.tsx', 'app/owner/addresses.tsx',
+  'app/owner/address-pin.tsx',
 ];
 for (const rel of CONVERTED) {
   const s = STRIPPED.get(rel) || '';
@@ -441,6 +456,15 @@ t('CONTROL · a planted sentence failure title IS seen', ttl("Alert.alert('올�
 t('CONTROL · the noun form is NOT seen (or Ⓒ would fail on the fix itself)', ttl("Alert.alert('업로드 실패', m);") === 0);
 t('CONTROL · the sentence in the BODY is the house form, not a title', ttl("Alert.alert('업로드 실패', '사진을 올리지 못했어요');") === 0);
 t('CONTROL · a commented-out sentence title is not seen', ttl("// Alert.alert('올리지 못했어요', m)\nconst a = 1;") === 0);
+t('CONTROL · a sentence title handed to alertFail IS seen (the helper is a failure Alert too)',
+  ttl("alertFail('올리지 못했어요', e);") === 1);
+t('CONTROL · a raw read smuggled into alertFail\'s TAIL IS seen (the tail is drawn verbatim)',
+  raw("alertFail('전송 실패', e, (e as Error).message);") === 1);
+t('CONTROL · alertFail\'s own definition is not a call site',
+  raw("export function alertFail(title: string, e: unknown, tail?: string | null, opts: AlertFailOpts = {}): void {}") === 0
+  && ttl("export function alertFail(title: string, e: unknown, tail?: string | null, opts: AlertFailOpts = {}): void {}") === 0);
+t('CONTROL · a message COMPARISON choosing between two Korean bodies is not a render',
+  raw("Alert.alert('x', e?.message === NOT_FOUND ? '가' : '나');") === 0);
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

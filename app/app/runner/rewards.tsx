@@ -405,7 +405,7 @@ export default function Rewards() {
                       배송지를 알려주세요
                     </Text>
                     <Text style={{ fontSize: 15, color: paper.dim, marginBottom: 4 }}>
-                      신청 후에는 주소를 바꿀 수 없어요 — 한 번만 확인해 주세요
+                      신청 후에는 주소를 바꿀 수 없어요 — 한 번만 확인해주세요
                     </Text>
                     <TextInput
                       value={form.recipient}

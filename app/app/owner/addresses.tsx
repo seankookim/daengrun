@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row, ScreenHead } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { addAddress, Addr, deleteAddress, fetchAddresses, setDefaultAddress, updateAddressDetail } from '../../src/lib/api';
 import { supabase } from '../../src/lib/supabase';
 import { paper } from '../../src/theme';
@@ -79,7 +80,7 @@ export default function Addresses() {
       load();
       // [DS-9] straight into the picker — back from it lands on the list with the row visible
       router.push({ pathname: '/owner/address-pin', params: { id: newId } });
-    } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+    } catch (e) { alertFail('추가 실패', e); }
   };
 
   // [A②] 확인 = 지도가 이 주소를 아는지 묻는 것. 결과는 보여주기만 한다 — 입력값을 덮어쓰지
@@ -108,7 +109,7 @@ export default function Addresses() {
       await load();
     } catch (e) {
       // 조용한 실패 금지 — 보호자는 러너가 읽을 문장을 바꿨다고 믿는다.
-      Alert.alert('메모 저장 실패', (e as Error).message);
+      alertFail('메모 저장 실패', e);
     } finally { setNoteBusy(false); }
   };
 
@@ -119,14 +120,14 @@ export default function Addresses() {
         text: '삭제', style: 'destructive',
         // [honesty 2026-08-11] a confirmed destructive delete used to fail silently —
         // the row just stayed. Failure now says so.
-        onPress: () => deleteAddress(a.id).then(load).catch((e) => Alert.alert('삭제 실패', (e as Error).message)),
+        onPress: () => deleteAddress(a.id).then(load).catch((e) => alertFail('삭제 실패', e)),
       },
     ]);
   };
 
   // silent failure here left the old default active while the user believed it changed
   const makeDefault = (a: Addr) =>
-    setDefaultAddress(a.id).then(load).catch((e) => Alert.alert('기본 픽업 변경 실패', (e as Error).message));
+    setDefaultAddress(a.id).then(load).catch((e) => alertFail('기본 픽업 변경 실패', e));
 
   const openPicker = (a: Addr) =>
     router.push({ pathname: '/owner/address-pin', params: { id: a.id } });
