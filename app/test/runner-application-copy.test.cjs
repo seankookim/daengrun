@@ -233,8 +233,16 @@ t('[runner-journey-1] the failure strip is gated on BOTH the failure and an empt
 t('[runner-journey-1] the strip’s 다시 시도 calls the same loader the focus effect does',
   /onPress=\{loadJobs\}/.test(home.code), 'the retry door goes nowhere');
 
+// ⚠ [fix/runner-home-truth · runner-journey-1] This pin read the in-flight list out of home.tsx. The
+// `current` pick MOVED, deliberately: home's `find` over the DESC read made the 진행 중 fallback the
+// FURTHEST booking, so the pick now lives in the pure `src/lib/runner-home-pick.ts` (sorted
+// explicitly) and home calls it. The property is unchanged and is followed to where the code now
+// is — the list there, home pinned to USE it. The behaviour itself (incident_review outranks a
+// confirmed booking, by value) is owned by runner-home-pick.test.cjs RHP-C2b.
+const pick = read('src/lib/runner-home-pick.ts');
 t('🔴 [runner-journey-8] incident_review is an in-flight status for `current`, beside picked_up',
-  /\[[^\]]*'picked_up'[^\]]*'incident_review'[^\]]*\]/.test(home.code),
+  /IN_FLIGHT_STATUSES = \[[^\]]*'picked_up'[^\]]*'incident_review'[^\]]*\]/.test(pick.code)
+  && home.code.includes('const current = pickCurrent(jobs, nowMs);'),
   'the ticket vanishes again while the dog may still be out');
 t('[runner-journey-8] incident_review has a STAGE label and an action',
   /incident_review:\s*\{\s*label:/.test(home.code), 'STAGE has no incident_review entry');

@@ -1953,6 +1953,10 @@ export interface RunnerJob {
    *  directly under the work-gate strip saying the return is outstanding — one screen, two
    *  contradictory claims about the same booking. */
   runEndedAt?: string | null;
+  /** [runner-journey-2] `bookings.runner_confirmed_return_at` — the runner's own half of the return
+   *  seal. Without it home kept the returning ticket coral 「your move」 after the runner had
+   *  stamped and the wait was the owner's (return-seal's frame b). */
+  runnerReturnAt?: string | null;
   /** The dog's face for the in-flight ticket. A runner may be collecting an animal they have never
    *  met, and until now the ticket named it without showing it. Null is a real answer (no photo on
    *  file) and renders as a monogram — never an empty frame. */
@@ -1985,7 +1989,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     // arrived_at · runs(started_at): 보호자 쪽 fetchMyBookings 와 **같은 사실**을 읽어야 한다.
     // 한쪽만 실어오면 같은 예약을 두고 두 화면이 서로 다른 지각 판정을 낸다 — 이 코드베이스가
     // 가장 싫어하는 종류의 버그다. runs 임베드가 안전한 이유는 R1 과 동일 (unique 단일 FK).
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, runner_confirmed_return_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     // [runner-journey-8] `incident_review` joins the list — see fetchCurrentRunnerJobId's note. It
     // flattens to 'in_progress' below (it is not completed and not merely confirmed) and keeps its
@@ -2044,6 +2048,7 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
       ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
       runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
       runEndedAt: r.run_ended_at ?? null,   // [0188] the 귀가 phase — see the type's note
+      runnerReturnAt: r.runner_confirmed_return_at ?? null,   // [runner-journey-2] the runner's return stamp
     };
   });
 }
@@ -2059,7 +2064,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString();
   const { data, error } = await supabase
     .from('bookings')
-    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
+    .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, runner_confirmed_return_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
     .in('status', [...IN_FLIGHT, 'incident_review'])   // [runner-journey-8] runner side only
     .gte('scheduled_at', since)
@@ -2092,6 +2097,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
       ownerHandoffAt: r.owner_confirmed_handoff_at ?? null,   // [F7] 커스터디 판정 입력
       runnerHandoffAt: r.runner_confirmed_handoff_at ?? null,
       runEndedAt: r.run_ended_at ?? null,   // [0188] the 귀가 phase — see the type's note
+      runnerReturnAt: r.runner_confirmed_return_at ?? null,   // [runner-journey-2] the runner's return stamp
     } as RunnerJob;
   });
 }

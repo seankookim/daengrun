@@ -15,10 +15,17 @@ import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
   acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedgerStuckState, fetchMyAvailability, fetchMyName, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
-  fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerApplication, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
+  fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, LedgerStuckState, MyRunnerStatus, OpenRequest, PickupAddress, RunnerApplication, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
 import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
-import { payoutStuckDays, payoutStuckLine } from '../../src/lib/payout-status';
+import { payoutHomeStrip } from '../../src/lib/payout-status';
+// [fix/runner-home-truth] which booking each slot shows, and what the ticket says about it — pure,
+// pinned in app/test/runner-home-pick.test.cjs under three zones.
+import {
+  acceptedLine, gateStripExit, isLateDatum, isTodayKst, LATE_CAP_MIN, pickCurrent, pickPast, pickUpcoming,
+  returnWaitLine, stageSubline,
+} from '../../src/lib/runner-home-pick';
+import { withParticle } from '../../src/lib/particle';
 import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
 import { PatchBadge } from '../../src/components/patch';
 import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
@@ -125,16 +132,9 @@ const CORAL_INK_DEEP = paper.actionPressed;
 
 const TIER_LABEL: Record<string, string> = { certified: '인증 러너', veteran: '베테랑', master: '마스터' };
 
-// 이 시각이 **오늘(KST)** 인가. 한국은 DST가 없어 고정 오프셋 산술로 충분하다 (서버 kstParts·
-// owner/home의 kstDayDiff와 같은 전제). 기기 로컬 타임존이 아니라 Asia/Seoul 고정 — 시뮬레이터가
-// UTC이거나 사용자가 해외면 로컬 날짜는 하루 어긋난다.
-const KST_MS = 9 * 3_600_000;
-const kstDay = (ms: number) => new Date(ms + KST_MS).toISOString().slice(0, 10);
-const isTodayKst = (iso: string | null) => {
-  if (!iso) return false;
-  const t = Date.parse(iso);
-  return !Number.isNaN(t) && kstDay(t) === kstDay(Date.now());
-};
+// 「Is this instant today (KST)?」 moved to src/lib/runner-home-pick.ts (`isTodayKst(iso, nowMs)`,
+// over kst.ts's kstDayIndex) so the three-zone pins can reach it — the local copy here was the
+// same fixed +9 arithmetic and could not be tested from a .tsx route module.
 
 // 세션 동안 거절한 요청 id — 오픈 풀로 되돌아와도 내 큐에 재등장하지 않게 (모듈 레벨: 리마운트 생존)
 const declinedIds = new Set<string>();
@@ -148,23 +148,12 @@ const declinedIds = new Set<string>();
 // (the 지어낸 긴급함 = 학습된 무시 law forbids inventing pressure, not reporting it).
 // Returns null when there is no timestamp — the caller then keeps the plain clock rather than
 // guessing, because "no scheduled_at" is not "on time".
-// The coral button's second line. Says what the stage means for the runner right now rather than
-// repeating the label above it — an empty subline would be decoration, so every stage has one.
-function stageSub(rawStatus: string, dogName: string): string {
-  switch (rawStatus) {
-    case 'confirmed': return `${dogName}에게 출발할 시간이에요`;
-    case 'runner_enroute': return `${dogName}를 넘겨받을 시간이에요`;
-    case 'picked_up': return '보호자와 인계를 마쳤어요 — 시작해요';
-    case 'active': return '러닝 기록이 쌓이는 중이에요';
-    // [runner-journey-8] `incident_review` is a booking the runner may still be HOLDING THE DOG
-    // in — 0092:116 gates it regardless of `run_ended_at`. The subline says who is acting, which
-    // is neither the runner nor the owner, so it promises the runner nothing they must do.
-    case 'incident_review': return '담당자가 확인하는 동안 기다려주세요';
-    default: return '이어서 진행해요';
-  }
-}
-
-const LATE_CAP_MIN = 12 * 60;   // beyond half a day late, it is a stranded booking, not a late runner
+// The coral button's second line is `stageSubline()` in src/lib/runner-home-pick.ts. It used to be
+// a local `stageSub(rawStatus, …)` here, keyed on rawStatus — so a RETURNING run (`active` with a
+// stamped end) said 「러닝 기록이 쌓이는 중이에요」, and a confirmed run days away said 「출발할
+// 시간이에요」 (runner-journey-2). It is now keyed on `stageFor(job)` and pinned.
+// LATE_CAP_MIN (half a day: past it the booking is stranded, not late) is imported from the same
+// module, because `pickCurrent` uses the same edge to stop a stranded booking outranking the next.
 const AHEAD_CAP_MIN = 24 * 60;  // beyond a day out, "N시간 뒤" is not a thing anyone acts on
 
 function relWhen(iso: string | null): { text: string; late: boolean } | null {
@@ -413,7 +402,11 @@ export default function RunnerHome() {
   //    남기고 답이 있는 쪽 끝을 버린다. 그래서 30행을 넘긴 러너, 즉 0210 §E 가 존재하는 이유인 바로
   //    그 사람들에게 이 줄은 짧은 숫자를 보여주거나 아예 안 그려졌다. 이제 fetchLedgerStuckState()
   //    (0213 §A)가 캡 없이 전부를 훑은 시각을 준다. 244 0213-A1 이 그 캡이 가렸던 행에서 핀한다.
-  const [stuckDays, setStuckDays] = useState<number | null>(null);
+  // [runner-journey-5] The WHOLE answer is kept now, not just the day count: `unpaidWon` and
+  // `hasBankAccount` decide the no-account line, which outranks and suppresses the 7-day one
+  // (`payoutHomeStrip`, payout-status.ts). null is still 「nothing to say」 — a failed read draws
+  // nothing, never 「register an account」.
+  const [ledgerState, setLedgerState] = useState<LedgerStuckState | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
   // 🔴 [runner-journey-1] THE READ THAT HAD NO FAILURE STATE. `loadJobs` below caught into a bare
@@ -515,7 +508,10 @@ export default function RunnerHome() {
           try {
             await acceptBooking(rq.bookingId);
             haptic('success');
-            Alert.alert('수락 완료', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라가요');
+            // [runner-journey-7] 「오늘의 루트에 올라가요」 was promised for ANY date, and 오늘의 루트
+            // is a today-only section. Both 수락 doors now say the same true sentence
+            // (`acceptedLine`, shared with 요청) and neither navigates.
+            Alert.alert('수락 완료', acceptedLine(rq.when));
             reloadQueue();
           } catch (e) {
             alertFail('수락 실패', e);
@@ -605,6 +601,8 @@ export default function RunnerHome() {
     runnerJob.bookingId = x.bookingId;
     router.push(x.href);
   };
+  // The gated booking's id, for `gateStripExit` below (runner-journey-3).
+  const gateBookingId = gateRead !== null && typeof gateRead === 'object' ? gateRead.bookingId ?? null : null;
 
   // [0212] 채팅 미확인 — 아래 진행 중 잡의 채팅 행에 붙는 배지. 자체 상태이고 실패는 **배지 없음**
   // 이지 배지 0이 아니다; 판정은 chat-read.ts 가 소유한다.
@@ -626,8 +624,8 @@ export default function RunnerHome() {
     // 않는다. Date.now() 는 인자로만 쓰이고 payoutStuckDays 는 두 epoch 수의 뺄셈이라 달력도
     // 요일도 타임존도 읽지 않는다(check-device-clock 이 볼 것이 없다).
     fetchLedgerStuckState()
-      .then((s) => setStuckDays(payoutStuckDays(s, Date.now())))
-      .catch((e) => { console.warn('[rhome] stuck:', e?.message ?? e); setStuckDays(null); });
+      .then(setLedgerState)
+      .catch((e) => { console.warn('[rhome] stuck:', e?.message ?? e); setLedgerState(null); });
     fetchUnreadCount().then(setUnread).catch((e) => console.warn('[rhome] unread:', e?.message ?? e));
     loadJobs();
     fetchCoursePatches()
@@ -699,10 +697,16 @@ export default function RunnerHome() {
   // return the status yet (that half is the api.ts slice's), so today this arm simply never
   // matches — and the day those filters widen, this screen is already correct instead of needing
   // a second edit nobody would remember to make.
-  const current = jobs.find((j) => ['runner_enroute', 'picked_up', 'active', 'incident_review'].includes(j.rawStatus))
-    ?? jobs.find((j) => j.rawStatus === 'confirmed');
-  const upcoming = jobs.filter((j) => j.status === 'confirmed' && j.bookingId !== current?.bookingId).slice(0, 3);
-  const past = jobs.filter((j) => j.status === 'completed').slice(0, 3);
+  // 🔴 [runner-journey-1] `jobs` arrives scheduled_at DESC (fetchRunnerJobs) with the in-flight rows
+  // merged in place, and these three used to `find`/`slice` over that order — so the 진행 중
+  // fallback was the FURTHEST confirmed booking and 오늘의 루트 held the three furthest, undated.
+  // Each pick now sorts explicitly (src/lib/runner-home-pick.ts): the NEXT confirmed booking,
+  // TODAY's other confirmed ones ascending, and the newest completed three. `nowMs` is read once
+  // per render and handed to every pick, so they cannot disagree about what time it is.
+  const nowMs = Date.now();
+  const current = pickCurrent(jobs, nowMs);
+  const upcoming = pickUpcoming(jobs, current, nowMs);
+  const past = pickPast(jobs, 3);
 
   // ═══ [0083 §5] THE 귀가 HEARTBEAT, third site — and the one a runner actually idles on ═══════
   // `return-seal.tsx` and `done.tsx` ping, but neither is where a runner necessarily WAITS. Home
@@ -814,7 +818,7 @@ export default function RunnerHome() {
   // 이름 붙여 올렸고 Sean이 전부 채택했으므로 둘 다 남긴다 — 요약은 개수와 다음 시각, 상세는
   // 정차역마다 개·거리·금액. 로딩/실패에는 jobs가 빈 배열이라 행 자체가 그려지지 않는다 ('0건' 없음).
   const todayJobs = jobs
-    .flatMap((j) => (j.status !== 'completed' && isTodayKst(j.scheduledAt)
+    .flatMap((j) => (j.status !== 'completed' && isTodayKst(j.scheduledAt, nowMs)
       ? [{ job: j, t: Date.parse(j.scheduledAt as string) }] : []))
     .sort((a, b) => a.t - b.t);
   // 다음 = 오늘 것 중 **아직 오지 않은** 가장 이른 것. 랩의 바인딩은 "그중 가장 이른 것"이지만,
@@ -823,7 +827,7 @@ export default function RunnerHome() {
   // 지나간 건뿐이면 건수만 인쇄한다: 개수는 여전히 참이고, 없는 '다음'을 만들지 않는다.
   // `when` = `${dateLabel} ${timeLabel}`이고 timeLabel은 '오후 7:30'이라, parseWhen의 wd 꼬리가
   // 오전/오후이고 wt가 시각이다 (api.ts kstParts:728-729).
-  const nextTodayJob = todayJobs.find((x) => x.t >= Date.now()) ?? null;
+  const nextTodayJob = todayJobs.find((x) => x.t >= nowMs) ?? null;
   const nextToday = nextTodayJob ? parseWhen(nextTodayJob.job.when) : null;
   const nextTodayMer = nextToday ? (nextToday.wd.split(' ').pop() ?? '') : '';
 
@@ -834,7 +838,7 @@ export default function RunnerHome() {
   // section's own word (isTodayKst — the same helper every other 오늘 fact here uses). A stale
   // live job LOSES NOTHING: the 진행 중 ticket above still owns it unconditionally.
   const routeStops: { job: RunnerJob; kind: 'on' | 'next' }[] = [
-    ...(current && isTodayKst(current.scheduledAt) ? [{ job: current, kind: 'on' as const }] : []),
+    ...(current && isTodayKst(current.scheduledAt, nowMs) ? [{ job: current, kind: 'on' as const }] : []),
     ...upcoming.map((j) => ({ job: j, kind: 'next' as const })),
   ];
 
@@ -1036,18 +1040,25 @@ export default function RunnerHome() {
              있어요」 → /runner/earnings), 이 줄은 그 알림을 못 본 사람을 위한 화면 쪽 메아리다.
              🔴 **날짜를 말하지 않는다.** 지급 일정 테이블도, 주기도, 지급하는 크론도 없으므로
                 「~에 지급돼요」는 지킬 수 없는 약속이다 (payout-status.ts 의 같은 이유).
-             🔴 죽은 버튼이 아니다 — 누르면 원장이 있는 화면으로 간다. null 이면 줄 자체가 없다. */}
-        {payoutStuckLine(stuckDays) !== null && (
-          <Pressable
-            onPress={() => { haptic('light'); router.push('/runner/earnings'); }}
-            accessibilityRole="button"
-            accessibilityLabel={`${payoutStuckLine(stuckDays)} · 수익 화면으로 이동`}
-            style={styles.stuckStrip}
-          >
-            <Text style={styles.stuckText}>{payoutStuckLine(stuckDays)}</Text>
-            <Text style={styles.stuckLink}>수익 보기 ›</Text>
-          </Pressable>
-        )}
+             🔴 죽은 버튼이 아니다 — 누르면 원장이 있는 화면으로 간다. null 이면 줄 자체가 없다.
+             [runner-journey-5] Money owed with NO payout account on file takes this slot instead
+             — 「정산 계좌를 등록해야 지급돼요 · 계좌 등록 ›」 → the registration screen — and the 7-day
+             line is suppressed while it shows: the cause outranks the wait (`payoutHomeStrip`). */}
+        {(() => {
+          const pay = payoutHomeStrip(ledgerState, nowMs);
+          if (!pay) return null;
+          return (
+            <Pressable
+              onPress={() => { haptic('light'); router.push(pay.href); }}
+              accessibilityRole="button"
+              accessibilityLabel={`${pay.line} · ${pay.href === '/runner/bank-account' ? '정산 계좌 등록 화면으로 이동' : '수익 화면으로 이동'}`}
+              style={styles.stuckStrip}
+            >
+              <Text style={styles.stuckText}>{pay.line}</Text>
+              <Text style={styles.stuckLink}>{pay.link}</Text>
+            </Pressable>
+          );
+        })()}
 
 
         {/* ————— 진행 중 — [v4 R1a] 카드에서 **티켓 오브젝트**로. 랩의 법: 러너가 실제로 들고
@@ -1061,8 +1072,20 @@ export default function RunnerHome() {
              '오늘의 루트'가 정차역마다 인쇄한다 (한 사실은 한 화면에 한 번). ————— */}
         {current && (() => {
           const { wd, wt } = parseWhen(current.when);
-          const st = STAGE[stageFor(current)];   // [0188] the FACT, not the flattened status
-          const rel = relWhen(current.scheduledAt);
+          const stage = stageFor(current);
+          const st = STAGE[stage];   // [0188] the FACT, not the flattened status
+          // 🔴 [runner-journey-2] The relative datum is a PRE-ARRIVAL question (「am I late?」) and
+          // only there may it speak in lateness. For picked_up / active / returning / an arrived
+          // runner, scheduled_at is in the past BY DESIGN — relWhen turned every normal run into
+          // 「40분 늦음」 in critical red. `isLateDatum` is the one gate on both the relative form
+          // and the critical ink; every other stage prints the clock in ink. Real lateness still
+          // reaches the runner through <LateNotice> below, which measures it.
+          const relStage = isLateDatum(current.rawStatus, current.arrivedAt ?? null);
+          const rel = relStage ? relWhen(current.scheduledAt) : null;
+          const datumLate = relStage && rel?.late === true;
+          // [runner-journey-2] The runner's own return stamp is in: the wait is the OWNER's
+          // (return-seal frame b), so the CTA stops being the coral 「your move」 key.
+          const returnWait = stage === 'returning' ? returnWaitLine(current.runnerReturnAt) : null;
           return (
             <>
               <SectionHead title="진행 중" />
@@ -1102,7 +1125,7 @@ export default function RunnerHome() {
                     <Row style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
                       {/* A — the actionable datum leads. `rel` is null only when there is no
                           scheduled_at, and then the clock keeps the slot rather than guessing. */}
-                      <Text style={[styles.tBig, nf, rel?.late ? { color: paper.critical } : null]}>
+                      <Text style={[styles.tBig, nf, datumLate ? { color: paper.critical } : null]}>
                         {rel ? rel.text : wt}
                       </Text>
                       {/* [HIG A3] Android's live region for the stage word — the iOS side of the
@@ -1110,7 +1133,7 @@ export default function RunnerHome() {
                           a door should hear the stage flip, not be interrupted mid-sentence. */}
                       <Text
                         accessibilityLiveRegion="polite"
-                        style={[styles.objStage, { color: rel?.late ? paper.critical : st?.color ?? CORAL_INK }]}
+                        style={[styles.objStage, { color: datumLate ? paper.critical : returnWait ? lilac.amber : st?.color ?? CORAL_INK }]}
                       >
                         {st?.label ?? current.rawStatus}
                       </Text>
@@ -1159,7 +1182,7 @@ export default function RunnerHome() {
                 {/* The stub keeps the ticket's shape but no longer carries the action — the coral
                     button below says the same sentence, and one screen must not say it twice. */}
                 <View style={styles.tStub}>
-                  <Text style={styles.objStubTxt}>{current.dogName}와 함께</Text>
+                  <Text style={styles.objStubTxt}>{withParticle(current.dogName, '와/과')} 함께</Text>
                 </View>
               </Pressable>
 
@@ -1193,14 +1216,24 @@ export default function RunnerHome() {
                   no depth. Doubling them makes the press read as soft, which is exactly what
                   paper-btn.tsx:78-82 and requests.tsx:595-602 already say in comments. Same
                   arithmetic as PaperBtn's primary, so a runner meets one language. */}
+              {/* [runner-journey-2] Once the runner has stamped their half of the return, the key
+                  drops to the ink-outline secondary (the chat row's grammar) and says whose move
+                  it is — return-seal's frame b, 「보호자 확인 대기 · HH:MM 확인 보냄」. It still
+                  opens the seal screen (a real door: that frame shows the owner's stamp arriving). */}
               <Pressable
                 onPress={() => openJob(current)}
-                style={({ pressed }) => [styles.jobCta, pressed && styles.jobCtaPressed]}
+                style={({ pressed }) => returnWait
+                  ? [styles.jobCtaWait, pressed && styles.pressed96]
+                  : [styles.jobCta, pressed && styles.jobCtaPressed]}
                 accessibilityRole="button"
-                accessibilityLabel={st?.action ?? '이어서 진행'}
+                accessibilityLabel={returnWait
+                  ? `${st?.action ?? '이어서 진행'} — ${returnWait}`
+                  : st?.action ?? '이어서 진행'}
               >
-                <Text style={styles.jobCtaT}>{st?.action ?? '이어서 진행 ›'}</Text>
-                <Text style={styles.jobCtaS}>{stageSub(current.rawStatus, current.dogName)}</Text>
+                <Text style={returnWait ? styles.jobCtaWaitT : styles.jobCtaT}>{st?.action ?? '이어서 진행 ›'}</Text>
+                <Text style={returnWait ? styles.jobCtaWaitS : styles.jobCtaS}>
+                  {returnWait ?? stageSubline(stage, current.dogName, current.scheduledAt, nowMs)}
+                </Text>
               </Pressable>
 
               {/* Chat sits directly beneath, INK OUTLINE not coral (Sean: "should have a chat option
@@ -1276,6 +1309,9 @@ export default function RunnerHome() {
             run has actually ended), and an answer this build cannot read falls CLOSED to a
             neutral sentence with no exit. A strip with no exit is drawn as a SENTENCE, not a
             disabled button. */}
+        {/* [runner-journey-3] When the gated booking IS the 진행 중 ticket's, that ticket's CTA
+            already opens the same screen — the strip keeps its why/sub and drops its door
+            (`gateStripExit`), so one booking gets one door. Other bookings' strips are unchanged. */}
         {gateStrip && (() => {
           const g = gateStrip;
           const dot = (
@@ -1289,7 +1325,7 @@ export default function RunnerHome() {
               <Text style={styles.gateSub}>{g.sub}</Text>
             </View>
           );
-          const x = g.exit;
+          const x = gateStripExit(g.exit, gateBookingId, current?.bookingId);
           return x ? (
             <Pressable
               onPress={() => goGateExit(x)}
@@ -1492,7 +1528,7 @@ export default function RunnerHome() {
                   >
                     <Text style={[styles.doorName, { color: lilac.head }]}>{inbox[0].directed ? '거절' : '자세히'}</Text>
                     <Text style={[styles.doorSub, { color: lilac.dim }]}>
-                      {inbox[0].directed ? '다른 러너에게 넘겨요' : '메모 · 사진 · 성향 보기 →'}
+                      {inbox[0].directed ? '다른 러너에게 넘겨요' : '메모 · 사진 · 성향 보기 ›'}
                     </Text>
                   </Pressable>
                 </Row>
@@ -1651,7 +1687,7 @@ export default function RunnerHome() {
                   //    시작돼 끝나지 않은 잡(rawStatus='active')이 8월 19일 홈에서 '지금'으로
                   //    찍혔다 (실측). 진행 중이라는 사실은 바로 옆 stageLabel('러닝 중 · LIVE')이
                   //    이미 말하므로, 이 칸은 **언제**를 말한다 — 오늘이 아니면 그 날짜를.
-                  const started = on && st.job.rawStatus !== 'confirmed' && isTodayKst(st.job.scheduledAt);
+                  const started = on && st.job.rawStatus !== 'confirmed' && isTodayKst(st.job.scheduledAt, nowMs);
                   const stageLabel = on ? STAGE[stageFor(st.job)]?.label ?? null : null;   // [0188]
                   return (
                     <Pressable
@@ -2009,7 +2045,11 @@ export default function RunnerHome() {
             남는 실적은 총 거리 하나, 그리고 그게 이 면의 큰 숫자가 된다.
             목적지는 /cards(컬렉션) — 마이에서는 /runner/home이었는데, 홈에 사는 카드가 홈으로
             가리키면 순환이다. */}
-        <SectionHead title="내 기록" link="컬렉션 ›" onPress={() => router.push('/cards')} />
+        {/* [less-is-more-2] The header's 「컬렉션 ›」 and the card below were two doors to the same
+            /cards, and the card's own label said 「상세 기록 보기 ›」 — a run-record promise for a
+            collection screen (on 마이 the same words open /owner/fitness). One door, named for
+            where it goes: the header carries no link, the card says 「컬렉션 보기 ›」. */}
+        <SectionHead title="내 기록" />
         <Pressable
           onPress={() => router.push('/cards')}
           style={({ pressed }) => [styles.record, pressed && styles.pressed96]}
@@ -2031,7 +2071,7 @@ export default function RunnerHome() {
             </Text>
             <Text style={styles.recL}>총 거리</Text>
             <View style={styles.recGoWrap}>
-              <Text style={styles.recGo}>상세 기록 보기 ›</Text>
+              <Text style={styles.recGo}>컬렉션 보기 ›</Text>
             </View>
           </View>
         </Pressable>
@@ -2267,6 +2307,13 @@ const styles = StyleSheet.create({
   jobCtaPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed },
   jobCtaT: { fontSize: 18, lineHeight: 23, fontWeight: '800', color: '#FFFFFF' },
   jobCtaS: { marginTop: 2, fontSize: 15, lineHeight: 20, color: paper.wash },
+  // [runner-journey-2] the same key once the move is the OWNER's — ink outline on paper (the chat
+  // row's grammar below), no fill, so no lip and the press is scale (DESIGN.md:216). Same size as
+  // the coral key: the door did not shrink, only whose turn it is changed.
+  jobCtaWait: { marginTop: 10, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head,
+    paddingHorizontal: 14, paddingVertical: 13 },
+  jobCtaWaitT: { fontSize: 18, lineHeight: 23, fontWeight: '800', color: lilac.head },
+  jobCtaWaitS: { marginTop: 2, fontSize: 15, lineHeight: 20, color: lilac.dim },
   // chat — ink outline, deliberately not a second coral (see the JSX note).
   jobChat: { marginTop: 8, backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head,
     paddingHorizontal: 14, paddingVertical: 11 },
