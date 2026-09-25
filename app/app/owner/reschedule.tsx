@@ -163,8 +163,12 @@ export default function Reschedule() {
     const windows = offeredState === 'ready' ? offered
       : offeredState === 'fallback' ? windowsFromRules(Array.isArray(rules) ? rules : [], day.cal)
       : [];
-    // 시작 칸은 60분 간격이되(그리드 눈금), **한 창 안에** 실소요가 들어가야 칸이 산다 — 창을
-    // 붙여서 넓히지 않는다(is_slot_available §1도 한 행이 담기를 요구한다). offered-slots.ts 참조.
+    // 시작 칸은 60분 간격이되(그리드 눈금), 실소요가 **한 span 안에** 들어가야 칸이 산다.
+    // ⚠ [0221] 이 주석은 2026-09-25 에 뒤집혔다. 원문은 「창을 붙여서 넓히지 않는다
+    // (is_slot_available §1도 한 행이 담기를 요구한다)」였고, 0219 가 판정을 **합집합**으로 바꾼
+    // 뒤로 그 문장은 틀렸다 — 서버가 받는 이음매 칸을 화면이 못 내주고 있었다(Codex 서버 평결 #1).
+    // 이제 서버(runner_offered_slots, 0221)가 합쳐진 span 을 내고 이 모듈이 그 안에 담기는지만
+    // 묻는다. 판단은 여전히 offered-slots.ts 한 곳에만 있다.
     slotStartsForDay(windows, dayKey, durMin).forEach((sl) => {
       const start = kstInstant(day.cal, Math.floor(sl.startMin / 60), sl.startMin % 60);
       if (start.getTime() < minStart) return;
@@ -464,8 +468,10 @@ export default function Reschedule() {
                         }}>
                           {isCur ? '현재' : ok === null || ok === undefined ? '확인 중' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === false ? '마감' : '가능'}
                         </Text>
-                        {/* [0215] 추가 근무 칩 — 서버의 source 를 그대로 묶는다, 추측하지 않는다.
-                            주간 그리드가 덮지 않는 시간일 때만 뜬다 (offered-slots.ts 의 라벨 규칙). */}
+                        {/* [0215→0221] 추가 근무 칩 — 서버가 준 **segments** 에 묶는다, 추측하지
+                            않는다. 주간 그리드(합친 것)가 슬롯 전체를 덮지 않을 때만 뜬다
+                            (offered-slots.ts 의 라벨 규칙). 0221 이전에는 서버 행의 source 를
+                            그대로 썼는데, 합쳐진 span 은 한 낱말로 답할 수 없다. */}
                         {sl.source === 'extra' && (
                           <Text style={{
                             fontSize: 15, lineHeight: 18, fontWeight: '700', marginTop: 2,

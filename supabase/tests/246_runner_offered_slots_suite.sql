@@ -225,6 +225,11 @@ begin
     -- 스캔되었다는 대조 포함) 과 `250 0219-W9` (0219가 **새로** 만든 두 발산 가족을 값으로 잰다 —
     -- 목록이 구조적으로 낼 수 없는 자정 슬롯과, 같은 날 붙은 두 창을 가로지르는 슬롯. 이 픽스처에는
     -- 둘 다 없다: rX의 창은 어디서도 서로 맞닿지 않는다).
+    -- ⚠ [0221, 2026-09-25] 윗 문단의 마지막 괄호는 **낡았다**: Codex 서버 평결 #1 이 그 두 발산을
+    -- 결함으로 불렀고, 0221 이 목록을 판정과 같은 합집합으로 만들어 둘 다 닫았다. `250 0219-W9` 는
+    -- 이제 발산이 아니라 **등식**을 요구한다. 이 픽스처에 대한 문장은 그대로 참이다 — rX 의 창은
+    -- 어디서도 맞닿지 않으므로 합치기 유무가 **합의하는 구역**이고, 그래서 이 팔의 숫자는 0221 로
+    -- 움직이지 않았다. 갈라지는 구역에서의 등식은 `252 0221-E5` 가 잰다.
     if v_div is distinct from 0 then v_bad := v_bad || ' 🔴 목록과 판정이 어긋나는 칸이 남아 있다 [' || coalesce(v_div::text,'NULL') || '칸, 그 중 자정 가족 ' || coalesce(v_div_bad::text,'NULL') || '칸] — 0219 이후 이 픽스처에서는 카브아웃 없는 양방향 등식이어야 한다 (250 0219-W8이 같은 것을 자기 픽스처에서 잰다)'; end if;
     if coalesce(v_both, 0) < 1 then v_bad := v_bad || ' 대조: 둘 다 true인 칸이 없다 (빈 목록도 통과할 픽스처다)'; end if;
     if coalesce(v_none, 0) < 1 then v_bad := v_bad || ' 대조: 둘 다 false인 칸이 없다 (전부 열린 픽스처다)'; end if;
@@ -426,8 +431,14 @@ begin
       select string_agg(t.n, ',' order by t.ord) into v_cols
         from pg_proc p, lateral unnest(p.proargnames, p.proargmodes) with ordinality as t(n, m, ord)
        where p.oid = v_oid and t.m = 't'::"char";
-      if v_cols is distinct from 'day,start_min,end_min,source'
-        then v_bad := v_bad || ' 🔴 반환 칸이 day,start_min,end_min,source가 아니다 [' || coalesce(v_cols,'NULL') || ']'; end if;
+      -- ═══ [0221] 다섯 번째 칸 `segments` 가 **의도적으로** 들어왔다 — 드라이브바이 수정이 아니라
+      -- 결정이다. 0221 이 이 함수를 drop + create 로 다시 만들면서 반환이 합쳐진 span 이 되었고,
+      -- 추가 근무 칩이 거짓말을 하지 않으려면 클라가 grid 부분이 **어디인지** 알아야 한다
+      -- (0221 §0a). 이 팔이 지키는 성질은 그대로다: 여섯 번째 칸이 note 가 들어오는 길이고,
+      -- 그래서 목록은 늘어나는 것이 아니라 **정확히 이 다섯**이어야 한다. 새 주인은
+      -- `252 0221-S1` (같은 다섯 칸을 매 런 잰다) 과 `252 0221-V1` (segments 의 내용 계약).
+      if v_cols is distinct from 'day,start_min,end_min,source,segments'
+        then v_bad := v_bad || ' 🔴 반환 칸이 day,start_min,end_min,source,segments가 아니다 [' || coalesce(v_cols,'NULL') || ']'; end if;
 
       -- 본문: 주석을 벗기고 읽는다. prosrc는 소스 + 우리 산문이고, 이 함수는 두 팔을 길게 설명한다
       -- — 안 벗기면 **설명이 구현을 대신해 통과**한다.
@@ -470,7 +481,7 @@ begin
          'execute') is not true
       then v_bad := v_bad || ' 🔴 대조: authenticated가 판정을 실행 못 한다 (슬롯별 마지막 게이트가 죽는다)'; end if;
 
-    if v_bad = '' then call _pass('ofs','0215-A2 배포 형상 — definer · 본문 search_path · ACL 양방향(NULL-ACL 팔 먼저) · 반환 칸은 **모드로 읽어** 정확히 day,start_min,end_min,source 넷(다섯 번째가 note가 들어오는 길이다); 주석 벗긴 본문에서 예외 테이블을 정확히 두 번 읽고 둘 다 kind로 갈라지며 주간 그리드 팔이 살아 있고, 휴가는 daterange로 권위 있는 날짜 칸을 보며 비권위 instant 칸·note·at time zone·now()는 없다([0215] 주석으로 벗김 자체를 양방향 대조). 판정(is_slot_available)은 이 파일이 안 건드렸고 authenticated가 여전히 실행할 수 있다는 대조까지. NO-FUNCTION·NO-SOURCE는 큰 소리로 실패한다');
+    if v_bad = '' then call _pass('ofs','0215-A2 배포 형상 — definer · 본문 search_path · ACL 양방향(NULL-ACL 팔 먼저) · 반환 칸은 **모드로 읽어** 정확히 day,start_min,end_min,source,segments 다섯(⚠ 2026-09-25 0221 이전에는 넷이었다 — 합쳐진 span 의 출처를 클라가 읽어야 칩이 거짓말을 안 하기 때문에 segments 가 들어왔고, 여섯 번째가 note 가 들어오는 길이다. 새 주인은 252 0221-S1 · 0221-V1); 주석 벗긴 본문에서 예외 테이블을 정확히 두 번 읽고 둘 다 kind로 갈라지며 주간 그리드 팔이 살아 있고, 휴가는 daterange로 권위 있는 날짜 칸을 보며 비권위 instant 칸·note·at time zone·now()는 없다([0215] 주석으로 벗김 자체를 양방향 대조). 판정(is_slot_available)은 이 파일이 안 건드렸고 authenticated가 여전히 실행할 수 있다는 대조까지. NO-FUNCTION·NO-SOURCE는 큰 소리로 실패한다');
     else v_msg := v_bad; call _fail('ofs','0215-A2 배포 형상', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('ofs','0215-A2 배포 형상', v_msg);
   end;

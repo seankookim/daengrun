@@ -25,6 +25,12 @@
 --   · `W9` 같은 날 붙은 두 창을 가로지르는 11:30–12:35 를 trunk 는 **거절한다** — 0219 가 창을
 --     합치기 때문에 생기는 가족이라, 고침 **이전에는 존재하지 않는다**. 이 팔이 고침 전에 붉은
 --     것은 결함의 재현이 아니라, 이 팔이 실제로 0219 의 새 행동에 묶여 있다는 증거다 (§0b)
+--     ⚠ **그리고 W9 는 2026-09-25 에 다시 뒤집혔다 [0221].** 그때 이 팔은 「목록은 그 슬롯을 낼
+--     수 없다」를 값으로 적어 둔 것이었고, Codex 서버 평결 #1 이 그 문장을 결함으로 불렀다 —
+--     러너가 연 시간을 서버는 받는데 보호자는 고를 수 없다. 0221 이 목록을 판정과 같은 합집합으로
+--     만들면서 이 팔은 **양방향 등식**을 요구하게 됐다. 핀이 뒤집힌 것은 테스트가 허술했다는
+--     증거가 아니라 테스트가 일한 증거다 (CLAUDE.md 「A PIN THAT REVERSED IS NOT A PIN THAT WAS
+--     WEAK」). 아래 W9 블록의 주석이 그 결정을 들고 있다.
 --   · `S1` 배포된 본문에 `v_start_min`/`v_end_min` 이 살아 있다
 -- ⚠ **I predicted six and measured seven**, and the extra one is `W9` — recorded here rather than
 -- quietly corrected, because a prediction that misses is the cheapest evidence that the run was
@@ -418,15 +424,23 @@ begin
   end;
 
   -- ═══════════════════════════════════════════════════════════════════════════════════════════
-  -- [0219-W9] 0219 가 **새로 만든** 두 발산 가족 — 측정해서 적어 둔다, 없다고 하지 않는다
+  -- [0219-W9] 0219 가 만든 두 발산 가족이 **닫혔다** — 이제 양방향 등식이다 [0221, 2026-09-25]
   -- ═══════════════════════════════════════════════════════════════════════════════════════════
-  -- 합집합 판정은 창을 **합치므로**, 목록(`runner_offered_slots`)이 낼 수 없는 슬롯을 받게 된다:
-  --   ① 자정을 사이에 둔 붙은 두 창 — 목록의 행은 하루 단위이고 `end_min <= 1440` 이라 구조적으로
-  --      낼 수 없다.
-  --   ② 같은 날 **붙은 두 창**을 가로지르는 슬롯 — 목록은 창을 합치지 않는다 (0215 §CLIENT: 합치면
-  --      `source` 가 무엇인지 말할 수 없게 되고 추가 근무 칩이 거짓말을 한다).
-  -- 둘 다 ⊇ 방향이고, ⊆(목록이 내주는 칸은 판정이 받는다)는 **여전히 0** 이다 — 화면이 서버가
-  -- 거절할 칸을 그리는 일은 없다. 이 팔은 그 두 문장을 값으로 잰다.
+  -- 🔴 이 팔은 2026-09-25 에 **발산을 요구하는 문장에서 등식을 요구하는 문장으로 뒤집혔다**, 그리고
+  -- 그건 드라이브바이 수정이 아니라 결정이다. 원래 문장은 0219 §0c 를 값으로 옮긴 것이었다:
+  --   ① 자정을 사이에 둔 붙은 두 창 — 「목록의 행은 하루 단위이고 `end_min <= 1440` 이라 구조적으로
+  --      낼 수 없다」
+  --   ② 같은 날 붙은 두 창을 가로지르는 슬롯 — 「목록은 창을 합치지 않는다 (합치면 `source` 가
+  --      무엇인지 말할 수 없게 되고 추가 근무 칩이 거짓말을 한다)」
+  -- Codex 가 2026-09-25 서버 평결 #1 로 그 두 문장을 **결함으로** 불렀다: 러너가 연 시간을 서버는
+  -- 받는데 보호자는 고를 수 없다. 0221 이 둘 다 닫았다 — 목록이 판정과 같은 합집합을 내고(행은
+  -- span 이 건드리는 날마다 앵커되어 `end_min > 1440` 과 음수 `start_min` 을 낸다), `source` 를
+  -- 잃는 대신 `segments` 가 출처를 그대로 들고 가서 칩이 거짓말을 하지 않는다.
+  -- ⚠ **0219 와 0215 의 §0c 산문은 이 시점부터 낡았다** — 둘 다 origin 에 있는 마이그레이션이라
+  -- 고치지 않는다(앞으로 고친다, 0221 §0a 가 그 문단이다). 새 주인은 `252 0221-E1`(같은 날 인접,
+  -- 델타) · `252 0221-E2`(자정 인접, 두 날 앵커) · `252 0221-V1`(segments 계약) 이다.
+  -- ⊆(목록이 내주는 칸은 판정이 받는다)는 **뒤집히기 전에도 0 이었고 지금도 0** 이다 — 그 방향은
+  -- 사람을 지키는 방향이라 한 번도 움직인 적이 없다.
   begin
     v_bad := '';
     -- ② 같은 날 붙은 두 창: 09:00–12:00 규칙 + 12:00–14:00 추가 근무
@@ -444,25 +458,34 @@ begin
              (v_e0::timestamp + make_interval(mins => 755)) at time zone 'Asia/Seoul');
     select count(*) into v_n from runner_offered_slots(rG, v_e0, v_e0) o
       where o.start_min <= 690 and 755 <= o.end_min;
-    -- 대조: 목록은 그 날 **두 행**을 내고 있다 (합치지 않는다는 것이 사실이다)
+    -- [0221] 목록은 그 날 **한 행**을 낸다 (합쳤다는 것이 사실이다 — 2026-09-25 이전에는 2였다)
     select count(*) into v_n2 from runner_offered_slots(rG, v_e0, v_e0);
     -- 대조: 목록이 내주는 칸은 판정이 받는다 — ⊆ 는 이 픽스처에서도 0 이다
     select count(*) into v_sub from runner_offered_slots(rG, v_e0, v_e0) o
       where is_slot_available(rG,
               (o.day::timestamp + make_interval(mins => o.start_min)) at time zone 'Asia/Seoul',
               (o.day::timestamp + make_interval(mins => o.end_min))   at time zone 'Asia/Seoul') is not true;
-    -- ① 자정 가족: rC 의 붙은 두 규칙이 덮는 23:30–00:19 를 목록은 낼 수 없다
+    -- ① 자정 가족 [0221]: rC 의 붙은 두 규칙이 덮는 23:30–00:19 를 목록이 **낸다**
     select count(*) into v_mid from runner_offered_slots(rC, v_d, v_d2) o where o.end_min > 1440;
+    -- 그리고 그 행이 실제로 그 슬롯을 담는가 — 「end_min>1440 인 행이 있다」보다 강한 문장이다
+    select count(*) into v_sup from runner_offered_slots(rC, v_d, v_d2) o
+      where o.day = v_d and o.start_min <= 1410 and 1459 <= o.end_min;
+    -- 대조: 판정도 그 슬롯을 받는다 (0219-W3 가 같은 것을 재지만 여기서 **등식**의 한쪽이 된다)
+    v_b := is_slot_available(rC,
+             (v_d::timestamp + make_interval(mins => 1410)) at time zone 'Asia/Seoul',
+             (v_d::timestamp + make_interval(mins => 1459)) at time zone 'Asia/Seoul');
 
-    if v_n2 is distinct from 2 then v_bad := v_bad || ' 대조: 붙은 두 창이 목록에서 2행이 아니다 [' || coalesce(v_n2::text,'NULL') || '] — 목록이 이미 합치고 있다면 이 팔이 재는 가족이 없다'; end if;
+    if v_n2 is distinct from 1 then v_bad := v_bad || ' 🔴 붙은 두 창이 목록에서 1행으로 합쳐지지 않았다 [' || coalesce(v_n2::text,'NULL') || '] — 0221 이전의 발산이 돌아왔다'; end if;
     if v_a is not true then v_bad := v_bad || ' 🔴 붙은 두 창(09:00–12:00 + 12:00–14:00)을 가로지르는 11:30–12:35 를 판정이 거절한다 [' || coalesce(v_a::text,'NULL') || '] — 합집합이 같은 날 인접을 안 합친다'; end if;
-    if v_n is distinct from 0 then v_bad := v_bad || ' 대조: 목록이 11:30–12:35 를 담는 창을 내고 있다 [' || coalesce(v_n::text,'NULL') || '행] — 발산 가족 ②가 실재하지 않는다'; end if;
-    if v_mid is distinct from 0 then v_bad := v_bad || ' 대조: 목록이 end_min > 1440 인 행을 냈다 [' || coalesce(v_mid::text,'NULL') || '행] — 가족 ①의 「구조적으로 낼 수 없다」가 거짓이다'; end if;
+    if v_n is distinct from 1 then v_bad := v_bad || ' 🔴 판정이 받는 11:30–12:35 를 담는 창이 목록에 ' || coalesce(v_n::text,'NULL') || '행이다 — 발산 가족 ② (Codex #1)'; end if;
+    if v_b is not true then v_bad := v_bad || ' 대조: 자정을 사이에 둔 붙은 두 규칙의 23:30–00:19 를 판정이 거절한다 [' || coalesce(v_b::text,'NULL') || '] — 이 팔의 등식이 잴 것이 없다'; end if;
+    if coalesce(v_mid, 0) < 1 then v_bad := v_bad || ' 🔴 목록이 end_min > 1440 인 행을 하나도 못 낸다 [' || coalesce(v_mid::text,'NULL') || '행] — 발산 가족 ①'; end if;
+    if v_sup is distinct from 1 then v_bad := v_bad || ' 🔴 판정이 받는 23:30–00:19 를 담는 span 이 시작하는 날에 ' || coalesce(v_sup::text,'NULL') || '행이다 — 발산 가족 ①'; end if;
     if v_sub is distinct from 0 then v_bad := v_bad || ' 🔴 목록이 내주는 창을 판정이 거절한다 (⊆ 위반 ' || coalesce(v_sub::text,'NULL') || '행) — 화면이 서버가 거절할 칸을 그린다'; end if;
 
-    if v_bad = '' then call _pass('win','0219-W9 0219 가 새로 만든 두 발산 가족 — ① 자정을 사이에 둔 붙은 두 창(목록은 하루 단위·end_min<=1440 이라 구조적으로 못 낸다) · ② 같은 날 붙은 두 창을 가로지르는 슬롯(목록은 창을 합치지 않는다: 합치면 source 를 말할 수 없다). 둘 다 판정 true / 목록 없음 = ⊇ 방향이고, **⊆ 는 0** 이다 — 화면이 서버가 거절할 칸을 그리는 일은 없다. 이 팔이 붉어지면 둘 중 하나가 사실이 아니게 된 것이다');
-    else v_msg := v_bad; call _fail('win','0219-W9 새 발산 가족 (측정)', v_msg); end if;
-  exception when others then v_msg := sqlerrm; call _fail('win','0219-W9 새 발산 가족 (측정)', v_msg);
+    if v_bad = '' then call _pass('win','0219-W9 0219 가 만든 두 발산 가족이 **닫혔다** (0221, 양방향 등식) — ① 자정을 사이에 둔 붙은 두 창: 판정 true 이고 목록도 시작하는 날에 그 슬롯을 담는 span 을 낸다(end_min > 1440) · ② 같은 날 붙은 두 창을 가로지르는 슬롯: 판정 true 이고 목록은 **1행**으로 합쳐 그 칸을 담는다. ⊆ 는 뒤집히기 전에도 0 이었고 지금도 0 이다. ⚠ 이 팔은 2026-09-25 에 「발산을 요구」에서 「등식을 요구」로 뒤집혔다 — Codex 서버 평결 #1 이 그 발산을 결함으로 불렀고 0221 이 목록을 판정과 같은 합집합으로 만들었다. 0219·0215 의 §0c 산문은 그 시점부터 낡았고(마이그레이션은 앞으로 고친다), 새 주인은 252 0221-E1 · 0221-E2 · 0221-V1 이다');
+    else v_msg := v_bad; call _fail('win','0219-W9 발산 가족이 닫혔다 (0221 등식)', v_msg); end if;
+  exception when others then v_msg := sqlerrm; call _fail('win','0219-W9 발산 가족이 닫혔다 (0221 등식)', v_msg);
   end;
 
   -- ═══════════════════════════════════════════════════════════════════════════════════════════

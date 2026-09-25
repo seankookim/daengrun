@@ -682,8 +682,10 @@ export default function RunnerProfileScreen() {
                             <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
                               {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === null ? '확인 중' : '가능'}
                             </Text>
-                            {/* [0215] 추가 근무 칩 — 서버의 source 를 그대로 묶는다, 추측하지 않는다.
-                                주간 그리드가 덮지 않는 시간일 때만 뜬다 (offered-slots.ts 의 라벨 규칙). */}
+                            {/* [0215→0221] 추가 근무 칩 — 서버가 준 **segments** 에 묶는다,
+                                추측하지 않는다. 주간 그리드(합친 것)가 슬롯 전체를 덮지 않을 때만
+                                뜬다 (offered-slots.ts 의 라벨 규칙). 0221 이전에는 서버 행의
+                                source 를 그대로 썼는데, 합쳐진 span 은 한 낱말로 답할 수 없다. */}
                             {sl.source === 'extra' && (
                               <Text style={{ fontSize: 15, marginTop: 1, fontWeight: '700', color: sel ? colors.volt : paper.ink }}>
                                 {EXTRA_CHIP_KO}
