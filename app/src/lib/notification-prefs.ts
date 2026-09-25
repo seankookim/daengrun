@@ -106,9 +106,10 @@ export const PREF_ROWS: PrefRow[] = [
     // make it a partial list again without reddening a pin.
     // [0233/0234] EIGHTEEN: + 「러닝 전 사고 검토」 (arm ⓗ) and the three incident_opened bells
     // (「사고 접수」 by severity) — two more families named below, and pinned by ⑦.
+    // [0237] NINETEEN: + 「반복 예약 생성 실패」 (the recurring generator's failure-episode ring).
     key: 'ops',
     label: '운영 알림',
-    desc: '지급 대기·정산 미완료, 인계·반환·러닝 좌초, 러닝 전 사고 검토·사고 접수, 굿즈 수령 신청, 결제·카드·취소 수수료·보상 처리 실패 같은 운영 확인 요청 — 운영 콘솔은 그대로예요',
+    desc: '지급 대기·정산 미완료, 인계·반환·러닝 좌초, 러닝 전 사고 검토·사고 접수, 반복 예약 생성 실패, 굿즈 수령 신청, 결제·카드·취소 수수료·보상 처리 실패 같은 운영 확인 요청 — 운영 콘솔은 그대로예요',
     opsOnly: true,
   },
   {

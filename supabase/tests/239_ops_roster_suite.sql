@@ -22,7 +22,7 @@
 --        first deactivation SUCCEED — the control that proves the guard counts rather than
 --        refusing every deactivation — and deactivating a NON-`payout_due` class while being the
 --        only console operator is allowed, which is the guard's scope.
---  · **0208-C1** — the class allowlist as a SET: every one of the thirteen (fourteen since 0234) names is accepted and
+--  · **0208-C1** — the class allowlist as a SET: every one of the thirteen (fourteen since 0234, fifteen since 0237) names is accepted and
 --        appears on the roster, two invented names are refused BY NAME with no row and no journal
 --        row written, and a null class is refused the same way.
 --  · **0208-P1** — the lookup answers with THREE COLUMNS, asserted by `pg_proc.proargnames` (a
@@ -146,7 +146,10 @@ declare
     'late_comp_failed', 'incident_waive_pending', 'payment_marker_lost',
     -- [0234 §C] the fourteenth: open_incident_tx's ops bell. This list's property — it AGREES with the
     -- migration's (NAMED GAP ④) — would otherwise have gone quietly false; 265 `0234-C1` owns seating it.
-    'incident_opened'
+    'incident_opened',
+    -- [0237 §C] the fifteenth: the recurring generator's failure-episode ring (_recurring_failure_escalate).
+    -- Same property — this copy AGREES with the migration's; 268 `0237-C1` owns seating it.
+    'recurring_generation_failed'
   ];
   c_phone constant text := '01099998888';
   v_bad text := ''; v_msg text; v_js jsonb; v_js2 jsonb; v_n int; v_n2 int;
@@ -402,7 +405,7 @@ begin
       then v_bad := v_bad || ' 🔴 거절된 클래스가 장부 행을 남겼다 (델타=' || (v_n - v_j0) || ')'; end if;
 
     if v_bad = ''
-      then call _pass('orx','0208-C1 클래스 허용목록은 **집합**이다 — 방출자에서 뽑은 열네 이름(SQL 방출자 여섯 — 0234가 incident_opened 추가 — + _shared/ops.ts의 OpsEventClass 여덟) 전부가 받아들여져 명부에 그대로 앉고 장부 델타가 정확히 그 수이며 목록 밖 값은 하나도 앉지 않는다; payout_dues 같은 **오타**와 지어낸 이름과 널과 빈 문자열은 모두 unknown_class로 이름 지어 거절되고 행도 장부 행도 남기지 않는다(구독자의 오타는 0084 §E의 안전 논증이 덮지 않는 실패 — 당번인 줄 알고 아무것도 못 받는 사람)');
+      then call _pass('orx','0208-C1 클래스 허용목록은 **집합**이다 — 방출자에서 뽑은 열다섯 이름(SQL 방출자 일곱 — 0234가 incident_opened, 0237이 recurring_generation_failed 추가 — + _shared/ops.ts의 OpsEventClass 여덟) 전부가 받아들여져 명부에 그대로 앉고 장부 델타가 정확히 그 수이며 목록 밖 값은 하나도 앉지 않는다; payout_dues 같은 **오타**와 지어낸 이름과 널과 빈 문자열은 모두 unknown_class로 이름 지어 거절되고 행도 장부 행도 남기지 않는다(구독자의 오타는 0084 §E의 안전 논증이 덮지 않는 실패 — 당번인 줄 알고 아무것도 못 받는 사람)');
     else v_msg := v_bad; call _fail('orx','0208-C1 클래스 허용목록', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('orx','0208-C1 클래스 허용목록', v_msg);
@@ -760,7 +763,7 @@ begin
       then v_bad := v_bad || ' 🔴 조회 창구의 열 집합=' || coalesce(v_names::text, '(null)'); end if;
 
     if v_bad = ''
-      then call _pass('orx','0208-S1 배포 형상 — 세 함수 모두 definer에 본문 search_path를 갖고 ACL이 NULL이 아니며(PUBLIC으로 태어나지 않았다) anon에는 닫히고 authenticated에는 열리고, 주석 벗긴 소스에서 게이트가 **읽기보다 앞**에 있다(명부는 ops_recipients 읽기보다, 나머지 둘은 profiles 읽기보다); 명부는 비활성 행을 거르지 않고; 쓰기는 열네 클래스를 다 들고 있고 마지막 운영자 거절이 payout_due로 좁혀져 있고 대상 행을 잠그고 장부를 쓰고 행을 지우지 않고 on conflict에서 created_at을 덮지 않으며; 조회는 phone·handle·district·avatar를 읽지 않고 탈퇴를 거르고 escape·상한·이름순을 갖고 열 집합이 정확히 p_query·id·name·role이다; 장부는 봉인이고 외래키가 없고 다섯 칸이 있으며; ops_recipients의 0084 §E 봉인(RLS on·정책 0)은 그대로다. 원본 소스 크루드 대조와 NO-FUNCTION·NO-SOURCE 팔 포함');
+      then call _pass('orx','0208-S1 배포 형상 — 세 함수 모두 definer에 본문 search_path를 갖고 ACL이 NULL이 아니며(PUBLIC으로 태어나지 않았다) anon에는 닫히고 authenticated에는 열리고, 주석 벗긴 소스에서 게이트가 **읽기보다 앞**에 있다(명부는 ops_recipients 읽기보다, 나머지 둘은 profiles 읽기보다); 명부는 비활성 행을 거르지 않고; 쓰기는 열다섯 클래스를 다 들고 있고 마지막 운영자 거절이 payout_due로 좁혀져 있고 대상 행을 잠그고 장부를 쓰고 행을 지우지 않고 on conflict에서 created_at을 덮지 않으며; 조회는 phone·handle·district·avatar를 읽지 않고 탈퇴를 거르고 escape·상한·이름순을 갖고 열 집합이 정확히 p_query·id·name·role이다; 장부는 봉인이고 외래키가 없고 다섯 칸이 있으며; ops_recipients의 0084 §E 봉인(RLS on·정책 0)은 그대로다. 원본 소스 크루드 대조와 NO-FUNCTION·NO-SOURCE 팔 포함');
     else v_msg := v_bad; call _fail('orx','0208-S1 배포 형상', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', false);
     v_msg := sqlerrm; call _fail('orx','0208-S1 배포 형상', v_msg);

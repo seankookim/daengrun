@@ -151,7 +151,10 @@ declare
     '러닝 전 사고 검토 — 확인 필요',
     '사고 접수 — 확인 필요',
     '긴급 사고 접수 — 확인 필요',
-    'SOS 사고 접수 — 즉시 확인 필요'];
+    'SOS 사고 접수 — 즉시 확인 필요',
+    -- [0237] one more SQL writer — the recurring generator's failure-episode ring. 18 → 19; this list's
+    -- property is unchanged, and 268 `0237-B1` owns the new title against what the writer actually wrote.
+    '반복 예약 생성 실패 — 확인 필요'];
   -- Every deployed function that writes `kind='system'`, with the migration that last declared it.
   -- A new entry here without a matching `_noti_ops_titles()` entry is what T4 + the client drift
   -- test exist to make loud.
@@ -163,7 +166,8 @@ declare
     '_club_note_fee_mint_failure',    -- 0118
     '_sweep_custody_strands',         -- 0224 §C (러닝 시작 좌초 · 러닝 종료 좌초); 정산 미완료 rides sweep_run_end_recovery
     '_sweep_prerun_incidents',        -- 0233 §C (러닝 전 사고 검토)
-    'open_incident_tx'];              -- 0234 §B (사고 접수 · 긴급 사고 접수 · SOS 사고 접수)
+    'open_incident_tx',               -- 0234 §B (사고 접수 · 긴급 사고 접수 · SOS 사고 접수)
+    '_recurring_failure_escalate'];   -- 0237 §D (반복 예약 생성 실패 — called by generate_recurring_bookings)
   UNLEDGERED constant text := '아직 아무도 쓰지 않은 운영 제목 (otx)';
 begin
   perform set_config('request.jwt.claim.sub', '', true);                                        -- ①
@@ -182,10 +186,10 @@ begin
     if to_regprocedure('public._noti_ops_titles()') is null then
       v_bad := v_bad || ' NO-FUNCTION(_noti_ops_titles)';
     else
-      if array_length(_noti_ops_titles(), 1) is distinct from 18                -- [0224] 11 → 14 · [0233/0234] → 18
+      if array_length(_noti_ops_titles(), 1) is distinct from 19                -- [0224] 11 → 14 · [0233/0234] → 18 · [0237] → 19
       then v_bad := v_bad || ' the ledger holds '
                           || coalesce(array_length(_noti_ops_titles(), 1)::text, 'NULL')
-                          || ' entries (this suite knows 18)'; end if;
+                          || ' entries (this suite knows 19)'; end if;
       -- Duplicates are asked against the array's OWN length, never against 11: comparing to the
       -- expected size would make this arm fire on a ledger that merely changed size and print
       -- 「has duplicates」 about a list that has none — a true failure with a false reason, which is
@@ -217,7 +221,7 @@ begin
       end loop;
     end if;
 
-    if v_bad = '' then call _pass('otx','0214-T1 운영 제목 원장은 18개(0224가 셋, 0233·0234가 넷 추가)이고 중복이 없으며, 이 스위트가 적어 둔 18개와 정확히 같은 집합이다(양방향 — 잃어도 늘어도 빨개진다). 🔴 이 팔의 문장은 「마이그레이션의 배열이 몰래 움직이지 않았다」이지 「배열이 옳다」가 아니다: 옳음은 T4와 클라 드리프트 테스트가 쓰는 쪽에서 재유도한다. 그리고 귀속 팔 — 열한 개 중 어느 것도 _noti_urgent_noti_titles의 멤버가 아니므로 T2의 0은 「끌 수 있게 됐다」이지 「원래 끌 수 없던 적이 없다」가 아니다');
+    if v_bad = '' then call _pass('otx','0214-T1 운영 제목 원장은 19개(0224가 셋, 0233·0234가 넷, 0237이 하나 추가)이고 중복이 없으며, 이 스위트가 적어 둔 19개와 정확히 같은 집합이다(양방향 — 잃어도 늘어도 빨개진다). 🔴 이 팔의 문장은 「마이그레이션의 배열이 몰래 움직이지 않았다」이지 「배열이 옳다」가 아니다: 옳음은 T4와 클라 드리프트 테스트가 쓰는 쪽에서 재유도한다. 그리고 귀속 팔 — 열한 개 중 어느 것도 _noti_urgent_noti_titles의 멤버가 아니므로 T2의 0은 「끌 수 있게 됐다」이지 「원래 끌 수 없던 적이 없다」가 아니다');
     else v_msg := v_bad; call _fail('otx','0214-T1 ops title ledger', v_msg); end if;
   exception when others then call _fail('otx','0214-T1 ops title ledger', sqlerrm); end;
 
@@ -383,7 +387,7 @@ begin
                           || v_n || ') — either it stopped writing system rows, or the matcher is blind'; end if;
     end loop;
 
-    if v_bad = '' then call _pass('otx','0214-T4 배포된 함수 중 kind=system 알림을 쓰는 것은 선언된 여덟 개뿐이다(0224가 _sweep_custody_strands, 0233이 _sweep_prerun_incidents, 0234가 open_incident_tx 추가) — prosrc에서 주석을 벗기고 공백을 접은 뒤 본다(주석이 제거된 코드를 인용하면 모든 grep이 맞는다는 법, 그리고 줄바꿈 하나로 게이트가 눈이 머는 쪽이 위험한 방향이라서). 🔴 양방향 — 선언된 다섯 개가 이 핀 자신의 매처로 실제로 발견되는지도 재므로, 매처가 깨져서 0을 돌려주는 것이 깨끗한 스윕으로 읽히지 않는다');
+    if v_bad = '' then call _pass('otx','0214-T4 배포된 함수 중 kind=system 알림을 쓰는 것은 선언된 아홉 개뿐이다(0224가 _sweep_custody_strands, 0233이 _sweep_prerun_incidents, 0234가 open_incident_tx, 0237이 _recurring_failure_escalate 추가) — prosrc에서 주석을 벗기고 공백을 접은 뒤 본다(주석이 제거된 코드를 인용하면 모든 grep이 맞는다는 법, 그리고 줄바꿈 하나로 게이트가 눈이 머는 쪽이 위험한 방향이라서). 🔴 양방향 — 선언된 다섯 개가 이 핀 자신의 매처로 실제로 발견되는지도 재므로, 매처가 깨져서 0을 돌려주는 것이 깨끗한 스윕으로 읽히지 않는다');
     else v_msg := v_bad; call _fail('otx','0214-T4 system writer drift', v_msg); end if;
   exception when others then call _fail('otx','0214-T4 system writer drift', sqlerrm); end;
 
