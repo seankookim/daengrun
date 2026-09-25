@@ -240,5 +240,53 @@ t('…and an empty segments array falls the same way rather than offering nothin
     [{ day: D, startMin: 540, endMin: 720, source: 'grid', segments: [] }], D, 65)))
     === JSON.stringify([540, 600]));
 
+// ── ⑩ [fix/client-review-3 · Codex 2026-09-25 s1] the DAY CLAMP, on both rows at once ─────────
+// Codex's 0221 finding: a client that enumerates from `startMin` without clamping to the selected
+// day offers next-day starts on the first day's screen and NEGATIVE starts on the second, and
+// `kstInstant` silently normalises those into the neighbouring date — so the booking lands on a
+// day the owner did not pick. The routing recorded the reasoning for not versioning the RPC and
+// named this pin as the NEW client's half. Measured at write time: the clamp already exists
+// (`lo = Math.max(0, w.startMin)` and `m < 1440` in `slotStartsForDay`), so the pin IS the
+// deliverable. Unlike ⑨, both rows arrive in ONE list with their REAL day keys — exactly what
+// `runner_offered_slots` returns for 22:00–24:00 on D beside 00:00–02:00 on D+1 — and every start
+// is driven through the screens' own `kstInstant(cal, ⌊m/60⌋, m % 60)` call and read back as a
+// KST day key, because the property is 「the booking lands on the day the owner is looking at」,
+// not 「the numbers are in range」.
+{
+  const J = (x) => JSON.stringify(x);
+  const PAIR = [
+    span([sg(1320, 1440, 'grid'), sg(1440, 1560, 'grid')], D),       // D's row: [22:00, 26:00)
+    span([sg(-120, 0, 'grid'), sg(0, 120, 'grid')], OTHER),          // D+1's row: [-02:00, 02:00)
+  ];
+  const calD = kstCal(Date.UTC(2026, 9, 3, 3, 0));      // 2026-10-03 12:00 KST
+  const calN = kstCal(Date.UTC(2026, 9, 4, 3, 0));      // 2026-10-04 12:00 KST
+  const onD = slotStartsForDay(PAIR, D, 60);
+  const onN = slotStartsForDay(PAIR, OTHER, 60);
+  const landsOn = (cal, m) => kstDayKey(kstCal(kstInstant(cal, Math.floor(m / 60), m % 60).getTime()));
+
+  // The fixture is where the unclamped rule and the clamped rule DISAGREE: D's row has a candidate
+  // at 1440 (00:00 tomorrow) that fits the span, and D+1's row has candidates at -120/-60 that fit
+  // it. A fixture without those would pass under both rules and measure nothing.
+  t('s1 · fixture sanity: the day keys are the two consecutive KST days the calendars name',
+    kstDayKey(calD) === D && kstDayKey(calN) === OTHER, `${kstDayKey(calD)} ${kstDayKey(calN)}`);
+  t('s1 · fixture sanity: unclamped, D\'s span WOULD admit 00:00 tomorrow and D+1\'s WOULD admit 22:00/23:00 yesterday',
+    1440 + 60 <= 1560 && -120 + 60 <= 120 && -60 + 60 <= 120);
+  t('🔴 s1 · day D offers 22:00 and 23:00 ONLY — never 00:00 of the next day',
+    J(starts(onD)) === J([1320, 1380]), J(starts(onD)));
+  t('🔴 s1 · day D+1 offers 00:00 and 01:00 ONLY — never a negative start',
+    J(starts(onN)) === J([0, 60]), J(starts(onN)));
+  t('🔴 s1 · no start outside [0, 1440) ever reaches kstInstant, on either day',
+    [...onD, ...onN].every((s) => s.startMin >= 0 && s.startMin < 1440));
+  t('🔴 s1 · every offered start, built the way the screens build it, lands on the day being drawn',
+    onD.every((s) => landsOn(calD, s.startMin) === D) && onN.every((s) => landsOn(calN, s.startMin) === OTHER),
+    J([...onD.map((s) => landsOn(calD, s.startMin)), ...onN.map((s) => landsOn(calN, s.startMin))]));
+  // CONTROL — the round-trip instrument can see the defect: the exact starts an unclamped client
+  // would emit DO land on the neighbouring day. Without this, 「lands on the day」 could be a check
+  // that passes for any input.
+  t('CONTROL · an unclamped 1440 on D lands on D+1, and an unclamped -120 on D+1 lands on D',
+    landsOn(calD, 1440) === OTHER && landsOn(calN, -120) === D,
+    `${landsOn(calD, 1440)} ${landsOn(calN, -120)}`);
+}
+
 console.log('\n' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);
