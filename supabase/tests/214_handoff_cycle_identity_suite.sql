@@ -338,8 +338,13 @@ begin
       -- ⚠ [0193] 4 → 5. Arm ⓕ (0193 §D) catches its own row the same way: one poisoned booking
       -- must not silence the bell for every other stranded one (0116 B3 / 0182's shape). The
       -- property this line owns — 「every arm that writes catches its own row」 — is unchanged.
+      -- ⚠ [0226] 5 → 7. Arm ⓐ was the one writing arm that did NOT catch its own row (codex s1 on
+      -- 0224: a single faulting sealed row aborted the whole tick, measured by 257 `0226-F1`); 0226
+      -- §A gives its two legs — the parties' alarm and the payout_due bell — one sibling handler
+      -- each. Updated in that slice, per the house law; what this line owns is unchanged and now
+      -- true of every writing arm. 257 `0226-F1`/`F2` own the new behaviour.
       select count(*) into v_n from regexp_matches(v_src, 'exception when others', 'g');
-      if v_n <> 5 then v_bad := v_bad || ' 예외 팔 수=' || v_n || '(ⓑ·ⓒ·ⓓ·ⓔ·ⓕ 5개여야)'; end if;
+      if v_n <> 7 then v_bad := v_bad || ' 예외 팔 수=' || v_n || '(ⓐ×2·ⓑ·ⓒ·ⓓ·ⓔ·ⓕ 7개여야)'; end if;
       select count(*) into v_n from regexp_matches(v_src, '= any\(c_dead\)', 'g');
       if v_n <> 5 then v_bad := v_bad || ' c_dead 사용 수=' || v_n || '(5개여야 — ⓒ 재평가, ⓓ 후보·재평가, ⓔ 후보·재평가)'; end if;
       -- [0188] 3 → 4. Arm ⓑ (the run-end strand) is now BOUNDED and LOCKED like ⓒ/ⓓ/ⓔ: 0188
@@ -379,6 +384,6 @@ begin
   if v_n <> 0 then v_bad := v_bad || ' 라이브 한쪽 스탬프인데 id 없는 행=' || v_n; end if;
   select count(*) into v_n from pg_attribute where attrelid = 'public.bookings'::regclass and not attisdropped and attname in ('handoff_cycle_id', 'handoff_ops_alerted_at') and (atthasdef or attnotnull);
   if v_n <> 0 then v_bad := v_bad || ' 새 열에 기본값/not null=' || v_n; end if;
-  if v_bad = '' then call _pass('hcy','0183-E6 배포 형태 — 후보·재평가 모두 사이클 id로 매칭(시각 매칭 없음), 레거시 행 발급, 재전송이 id를 지님, ops 기록은 전달 조건부, pending 팔, 예외 팔 4·c_dead 5·배치 4·행 락 4·runner 3 [0188: ⓑ도 경계·락을 갖춘다]; 라이브 한쪽 스탬프면 id 있음; 새 열 기본값 없음');
+  if v_bad = '' then call _pass('hcy','0183-E6 배포 형태 — 후보·재평가 모두 사이클 id로 매칭(시각 매칭 없음), 레거시 행 발급, 재전송이 id를 지님, ops 기록은 전달 조건부, pending 팔, 예외 팔 7·c_dead 5·배치 5·행 락 5·runner 3 [0188: ⓑ도 경계·락을 갖춘다 · 0193: ⓕ · 0226: ⓐ의 두 갈래도 자기 행을 잡는다]; 라이브 한쪽 스탬프면 id 있음; 새 열 기본값 없음');
   else v_msg := v_bad; call _fail('hcy','0183-E6 shape', v_msg); end if;
 end $$;

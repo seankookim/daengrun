@@ -424,10 +424,19 @@ declare
   --    moved with it (it still carries `[0111]`). 255 `0224-C1` owns the new behaviour.
   --    Previous values: src 2bc92cc3ef2ff9aa47d1273a0475aef6 / 6792, comment
   --    7de4ee29b01f78a8469bf650cd276985 / 457.
-  c_gen_src_md5 constant text := '664d37c9c420c39cfda089074cecb287';
-  c_gen_src_len constant int  := 7531;
-  c_gen_cmt_md5 constant text := '288f4ad1e693de55cb6ad0ff2b0d56e6';
-  c_gen_cmt_len constant int  := 492;
+  -- ⚠ [0226] RE-READ FROM THE CATALOG on 2026-09-25 after 0226 applied, as the note above asks.
+  --    The body moved ON PURPOSE and in ONE place: the ⓓ pause-notice guard's subquery gained one
+  --    conjunct — for a DEBT block an earlier notice counts only while a charge that existed when it
+  --    was written is still unsettled (`_unsettled_charge_through`, codex s3 on 0224: a debt paid and
+  --    re-incurred between hourly ticks left no booking behind and the new episode went untold).
+  --    0226 §C copied 0224's body BY SCRIPT and asserted every other line identical. The comment moved
+  --    with it (still carries `[0111]`). 257 `0226-C2`/`C3`/`C4` own the new behaviour.
+  --    Previous values: src 664d37c9c420c39cfda089074cecb287 / 7531, comment
+  --    288f4ad1e693de55cb6ad0ff2b0d56e6 / 492.
+  c_gen_src_md5 constant text := 'da4bb3cd510442ab24657eff0e314d14';
+  c_gen_src_len constant int  := 8231;
+  c_gen_cmt_md5 constant text := 'ec485f1cac0f9fb241919427ce950e8b';
+  c_gen_cmt_len constant int  := 522;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have
