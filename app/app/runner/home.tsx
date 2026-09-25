@@ -1246,6 +1246,8 @@ export default function RunnerHome() {
               router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
             }}
             disabled={gate.waitingOn === 'owner' || !gate.bookingId}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: gate.waitingOn === 'owner' || !gate.bookingId }}
             style={({ pressed }) => [
               styles.gateStrip,
               pressed && gate.waitingOn !== 'owner' && styles.pressed96,
