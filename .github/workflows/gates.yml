@@ -56,12 +56,25 @@ jobs:
         run: cd app && node scripts/check-route-native-imports.mjs
       - name: embed fk
         run: cd app && node scripts/check-embed-fk.mjs
-      - name: lint error budget (exactly 6)
+      - name: lint error budget (0)
+        # Budget 0 since cloud/lint-exhaustive-deps cleared the last 11 react-hooks/exhaustive-deps errors.
+        # The count is read from ESLint's own summary line ("✖ N problem(s) (E error(s), W warning(s))").
+        # The old `grep '[0-9]+ errors'` missed the singular "1 error" and then matched the
+        # "0 errors … fixable with --fix" footer, so exactly one error read as 0.
+        # No summary + exit 0 means ESLint printed nothing, i.e. clean; no summary + non-zero exit fails loudly.
         run: |
           cd app
-          out=$(npm run lint --silent 2>&1 || true)
-          errs=$(echo "$out" | grep -oE '[0-9]+ errors' | grep -oE '[0-9]+' | head -1)
-          echo "lint errors: ${errs:-unparsed}"
-          test "${errs:-999}" -le 6 || { echo "::error::lint errors exceeded the 6-error baseline"; exit 1; }
+          rc=0; out=$(npm run lint --silent 2>&1) || rc=$?
+          summary=$(printf '%s\n' "$out" | grep -E '✖ [0-9]+ problems? \([0-9]+ errors?, [0-9]+ warnings?\)' | tail -1 || true)
+          if [ -n "$summary" ]; then
+            errs=$(printf '%s\n' "$summary" | sed -E 's/.*\(([0-9]+) errors?,.*/\1/')
+          elif [ "$rc" -eq 0 ]; then
+            errs=0
+          else
+            printf '%s\n' "$out" | tail -20
+            echo "::error::lint exited $rc without an ESLint summary line"; exit 1
+          fi
+          echo "lint errors: $errs"
+          test "$errs" -le 0 || { echo "::error::lint errors: $errs (budget 0)"; exit 1; }
       - name: unit suites
         run: cd app && npm test
