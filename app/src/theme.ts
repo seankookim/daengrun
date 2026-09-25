@@ -240,6 +240,12 @@ export const paper = {
   // busy = 라벨 스왑. **잉크는 상태(선택칩·완료 스텝·라이브 필·다크 아티팩트)로 남는다 — 액션이 아니다.**
 } as const;
 
+// Section title — DESIGN.md §3b's one section grammar: a full-bleed 1px coral rule (the screen
+// draws it), then this title. 20/800 ink, no latin kicker, no subtitle; every section title in the
+// app is the SAME size, weight and colour. lineHeight 25 = 1.25×. Before this token each screen
+// typed its own (17/900 · 16/800 · 15.5/900 · 20/900 were all shipping) — spread it, don't retype it.
+export const secTitle = { fontSize: 20, lineHeight: 25, fontWeight: '800' as const, color: paper.ink };
+
 // Pricing — ⚠ 두 기본요금은 서로 다른 돈 (Sean 2026-08-12 D2 디커플링; 서버 정본 _shared/ctx.ts):
 //   ownerBaseFare 7,900 = 보호자 가격 · runnerCompBase 9,900 = 러너 정산 기준 (피치의 바닥).
 //   하나를 다른 하나에 맞추는 수정은 사고다.

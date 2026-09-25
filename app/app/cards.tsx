@@ -10,7 +10,7 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { CoursePatch, deriveStamps, fetchCoursePatches, fetchStampStats, StampStats } from '../src/lib/api';
 import { collectionFace } from '../src/lib/collection-face';
-import { lilac, lilacRadius, lilacShadow } from '../src/theme';
+import { lilac, lilacRadius, lilacShadow, paper, secTitle } from '../src/theme';
 
 // 컬렉션 — 여권의 부속서(ANNEX). 리워드 ② 랩 Ⓑ① 채택.
 // [정직 수리 2026-08-05] 목업 카드 6장(myCards) 퇴역 → 실파생 패치 월만 남았고,
@@ -120,7 +120,6 @@ export default function Cards() {
           <Text style={[s.h1, df]}>컬렉션</Text>
           <View style={s.official}><Text style={[s.officialTxt, nf]}>ANNEX</Text></View>
         </Row>
-        <Text style={s.subNote}>여권의 부속서예요 — 도장과 코스 패치가 한 수집함에 있어요</Text>
 
         {/* ————— 요약 — 두 숫자 모두 실파생. 안 온 쪽은 칸 자체가 없다 ————— */}
         {(stampFace === 'list' || patchFace === 'list') && (
@@ -165,23 +164,13 @@ export default function Cards() {
             얼굴이다. 실패 노트와 같은 문법·같은 자리에 두어, 섹션마다 로딩·실패·실값이 갈린다. */}
         {stampFace === 'loading' && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>STAMPS</Text>
-              <Text style={s.secKo}>도장</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="도장" />
             <View style={s.failNote}><Text style={s.loadTxt}>도장을 불러오는 중…</Text></View>
           </>
         )}
         {stampFace === 'failed' && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>STAMPS</Text>
-              <Text style={s.secKo}>도장</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="도장" />
             <View style={s.failNote}>
               <Text style={s.failTxt}>도장을 불러오지 못했어요</Text>
               <Pressable onPress={loadStamps} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="도장 다시 불러오기">
@@ -194,12 +183,7 @@ export default function Cards() {
             섹션의 부재가 아니라 칸 안의 '아직 비어 있어요' 문장으로 말한다(아래 stampsEarned === 0). */}
         {stampFace === 'list' && stamps && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>STAMPS</Text>
-              <Text style={s.secKo}>도장</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="도장" />
             <View style={s.visa}>
               <View style={s.visaInner}>
                 <Row style={s.visaStrap}>
@@ -211,8 +195,11 @@ export default function Cards() {
                 {stampsEarned === 0 && (
                   <View style={s.empt}>
                     <Text style={s.emptT}>도장면은 비어 있는 채로 시작해요</Text>
-                    {/* 영속성 카피 주의 — '영구' 류 약속은 거짓이 될 수 있다: 자랑 글 삭제·코스 비활성이 실제 감소 벡터 (api.ts 계약 주석) */}
-                    <Text style={s.emptD}>첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요. 기록이 남아 있는 한 도장은 그대로예요.</Text>
+                    {/* [2026-09-25 word budget, DESIGN.md §7a-bis] One line, not a paragraph (same copy as
+                        my.tsx's stamp page). The cut second sentence was a hedged permanence promise; do
+                        not bring any version of it back — a "permanent" promise can become false: a
+                        deleted brag post and a deactivated course are real decrement vectors (api.ts). */}
+                    <Text style={s.emptD}>첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요</Text>
                   </View>
                 )}
                 <View style={s.sgrid}>
@@ -226,23 +213,13 @@ export default function Cards() {
         {/* ————— § 코스 패치 — 나이트 라일락 웰 (어두운 디스크에는 어두운 바닥이 필요하다) ————— */}
         {patchFace === 'loading' && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>PATCHES</Text>
-              <Text style={s.secKo}>코스 패치</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="코스 패치" />
             <View style={s.failNote}><Text style={s.loadTxt}>코스 패치를 불러오는 중…</Text></View>
           </>
         )}
         {patchFace === 'failed' && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>PATCHES</Text>
-              <Text style={s.secKo}>코스 패치</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="코스 패치" />
             <View style={s.failNote}>
               <Text style={s.failTxt}>코스 패치를 불러오지 못했어요</Text>
               <Pressable onPress={loadPatches} style={s.retryBtn} accessibilityRole="button" accessibilityLabel="코스 패치 다시 불러오기">
@@ -258,12 +235,7 @@ export default function Cards() {
             문법·같은 재질이다. 영속성('영구')은 약속하지 않는다 — 코스 비활성화가 실제 감소 벡터다. */}
         {patchFace === 'empty' && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>PATCHES</Text>
-              <Text style={s.secKo}>코스 패치</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="코스 패치" />
             <View style={s.empt}>
               <Text style={s.emptT}>아직 모은 코스 패치가 없어요</Text>
               <Text style={s.emptD}>코스를 완주하면 그 코스의 패치가 여기에 남아요.</Text>
@@ -272,12 +244,7 @@ export default function Cards() {
         )}
         {patchFace === 'list' && patches && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>PATCHES</Text>
-              <Text style={s.secKo}>코스 패치</Text>
-              <View style={s.rule} />
-            </Row>
+            <SecHead title="코스 패치" />
             <View style={s.well}>
               <Row style={s.wellK}>
                 <Text style={s.wellT}>코스 패치</Text>
@@ -295,7 +262,7 @@ export default function Cards() {
                     accessibilityRole="button"
                     accessibilityHint="코스 상세 열기"
                   >
-                    {/* name을 넘기지 않는다 — PatchBadge 안의 이름은 ~6.5px(플로어 미달)이고 아래 14pt 라벨과 중복이었다 */}
+                    {/* name is not passed — PatchBadge's own name renders at ~6.5px (under the floor) and repeated the 15pt label below */}
                     <PatchBadge km={pt.km} grade={pt.grade} size={BADGE} />
                     <Text numberOfLines={1} style={s.pName}>{pt.name}</Text>
                     <Text numberOfLines={1} style={s.pSub}>{GRADE_LABEL[pt.grade]} ×{pt.count}</Text>
@@ -334,13 +301,24 @@ export default function Cards() {
   );
 }
 
+// §3b section header — full-bleed 1px coral rule, then theme.secTitle (20/800). [2026-09-25] It
+// replaces seven copies of the '§ STAMPS 도장' / '§ PATCHES 코스 패치' kicker row (§ glyph · latin
+// caps · Korean · trailing hairline) — DESIGN.md §3b retired the latin section kicker app-wide.
+function SecHead({ title }: { title: string }) {
+  return (
+    <View style={s.sec}>
+      <Text style={secTitle}>{title}</Text>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   // 마스트헤드
   cbar: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingVertical: 4, paddingRight: 10, marginBottom: 4 },
   cbarGlyph: { fontSize: 22, lineHeight: 26, color: lilac.head },
   cbarLabel: { fontSize: 15, fontWeight: '700', color: lilac.head },
   kicker: { alignItems: 'center', gap: 8, marginTop: 4, marginBottom: 8 },
-  kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
+  kickerTxt: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' }, // floor-exempt: latin-kicker — 'DOGS HIGH · COLLECTION' / 'ANNEX'
   rule: { flex: 1, height: 1, backgroundColor: lilac.hair },
   // [§3c 화면 타이틀 2026-08-11] 40 → 30. 탭은 아니지만 마이에서 한 탭 거리라, 여기만 40으로
   // 남기면 통일 직후에 같은 불일치가 다시 보인다. 색은 이 화면의 월드(라일락) 유지.
@@ -349,8 +327,7 @@ const s = StyleSheet.create({
     marginTop: 6, borderWidth: 1, borderColor: lilac.head, borderRadius: 2,
     paddingVertical: 5, paddingHorizontal: 8, backgroundColor: lilac.card,
   },
-  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: lilac.head, fontWeight: '600' },
-  subNote: { fontSize: 15, lineHeight: 21, color: lilac.text, marginTop: 9 },
+  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: lilac.head, fontWeight: '600' }, // floor-exempt: latin-kicker — the ANNEX tag
 
   // 요약 스트립
   sum: {
@@ -359,7 +336,7 @@ const s = StyleSheet.create({
   },
   sumC: { flex: 1, paddingVertical: 11, paddingHorizontal: 12 },
   sumDiv: { borderLeftWidth: 1, borderLeftColor: lilac.hair2 },
-  sumK: { fontSize: 12, letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase' },
+  sumK: { fontSize: 12, letterSpacing: 1.4, color: lilac.dim, textTransform: 'uppercase' }, // floor-exempt: latin-kicker — 'STAMPS' / 'COURSES' over a 15pt Korean label
   sumV: { fontSize: 22, lineHeight: 28, fontWeight: '800', color: lilac.head, marginTop: 3 }, // Oswald — 1.27× (BUG A)
   sumVU: { fontSize: 15, fontWeight: '600', color: lilac.dim },
   sumL: { fontSize: 15, color: lilac.text, marginTop: 2 },
@@ -383,11 +360,12 @@ const s = StyleSheet.create({
   // 로딩 문장 — 실패 노트와 같은 상자, 더 조용한 잉크 (실패가 아니라 아직인 것)
   loadTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim },
 
-  // 섹션 라벨 (마이와 같은 문법 — § · LATIN · 한글 · 룰)
-  sec: { alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9, marginHorizontal: 2 },
-  secNo: { fontSize: 12, color: lilac.accent, fontWeight: '600' }, // 글리프 전용(§) — 15pt 플로어 면제
-  secT: { fontSize: 12, letterSpacing: 2, color: lilac.dim, textTransform: 'uppercase' },
-  secKo: { fontSize: 15, fontWeight: '700', color: lilac.text },
+  // Section header (SecHead) — same grammar as my.tsx: the rule runs edge to edge, so it cancels the
+  // ScrollView's 16 padding with a negative margin.
+  sec: {
+    marginTop: 18, marginBottom: 9, marginHorizontal: -16, paddingHorizontal: 16,
+    borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
+  },
   microK: { fontSize: 15, letterSpacing: 1.6, color: lilac.dim, textTransform: 'uppercase' }, // [FLOOR15] 'MILESTONE / 마일스톤' — 라틴 스트랩이 아니라 한글을 싣는다. 12 → 15 (§3: 한글은 키커 예외를 타지 못한다).
 
   // § 도장 — 잉크 페이지 (포일 0)
@@ -429,5 +407,5 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   pLockKm: { fontSize: Math.round(BADGE * 0.26), lineHeight: Math.round(BADGE * 0.3), fontWeight: '900' }, // PatchBadge의 km 비율(0.26)과 동일 — 잠긴 칸과 받은 칸의 숫자가 같은 크기로 읽힌다
-  pLockWorld: { fontSize: 7.5, lineHeight: 10, fontWeight: '800', letterSpacing: 1.2, marginTop: 1 }, // 레터스페이스 라틴 키커 — 플로어 면제 (PatchBadge 월드 라벨과 같은 급)
+  pLockWorld: { fontSize: 7.5, lineHeight: 10, fontWeight: '800', letterSpacing: 1.2, marginTop: 1 }, // floor-exempt: latin-kicker — world label (TRAIL…HALF), PatchBadge's own class
 });

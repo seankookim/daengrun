@@ -2,7 +2,7 @@ import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth-context';
@@ -14,7 +14,7 @@ import { Avatar, Row } from '../src/components/ui';
 import { deriveStamps, fetchFitness, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchStampStats, RunnerApplication, StampStats } from '../src/lib/api';
 import { fetchMyProfile, fetchMyRunnerBio, MyProfile, setMyHandle, updateMyProfile, updateRunnerBio, uploadAvatar } from '../src/lib/api';
 import { session } from '../src/store';
-import { colors, layout, lilac, lilacRadius, paper } from '../src/theme';
+import { colors, layout, lilac, lilacRadius, paper, secTitle } from '../src/theme';
 
 // 마이 — 여권(PASSPORT) 리페인트. 신분면(이중 프레임·MRZ)·기록면(나이트 라일락)·서류행.
 // 로직 동결: 실프로필(사진·이름·동네)·MENU 라우팅·편집 시트·아바타 업로드는 원본 그대로.
@@ -203,7 +203,7 @@ export default function My() {
     ...(isRunner ? [] : ([{ glyph: '⌗', label: rec?.dogName ? `${rec.dogName}의 기록` : '러닝 기록', desc: '도장 · 코스 패치 컬렉션', path: '/cards', ink: colors.goldDeep, tint: colors.goldTint }] as MenuRow[])),
     // [D14] desc '알림 확인 및 설정' 삭제 — 최악의 되풀이였다 ('알림'을 열면 알림을 확인한다).
     { glyph: '◔', label: '알림', path: '/alerts', ink: colors.clubInk, tint: colors.clubTint },
-    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings', ink: '#586055', tint: '#EFF1EC' },
+    { glyph: '⚙', label: '설정', desc: '계정 · 로그아웃 · 문의', path: '/settings', ink: colors.dim, tint: colors.clay },
   ];
 
   // 신분면 필드 값 (원본 subtitle과 동일 바인딩 — 활동 동네 · 반려견)
@@ -238,7 +238,7 @@ export default function My() {
           <HoloEdge height={3} />
           <View style={s.idInner}>
             <Row style={s.idStrap}>
-              <Text style={[s.microK, nf]}>IDENTITY / 신분면</Text>
+              <Text style={s.microK}>신분면</Text>
               <View style={s.roleTag}><Text style={[s.roleTagTxt, nf]}>{isRunner ? '러너' : '보호자'}</Text></View>
             </Row>
 
@@ -253,18 +253,18 @@ export default function My() {
                 accessibilityState={{ disabled: uploading, busy: uploading }}
               >
                 <Avatar url={profile?.avatarUrl} char={(profile?.name ?? '나')[0]} bg={lilac.accent} size={56} />
-                <View style={s.cam}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+                <View style={s.cam}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>{/* floor-exempt: glyph — ✎ badge on the 22pt photo chip */}
               </Pressable>
 
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={s.fld}>
-                  <Text style={[s.fldK, nf]}>NAME / 이름</Text>
+                  <Text style={s.fldK}>이름</Text>
                   <Text style={s.fldV}>
                     {profile?.name ?? '...'} <Text style={s.fldVSmall}>{isRunner ? '러너' : '보호자님'}</Text>
                   </Text>
                 </View>
                 <View style={s.fld}>
-                  <Text style={[s.fldK, nf]}>DISTRICT / 활동 동네</Text>
+                  <Text style={s.fldK}>활동 동네</Text>
                   <Text style={s.fldV2}>{districtLine}</Text>
                 </View>
                 <Pressable
@@ -339,7 +339,7 @@ export default function My() {
               <Text style={{ fontSize: 15, fontWeight: '800', color: '#fff' }}>나의 러닝 기록</Text>
               <Row style={{ alignItems: 'center', gap: 5 }}>
                 <View style={s.coralDot} />
-                <Text style={[s.recordKick, nf]}>RECORD / 기록면</Text>
+                <Text style={s.recordKick}>기록면</Text>
               </Row>
             </Row>
             <Row>
@@ -393,16 +393,13 @@ export default function My() {
         )}
         {stamps && (
           <>
-            <Row style={s.sec}>
-              <Text style={[s.secNo, nf]}>§</Text>
-              <Text style={[s.secT, nf]}>STAMPS</Text>
-              <Text style={s.secKo}>도장</Text>
-              <View style={s.rule} />
-            </Row>
+            <View style={s.sec}>
+              <Text style={secTitle}>도장</Text>
+            </View>
             <View style={s.visa}>
               <View style={s.visaInner}>
                 <Row style={s.visaStrap}>
-                  <Text style={[s.microK, nf]}>STAMPS / 도장면</Text>
+                  <Text style={s.microK}>도장면</Text>
                   <View style={s.visaCnt}>
                     <Text style={[s.visaCntTxt, nf]}>{stampsEarned} / {stamps.length}</Text>
                   </View>
@@ -411,8 +408,11 @@ export default function My() {
                 {stampsEarned === 0 && (
                   <View style={s.empt}>
                     <Text style={s.emptT}>도장면은 비어 있는 채로 시작해요</Text>
-                    {/* 영속성 카피 주의 — '영구' 류 약속은 거짓이 될 수 있다: 자랑 글 삭제·코스 비활성이 실제 감소 벡터 (api.ts 계약 주석) */}
-                    <Text style={s.emptD}>첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요. 기록이 남아 있는 한 도장은 그대로예요.</Text>
+                    {/* [2026-09-25 word budget, DESIGN.md §7a-bis] One line, not a paragraph. The cut
+                        second sentence was a hedged permanence promise; do not bring any version of it
+                        back — a "permanent" promise can become false: a deleted brag post and a
+                        deactivated course are real decrement vectors (api.ts contract comment). */}
+                    <Text style={s.emptD}>첫 러닝을 완주하면 왼쪽 위 칸부터 찍혀요</Text>
                   </View>
                 )}
                 {/* 인쇄 순서는 고정 — 하나 받았다고 칸이 재배열되는 종이는 없다 (deriveStamps가 순서를 진다) */}
@@ -430,12 +430,9 @@ export default function My() {
         )}
 
         {/* ————— ④ 서류행 — 헤어라인 문서 목록 (MENU 동결) ————— */}
-        <Row style={s.sec}>
-          <Text style={[s.secNo, nf]}>§</Text>
-          <Text style={[s.secT, nf]}>DOCUMENTS</Text>
-          <Text style={s.secKo}>서류</Text>
-          <View style={s.rule} />
-        </Row>
+        <View style={s.sec}>
+          <Text style={secTitle}>서류</Text>
+        </View>
         <View style={s.doc}>
           {MENU.map((m, i) => (
             <Pressable
@@ -449,7 +446,7 @@ export default function My() {
               {/* 도메인 잉크 — 좌측 액센트 틱 + 틴트 아이콘 칩 */}
               <View style={[s.drowTick, { backgroundColor: (m as any).ink }]} />
               <View style={[s.drowIcon, { backgroundColor: (m as any).tint }]}>
-                <Text style={{ fontSize: 14, color: (m as any).ink }}>{m.glyph}</Text>
+                <Text style={{ fontSize: 14, color: (m as any).ink }}>{m.glyph}</Text>{/* floor-exempt: glyph — the row's one-character icon */}
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.drowTitle}>{m.label}</Text>
@@ -487,7 +484,9 @@ export default function My() {
         </Pressable>
 
         {/* ————— ⑥ 콜로폰 (브랜드 워드마크 — 정적 브랜딩) ————— */}
-        <View style={s.colophon}>
+        {/* The wordmark is drawing, not text (DESIGN.md §3 logo clause): brandmark only, hidden
+            from assistive tech, no data — which is what lets it sit under the 15pt floor. */}
+        <View style={s.colophon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Text style={[s.colophonTxt, nf]}>도그스하이 · DOGS HIGH</Text>
         </View>
       </ScrollView>
@@ -506,7 +505,7 @@ export default function My() {
 const s = StyleSheet.create({
   // 마스트헤드 — 키커 = faint 장식 클래스 (라틴 캡스 12 면제), 인라인 룰은 중립 #EEE
   kicker: { alignItems: 'center', gap: 8, marginTop: 6, marginBottom: 8 },
-  kickerTxt: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
+  kickerTxt: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' }, // floor-exempt: latin-kicker — 'DOGS HIGH · MEMBER' / 'KOR'
   rule: { flex: 1, height: 1, backgroundColor: '#EEE' },
   // [§3c 화면 타이틀 2026-08-11] 40 → 30 (탭 타이틀 통일 — 위 community.tsx 주석 참조)
   h1: { fontSize: 30, fontWeight: '900', color: paper.ink, lineHeight: 37 },
@@ -515,7 +514,7 @@ const s = StyleSheet.create({
     marginTop: 6, borderWidth: 1, borderColor: paper.ink,
     paddingVertical: 5, paddingHorizontal: 8, backgroundColor: paper.canvas,
   },
-  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: paper.ink, fontWeight: '600' },
+  officialTxt: { fontSize: 11.5, letterSpacing: 1.8, color: paper.ink, fontWeight: '600' }, // floor-exempt: latin-kicker — the PASSPORT tag (passport artifact)
   // subNote (TOC line) retired — 2026-08-10 density audit
 
   // ① 신분면 — 이 화면의 강조 카드: 1px 코랄 (예산 1회), 내부 선은 전부 #EEE. 샤프·섀도 은퇴.
@@ -525,40 +524,41 @@ const s = StyleSheet.create({
   },
   idInner: { margin: 9, borderWidth: 1, borderColor: '#EEE', padding: 12, paddingBottom: 0 },
   idStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
-  // Korean-data-in-kicker (신분면/도장면 halves) — 14pt floor applies; letterSpacing tightened
-  // so the passport look survives the raise. Latin-only kickers elsewhere stay 12.
-  microK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase' },
+  // Page-name strap (신분면 · 도장면). [2026-09-25] The latin half ('IDENTITY /', 'STAMPS /') is gone
+  // and the Korean name stands alone at the 15pt floor — Korean never rides the kicker exemption
+  // (DESIGN.md §3), so a letterspaced-caps treatment has nothing left to style.
+  microK: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.dim },
   roleTag: { borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas, paddingVertical: 4, paddingHorizontal: 9 },
-  roleTagTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration — 14pt floor
+  roleTagTxt: { fontSize: 15, lineHeight: 19, letterSpacing: 1, color: paper.ink, fontWeight: '600' }, // '러너'/'보호자' is data, not decoration
   photoWin: {
     width: 62, height: 74, borderWidth: 1, borderColor: '#EEE',
     backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
   },
   cam: {
     position: 'absolute', right: -6, bottom: 2, width: 22, height: 22, borderRadius: 11,
-    backgroundColor: '#C6472C', borderWidth: 1.5, borderColor: '#fff',
+    backgroundColor: paper.action, borderWidth: 1.5, borderColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
   },
   fld: { marginBottom: 8 },
-  fldK: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.dim, textTransform: 'uppercase', marginBottom: 4 }, // 'NAME / 이름' carries Korean — 14pt floor
+  fldK: { fontSize: 15, lineHeight: 20, color: paper.dim, marginBottom: 4 }, // field label — the latin half ('NAME /') is gone, Korean stands alone
   fldV: { fontSize: 17, fontWeight: '800', color: paper.ink }, // user name = the page's lead datum (15 -> 17)
-  fldVSmall: { fontSize: 14, fontWeight: '600', color: paper.text },
-  fldV2: { fontSize: 14, fontWeight: '600', color: paper.text, lineHeight: 18 },
+  fldVSmall: { fontSize: 15, fontWeight: '600', color: paper.text },
+  fldV2: { fontSize: 15, fontWeight: '600', color: paper.text, lineHeight: 20 },
   idEdit: {
     marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     borderWidth: 1, borderColor: '#EEE', backgroundColor: paper.canvas,
     paddingVertical: 10, paddingHorizontal: 11,
   },
-  idEditTxt: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  idEditEm: { fontSize: 14, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — 14pt floor
+  idEditTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  idEditEm: { fontSize: 15, lineHeight: 18, letterSpacing: 1.4, color: paper.ink, textTransform: 'uppercase' }, // pressable emphasis, not decoration — on the floor (Oswald 1.2×, BUG A)
   idGrid: { marginTop: 10, marginHorizontal: -12, borderTopWidth: 1, borderTopColor: '#EEE' },
   idCell: { flex: 1, paddingTop: 9, paddingBottom: 10, paddingLeft: 12 },
   idCellDiv: { borderLeftWidth: 1, borderLeftColor: '#EEE' },
-  gridK: { fontSize: 11.5, letterSpacing: 1.2, color: paper.dim, textTransform: 'uppercase', marginBottom: 3 },
-  gridV: { fontSize: 13, letterSpacing: 0.6, color: paper.ink, fontWeight: '600' },
+  gridK: { fontSize: 11.5, letterSpacing: 1.2, color: paper.dim, textTransform: 'uppercase', marginBottom: 3 }, // floor-exempt: latin-kicker — 'TYPE' / 'NO.'
+  gridV: { fontSize: 13, letterSpacing: 0.6, color: paper.ink, fontWeight: '600' }, // floor-exempt: serial — 'P · OWNER' / 'DH-XXXXXXXX' document serial
   // MRZ 스트립 — 아티팩트, 그대로 (artifact law)
   mrz: { backgroundColor: lilac.inset, borderTopWidth: 1, borderTopColor: lilac.hair2, paddingVertical: 7, paddingHorizontal: 10, gap: 2 },
-  mrzTxt: { fontSize: 9, letterSpacing: 0.8, color: '#6E67A0' },
+  mrzTxt: { fontSize: 9, letterSpacing: 0.8, color: '#6E67A0' }, // floor-exempt: serial — MRZ strip, AT-hidden decoration
   // photoHint / photoHintDot retired — 2026-08-10 density audit (✎ badge + edit sheet keep coverage)
 
   // ② 기록면
@@ -568,15 +568,16 @@ const s = StyleSheet.create({
   },
   recordInner: { margin: 9, borderWidth: 1, borderColor: 'rgba(255,255,255,0.13)', borderRadius: lilacRadius.inner, padding: 13 },
   coralDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  recordKick: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }, // 'RECORD / 기록면' carries Korean — 14pt floor
+  // Page-name strap on the dark record face — same treatment as microK ('RECORD /' dropped).
+  recordKick: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
   recDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(255,255,255,0.13)', paddingLeft: 11 },
   recN: { fontSize: 23, lineHeight: 28, fontWeight: '800', color: '#fff' },
   // 측정값이 없어 낱말이 서는 칸 — 같은 lineHeight로 세 칸의 기준선을 유지한다
   recWord: { fontSize: 15, lineHeight: 28, fontWeight: '700', color: 'rgba(255,255,255,0.80)' },
-  recU: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
-  recL: { fontSize: 14, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
+  recU: { fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.55)' },
+  recL: { fontSize: 15, lineHeight: 20, color: 'rgba(255,255,255,0.62)', marginTop: 4 },
   recGoWrap: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.13)', alignItems: 'flex-end' },
-  recGo: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  recGo: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: '#fff' },
   // 기록 로드 실패 스트립 (item 5) — 라우드 페일 토큰 전용. 다크 기록면 '밖'에 붙여 대비를 지킨다.
   recFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
@@ -584,18 +585,18 @@ const s = StyleSheet.create({
     marginHorizontal: -layout.gutter, marginTop: 8, paddingVertical: 11, paddingHorizontal: layout.gutter,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
   },
-  recFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  recFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // The failStrip family's sizes (payments · shop · cards): sentence 15/700, retry 16/800 underlined.
+  recFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical, flex: 1 },
+  recFailRetry: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
-  // 섹션 라벨 — 섹션 헤드 위 코랄 1px 풀블리드 룰 (페이퍼 섹션 분리 법)
+  // Section header — DESIGN.md §3b: full-bleed 1px coral rule, then theme.secTitle (20/800 ink).
+  // [2026-09-25] The '§ STAMPS 도장' / '§ DOCUMENTS 서류' kicker rows (§ glyph · latin caps · 14pt
+  // Korean · trailing hairline) are retired — §3b retired the latin kicker app-wide.
   sec: {
-    alignItems: 'center', gap: 8, marginTop: 18, marginBottom: 9,
-    marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter + 2,
+    marginTop: 18, marginBottom: 9,
+    marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
     borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
   },
-  secNo: { fontSize: 12, color: paper.line, fontWeight: '600' }, // 글리프 전용(§) — 코랄 룰과 한 시스템, 12pt 플로어 면제
-  secT: { fontSize: 12, letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
-  secKo: { fontSize: 14, fontWeight: '700', color: paper.text },
 
   // ③ 도장면 — 도장 그리드·소인은 아티팩트 그대로, 카드 크롬만 페이퍼 (백지 샤프 + #EEE)
   visa: {
@@ -612,10 +613,11 @@ const s = StyleSheet.create({
   perf: { marginHorizontal: 9, borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: '#EEE' }, // 절취선
   // visaFootL retired with its lead-in copy — the foot is now just the right-aligned link
   visaFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', paddingVertical: 10, paddingHorizontal: 11 },
-  visaFootG: { fontSize: 14, fontWeight: '800', color: STAMP_INK },
+  visaFootG: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: STAMP_INK },
   empt: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEE', padding: 11, marginBottom: 11 },
-  emptT: { fontSize: 14, lineHeight: 20, fontWeight: '700', color: paper.ink },
-  emptD: { fontSize: 14, lineHeight: 20, color: paper.text, marginTop: 3 },
+  // Same pair as cards.tsx's empty face (headline 16/700 over one 15 line) — one empty grammar.
+  emptT: { fontSize: 16, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  emptD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 3 },
 
   // 도장 그리드 — 칸/디스크/링은 stamp.tsx가 전담, 여기는 배열만
   sgrid: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: STAMP_GAP, rowGap: 12 },
@@ -626,8 +628,8 @@ const s = StyleSheet.create({
   drowDiv: { borderTopWidth: 1, borderTopColor: '#EEE' },
   drowTick: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
   drowIcon: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', marginLeft: 11, marginRight: 10 },
-  drowTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  drowDesc: { fontSize: 14, color: paper.dim, marginTop: 2, lineHeight: 18 },
+  drowTitle: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  drowDesc: { fontSize: 15, color: paper.dim, marginTop: 2, lineHeight: 20 },
   // [DIM 2026-08-27 · §7a-bis] 본문 잉크 — only for the desc that says a live state (descState).
   // drowTitle is 700, this is 400, so the row still reads title-then-sub.
   drowDescState: { color: paper.text },
@@ -648,31 +650,21 @@ const s = StyleSheet.create({
   // §3b 세컨더리 규격으로 정정: 캔버스 + 코랄 1px + **잉크 16/800** 라벨.
   btnRoleTitle: { fontSize: 16, fontWeight: '800', color: paper.ink },
   // 라틴 레터스페이스 캡스 = 산증 키커 클래스(§3 예외)라 12pt 유지 가능하나, 색은 읽는 값으로.
-  btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: paper.dim, textTransform: 'uppercase', marginTop: 3 },
+  btnRoleSub: { fontSize: 12, letterSpacing: 1.8, color: paper.dim, textTransform: 'uppercase', marginTop: 3 }, // floor-exempt: latin-kicker — 'OWNER › RUNNER'
   btnRoleSw: { borderWidth: 1, borderColor: paper.line, paddingVertical: 6, paddingHorizontal: 10 },
-  btnRoleSwTxt: { fontSize: 14, lineHeight: 18, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label — 14pt floor · wash 위 5.99:1
+  btnRoleSwTxt: { fontSize: 15, lineHeight: 19, letterSpacing: 1, color: paper.actionInk, fontWeight: '600' }, // '보호자 › 러너' is the button label · 5.99:1 on wash
 
   signout: {
     flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: paper.canvas,
     borderWidth: 1, borderColor: '#EEE', paddingVertical: 13, paddingHorizontal: 12, marginTop: 12,
   },
   signoutTick: { width: 3, height: 30, backgroundColor: paper.line }, // 코랄 틱 — critical 아님 (로그아웃은 실패가 아니다)
-  signoutTitle: { fontSize: 14, fontWeight: '700', color: paper.ink },
-  signoutSub: { fontSize: 14, color: paper.dim, marginTop: 2 },
+  signoutTitle: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
+  signoutSub: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 2 },
 
   // ⑥ 콜로폰
   colophon: { marginTop: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEE', alignItems: 'center' },
-  colophonTxt: { fontSize: 12, letterSpacing: 1.8, color: paper.faint, textTransform: 'uppercase' },
-
-  // 편집 시트 — 순백·샤프 (인풋 = addresses 문법: 캔버스 면 + 1px 코랄)
-  backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: paper.canvas, padding: 16, paddingBottom: 40 },
-  handle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#EEE', marginBottom: 14 },
-  fieldLabel: { fontSize: 14, fontWeight: '700', color: paper.ink, marginTop: 14, marginBottom: 6 },
-  input: {
-    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
-    paddingVertical: 12, paddingHorizontal: 14, fontSize: 16, color: paper.ink,
-  },
-  // [액션] 시트의 유일한 커밋 = 프라이머리 코랄.
-  saveBtn: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 18 },
+  colophonTxt: { fontSize: 12, letterSpacing: 1.8, color: paper.faint, textTransform: 'uppercase' }, // floor-exempt: wordmark — brandmark only, AT-hidden, no data
+  // [2026-09-25] The edit-sheet styles (backdrop · sheet · handle · fieldLabel · input · saveBtn) are
+  // gone with the sheet itself, which folded into /profile/edit on 2026-08-27 — zero uses remained.
 });

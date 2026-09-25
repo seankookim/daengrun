@@ -12,7 +12,7 @@ import {
 import { kstCal, kstYearMonthDay } from '../src/lib/kst';
 import { goBackOrHome } from '../src/lib/nav';
 import { TOSS_CLIENT_KEY } from '../src/lib/toss';
-import { paper } from '../src/theme';
+import { paper, secTitle } from '../src/theme';
 
 // 설정 → 결제 관리 — the "on demand" half of the price-invisibility doctrine (§0-bis).
 // The happy path shows the price ONCE (요청 화면) and never again; this screen is where the
@@ -218,10 +218,14 @@ export default function Payments() {
               <PaperBtn label="카드 바꾸기" variant="secondary" style={{ marginTop: 12 }}
                 onPress={() => router.push('/owner/card-link')} />
             )}
+            {/* [2026-09-25] The return door is PRIMARY — a visit that carried `returnTo` came here to
+                fix one thing and go back, so the way back is the screen's one directed action.
+                「카드 바꾸기」 above stays secondary. No other filled button can share this screen:
+                the charge banners' CTAs are underlined critical text, not fills. */}
             {returnTo && (
               <PaperBtn
                 label={backHref ? (returnLabel || '하던 일로 돌아가기 ›') : '홈으로 ›'}
-                variant="secondary"
+                variant="primary"
                 onPress={() => router.replace(backHref ?? homePath())}
                 style={{ marginTop: 12 }}
               />
@@ -303,11 +307,11 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
   },
   rule: { borderTopWidth: 1, borderColor: paper.line, marginTop: 22 },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, paddingHorizontal: 16, marginTop: 14 },
+  sectionTitle: { ...secTitle, paddingHorizontal: 16, marginTop: 14 },
   section: { paddingHorizontal: 16, marginTop: 8 },
-  note: { fontSize: 14.5, lineHeight: 20, color: paper.dim, marginTop: 3 },
+  note: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 3 },
   failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 4 },
-  failTxt: { fontSize: 14, fontWeight: '700', color: paper.critical },
+  failTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   retryTxt: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 });
