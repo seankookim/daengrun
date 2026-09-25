@@ -22,7 +22,14 @@ export const PENDING_DEPLOY: Record<string, string> = {
   //   그리드 폴백**으로 접힌다 (api.ts fetchOfferedSlots) — 0215 이전의 동작 그대로다.
   //   배포되면 두 곳(이 줄과 test/rpc-skew.test.cjs의 목록 핀)을 함께 지운다:
   //   select count(*) from pg_proc where proname='runner_offered_slots'  → 1
-  runner_offered_slots: '0215 후보 슬롯 달력 — db push 전까지 주간 그리드로 폴백',
+  // ⚠ 2026-09-25 [0221]: **이 줄은 그대로 둔다.** 0221이 같은 함수를 drop + create로 다시 만들며
+  //   반환에 다섯 번째 칸(segments)을 더했는데, 0215는 아직 배포되지 않았으므로(이 줄이 그 사실
+  //   자체다) 프로덕션에는 **0215 모양도 없다** — 다음 db push가 0215와 0221을 함께 올려 새 모양이
+  //   곧바로 선다. 그래도 클라는 **두 모양을 다 읽는다**: `OfferedSlotRow.segments`가 optional이고
+  //   `offered-slots.ts`의 `segmentsOf()`가 segments 없는 행을 「합쳐지지 않은 창 하나」로 읽는다 —
+  //   0215 모양이 어딘가에 먼저 서 있어도 화면은 0221 이전 동작으로 접힐 뿐 깨지지 않는다(좁은
+  //   방향). 지울 때의 확인은 같다 — 카탈로그를 읽고, 푸시 리포트를 읽지 않는다.
+  runner_offered_slots: '0215→0221 후보 슬롯 달력 — db push 전까지 주간 그리드로 폴백',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */

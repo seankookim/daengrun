@@ -2740,7 +2740,29 @@ export const OFFERED_SLOTS_TOKENS: Record<string, string> = {
   bad_range: '날짜 범위가 올바르지 않아요',
 };
 
-export interface OfferedSlotRow { day: string; startMin: number; endMin: number; source: 'grid' | 'extra' }
+/** One constituent window of a merged span [0221]. Shape-compatible with `OfferedSegment`. */
+export interface OfferedSegmentRow { startMin: number; endMin: number; source: 'grid' | 'extra' }
+
+/**
+ * One merged SPAN on one KST day [0215 → 0221]. Shape-compatible with `offered-slots.ts`'s
+ * `OfferedWindow`, which is what `slotStartsForDay` consumes.
+ *
+ * ⚠ `startMin` may be NEGATIVE and `endMin` may EXCEED 1440: 0221 anchors a span on every day it
+ * touches so the second day of a cross-midnight pair is not an empty screen.
+ * ⚠ `source` gained a third value, `'mixed'`, and that is a widening a caller must handle by hand
+ * (a boolean/enum that grows new causes breaks correct callers with no edit to the caller). It is
+ * a SUMMARY only — the 추가 근무 chip is decided from `segments`, never from this word.
+ * ⚠ `segments` is optional because a build carrying 0221 can meet a server that still has 0215's
+ * four-column function; `segmentsOf()` reads such a row as a single unmerged window, which is the
+ * pre-0221 behaviour and the narrow direction.
+ */
+export interface OfferedSlotRow {
+  day: string;
+  startMin: number;
+  endMin: number;
+  source: 'grid' | 'extra' | 'mixed';
+  segments?: OfferedSegmentRow[];
+}
 
 /**
  * ⚠ RETURNS `null` FOR EXACTLY ONE CASE: this build is ahead of migration 0215, so the function
@@ -2776,8 +2798,19 @@ export async function fetchOfferedSlots(
     endMin: r.end_min,
     // ⚠ an unrecognised source falls to 'grid', which is the CONSERVATIVE direction and not a
     // shrug: the window is still offered (the server said it is open) and it gets NO 추가 근무
-    // chip, because a chip we cannot justify is a fabricated badge.
-    source: r.source === 'extra' ? 'extra' : 'grid',
+    // chip, because a chip we cannot justify is a fabricated badge. 'mixed' is 0221's third
+    // value and is carried through by name rather than flattened — flattening it would make a
+    // span that is partly 추가 근무 indistinguishable from one that is not.
+    source: r.source === 'extra' ? 'extra' : r.source === 'mixed' ? 'mixed' : 'grid',
+    // 0221's provenance. An absent/ill-shaped array stays `undefined`, which `segmentsOf()` reads
+    // as 「this row is one unmerged window」 — the 0215 shape, i.e. the narrow direction.
+    segments: Array.isArray(r.segments)
+      ? r.segments.map((s: any) => ({
+          startMin: Number(s?.start_min),
+          endMin: Number(s?.end_min),
+          source: s?.source === 'extra' ? ('extra' as const) : ('grid' as const),
+        }))
+      : undefined,
   }));
 }
 
