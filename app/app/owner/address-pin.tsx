@@ -3,13 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../src/lib/api';
-import { useDisplayFont } from '../../src/lib/displayFont';
 import { BANPO, getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { paper } from '../../src/theme';
 
@@ -70,7 +68,6 @@ async function tryGeocode(query: string): Promise<{ lat: number; lng: number } |
 }
 
 export default function AddressPin() {
-  const df = useDisplayFont();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [row, setRow] = useState<Addr | null>(null);
@@ -201,14 +198,11 @@ export default function AddressPin() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      {/* header — paddingTop 56 idiom + circleBtn back */}
-      <Row style={[s.header, { paddingTop: insets.top }]}>
-        <Pressable onPress={goBackOrHome} style={s.circleBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-        </Pressable>
-      </Row>
-      {/* the screen's one display-font slot */}
-      <Text style={[s.title, df]}>어디서 만날까요?</Text>
+      {/* Chrome header (DESIGN.md §3b). The question used to stand under a bare back key in the
+          display face; it is now the header's own title, so the key and the words read as one. */}
+      <View style={[s.header, { paddingTop: insets.top }]}>
+        <ScreenHead title="어디서 만날까요?" />
+      </View>
 
       {/* address banner — what am I pinning */}
       <View style={s.banner}>
@@ -365,12 +359,7 @@ export default function AddressPin() {
 const PAD = 16;
 
 const s = StyleSheet.create({
-  header: { paddingHorizontal: PAD },
-  circleBtn: {
-    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: paper.line,
-  },
-  title: { fontSize: 24, fontWeight: '900', color: paper.ink, paddingHorizontal: PAD, marginTop: 12 },
+  header: { paddingHorizontal: PAD, paddingBottom: 6 },
   banner: {
     paddingHorizontal: PAD, paddingTop: 8, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: paper.line,

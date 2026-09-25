@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Row } from '../../src/components/ui';
+import { ScreenHead } from '../../src/components/ui';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { fetchMyProfile, fetchMyRunnerBio, fetchMyRunnerStatus, MyProfile, setMyHandle, updateMyProfile, updateRunnerBio } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -121,13 +121,9 @@ export default function ProfileEdit() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-        <Row style={[s.topBar, { paddingTop: insets.top }]}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 21, color: paper.ink }}>‹</Text>
-          </Pressable>
-          <Text style={s.topName}>프로필 편집</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <View style={[s.topBar, { paddingTop: insets.top }]}>
+          <ScreenHead title="프로필 편집" />
+        </View>
 
         {loadErr && (
           <Pressable onPress={() => setGen((g) => g + 1)} style={s.failStrip} accessibilityRole="button">
@@ -241,10 +237,10 @@ function Field({
 }
 
 const s = StyleSheet.create({
-  // 페이퍼 월드 — 흰 캔버스 · 솔리드 코랄 헤어라인 · 샤프 코너
-  topBar: { justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  topName: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: paper.ink },
+  // Paper world — white canvas, solid coral hairlines, sharp corners. The header is the shared
+  // ScreenHead (DESIGN.md §3b chrome header); its borderless ‹ and 17/800 title were one of the
+  // competing back shapes that component retired.
+  topBar: { paddingHorizontal: 12, paddingBottom: 12 },
   list: { borderTopWidth: 1, borderTopColor: paper.line },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingHorizontal: 15, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: paper.line },
   rowLabel: { width: 78, paddingTop: 4, fontSize: 16, lineHeight: 21, fontWeight: '700', color: paper.ink },

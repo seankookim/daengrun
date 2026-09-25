@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { CourseDetailBody, traceKind } from '../../src/components/course-detail';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -224,11 +224,11 @@ export default function CourseScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvasSoft }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: isOwner ? 120 : 40 }}>
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: insets.top }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>코스 미리보기</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        {/* Chrome header (DESIGN.md §3b). The title gave up the display face it was sharing with
+            the course name below — Black Han Sans is once per screen, and the course name is it. */}
+        <View style={{ paddingHorizontal: 12, paddingTop: insets.top }}>
+          <ScreenHead title="코스 미리보기" />
+        </View>
 
         {loading && (
           <View style={s.emptyBox}>
@@ -321,7 +321,6 @@ export default function CourseScreen() {
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   emptyBox: { margin: 16, backgroundColor: paper.canvas, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: '#EDEBE6' },
   // 실패 상자의 문들 — 밑줄 텍스트 문법 (라우드-페일 스트립은 박스 버튼을 쓰지 않는다), ≥44pt
   errBtn: { minHeight: 44, justifyContent: 'center' },

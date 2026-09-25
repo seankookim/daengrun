@@ -3,9 +3,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { addAddress, Addr, deleteAddress, fetchAddresses, setDefaultAddress, updateAddressDetail } from '../../src/lib/api';
-import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { paper } from '../../src/theme';
 
@@ -134,13 +133,7 @@ export default function Addresses() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: paper.canvas }} contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-        </Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>주소 관리</Text>
-        <View style={{ width: 40 }} />
-      </Row>
+      <ScreenHead title="주소 관리" />
       <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
         기본 주소가 예약의 픽업 장소로 쓰여요
       </Text>
@@ -332,10 +325,6 @@ export default function Addresses() {
 }
 
 const s = StyleSheet.create({
-  backBtn: {
-    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: paper.line,
-  },
   emptyBox: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, padding: 16 },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },

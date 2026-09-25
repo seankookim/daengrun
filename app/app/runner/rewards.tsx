@@ -2,18 +2,16 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { claimGear, DropRow, fetchDrops, fetchGearClaims, fetchMiles, fetchMyRunnerStatus, GearClaim, MilesInfo, MyRunnerStatus, openDrop } from '../../src/lib/api';
 import { claimCarrierLine, claimStatusLabel } from '../../src/lib/claim-status';
 import { EMPTY_GEAR_CLAIM_FORM, GEAR_CLAIM_PROBLEM_TEXT, gearClaimProblem, GearClaimForm } from '../../src/lib/gear-claim-form';
-import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
 // RAW server text for the log; `e.message` on a claim failure is the mapped Korean
 // (api.ts `gearClaimError` -> `foldRpcError`) that `claimErr` renders.
 import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
-import { colors, layout, paper } from '../../src/theme';
+import { colors, layout, paper, secTitle } from '../../src/theme';
 
 // 리워드 센터 — 실화: 하이 포인트 잔액·드랍 오픈(open-drop)·기어 교환권. 목업 사다리 은퇴.
 // 5회 보급 드랍(랜덤·바닥 보장) · 10회 픽 드랍(3택1 — 선택 데이터 = 러너 동기 시그널)
@@ -44,7 +42,6 @@ import { colors, layout, paper } from '../../src/theme';
 
 export default function Rewards() {
   const insets = useSafeAreaInsets();
-  const df = useDisplayFont(); // display font — screen title (1/screen budget)
   const nf = useNumFont();     // Oswald — points balance
   const [miles, setMiles] = useState<MilesInfo | null>(null);
   const [drops, setDrops] = useState<DropRow[]>([]);
@@ -191,13 +188,9 @@ export default function Rewards() {
       contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 40 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
     >
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-        </Pressable>
-        <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>리워드 센터</Text>
-        <View style={{ width: 40 }} />
-      </Row>
+      {/* Chrome header (DESIGN.md §3b). The title no longer borrows the display face: a pushed
+          sub-screen's header is the shared 23/900 chrome title on every screen. */}
+      <ScreenHead title="리워드 센터" />
 
       {/* 하이 포인트 — dark balance face (artifact), volt numeral = personal reward */}
       <View style={s.milesCard}>
@@ -256,7 +249,7 @@ export default function Rewards() {
 
       {/* 미오픈 드랍 — §3b section header */}
       <Row style={s.secWrap}>
-        <Text style={s.secTitle}>도착한 드랍{unopened.length > 0 ? ` · ${unopened.length}` : ''}</Text>
+        <Text style={secTitle}>도착한 드랍{unopened.length > 0 ? ` · ${unopened.length}` : ''}</Text>
       </Row>
       {!dropsLoaded && !dropsErr && (
         <View style={s.emptyBox}>
@@ -352,7 +345,7 @@ export default function Rewards() {
       {(claimsErr || claims.length > 0) && (
         <>
           <Row style={s.secWrap}>
-            <Text style={s.secTitle}>기어 교환권</Text>
+            <Text style={secTitle}>기어 교환권</Text>
           </Row>
           {claimsErr && (
             <View style={s.failStrip}>
@@ -508,7 +501,7 @@ export default function Rewards() {
       {opened.length > 0 && (
         <>
           <Row style={s.secWrap}>
-            <Text style={s.secTitle}>지난 드랍</Text>
+            <Text style={secTitle}>지난 드랍</Text>
           </Row>
           {opened.map((d) => (
             <View key={d.id} style={[s.card, { marginBottom: 8 }]}>
@@ -536,22 +529,16 @@ export default function Rewards() {
 }
 
 const s = StyleSheet.create({
-  // paper back button grammar — 40×40 square, canvas, 1px coral
-  backBtn: {
-    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: paper.line,
-  },
   milesCard: { backgroundColor: paper.ink, padding: 18, marginTop: 16 },
   // [B①] 잔액과 그 내역을 가르는 선 — 다크 면 위의 헤어라인. paper.text(#333333)를 면 색으로 쓴다:
   // 이 카드에서 유일하게 '잉크보다 한 단 밝은' 값이고, 새 헥스를 만들지 않는다.
   milesLedger: { marginTop: 10, borderTopWidth: 1, borderTopColor: paper.text, paddingTop: 6 },
   mileRow: { justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: 5 },
-  // §3b section header — full-bleed coral rule via negative gutter margins + 20/800 ink
+  // §3b section header — full-bleed coral rule via negative gutter margins, then theme.secTitle
   secWrap: {
     marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
     borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10, marginTop: 20, marginBottom: 8,
   },
-  secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
   emptyBox: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20 },
   // loud-fail strip — community.tsx failStrip grammar (criticalWash + critical, retry ≥40pt)
   failStrip: { backgroundColor: paper.criticalWash, padding: 13 },

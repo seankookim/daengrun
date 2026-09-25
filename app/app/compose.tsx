@@ -3,11 +3,10 @@ import { useCallback, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../src/components/paper-btn';
-import { Row } from '../src/components/ui';
+import { Row, ScreenHead } from '../src/components/ui';
 import { createFreePost, fetchMyBookings, fetchMySharedBookingIds, fetchRunnerJobs, shareRunToFeed } from '../src/lib/api';
 import { useNumFont } from '../src/lib/fonts';
 import { haptic } from '../src/lib/haptics';
-import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
 import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
@@ -140,13 +139,7 @@ export default function Compose() {
       contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-        </Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>피드 자랑하기</Text>
-        <View style={{ width: 40 }} />
-      </Row>
+      <ScreenHead title="피드 자랑하기" />
       <Text style={{ fontSize: 15, lineHeight: 20, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
         사진이든 글이든 자유롭게 — 러닝 기록은 원하면 함께 붙여요
       </Text>
@@ -333,10 +326,6 @@ const s = StyleSheet.create({
   attachBar: {
     flexDirection: 'row', alignItems: 'center', marginTop: 14, minHeight: 48,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.line, paddingHorizontal: 2,
-  },
-  backBtn: {
-    width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: paper.line,
   },
   kicker: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' },
