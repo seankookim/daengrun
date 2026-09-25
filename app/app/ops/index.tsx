@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -78,6 +78,20 @@ export default function OpsHome() {
   const paramIid = typeof params.iid === 'string' ? params.iid : '';
   const [inPlaceMark, setInPlaceMark] = useState<{ iid: string; underParam: string } | null>(null);
   const incidentMark = inPlaceMark !== null && inPlaceMark.underParam === paramIid ? inPlaceMark.iid : paramIid;
+  // [0234 review finding 4] A mark the operator cannot SEE is a tap with no visible effect (the desk
+  // sits above the inbox and nothing scrolled to it), so a mark is brought into view: `markY` holds
+  // the content-relative y of every drawn incident card and of the 「not listed」 note; `pendingScroll`
+  // is the mark still owed a scroll — set by a bell tap or a push `iid`, cleared once in view.
+  const scrollRef = useRef<ScrollView>(null);
+  const markY = useRef<Record<string, number>>({});
+  const pendingScroll = useRef<string>('');
+  const bringIntoView = useCallback((key: string): boolean => {
+    const y = markY.current[key];
+    if (y === undefined) return false;
+    scrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });
+    return true;
+  }, []);
+  useEffect(() => { if (paramIid !== '') pendingScroll.current = paramIid; }, [paramIid]);
 
   const [duePhase, setDuePhase] = useState<Phase>('loading');
   const [due, setDue] = useState<OpsPayoutDue[]>([]);
@@ -239,11 +253,17 @@ export default function OpsHome() {
     // [0234 §D] an incident bell's destination IS this screen — mark its card in place rather than
     // pushing a second console on top of this one.
     if (typeof dest === 'object' && dest.pathname === '/ops') {
-      setInPlaceMark({ iid: dest.params.iid ?? '', underParam: paramIid });
+      const iid = dest.params.iid ?? '';
+      setInPlaceMark({ iid, underParam: paramIid });
+      // the card if it is drawn, else the 「not listed」 note (mounted by this very mark if it was not
+      // drawn yet — its onLayout then pays the pending scroll)
+      pendingScroll.current = iid;
+      const listed = incPhase === 'ready' && incidents.some((i) => i.incidentId === iid);
+      if (bringIntoView(listed ? iid : INCIDENT_NOT_LISTED_KEY)) pendingScroll.current = '';
       return;
     }
     router.push(dest as Parameters<typeof router.push>[0]);
-  }, [paramIid]);
+  }, [paramIid, incPhase, incidents, bringIntoView]);
 
   // Re-read on every return: paying a runner, posting a box or resolving a strand on a detail
   // screen changes exactly these lists, and a stale count here is an operator acting twice.
@@ -268,6 +288,13 @@ export default function OpsHome() {
   const hasSealedDesk = deskAccess(kinds, SEALED_DESK_CLASS) === 'held';
   // [0234 §D] the open-incidents desk, on the roster its read gates on
   const hasIncidentDesk = deskAccess(kinds, INCIDENT_DESK_CLASS) === 'held';
+  // [0234 review finding 4] a bell (inbox tap or push) pointed at an incident this screen does not
+  // draw — closed since, or this operator no longer holds the desk. Said, never a silent no-op.
+  // Claimed only once the answer is READ: the list loaded without it, or the desk is known not held.
+  const incidentDeskHeld = deskAccess(kinds, INCIDENT_DESK_CLASS);
+  const incidentNotListed = incidentMark !== '' && (
+    (incidentDeskHeld === 'held' && incPhase === 'ready' && !incidents.some((i) => i.incidentId === incidentMark))
+    || incidentDeskHeld === 'not_held');
   useFocusEffect(useCallback(() => {
     if (hasStrandDesk) loadStrand();
     if (hasStallDesk) loadStall();
@@ -300,6 +327,7 @@ export default function OpsHome() {
   return (
     <>
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1, backgroundColor: colors.cream }}
         contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
         refreshControl={
@@ -561,6 +589,21 @@ export default function OpsHome() {
             READ-ONLY and names no remedy: closing an incident is Sean's letter (L2/L3). Drawn only
             for the `incident_opened` roster. Each incident is a plain card — there is no per-incident
             ops screen, and a chevron onto nothing would be a dead button. */}
+        {incidentNotListed && (
+          <View
+            style={s.noteCard}
+            onLayout={(e) => {
+              markY.current[INCIDENT_NOT_LISTED_KEY] = e.nativeEvent.layout.y;
+              if (pendingScroll.current !== '' && bringIntoView(INCIDENT_NOT_LISTED_KEY)) pendingScroll.current = '';
+            }}
+          >
+            <Text style={s.noteText}>{INCIDENT_NOT_LISTED_KO}</Text>
+            <Text style={s.noteSub}>
+              {incidentDeskHeld === 'held' ? INCIDENT_NOT_LISTED_SUB_KO : INCIDENT_DESK_NOT_HELD_SUB_KO}
+            </Text>
+          </View>
+        )}
+
         {hasIncidentDesk && (
           <>
             <SectionHeader
@@ -583,7 +626,14 @@ export default function OpsHome() {
             {incPhase === 'ready' && incidents.map((i) => {
               const incMarked = i.incidentId === incidentMark;
               return (
-                <View key={i.incidentId} style={[s.row, incMarked && s.rowMarked]}>
+                <View
+                  key={i.incidentId}
+                  style={[s.row, incMarked && s.rowMarked]}
+                  onLayout={(e) => {
+                    markY.current[i.incidentId] = e.nativeEvent.layout.y;
+                    if (pendingScroll.current === i.incidentId && bringIntoView(i.incidentId)) pendingScroll.current = '';
+                  }}
+                >
                   <View style={{ flex: 1 }}>
                     <Row style={{ justifyContent: 'flex-start', alignItems: 'baseline', flexWrap: 'wrap' }}>
                       <Text style={[s.rowTitle, i.severity === 'sos' || i.severity === 'urgent' ? s.rowCritical : null]}>
@@ -715,6 +765,10 @@ function FailStrip({ message, onRetry }: { message: string | null; onRetry: () =
 const INCIDENT_DESK_CLASS = 'incident_opened';
 const INCIDENTS_LOADING_KO = '열린 사고를 불러오는 중이에요…';
 const INCIDENTS_FAILED_KO = '열린 사고를 불러오지 못했어요';
+const INCIDENT_NOT_LISTED_KEY = '__incident_not_listed__';
+const INCIDENT_NOT_LISTED_KO = '알림이 가리킨 사고가 이 화면에 없어요';
+const INCIDENT_NOT_LISTED_SUB_KO = '이미 닫힌 사고일 수 있어요 — 열린 사고만 이 목록에 나와요';
+const INCIDENT_DESK_NOT_HELD_SUB_KO = '지금은 사고 접수 담당이 아니어서 열린 사고 목록이 보이지 않아요';
 function severityLabel(severity: string): string {
   if (severity === 'sos') return 'SOS';
   if (severity === 'urgent') return '긴급';
@@ -776,6 +830,10 @@ const s = StyleSheet.create({
   rowAmount: { fontSize: 18, fontWeight: '900', color: paper.ink },
   chev: { fontSize: 16, color: paper.dim, marginLeft: 8 },
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 18 },
+  // [0234 review finding 4] the 「not listed」 note — ops/custody.tsx's noteCard, same shape
+  noteCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 15, marginBottom: 12 },
+  noteText: { fontSize: 16, fontWeight: '800', color: paper.ink },
+  noteSub: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 4 },
   emptyText: { fontSize: 16, fontWeight: '800', color: paper.ink },
   emptySub: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 4 },
   failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13 },

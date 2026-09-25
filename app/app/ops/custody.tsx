@@ -194,8 +194,11 @@ export default function OpsStrandedCustodyList() {
                     {preMarked && <Text style={s.marker}>알림</Text>}
                   </Row>
                   <Text style={s.rowState}>{prerunEvidenceLine(c)}</Text>
+                  {/* ⚠ About THIS booking only: `runner_gated` is 0233 §A's arm evaluated on this row,
+                      not runner_work_gate's global answer — a runner held by ANOTHER booking would
+                      make 「받을 수 있어요」 false (executing review of 8682181, finding 3). */}
                   <Text style={c.runnerGated ? s.rowPending : s.rowHint}>
-                    {c.runnerGated ? '러너는 새 요청을 받을 수 없는 상태예요' : '러너는 새 요청을 받을 수 있어요'}
+                    {c.runnerGated ? PRERUN_GATED_KO : PRERUN_NOT_GATED_KO}
                   </Text>
                   <Text style={s.rowHint}>{partiesLine(c.ownerName, c.runnerName)}</Text>
                   <Text style={s.rowHint}>
@@ -224,6 +227,9 @@ const GONE_SUB_KO = '러닝이 시작되거나 종료됐거나, 예약 상태가
 const PRERUN_LEAD_KO =
   '러닝이 시작되기 전에 사고 검토로 넘어간 예약이에요. 이 화면은 보기 전용이에요 — '
   + '이 상태를 마무리하는 방법은 아직 정해지지 않았어요.';
+/** Scoped to the booking on purpose — the server answers for THIS row, not for the runner. */
+const PRERUN_GATED_KO = '이 예약 때문에 러너가 새 요청을 받을 수 없어요';
+const PRERUN_NOT_GATED_KO = '이 예약은 러너의 새 요청을 막지 않아요';
 const PRERUN_LOADING_KO = '러닝 전 사고 검토를 불러오는 중이에요…';
 const PRERUN_FAILED_KO = '러닝 전 사고 검토를 불러오지 못했어요';
 const PRERUN_EMPTY_KO = '러닝 전 사고 검토 중인 예약이 없어요';

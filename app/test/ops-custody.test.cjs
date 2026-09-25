@@ -222,6 +222,14 @@ for (const [k, pre, fetchName, cls] of [
   const sec = scr.custody.raw.slice(scr.custody.raw.indexOf('const PRERUN_TITLE_KO'), scr.custody.raw.indexOf('const s = StyleSheet.create'));
   t('0233-P1 · 🔴 the pre-run copy names no remedy (no confirm/resolve/close door, no 해주세요)',
     sec.length > 200 && !/confirm_return|resolve|해주세요|처리하세요|눌러/.test(sec), sec.slice(0, 80));
+  // 🔴 `runner_gated` answers for THIS row only (0233 §F), so the sentence must be about this booking:
+  //    「러너는 새 요청을 받을 수 있어요」 is false for a runner held by ANOTHER booking (review of 8682181).
+  const gatedDecl = (name) => (c.match(new RegExp(`const ${name} = '([^']*)';`)) || [])[1];
+  t('0233-P2 · 🔴 the gated line speaks for THIS booking, never for the runner as a whole',
+    c.includes('{c.runnerGated ? PRERUN_GATED_KO : PRERUN_NOT_GATED_KO}')
+    && /^이 예약/.test(gatedDecl('PRERUN_GATED_KO') || '') && /^이 예약/.test(gatedDecl('PRERUN_NOT_GATED_KO') || '')
+    && !c.includes('러너는 새 요청을 받을 수 있어요') && !c.includes('러너는 새 요청을 받을 수 없는 상태예요'),
+    `${gatedDecl('PRERUN_GATED_KO')} / ${gatedDecl('PRERUN_NOT_GATED_KO')}`);
 }
 
 // ── ops/index.tsx: the entry rows appear only for the relevant class ─────────────────────────────
@@ -246,8 +254,23 @@ for (const [k, pre, fetchName, cls] of [
   t('0234-P1 · loading in words, FailStrip with 다시 시도 → loadIncidents, an empty face, count only once read',
     idx.includes('{INCIDENTS_LOADING_KO}') && idx.includes('<FailStrip message={incErr} onRetry={loadIncidents} />')
     && idx.includes('열린 사고가 없어요') && idx.includes("count={incPhase === 'ready' ? incidents.length : null}"));
+  // [0234 review finding 4] a bell tap into this screen must always have a visible effect: the
+  // marked card is scrolled into view, and a mark this screen does not draw is SAID (closed since, or
+  // the desk no longer held) — never a silent no-op, and never claimed before the answer is read.
+  t('0234-P2 · 🔴 a bell pointed at an incident this screen does not draw says so — only once the list was read or the desk is known not held',
+    idx.includes("(incidentDeskHeld === 'held' && incPhase === 'ready' && !incidents.some((i) => i.incidentId === incidentMark))")
+    && idx.includes("|| incidentDeskHeld === 'not_held');")
+    && idx.includes("const incidentNotListed = incidentMark !== '' && (")
+    && /\{incidentNotListed && \(\s*<View[\s\S]{0,400}\{INCIDENT_NOT_LISTED_KO\}/.test(idx)
+    && idx.includes("{incidentDeskHeld === 'held' ? INCIDENT_NOT_LISTED_SUB_KO : INCIDENT_DESK_NOT_HELD_SUB_KO}"));
+  t('0234-P2 · 🔴 a marked incident is brought into view — the tap scrolls to the card (or the note), a push pays on layout',
+    idx.includes('ref={scrollRef}') && idx.includes('scrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });')
+    && idx.includes('if (bringIntoView(listed ? iid : INCIDENT_NOT_LISTED_KEY)) pendingScroll.current = \'\';')
+    && idx.includes('if (pendingScroll.current === i.incidentId && bringIntoView(i.incidentId)) pendingScroll.current = \'\';')
+    && idx.includes("useEffect(() => { if (paramIid !== '') pendingScroll.current = paramIid; }, [paramIid]);"));
   t('0234-P1 · 🔴 an incident card is NOT a door (a plain View; no push to a per-incident screen)',
-    /incidents\.map\(\(i\) => \{[\s\S]{0,200}<View key=\{i\.incidentId\}/.test(idx) && !/router\.push\(`\/ops\/incident/.test(idx));
+    // (the card's props now span lines — it gained an onLayout for 0234-P2 — so `\s+`, same property)
+    /incidents\.map\(\(i\) => \{[\s\S]{0,200}<View\s+key=\{i\.incidentId\}/.test(idx) && !/router\.push\(`\/ops\/incident/.test(idx));
   t('D2 · each section\'s door opens its list and is drawn only when there are rows',
     /custody\.length > 0 && \(\s*<Pressable\s+onPress=\{\(\) => router\.push\('\/ops\/custody'\)\}/.test(idx)
     && /sealed\.length > 0 && \(\s*<Pressable\s+onPress=\{\(\) => router\.push\('\/ops\/sealed'\)\}/.test(idx));
