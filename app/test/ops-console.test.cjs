@@ -10,15 +10,24 @@
 // 🔴 The propositions, each stated without reference to any mutation:
 //   · A NULL never renders as a zero or a dash. Every absent value here is absent for a reason the
 //     operator has to know, and each function says the reason in words.
-//   · `strandDeadlineNote(null)` says the ALARM IS OFF. That is the shipped state of
-//     `ops_flags.return_strand_minutes` (0193 §A), and an operator who read an empty list as
-//     「nothing is stranded」 while the arm was inert would be wrong exactly when it costs a runner
-//     their pay.
+//   · The strand deadline has THREE states and the client can only ever observe two of them.
+//     `off` — a null the SERVER returned on a row — says the ALARM IS OFF, which is the shipped
+//     state of `ops_flags.return_strand_minutes` (0193 §A) and the one case where an empty list
+//     is not good news. `unknown` — an empty response, which carries no threshold at all because
+//     0206 §A has nowhere but a row to put one — says NOTHING about the setting, because an
+//     enabled deadline with nothing stranded produces exactly the same payload.
+//     ⚠ **PINS CHANGED 2026-09-25 AND THIS IS WHY** (codex #3): they previously asserted
+//     `strandDeadlineNote(null)` → the off-switch sentence, and the screen fed the EMPTY case
+//     that same null — so the console printed a configuration claim about production that
+//     nothing had measured. The behaviour those pins described was the defect. `deadline ·
+//     unknown` below owns the new property; `deadline · off` still owns the old one, now reachable
+//     only from a server-returned null.
 //   · `handoffAlertNote` distinguishes 0183's PENDING (parties told, roster empty, arm ⓔ retrying)
 //     from 「told everybody」. Drawn as a blank, PENDING reads as a failed escalation.
 //   · `strandStateLabel` gates on the RAW server word and never prints it.
 const {
-  strandAgeLabel, strandStateLabel, strandDeadlineNote, strandNotifiedNote,
+  strandAgeLabel, strandStateLabel, strandDeadlineFrom, strandDeadlineNote, strandNotifiedNote,
+  STRAND_EMPTY_UNKNOWN_KO,
   handoffWaitingLabel, handoffAlertNote, memoRefusal, MEMO_REQUIRED_KO, resolveOutcomeLabel,
 } = require('./ops-console.build.cjs');
 
@@ -68,15 +77,60 @@ t('age · a negative is floored at zero rather than printing a minus',
     strandStateLabel('incident_review', false, false) !== strandStateLabel('active', false, false));
 }
 
-// ── strandDeadlineNote: NULL is the OFF SWITCH and the copy says so ──────────────────────────
-t('deadline · 🔴 NULL says the alarm is OFF — the shipped value of ops_flags.return_strand_minutes, and the one case where an empty list is NOT good news',
-  strandDeadlineNote(null).includes('꺼져 있어요'), strandDeadlineNote(null));
-t('deadline · NULL also says what IS still shown, so the list is not read as complete',
-  strandDeadlineNote(null).includes('이미 알림이 간'), strandDeadlineNote(null));
-t('deadline · a number is stated as the rule it is', strandDeadlineNote(180) === '러닝 종료 후 180분이 지나면 좌초로 봅니다',
-  strandDeadlineNote(180));
-t('deadline · a non-finite value takes the OFF branch rather than printing NaN분',
-  strandDeadlineNote(NaN).includes('꺼져 있어요'));
+// ── the strand deadline: three states, and only two of them are observable ───────────────────
+{
+  const off = strandDeadlineFrom([{ strandMinutes: null }]);
+  const live = strandDeadlineFrom([{ strandMinutes: 180 }]);
+  const unknown = strandDeadlineFrom([]);
+
+  t('deadline · 🔴 an EMPTY list is `unknown` — 0206 §A carries the threshold on ROWS, so an empty response measured nothing about the setting',
+    unknown.state === 'unknown', JSON.stringify(unknown));
+  t('deadline · 🔴 and `unknown` prints NO sentence at all — the console must not make a configuration claim it never measured (codex #3)',
+    strandDeadlineNote(unknown) === null, String(strandDeadlineNote(unknown)));
+  t('deadline · 🔴 `unknown` is a DIFFERENT state from `off`, not a synonym — an enabled deadline with nothing stranded and a switched-off arm produce the identical empty payload',
+    unknown.state !== off.state && strandDeadlineNote(unknown) !== strandDeadlineNote(off));
+
+  t('deadline · 🔴 a NULL the SERVER returned on a row still says the alarm is OFF — the shipped value of ops_flags.return_strand_minutes, and the one case where an empty list is NOT good news',
+    off.state === 'off' && strandDeadlineNote(off).includes('꺼져 있어요'), String(strandDeadlineNote(off)));
+  t('deadline · OFF also says what IS still shown, so the list is not read as complete',
+    strandDeadlineNote(off).includes('이미 알림이 간'), String(strandDeadlineNote(off)));
+  t('deadline · a number is stated as the rule it is',
+    live.state === 'minutes' && strandDeadlineNote(live) === '러닝 종료 후 180분이 지나면 좌초로 봅니다',
+    String(strandDeadlineNote(live)));
+  t('deadline · a non-finite value on a row takes the OFF branch rather than printing NaN분',
+    strandDeadlineFrom([{ strandMinutes: NaN }]).state === 'off');
+  t('deadline · a negative minute count is floored rather than printed as a minus',
+    strandDeadlineNote(strandDeadlineFrom([{ strandMinutes: -5 }])) === '러닝 종료 후 0분이 지나면 좌초로 봅니다',
+    String(strandDeadlineNote(strandDeadlineFrom([{ strandMinutes: -5 }]))));
+  t('deadline · the deadline is read off the FIRST row and rows do not disagree about it — one server fact, not a per-row one',
+    strandDeadlineNote(strandDeadlineFrom([{ strandMinutes: 180 }, { strandMinutes: 180 }]))
+      === strandDeadlineNote(live));
+
+  t('deadline · the empty card SAYS what it cannot know, in Korean, instead of leaving it to an inference',
+    hasKorean(STRAND_EMPTY_UNKNOWN_KO) && STRAND_EMPTY_UNKNOWN_KO.includes('알 수 없어요'),
+    STRAND_EMPTY_UNKNOWN_KO);
+  t('deadline · and that sentence is not the OFF sentence wearing another hat',
+    STRAND_EMPTY_UNKNOWN_KO !== strandDeadlineNote(off) && !STRAND_EMPTY_UNKNOWN_KO.includes('꺼져 있어요'));
+}
+{
+  // ⚠ A SECOND, DIFFERENT PROPOSITION, and it is weaker on purpose: everything above proves the
+  //   DECISION FUNCTION, and says nothing about whether the screen calls it — `app/test/*.cjs`
+  //   cannot import a `.tsx`. This arm reads the route module AS TEXT (the idiom `tab-parent`
+  //   and the memo pin below already use) with comment lines stripped first, because a comment
+  //   describing the fix would otherwise satisfy a grep for the fix (the standing comment-quoting
+  //   law: documenting it and doing it must not look identical). It proves only that the call is
+  //   written; it does not prove what renders. Only a device does that.
+  const fs = require('fs');
+  const path = require('path');
+  const code = fs.readFileSync(path.resolve(__dirname, '../app/ops/returns/index.tsx'), 'utf8')
+    .split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  t('screen · the returns console composes its deadline through strandDeadlineFrom(rows) — executable lines only',
+    /strandDeadlineFrom\(rows\)/.test(code), 'no strandDeadlineFrom(rows) call outside comments');
+  t('screen · 🔴 and it never takes the threshold off row 0 by hand, which is the shape that flattened unknown into off',
+    !/rows\[0\]\s*\.\s*strandMinutes/.test(code), 'a hand-rolled rows[0].strandMinutes is back');
+  t('screen · the empty card carries the 「cannot know」 sentence',
+    /STRAND_EMPTY_UNKNOWN_KO/.test(code), 'empty card does not print STRAND_EMPTY_UNKNOWN_KO');
+}
 
 // ── strandNotifiedNote: belled vs not-yet-belled are different facts ─────────────────────────
 t('notified · not yet belled says so AND says it is coming (the row is in the list because it is past the deadline)',

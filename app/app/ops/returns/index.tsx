@@ -8,7 +8,8 @@ import { fetchOpsStrandedReturns, OpsStrandedReturn } from '../../../src/lib/api
 import { kstCal, kstMonthDay, kstClock } from '../../../src/lib/kst';
 import { goBackOrHome } from '../../../src/lib/nav';
 import {
-  strandAgeLabel, strandDeadlineNote, strandNotifiedNote, strandStateLabel,
+  STRAND_EMPTY_UNKNOWN_KO,
+  strandAgeLabel, strandDeadlineFrom, strandDeadlineNote, strandNotifiedNote, strandStateLabel,
 } from '../../../src/lib/ops-console';
 // RAW server text for the log only — `e.message` is the mapped Korean the screen renders
 // (api.ts `opsError` → `foldRpcError`). Same import and same reason as `ops/payout/[runner].tsx`.
@@ -29,7 +30,19 @@ import { colors, paper } from '../../../src/theme';
 //   `ops_flags.return_strand_minutes` is NULL — the SHIPPED value — the sweep's arm is inert and
 //   nothing new is ever belled. An operator reading an empty list as 「nothing is stranded」 would
 //   be wrong in exactly the situation where being wrong costs a runner their pay, so
-//   `strandDeadlineNote` prints the off-switch sentence whenever the server reports NULL.
+//   `strandDeadlineNote` prints the off-switch sentence whenever the server reports NULL **on a
+//   row** — amended 2026-09-25; the unqualified version of that sentence is what produced the
+//   defect directly below.
+// 🔴 **AND 「THE SERVER REPORTED NULL」 IS NOT 「WE DID NOT ASK」 — codex #3, 2026-09-25.** The
+//   threshold rides on ROWS (0206 §A has nowhere else to put it), so an empty successful response
+//   carries no threshold at all: an ENABLED deadline with nothing stranded and a switched-OFF arm
+//   produce the identical empty payload. This screen used to hand that empty case a `null` and
+//   print the off-switch sentence from it — a configuration claim about production that nothing
+//   had measured, shown to the one reader who would act on it. The deadline is now a THREE-state
+//   (`unknown | off | minutes`, `strandDeadlineFrom`), `unknown` prints no claim at all, and the
+//   empty card says in words that the setting cannot be read from an empty list. Reading the flag
+//   independently would need a new ops-gated RPC — no shipped one returns it (measured across
+//   every migration on trunk) — and that is a server slice, not this one.
 // ⚠ Every date goes through `kst.ts` (fixed +9, no Intl — Korea has no DST). `check-device-clock`
 //   refuses a device-clock read for a KST fact and this screen has none.
 
@@ -57,9 +70,10 @@ export default function OpsStrandedReturns() {
   // stale row here is an operator opening a booking somebody already settled.
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  // The deadline is a property of the SERVER, not of a row, so it is read off the first row and
-  // only claimed once the list has actually been read. Before that we know nothing about it.
-  const deadline = phase === 'ready' && rows.length > 0 ? rows[0].strandMinutes : null;
+  // The deadline is a property of the SERVER carried on ROWS, so an empty list is `unknown` and
+  // never `off`. `strandDeadlineNote` returns null for `unknown` and the line is omitted.
+  const deadline = strandDeadlineFrom(rows);
+  const deadlineNote = phase === 'ready' ? strandDeadlineNote(deadline) : null;
 
   return (
     <>
@@ -90,8 +104,8 @@ export default function OpsStrandedReturns() {
           </View>
         )}
 
-        {phase === 'ready' && (
-          <Text style={s.deadlineNote}>{strandDeadlineNote(deadline)}</Text>
+        {deadlineNote !== null && (
+          <Text style={s.deadlineNote}>{deadlineNote}</Text>
         )}
 
         {phase === 'ready' && rows.length === 0 && (
@@ -100,6 +114,9 @@ export default function OpsStrandedReturns() {
             <Text style={s.emptySub}>
               러닝이 끝나고 반환 확인이 마감 시간을 넘기면 여기에 나와요
             </Text>
+            {/* What this list CANNOT tell the operator, said rather than left to an inference —
+                the empty payload is identical whether the arm is armed or switched off. */}
+            <Text style={s.emptyUnknown}>{STRAND_EMPTY_UNKNOWN_KO}</Text>
           </View>
         )}
 
@@ -164,6 +181,7 @@ const s = StyleSheet.create({
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 18 },
   emptyText: { fontSize: 16, fontWeight: '800', color: paper.ink },
   emptySub: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 4 },
+  emptyUnknown: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.ink, marginTop: 10 },
   failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13, marginTop: 12 },
   failText: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
