@@ -29,8 +29,16 @@
 // 0ee30fa: 176 = 176 calls, the strip changed exactly the 2 bodies that carry `//` or `/*`
 // (transition-booking/end_run.ts:113, resolve_return.ts:109) and 0 key sets); prose inside a
 // STRING value (`p_memo: 'a note: x'`)
-// is still matched by the key regex (same family, none exists); and `RE_CALL`'s lazy `}` still
-// runs before the strip, so a comment containing `})` would cut the literal short.
+// is still matched by the key regex (same family, none exists); and `RE_CALL`'s lazy `})` still
+// runs before the strip, so a comment containing `})` cuts the literal short.
+// [2026-09-26] That last one, and a comment between the rpc name and its `{`, no longer pass in
+// SILENCE — both were measured passing a wrong argument on this gate and on trunk's. A literal
+// whose body ENDS inside a comment, string or template (`scanComments().open`) is reported as
+// cut short, and any call site the crude `RE_SITE` net finds that `RE_CALL` did not parse is
+// reported as unchecked. Neither is parsed around: the author moves the comment. The same
+// report covers a NESTED object whose `})` ends the lazy match early (`{ a: f({ b: 1 }), c: 2 }`
+// used to read keys a, b and never see c — silent whenever b happened to be a real name): a body
+// that ends with an unclosed `{` is cut short too.
 import { readFileSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -62,7 +70,17 @@ function tsFilesUnder(dir) {
  *  comment are kept so line arithmetic on the result still holds. An unterminated `'`/`"`
  *  string ends at the line break, so one stray quote can never swallow the rest of the input. */
 export function stripComments(src) {
+  return scanComments(src).out;
+}
+
+/** `stripComments`, plus where the fragment ENDED: `open` is null when the scan finished in
+ *  plain code, else the construct still open at the last byte — 'line comment' (a `//` with no
+ *  newline after it), 'block comment', 'string', 'template' or 'nested object' (an unclosed `{`). For an rpc literal body that is
+ *  the signal it was CUT SHORT: `RE_CALL` ends the body at the first `})`, and a body that ends
+ *  inside a comment or string means that `})` was prose, not the end of the object. */
+export function scanComments(src) {
   let out = '';
+  let open = null;
   const stack = [{ kind: 'code', depth: 0 }]; // `${` inside a template pushes a code frame
   let i = 0;
   while (i < src.length) {
@@ -71,11 +89,13 @@ export function stripComments(src) {
     if (top.kind === 'code') {
       if (ch === '/' && nx === '/') {
         const end = src.indexOf('\n', i);
+        if (end === -1) open = 'line comment';
         i = end === -1 ? src.length : end; // the newline itself is kept
         continue;
       }
       if (ch === '/' && nx === '*') {
         const end = src.indexOf('*/', i + 2);
+        if (end === -1) open = 'block comment';
         const gone = end === -1 ? src.slice(i) : src.slice(i, end + 2);
         out += gone.replace(/[^\n]/g, '');
         i += gone.length;
@@ -100,7 +120,13 @@ export function stripComments(src) {
     if (ch === '$' && nx === '{') { stack.push({ kind: 'code', depth: 0 }); out += '${'; i += 2; continue; }
     out += ch; i++;
   }
-  return out;
+  if (open === null && stack.length > 1) {
+    // innermost non-code frame decides the name; a `${…}` code frame sits inside a template
+    const k = stack.slice(1).reverse().find((f) => f.kind !== 'code')?.kind ?? 'tpl';
+    open = k === 'tpl' ? 'template' : 'string';
+  }
+  if (open === null && stack[0].depth > 0) open = 'nested object';
+  return { out, open };
 }
 
 /** Top-level property names of an object-literal BODY (the text between its outer braces):
@@ -137,7 +163,19 @@ export function extractKeys(rawBody) {
 const RE_FN = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi;
 // 따옴표 두 종류 모두 — 클라는 '작은', 엣지 함수는 "큰" 따옴표를 쓴다. 호출자도 두 종류
 // (`supabase.rpc` / `clubRpc` / 엣지의 `db.rpc`·`userDb.rpc`) 라 식별자 뒤 `.rpc(` 로 받는다.
-const RE_CALL = /(?:clubRpc|[A-Za-z_$][\w$]*\.rpc)\(\s*['"](\w+)['"]\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g;
+// [2026-09-26] `\s*` before `.rpc`: a chained call written `db\n    .rpc("…", {…})` was invisible
+// to the old `[\w$]*\.rpc`, and one money-path call is written exactly that way —
+// `marketplace_cancel_fee` in `supabase/functions/transition-booking/cancel_owner.ts:80-81`,
+// measured unchecked on trunk 0ee30fa (176 calls checked; with this `\s*`, 177).
+const RE_CALL = /(?:clubRpc|[A-Za-z_$][\w$]*\s*\.rpc)\(\s*['"](\w+)['"]\s*(?:,\s*\{([\s\S]*?)\})?\s*\)/g;
+// Every call SITE that names its function by a literal — the crude net `RE_CALL` must cover.
+// A site this finds and `RE_CALL` does not parse is a call the gate would otherwise skip in
+// silence (a comment between the name and `{`, an argument object that is not a literal, a
+// receiver like `f().rpc(`, a template-literal name). It is reported, never skipped: a call
+// dropped from checking is a false green, and the crude net is what makes the drop visible.
+// Sites whose name is a VARIABLE (`clubRpc`'s own `supabase.rpc(fn, args)`) are not checkable
+// by any source gate and are not counted.
+const RE_SITE = /(?:\bclubRpc|\.rpc)\s*\(\s*['"`]/g;
 
 /** The whole check over one repo root. Pure: returns what it found, prints nothing, exits
  *  nowhere — the CLI below does that, and the pin in `test/check-rpc-contracts.test.cjs`
@@ -177,21 +215,36 @@ export function run(root = REPO_ROOT) {
 
   // ---------- rpc 호출 수집: api.ts + 모든 엣지 함수 ----------
   const calls = [];
+  const unparsed = [];
   for (const file of [apiPath, ...tsFilesUnder(fnDir)]) {
     const src = readFileSync(file, 'utf8');
     const label = file === apiPath ? 'api.ts' : file.slice(root.length + 1);
     let c;
+    const parsed = new Set(); // offset of each parsed call's `(`
     RE_CALL.lastIndex = 0;
     while ((c = RE_CALL.exec(src)) !== null) {
+      parsed.add(c.index + c[0].indexOf('('));
+      const { open } = scanComments(c[2] ?? '');
       const keys = extractKeys(c[2] ?? '');
       const line = src.slice(0, c.index).split('\n').length;
-      calls.push({ name: c[1], keys, line, label });
+      calls.push({ name: c[1], keys, line, label, cut: open });
+    }
+    for (const s of src.matchAll(RE_SITE)) {
+      if (parsed.has(s.index + s[0].indexOf('('))) continue;
+      unparsed.push({ line: src.slice(0, s.index).split('\n').length, label });
     }
   }
 
   // ---------- 대조 ----------
   const errors = [];
-  for (const { name, keys, line, label } of calls) {
+  for (const { line, label } of unparsed) {
+    errors.push(`${label} L${line}: rpc call not parsed by this gate, so its arguments are NOT checked — keep the name a quoted literal and the arguments an inline {…} with no comment before it`);
+  }
+  for (const { name, keys, line, label, cut } of calls) {
+    if (cut) {
+      errors.push(`${label} L${line}: ${name} — argument literal cut short by a \`})\` inside a ${cut}, so its arguments are NOT checked — reword or move that ${cut}`);
+      continue;
+    }
     const variants = sigs.get(name);
     if (!variants) { errors.push(`${label} L${line}: ${name} — 함수가 마이그레이션에 없음`); continue; }
     const fits = variants.some((v) => {
@@ -206,7 +259,7 @@ export function run(root = REPO_ROOT) {
       errors.push(`${label} L${line}: ${name} — ${missing.length ? `필수 인자 누락 ${JSON.stringify(missing)}` : ''}${missing.length && unknown.length ? ' / ' : ''}${unknown.length ? `미지의 인자 ${JSON.stringify(unknown)}` : ''}`);
     }
   }
-  return { calls, sigs, errors };
+  return { calls, sigs, errors, unparsed };
 }
 
 // ---------- CLI ----------

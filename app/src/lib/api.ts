@@ -7007,8 +7007,10 @@ export async function fetchNotificationPrefs(): Promise<NotiPrefs> {
 // setter's own rule: a NULL …」 as an argument (`❌ set_notification_prefs — 미지의 인자 ["rule"]`).
 // FIXED 2026-09-25: the gate strips `//` and `/* */` comments from the literal's body before the
 // key match (string- and template-aware; `test/check-rpc-contracts.test.cjs` pins it with this
-// exact comment as the fixture), so prose inside an rpc literal is allowed again. The paragraph
-// stays here only because moving it back would buy nothing.
+// exact comment as the fixture), so prose inside an rpc literal is allowed again — with one
+// limit: a comment containing `})` still ends the literal early, and the gate then REPORTS the
+// call as cut short instead of checking it (see the header of check-rpc-contracts.mjs). The
+// paragraph stays here only because moving it back would buy nothing.
 export async function saveNotificationPrefs(partial: Partial<NotiPrefs>): Promise<NotiPrefs> {
   const { data, error } = await supabase.rpc('set_notification_prefs', {
     p_booking: partial.booking ?? null,

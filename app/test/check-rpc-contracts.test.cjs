@@ -24,9 +24,9 @@ const same = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), (m ?? 'mis
 
 (async () => {
   const gate = await import(pathToFileURL(path.join(__dirname, '..', 'scripts', 'check-rpc-contracts.mjs')).href);
-  const { stripComments, extractKeys, run } = gate;
-  ok(typeof stripComments === 'function' && typeof extractKeys === 'function' && typeof run === 'function',
-    'the gate must export stripComments / extractKeys / run');
+  const { stripComments, scanComments, extractKeys, run } = gate;
+  ok(typeof stripComments === 'function' && typeof scanComments === 'function' && typeof extractKeys === 'function' && typeof run === 'function',
+    'the gate must export stripComments / scanComments / extractKeys / run');
 
   // ── stripComments ──────────────────────────────────────────────────────────────────────
   const MEASURED = "    p_reward: partial.reward ?? null,\n    // the reverse direction is safe by the setter's own rule: a NULL means 「leave it alone」\n    p_ops: partial.ops ?? null,\n";
@@ -40,6 +40,17 @@ const same = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), (m ?? 'mis
     same(stripComments('p_url: `https://${host}/a`, p_b: 1'), 'p_url: `https://${host}/a`, p_b: 1'));
   t('a `}` inside `${…}` closes the expression, not the literal; a comment after it still goes', () =>
     same(stripComments('a: `${f({ x: 1 })}`, b: 2 // c: 3'), 'a: `${f({ x: 1 })}`, b: 2 '));
+  // The arm above cannot tell the `${…}` handling apart from its absence: on that input the
+  // correct scan and a scan with no `${` frame (or with no brace counting inside it) print the
+  // same bytes. Measured 2026-09-26 by an executing reviewer — deleting either left 23/0 green.
+  // These three inputs are ones where they DIFFER, and each is asserted on the property itself:
+  // a comment's `<word>:` must never become an argument name.
+  t('`${…}`: a comment after an inner `}` inside the expression is still a comment (brace counting)', () =>
+    same(stripComments('a: `${f({ x: 1 }) /* p_z: 1 */}`'), 'a: `${f({ x: 1 }) }`'));
+  t('`${…}`: a backtick inside a string inside the expression does not close the template (`${` frame)', () =>
+    same(extractKeys("a: `${'`'}`, b: 2 // d: 3"), ['a', 'b']));
+  t('`${…}`: inner `}` then a backtick in a string — the comment after the literal is still not a key', () =>
+    same(extractKeys("a: `${f({ x: 1 }) + '`'}`, b: 2 // d: 3"), ['a', 'b']));
   t('a block comment spanning lines is removed and its newlines are kept', () =>
     same(stripComments('a: 1, /* x: 2\n y: 3 */ b: 4'), 'a: 1, \n b: 4'));
   t('`/*` inside a string does not open a block comment', () =>
@@ -52,6 +63,17 @@ const same = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), (m ?? 'mis
     same(stripComments('a: 1, /* b: 2'), 'a: 1, '));
   t('text with no comment or string is returned unchanged', () =>
     same(stripComments('p_a: x, p_b: y'), 'p_a: x, p_b: y'));
+
+  // ── scanComments: where a fragment ENDED (the signal that an rpc literal was cut short) ──
+  t('scan: plain code, closed comments and closed strings end open=null', () =>
+    same(['a: 1', "a: 'x', // c\n b: 2", 'a: 1 /* c */', 'a: `${x}`'].map((x) => scanComments(x).open), [null, null, null, null]));
+  t('scan: a `//` with no newline after it ends open', () => same(scanComments('a: 1, // c').open, 'line comment'));
+  t('scan: an unterminated block comment ends open', () => same(scanComments('a: 1, /* c').open, 'block comment'));
+  t('scan: an unterminated string (no newline) ends open', () => same(scanComments("a: 'x").open, 'string'));
+  t('scan: an unclosed `{` ends open (a nested object whose `})` ended the literal early)', () =>
+    same([scanComments('a: f({ b: 1 ').open, scanComments('a: f({ b: 1 }), c: 2').open], ['nested object', null]));
+  t('scan: an unterminated template, and one ending inside `${`, end open', () =>
+    same([scanComments('a: `x').open, scanComments('a: `${f(').open], ['template', 'template']));
 
   // ── extractKeys ────────────────────────────────────────────────────────────────────────
   t('keys: the measured literal yields only the real argument names', () =>
@@ -127,6 +149,55 @@ const same = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), (m ?? 'mis
     same(res2.errors.map((e) => e.match(/L(\d+)/)[1] + ':' + (e.includes('"p_kind"') ? 'p_kind' : '?')), ['2:p_kind', '5:p_kind'], 'errors'));
   fs.rmSync(root2, { recursive: true, force: true });
 
+  // ── fixture 3: a call the gate cannot read must be REPORTED, never skipped ─────────────
+  // Measured 2026-09-26 by an executing reviewer, and re-measured here on trunk 0ee30fa's gate:
+  // (a) `{ p_x: 1, p_kind: 'a', // mirrors need_kind({ p_x })\n p_bad: 2 }` — RE_CALL's lazy `})`
+  // stops inside the comment, `p_bad` is never seen, and the call passes; (b) a comment between
+  // the name and `{` makes RE_CALL miss the call entirely — no line in the report at all. And
+  // one more measured while fixing those: (c) `db\n    .rpc("…", {…})` was invisible to the
+  // old `[\w$]*\.rpc`, which left the money-path `marketplace_cancel_fee` call in
+  // transition-booking/cancel_owner.ts unchecked. Each arm below has the same wrong key `p_bad`;
+  // L10 is the comment-free control that shows `p_bad` IS a violation the gate normally sees.
+  const root3 = fs.mkdtempSync(path.join(os.tmpdir(), 'rpc-contracts-pin3-'));
+  const mk3 = (rel, body) => { const p = path.join(root3, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, body); };
+  mk3('supabase/migrations/0001_fixture.sql',
+    'create function need_kind(p_x int, p_kind text) returns void language sql as $$ select 1 $$;\n');
+  fs.mkdirSync(path.join(root3, 'supabase', 'functions'), { recursive: true });
+  mk3('app/src/lib/api.ts', [
+    "export async function c() {",
+    "  await supabase.rpc('need_kind', { p_x: 1, p_kind: 'a', // mirrors need_kind({ p_x })",   // L2 — `})` in a line comment
+    "    p_bad: 2 });",
+    "  await supabase.rpc('need_kind', { p_x: 1, p_kind: 'a', /* see need_kind({ p_x }) */ p_bad: 2 });", // L4 — `})` in a block comment
+    "  await supabase.rpc('need_kind', // prose before the object",                              // L5 — comment between name and `{`
+    "    { p_x: 1, p_kind: 'a', p_bad: 2 });",
+    "  await db",                                                                              // L7 — receiver on its own line
+    "    .rpc('need_kind', { p_x: 1, p_kind: 'a', p_bad: 2 });",
+    "  await supabase.rpc('need_kind', { p_x: 1, p_kind: 'a', p_note: 'x // y' });",           // L9 — `//` in a string is NOT a cut; p_note is unknown, so a normal violation
+    "  await supabase.rpc('need_kind', { p_x: 1, p_kind: 'a', p_bad: 2 });",                   // L10 — control
+    "  await supabase.rpc('need_kind', { p_x: f({ p_kind: 1 }), p_bad: 2 });",                 // L11 — nested `})`: p_kind is a REAL name, so this passed silently
+    "}",
+    "",
+  ].join('\n'));
+  const res3 = run(root3);
+  const byLine3 = Object.fromEntries(res3.errors.map((e) => [e.match(/L(\d+)/)[1], e]));
+  t('fixture 3: `})` inside a line comment is reported as a cut literal, not passed', () =>
+    ok(/cut short .* line comment/.test(byLine3['2'] ?? ''), 'L2: ' + JSON.stringify(byLine3['2'])));
+  t('fixture 3: `})` inside a block comment is reported as a cut literal, not passed', () =>
+    ok(/cut short .* block comment/.test(byLine3['4'] ?? ''), 'L4: ' + JSON.stringify(byLine3['4'])));
+  t('fixture 3: a comment between the name and `{` is reported as an unparsed call, not dropped', () =>
+    ok(/not parsed/.test(byLine3['5'] ?? ''), 'L5: ' + JSON.stringify(byLine3['5'])));
+  t('fixture 3: a receiver on its own line (`db\\n  .rpc(`) is parsed and its wrong key caught', () =>
+    ok((byLine3['7'] ?? '').includes('"p_bad"'), 'L7: ' + JSON.stringify(byLine3['7'])));
+  t('fixture 3: `//` inside a string value is not a cut — L9 is checked normally (its unknown p_note is reported)', () =>
+    ok(byLine3['9'] && byLine3['9'].includes('"p_note"') && !/cut short/.test(byLine3['9']), 'L9: ' + JSON.stringify(byLine3['9'])));
+  t('fixture 3: control — the comment-free wrong call is caught', () =>
+    ok((byLine3['10'] ?? '').includes('"p_bad"'), 'L10: ' + JSON.stringify(byLine3['10'])));
+  t('fixture 3: a nested object whose `})` ends the literal is reported as cut, not read as {p_x, p_kind}', () =>
+    ok(/cut short .* nested object/.test(byLine3['11'] ?? ''), 'L11: ' + JSON.stringify(byLine3['11'])));
+  t('fixture 3: exactly those seven lines are reported', () =>
+    same(Object.keys(byLine3).sort((a, b) => a - b), ['2', '4', '5', '7', '9', '10', '11']));
+  fs.rmSync(root3, { recursive: true, force: true });
+
   // ── the CLI: it must actually run when invoked as a program, by any path ────────────────
   // The CLI is guarded so that an `import` has no side effects. A guard that is false when it
   // should be true makes the gate print nothing and exit 0 — measured on the first draft of the
@@ -146,6 +217,36 @@ const same = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), (m ?? 'mis
     try {
       const r = spawnSync(process.execPath, [link], { encoding: 'utf8' });
       ok(ranLine.test(r.stdout), 'no count line; status=' + r.status + ' stdout=' + JSON.stringify(r.stdout.slice(0, 200)));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  // ── the CLI's VERDICT: exit 1 on a violation, exit 0 on a clean tree ────────────────────
+  // The arms above assert only that the check RAN. The verdict is the gate's whole output to a
+  // commit — measured 2026-09-26 by an executing reviewer: deleting `process.exit(1)` left every
+  // other arm green. The script is COPIED into a scratch tree (its REPO_ROOT is two levels up
+  // from itself), so these arms read a fixture, not the real repo.
+  const cliTree = (apiLines) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rpc-contracts-cli-'));
+    const put = (rel, body) => { const p = path.join(dir, rel); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, body); };
+    put('app/scripts/check-rpc-contracts.mjs', fs.readFileSync(gatePath, 'utf8'));
+    put('supabase/migrations/0001_fixture.sql', 'create function need_kind(p_x int, p_kind text) returns void language sql as $$ select 1 $$;\n');
+    fs.mkdirSync(path.join(dir, 'supabase', 'functions'), { recursive: true });
+    put('app/src/lib/api.ts', ['export async function d() {', ...apiLines, '}', ''].join('\n'));
+    return dir;
+  };
+  t('CLI verdict: a tree with one violating call exits 1 and names the violation', () => {
+    const dir = cliTree(["  await supabase.rpc('need_kind', { p_x: 1 });"]);
+    try {
+      const r = spawnSync(process.execPath, [path.join(dir, 'app', 'scripts', 'check-rpc-contracts.mjs')], { encoding: 'utf8' });
+      ok(r.status === 1, 'status=' + r.status + ' stderr=' + JSON.stringify(r.stderr.slice(0, 300)));
+      ok(/계약 위반 1건/.test(r.stderr) && r.stderr.includes('"p_kind"'), 'stderr=' + JSON.stringify(r.stderr.slice(0, 300)));
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+  t('CLI verdict: control — the same tree with the call corrected exits 0', () => {
+    const dir = cliTree(["  await supabase.rpc('need_kind', { p_x: 1, p_kind: 'a' });"]);
+    try {
+      const r = spawnSync(process.execPath, [path.join(dir, 'app', 'scripts', 'check-rpc-contracts.mjs')], { encoding: 'utf8' });
+      ok(r.status === 0 && /rpc 호출 1건/.test(r.stdout) && /✅/.test(r.stdout), 'status=' + r.status + ' stdout=' + JSON.stringify(r.stdout.slice(0, 300)) + ' stderr=' + JSON.stringify(r.stderr.slice(0, 300)));
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 
