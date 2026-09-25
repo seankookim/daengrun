@@ -4,9 +4,11 @@
 //
 // ═══ THE PROPERTY, STATED WITHOUT REFERENCE TO ANY MUTATION ═══
 // Given the runner's jobs and an inclusive KST day range, the count is the number of runs in a
-// committed status (confirmed / runner_enroute / runner_pending — by `rawStatus`) whose KST calendar
-// day lies inside the range; and a read that failed — or a committed row that cannot be placed on a
-// day — yields UNKNOWN, never 0.
+// committed status (confirmed / runner_enroute — by `rawStatus`; a `runner_pending` request is NOT
+// accepted and is not counted, see blackout-conflict.ts's header) whose KST calendar day lies inside
+// the range; and a read that failed — including an auth failure `getUser()` RESOLVES rather than
+// throws, or no signed-in user — or a committed row that cannot be placed on a day, yields UNKNOWN,
+// never 0.
 //
 // ═══ WHY THREE ZONES ═══
 // The fixtures below sit where KST and the device clock DISAGREE about the date (a 07:00 KST run is
@@ -16,10 +18,16 @@
 // non-Seoul zone, so a green here cannot come from fixtures where the two rules agree.
 //
 // ⚠ WHAT IT CANNOT SEE, as prose rather than an unfalsifiable pin: whether the screen's Alert fires
-// at the right moment, and that `fetchRunnerJobs()` returns `[]` (not a throw) when `getUser()`
-// yields no user — that path reads as a KNOWN zero through this helper, and it lives in api.ts,
-// outside this slice's files. The source arm below only pins that the screen routes a THROWN read
-// to `null`.
+// at the right moment on a device, and whether RLS lets the real query see the rows (the query's
+// SHAPE is pinned by source below; its answer is the server's). The review round closed the hole
+// this paragraph used to name — `fetchRunnerJobs()` answered a resolved `{ user: null, error }` with
+// `[]`, a known zero — by moving the screen to `readBlackoutJobs`, whose every not-knowing path
+// throws and is EXECUTED below with injected fakes.
+// ⚠ NAMED GAP, measured, not a blind pin: deleting `if (authErr) throw authErr;` from
+// readBlackoutJobs reddens NOTHING (111/0). Not because the arms are weak — auth-js's `getUser()`
+// only ever returns an error together with `user: null`, so the `!uid` throw catches the same
+// state one line later. The two lines are redundant for every state the real client can produce;
+// the arms prove the auth-failure PATH is unknown, not that each line is separately load-bearing.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -49,7 +57,7 @@ if (!process.env.BLACKOUT_CONFLICT_CHILD) {
 
 // ── child: the assertions, under one zone ─────────────────────────────────────────────────────────
 const {
-  blackoutConflicts, blackoutConflictMessage, kstYmdOfIso, settleJobs, BLACKOUT_KEEP_STATUSES,
+  blackoutConflicts, blackoutConflictMessage, kstYmdOfIso, settleJobs, readBlackoutJobs, BLACKOUT_KEEP_STATUSES,
 } = require(BUILD);
 
 let pass = 0, fail = 0;
@@ -68,7 +76,7 @@ const S = '2026-10-05', E = '2026-10-07';
 
 t('the helper module exports what the screen imports (a missing export must fail LOUDLY)',
   typeof blackoutConflicts === 'function' && typeof blackoutConflictMessage === 'function'
-  && typeof kstYmdOfIso === 'function' && typeof settleJobs === 'function');
+  && typeof kstYmdOfIso === 'function' && typeof settleJobs === 'function' && typeof readBlackoutJobs === 'function');
 
 // ① the KST day, the fact everything else rests on
 t('kstYmdOfIso: 07:00 KST is that KST day, whatever the device zone', kstYmdOfIso(EARLY_IN) === '2026-10-05', kstYmdOfIso(EARLY_IN));
@@ -81,12 +89,15 @@ const job = (rawStatus, scheduledAt) => ({ rawStatus, scheduledAt });
 const r1 = blackoutConflicts([
   job('confirmed', EARLY_IN),       // in (KST) — the arm a device-local read drops off-Seoul
   job('runner_enroute', EVENING_IN),// in, last day inclusive
-  job('runner_pending', EVENING_IN),// in
+  job('confirmed', EVENING_IN),     // in
   job('confirmed', LATE_OUT),       // out (KST) — the arm a device-local read adds off-Seoul
   job('confirmed', BEFORE),         // out
 ], S, E);
 t('🔴 counts committed runs whose KST day is inside the range, edges inclusive (3)',
   r1.state === 'known' && r1.n === 3, JSON.stringify(r1));
+const rPend = blackoutConflicts([job('runner_pending', EVENING_IN)], S, E);
+t('a runner_pending (directed, NOT accepted) request inside the range is not counted as 확정 (0)',
+  rPend.state === 'known' && rPend.n === 0, JSON.stringify(rPend));
 
 // ⚠ The arm above NETS TO THE SAME 3 under a device-local read off-Seoul (EARLY_IN drops out and
 // LATE_OUT drops in) — measured on this file's own battery (M2): only the kstYmdOfIso arms reddened.
@@ -104,8 +115,8 @@ const r2 = blackoutConflicts([
 ], S, E);
 t('statuses outside the committed set are not counted (completed/active/picked_up/incident_review/cancelled)',
   r2.state === 'known' && r2.n === 0, JSON.stringify(r2));
-t('the committed set is exactly confirmed / runner_enroute / runner_pending',
-  JSON.stringify([...BLACKOUT_KEEP_STATUSES].sort()) === JSON.stringify(['confirmed', 'runner_enroute', 'runner_pending']));
+t('the committed set is exactly confirmed / runner_enroute',
+  JSON.stringify([...BLACKOUT_KEEP_STATUSES].sort()) === JSON.stringify(['confirmed', 'runner_enroute']));
 
 // ③ unknown is not zero
 const r3 = blackoutConflicts(null, S, E);
@@ -132,6 +143,44 @@ t('an empty, SUCCESSFUL read is a known zero', r6.state === 'known' && r6.n === 
   t('settleJobs: the failure reaches the log with its original text',
     warns.length === 1 && warns[0].some((x) => x === 'Failed to fetch'), JSON.stringify(warns));
   t('settleJobs: a resolved read passes through unchanged', ok === list);
+
+  // ③c readBlackoutJobs — the read the screen actually makes. Every way of NOT KNOWING must reach
+  // the count as unknown. The first arm is the review's measured case: auth-js 2.109.0's getUser()
+  // RESOLVES `{ data: { user: null }, error: AuthRetryableFetchError }` on a network failure or 5xx.
+  const rows = [{ status: 'confirmed', scheduled_at: EVENING_IN }, { status: 'runner_enroute', scheduled_at: EARLY_IN }];
+  let seen = null;
+  const deps = (getUser, result) => ({
+    getUser: () => Promise.resolve(getUser),
+    committedRows: (uid, statuses) => { seen = { uid, statuses }; return Promise.resolve(result); },
+  });
+  const OK_USER = { data: { user: { id: 'u-1' } }, error: null };
+  const OK_ROWS = { data: rows, error: null };
+  const count = async (d) => blackoutConflicts(await settleJobs(readBlackoutJobs(d)), S, E);
+  console.warn = () => {};
+  let authFail, noUser, nullData, qErr, good, empty;
+  try {
+    seen = null;
+    authFail = await count(deps({ data: { user: null }, error: Object.assign(new Error('Failed to fetch'), { name: 'AuthRetryableFetchError', status: 0 }) }, OK_ROWS));
+    const authFailSeen = seen;
+    noUser = await count(deps({ data: { user: null }, error: null }, OK_ROWS));
+    qErr = await count(deps(OK_USER, { data: null, error: { message: 'JWT expired', code: 'PGRST301' } }));
+    nullData = await count(deps(OK_USER, { data: null, error: null }));
+    empty = await count(deps(OK_USER, { data: [], error: null }));
+    seen = null;
+    good = await count(deps(OK_USER, OK_ROWS));
+    t('🔴 readBlackoutJobs: a RESOLVED auth failure ({ user: null, error }) is unknown, never a known 0',
+      authFail.state === 'unknown', JSON.stringify(authFail));
+    t('readBlackoutJobs: on an auth failure the bookings query is never made', authFailSeen === null, JSON.stringify(authFailSeen));
+    t('🔴 readBlackoutJobs: no signed-in user (no error either) is unknown, never a known 0',
+      noUser.state === 'unknown', JSON.stringify(noUser));
+    t('readBlackoutJobs: a query error is unknown', qErr.state === 'unknown', JSON.stringify(qErr));
+    t('readBlackoutJobs: a query that returns no data (and no error) is unknown', nullData.state === 'unknown', JSON.stringify(nullData));
+    t('readBlackoutJobs: a SUCCESSFUL empty query is the one known zero', empty.state === 'known' && empty.n === 0, JSON.stringify(empty));
+    t('readBlackoutJobs: a successful read counts through the KST helper (2)', good.state === 'known' && good.n === 2, JSON.stringify(good));
+    t('readBlackoutJobs: the query is scoped to the signed-in runner and exactly the committed statuses',
+      seen && seen.uid === 'u-1' && JSON.stringify([...seen.statuses].sort()) === JSON.stringify(['confirmed', 'runner_enroute']),
+      JSON.stringify(seen));
+  } finally { console.warn = realWarn; }
   finish();
 })();
 
@@ -169,8 +218,24 @@ const screen = fs.readFileSync(path.join(__dirname, '..', 'app', 'runner', 'avai
   .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 t('availability.tsx counts through blackoutConflicts and draws blackoutConflictMessage',
   /\bblackoutConflicts\(/.test(screen) && /\bblackoutConflictMessage\(/.test(screen));
-t('availability.tsx reads through settleJobs(fetchRunnerJobs()) — a thrown read reaches the count as null',
-  /\bsettleJobs\(\s*fetchRunnerJobs\(\)\s*\)/.test(screen));
+t('availability.tsx reads through settleJobs(readBlackoutJobs(…)) — every not-knowing path reaches the count as null',
+  /\bsettleJobs\(\s*readBlackoutJobs\(/.test(screen));
+t('availability.tsx does not count through fetchRunnerJobs (it answers a missing user with [], a known zero)',
+  !/\bfetchRunnerJobs\b/.test(screen));
+t('availability.tsx wires getUser to supabase.auth.getUser and scopes the query to runner_id + the statuses handed in',
+  /getUser:\s*\(\)\s*=>\s*supabase\.auth\.getUser\(\)/.test(screen)
+  && /committedRows:\s*\(\s*uid\s*,\s*statuses\s*\)\s*=>\s*supabase\s*\.from\('bookings'\)[\s\S]{0,120}?\.eq\('runner_id',\s*uid\)\s*\.in\('status',\s*statuses\)/.test(screen));
+
+// ⑦ the confirm actually reaches the runner, and the screen's copy (brief part F). Review round: the
+// reviewer disabled the Alert (`msg != null && false`) and reverted both copy lines, and the chain
+// stayed identical. These read the same stripped source.
+t('🔴 availability.tsx: a non-null blackoutConflictMessage is drawn in an Alert with 취소 / 계속, and 계속 saves',
+  /const msg = blackoutConflictMessage\(blackoutConflicts\(jobs,\s*d\.startsOn,\s*d\.endsOn\)\);\s*if \(msg != null\) \{\s*Alert\.alert\('[^']+',\s*msg,\s*\[\s*\{\s*text: '취소', style: 'cancel' \},\s*\{\s*text: '계속', onPress: \(\) => \{\s*void commitException\(d\);\s*\}\s*\},?\s*\]\);\s*return;/.test(screen));
+t('availability.tsx: the section line says 휴가 blocks NEW bookings',
+  screen.includes("휴가는 그 기간의 새 예약을 막고, 추가 근무는 그날 그 시간만 열어요") && !/휴가는 그 기간의 예약을 막고/.test(screen));
+t('availability.tsx: the blackout sheet says confirmed runs stay',
+  screen.includes("'이 기간에는 새 예약을 받지 않아요 — 이미 확정된 러닝은 그대로 남아요'")
+  && !/이 기간에는 예약을 받지 않아요/.test(screen));
 
 // The async arm (③b) reports last; the summary waits for it so its pins are counted.
 function finish() {

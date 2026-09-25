@@ -11,6 +11,7 @@ import {
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { goBackOrHome } from '../../src/lib/nav';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { layout, paper } from '../../src/theme';
 
 // Runner certification center — the real funnel (0062 / plan §6.2).
@@ -115,7 +116,14 @@ export default function Apply() {
     setCertErr(null);
     fetchMyRunnerCert()
       .then((c) => { setCert(c); setCertErr(null); })
-      .catch((e) => setCertErr(e?.message ?? '러너 정보를 불러오지 못했어요'))
+      // Folded (fix/first-run-error-fold review): fetchMyRunnerCert throws PostgREST's own error, and
+      // `e?.message ?? '…'` drew its English — the Korean after `??` is dead on an Error. The fold
+      // keeps Korean as written, draws the house sentence for anything else, and uses this screen's
+      // sentence only for an error with nothing to say. The original goes to the log.
+      .catch((e) => {
+        console.warn('[apply] cert:', rpcRaw(e));
+        setCertErr(foldRpcError(e, { empty: '러너 정보를 불러오지 못했어요' }).message);
+      })
       .finally(() => setCertLoaded(true));
   }, []);
 
@@ -123,7 +131,12 @@ export default function Apply() {
     setAppErr(null);
     fetchMyRunnerApplication()
       .then((a) => { setApp(a); setAppErr(null); })
-      .catch((e) => setAppErr(e?.message ?? '지원 현황을 불러오지 못했어요'))
+      // Folded: runnerApplyError maps the funnel's tokens to Korean (passed through unchanged) and
+      // re-throws anything else as `new Error(raw)` — a network or PostgREST sentence in English.
+      .catch((e) => {
+        console.warn('[apply] application:', rpcRaw(e));
+        setAppErr(foldRpcError(e, { empty: '지원 현황을 불러오지 못했어요' }).message);
+      })
       .finally(() => setAppLoaded(true));
   }, []);
 
@@ -278,7 +291,9 @@ export default function Apply() {
       setAppLoaded(false); // the new row is the screen's next fact — show loading, not a stale state
       loadApp();
     } catch (e) {
-      setFormErr((e as Error).message);
+      // Folded — same reason as loadApp: runnerApplyError's unmapped fallback is the raw text.
+      console.warn('[apply] submit:', rpcRaw(e));
+      setFormErr(foldRpcError(e).message);
     } finally {
       setSubmitting(false);
     }
@@ -294,7 +309,8 @@ export default function Apply() {
       setAppLoaded(false);
       loadApp();
     } catch (e) {
-      setWithdrawErr((e as Error).message);
+      console.warn('[apply] withdraw:', rpcRaw(e));
+      setWithdrawErr(foldRpcError(e).message);
     } finally {
       setWithdrawing(false);
     }

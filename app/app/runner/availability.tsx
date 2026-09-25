@@ -6,16 +6,17 @@ import { PaperSheet } from '../../src/components/paper-sheet';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import { alertFail } from '../../src/lib/alert-fail';
-import { AvailExceptionRow, AvailRule, deleteAvailabilityException, fetchMyAvailability, fetchMyAvailabilityExceptions, fetchMyBookingRules, fetchRunnerJobs, RunnerBookingRules, saveMyAvailability, saveMyBookingRules, setAvailabilityException } from '../../src/lib/api';
+import { AvailExceptionRow, AvailRule, deleteAvailabilityException, fetchMyAvailability, fetchMyAvailabilityExceptions, fetchMyBookingRules, RunnerBookingRules, saveMyAvailability, saveMyBookingRules, setAvailabilityException } from '../../src/lib/api';
 import {
   addDaysYmd, atExceptionCap, calOfYmd, deleteConfirmMessage, EXCEPTION_REFUSAL_KO,
   ExceptionKind, exceptionDateLabel, exceptionEffectLabel, extraIsShadowed, hhmm, kindLabel,
   MAX_NOTE_CHARS, MAX_RANGE_DAYS, sortExceptions, validateDraft, ymdOfCal,
 } from '../../src/lib/availability-exceptions';
-import { blackoutConflictMessage, blackoutConflicts, settleJobs } from '../../src/lib/blackout-conflict';
+import { blackoutConflictMessage, blackoutConflicts, readBlackoutJobs, settleJobs } from '../../src/lib/blackout-conflict';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
+import { supabase } from '../../src/lib/supabase';
 import { layout, paper } from '../../src/theme';
 
 // 가용시간 설정 — 실편집기. runner_availability_rules 실저장.
@@ -307,15 +308,22 @@ export default function Availability() {
   // 휴가 저장 전 — 이 기간에 이미 확정된 러닝을 센다 (fix/first-run-error-fold, part F). A blackout
   // blocks NEW bookings only; nothing cancels a run a runner is already committed to, and an owner
   // still expects them at the door. So the count is said BEFORE the save, and a read that failed
-  // says it failed — `settleJobs` turns a thrown read into null, which `blackoutConflicts` answers
-  // with `unknown`, never 0. The count is a KST calendar fact (blackout-conflict.ts; three-zone test).
+  // says it failed — `readBlackoutJobs` throws on every way of not knowing (including an auth error
+  // `getUser()` RESOLVES rather than throws), `settleJobs` turns the throw into null, and
+  // `blackoutConflicts` answers null with `unknown`, never 0. The count is a KST calendar fact
+  // (blackout-conflict.ts; three-zone test). Not `fetchRunnerJobs()`: it returns [] for a missing
+  // user, which is a known zero wearing a failed read's clothes (header of blackout-conflict.ts).
   const submitException = async () => {
     if (draft == null || draftCheck == null || !draftCheck.ok) return;
     if (draft.kind === 'blackout') {
       const d = draft;
       setExcBusy(true);
       setSheetErr(null);
-      const jobs = await settleJobs(fetchRunnerJobs());
+      const jobs = await settleJobs(readBlackoutJobs({
+        getUser: () => supabase.auth.getUser(),
+        committedRows: (uid, statuses) => supabase.from('bookings')
+          .select('status, scheduled_at').eq('runner_id', uid).in('status', statuses),
+      }));
       setExcBusy(false);
       const msg = blackoutConflictMessage(blackoutConflicts(jobs, d.startsOn, d.endsOn));
       if (msg != null) {

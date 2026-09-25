@@ -37,8 +37,9 @@
 // and many sit behind wrappers that ALREADY fold (the ops console, availability's exception sheet,
 // bank-account) — source cannot tell a pre-folded message from a raw one, so that gate would cry on
 // correct code. Left with the exact shape this slice fixed twice (a raw read plus a Korean `??`
-// that is dead on an Error), wrappers NOT checked: runner/apply.tsx:119/127 (not in this slice's
-// files), owner/matching.tsx:228 (HELD be/0211), community.tsx:177 (Codex batch). `login.tsx`'s
+// that is dead on an Error), wrappers NOT checked: owner/matching.tsx:228 (HELD be/0211),
+// community.tsx:177 (Codex batch). (runner/apply.tsx's four strips were folded by
+// fix/first-run-error-fold and are pinned by FOLDED_STRIPS below.) `login.tsx`'s
 // strip is DELIBERATE (login.tsx:92-93: the raw cause is the only clue a locked-out person can
 // forward).
 //
@@ -427,17 +428,48 @@ for (const rel of CONVERTED) {
 // deliberately does not gate by setter shape (header). What IS pinned, per file and by name: each
 // imports the fold and draws it. A file that deleted its strip, or went back to `e.message`
 // without the fold, loses the call and reddens here.
+// ⚠ A raw read is not only `.message`: `setErr(String(e))` or `` `${e}` `` draws supabase-js's
+// English just the same (review finding, measured: `setErr(String(e));` added to onboard/runner
+// stayed green on the `.message`-only arm). So each file's CATCH-BOUND names (`catch (e)`,
+// `.catch((e) =>`) are also refused as `String(name)`, `${name}`, `name.toString()`,
+// `JSON.stringify(name)` and a `+` concatenation. Named blind spot, prose not pin: an error that
+// is first copied to another variable, or stringified by a helper (`msgOf(e)`), is not followed.
+// Measured 2026-09-25 with a crude grep for `String(e|err|error|ex|x)` / `${e|err|error}` over
+// app/ + src/: 8 lines, NONE an Alert argument or in these files — all are `msgOf`-style helpers
+// or api.ts/rpc-error.ts internals, i.e. that blind spot, which Ⓑ's header already names.
+// runner/apply.tsx joined the list in the review round (its cert/application/submit/withdraw strips).
 const FOLDED_STRIPS = [
   'app/onboard/owner.tsx', 'app/onboard/runner.tsx', 'app/profile/edit.tsx', 'app/owner/pay.tsx',
+  'app/runner/apply.tsx',
 ];
+const catchNames = (code) => {
+  const out = new Set();
+  const re = /\bcatch\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)/g;
+  let m;
+  while ((m = re.exec(code)) !== null) out.add(m[1]);
+  return [...out];
+};
+const stringifyHits = (code) => {
+  const hits = [];
+  for (const n of catchNames(code)) {
+    const x = n.replace(/\$/g, '\\$');
+    const re = new RegExp(
+      `\\bString\\s*\\(\\s*${x}\\s*\\)|\\$\\{\\s*${x}\\s*\\}|(^|[^\\w$.])${x}\\s*\\.\\s*toString\\s*\\(`
+      + `|\\bJSON\\s*\\.\\s*stringify\\s*\\(\\s*${x}\\s*[,)]|(^|[^\\w$.])${x}\\s*\\+|\\+\\s*${x}(?![\\w$]|\\s*[.?])`);
+    if (re.test(code)) hits.push(n);
+  }
+  return hits;
+};
 for (const rel of FOLDED_STRIPS) {
   const s = STRIPPED.get(rel) || '';
   const body = s.replace(/import[^;]*;/g, '');
-  t(`${rel} imports foldRpcError and draws foldRpcError(…).message`,
+  const code = dropFolds(codeOnly(body.replace(/console\.warn\([^;]*;/g, '')));
+  const strs = stringifyHits(code);
+  t(`${rel} imports foldRpcError and draws foldRpcError(…).message — no raw .message, String(e) or \${e}`,
     /import \{[^}]*\bfoldRpcError\b[^}]*\} from '[./]+(src\/)?lib\/rpc-error'/.test(s)
     && /foldRpcError\([^)]*\)\s*\.\s*message\b/.test(body)
-    && !RAW_READ.test(dropFolds(codeOnly(body.replace(/console\.warn\([^;]*;/g, '')))),
-    rel);
+    && !RAW_READ.test(code) && strs.length === 0,
+    `${rel}${strs.length ? ' stringifies ' + strs.join(',') : ''}`);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -508,6 +540,61 @@ const errArgReads = (stripped) => {
     forwarders(STRIPPED.get('app/index.tsx') || '').some((f) => f.name === 'fail'));
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Ⓔ fix/first-run-error-fold's non-error copy (brief parts C, D, E) — pinned HERE because this is
+// the slice's source-reading file, not because it is error copy. Added in the review round: the
+// reviewer reverted all nine of these and the whole chain stayed identical (5254/0/39). Each arm
+// reads comment-STRIPPED source (strings kept), so the comments that quote the retired copy — and
+// there are several — cannot satisfy or redden it. Part F's copy and confirm are pinned in
+// availability-blackout-conflict.test.cjs beside the count they draw.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+{
+  const apply = STRIPPED.get('app/runner/apply.tsx') || '';
+  const runner = STRIPPED.get('app/onboard/runner.tsx') || '';
+  const primer = STRIPPED.get('src/components/location-primer.tsx') || '';
+  t('Ⓔ the three files are read (a missing file must fail LOUDLY, not pass every absence arm)',
+    apply.length > 1000 && runner.length > 1000 && primer.length > 500);
+
+  // E — the approved card's online line says what the switch changes, never 「must be online to get requests」
+  t('Ⓔ apply.tsx: the offline line does not claim requests need 온라인 (the retired 「온라인으로 켜야」 is gone)',
+    !/온라인으로 켜야/.test(apply));
+  t('Ⓔ apply.tsx: both online-line sentences are the brief\'s',
+    apply.includes("'지금 온라인 상태예요 · 보호자의 러너 목록과 추천에 보여요'")
+    && apply.includes("'열린 요청은 그대로 와요 · 지명을 받으려면 러너 홈에서 온라인을 켜주세요'"));
+  t('Ⓔ apply.tsx: the tier line carries no data-provenance clause',
+    !/러너 레코드와 같은 값/.test(apply) && /지금 등급은 \{runnerTierLabel\(cert\.tier\)\}예요</.test(apply));
+  // E — ContactCta opens mail, it does not detour through /settings
+  const cta = (() => {
+    const k = apply.indexOf('function ContactCta(');
+    if (k < 0) return '';
+    const open = apply.indexOf('{', k);
+    const close = closeBrace(apply, open);
+    return close > 0 ? apply.slice(open, close) : '';
+  })();
+  t('Ⓔ apply.tsx: ContactCta is found (a finder that finds nothing makes the next arms vacuous)', cta.length > 50);
+  t('Ⓔ apply.tsx: ContactCta opens SUPPORT_MAIL with Linking.openURL and never router.push',
+    /Linking\s*\.\s*openURL\(\s*SUPPORT_MAIL\s*\)/.test(cta) && !/router\s*\.\s*(push|replace|navigate)\(/.test(cta)
+    && /const SUPPORT_MAIL = 'mailto:[^']+'/.test(apply));
+  t('Ⓔ apply.tsx: ContactCta\'s a11y label is 「문의하기」 and ContactCta draws no 「설정 › 문의하기…」 sub',
+    /accessibilityLabel="문의하기"/.test(cta) && !/설정 › 문의하기/.test(cta));
+  t('Ⓔ apply.tsx: busy labels are 「접수 중…」/「취소 중…」 (not the drifted 「…중이에요…」)',
+    /busyLabel="접수 중…"/.test(apply) && /busyLabel="취소 중…"/.test(apply) && !/busyLabel="[^"]*중이에요…"/.test(apply));
+
+  // D — 「계속」, never 「허용」, on the runner onboarding CTA (the system alert owns 허용)
+  t('Ⓔ onboard/runner.tsx: the permission CTA reads 「계속 ›」 and no literal says 「위치 권한 허용 ›」',
+    /'계속 ›'/.test(runner) && !/위치 권한 허용 ›/.test(runner));
+  t('Ⓔ onboard/runner.tsx: the CTA\'s a11y label is 「위치 권한 요청 계속」, not 「위치 권한 허용」',
+    /accessibilityLabel="위치 권한 요청 계속"/.test(runner) && !/accessibilityLabel="위치 권한 허용"/.test(runner));
+
+  // C — the location primer respects the safe area and uses the house button
+  t('Ⓔ location-primer.tsx: imports useSafeAreaInsets and pads the wrap by insets.top / max(insets.bottom, 12)',
+    /import \{[^}]*\buseSafeAreaInsets\b[^}]*\} from 'react-native-safe-area-context'/.test(primer)
+    && /paddingTop:\s*insets\.top\b/.test(primer) && /paddingBottom:\s*Math\.max\(\s*insets\.bottom\s*,\s*12\s*\)/.test(primer));
+  t('Ⓔ location-primer.tsx: the CTA is <PaperBtn label="계속" busyLabel="확인 중…"> — no bare Pressable, no s.cta styles',
+    /<PaperBtn\b[^>]*\blabel="계속"[^>]*\bbusyLabel="확인 중…"/.test(primer)
+    && !/<Pressable\b/.test(primer) && !/\bs\.cta\w*/.test(primer) && !/^\s*cta\w*\s*:/m.test(primer));
+}
+
 // ── CONTROLS — each names the one failure mode it is blind to if removed ─────────────────────────
 const raw = (s) => rawReads(stripComments(s)).length;
 const ttl = (s) => sentenceTitles(stripComments(s)).length;
@@ -553,6 +640,13 @@ t('CONTROL · alertFail\'s own definition is not a call site',
 t('CONTROL · a message COMPARISON choosing between two Korean bodies is not a render',
   raw("Alert.alert('x', e?.message === NOT_FOUND ? '가' : '나');") === 0);
 
+const sh = (src) => stringifyHits(dropFolds(codeOnly(stripComments(src)))).length;
+t('CONTROL strips · String(e) of a catch-bound e IS seen', sh("try { a(); } catch (e) { setErr(String(e)); }") === 1);
+t('CONTROL strips · `${e}` of a .catch((e) =>) binding IS seen', sh("p.catch((e) => setErr(`실패 — ${e}`));") === 1);
+t('CONTROL strips · the fold of the same e is NOT', sh("try { a(); } catch (e) { setErr(foldRpcError(e).message); }") === 0);
+t('CONTROL strips · String(n) of a name no catch binds is NOT (numbers are stringified everywhere)',
+  sh("try { a(); } catch (e) { setErr(foldRpcError(e).message); } const k = String(n);") === 0);
+t('CONTROL strips · a comment quoting String(e) is NOT', sh("try { a(); } catch (e) { /* was: setErr(String(e)) */ setErr(foldRpcError(e).message); }") === 0);
 const ea = (src) => errArgReads(stripComments(src)).length;
 t('CONTROL Ⓓ · a raw `.message` handed to alertFail IS seen', ea("alertFail('저장 실패', (e as Error).message);") === 1);
 t('CONTROL Ⓓ · the error object handed to alertFail is NOT', ea("alertFail('저장 실패', e);") === 0);

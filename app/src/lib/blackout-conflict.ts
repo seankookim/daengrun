@@ -17,12 +17,32 @@
 // ⚠ A FAILED READ IS NOT ZERO. `null` jobs (the read threw) and a row whose `scheduledAt` cannot be
 // placed on a day both return `{ state: 'unknown' }`, never `{ n: 0 }` — 「이 기간에 확정된 러닝은
 // 없어요」 is a claim, and a failed read has no right to make it.
+//
+// ⚠ THE READ IS OURS, NOT `fetchRunnerJobs()` (review fix, 2026-09-25). The first version counted
+// `fetchRunnerJobs()`, which answers a missing user with `return []` — and supabase-js's `getUser()`
+// does not THROW on an auth-server failure: it RESOLVES `{ user: null, error }` (auth-js 2.109.0
+// `_getUser`, measured by the reviewer with a stored session and fetch throwing or returning 503).
+// So an auth outage reached this helper as a successful empty read — a KNOWN zero — while the
+// blackout save itself (PostgREST checks the JWT locally) could still succeed. `readBlackoutJobs`
+// below treats an auth error AND a missing user as a failed read (it throws, so `settleJobs` turns
+// it into `null` → unknown). It is also narrower: two statuses, two columns, no coeffs RPC.
+//
+// ⚠ WHY `runner_pending` IS NOT COUNTED (review fix, same day). The brief listed it; the first
+// version counted it; `fetchRunnerJobs` never returned it, so that pin covered a state production
+// could not produce. It is left out on purpose rather than read: a `runner_pending` row is a
+// DIRECTED REQUEST THE RUNNER HAS NOT ACCEPTED, and the confirm says 「이미 확정된 러닝 N건」 —
+// counting it there would call an unaccepted request 확정. What happens to one during a blackout:
+// nothing. The blackout does not cancel it (0203 changes only `is_slot_available`; the accept gate
+// in `transition-booking` does not read the exceptions table), so it stays in the runner's inbox,
+// where they accept or decline it like any other day. Whether the confirm should ALSO name pending
+// requests is a copy decision, not a count fix — left for Sean.
 import { kstCal } from './kst';
 import { ymdOfCal } from './availability-exceptions';
 
 /** The statuses that mean 「a runner is committed to this slot」 and survive a blackout. Read from
- *  `rawStatus`, never the flattened display status (CLAUDE.md: gate on rawStatus). */
-export const BLACKOUT_KEEP_STATUSES: readonly string[] = ['confirmed', 'runner_enroute', 'runner_pending'];
+ *  `rawStatus`, never the flattened display status (CLAUDE.md: gate on rawStatus). Accepted runs
+ *  only — see the header for why `runner_pending` is not here. */
+export const BLACKOUT_KEEP_STATUSES: readonly string[] = ['confirmed', 'runner_enroute'];
 
 export type BlackoutConflict = { state: 'known'; n: number } | { state: 'unknown' };
 
@@ -61,8 +81,39 @@ export function blackoutConflicts(
   return { state: 'known', n };
 }
 
+/** What `readBlackoutJobs` needs from the Supabase client, injected so the `.cjs` suite can feed a
+ *  resolved-but-unauthenticated `getUser()` without bundling supabase-js. The screen passes thin
+ *  lambdas over the real client. */
+export interface BlackoutReadDeps {
+  getUser: () => PromiseLike<{ data: { user: { id: string } | null } | null; error: unknown }>;
+  /** The caller's bookings as RUNNER in exactly `statuses`, as PostgREST returns them. */
+  committedRows: (runnerId: string, statuses: string[]) => PromiseLike<{
+    data: readonly { status?: unknown; scheduled_at?: unknown }[] | null;
+    error: unknown;
+  }>;
+}
+
 /**
- * The read, settled: the jobs, or `null` when it threw. The screen passes `fetchRunnerJobs()`
+ * The runner's committed runs, or a THROW. Every way this read can fail to know — an auth error
+ * (which `getUser()` resolves rather than throws), no signed-in user, a query error, or no data —
+ * throws, so the only way to return `[]` is a successful query that found nothing.
+ */
+export async function readBlackoutJobs(deps: BlackoutReadDeps): Promise<ConflictJob[]> {
+  const { data: auth, error: authErr } = await deps.getUser();
+  if (authErr) throw authErr;
+  const uid = auth?.user?.id;
+  if (!uid) throw new Error('[blackout-conflict] no signed-in user — the count is unknown, not 0');
+  const { data, error } = await deps.committedRows(uid, [...BLACKOUT_KEEP_STATUSES]);
+  if (error) throw error;
+  if (data == null) throw new Error('[blackout-conflict] bookings read returned no data');
+  return data.map((r) => ({
+    rawStatus: String(r.status),
+    scheduledAt: typeof r.scheduled_at === 'string' ? r.scheduled_at : null,
+  }));
+}
+
+/**
+ * The read, settled: the jobs, or `null` when it threw. The screen passes `readBlackoutJobs(…)`
  * straight in, so a thrown read cannot be turned into `[]` (a known zero) on the way to
  * `blackoutConflicts`. The original error goes to the log.
  */
