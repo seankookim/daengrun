@@ -375,7 +375,7 @@ export default function OwnerMeetup() {
     return loopUnlessReduced(() => Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ])), () => pulse.setValue(0));
+    ])), () => pulse.setValue(0), () => pulse.setValue(0));
   }, [isWaiting, pulse]);
 
   // [0063] owner Live Activity — starts at the sealed handoff (server truth: status picked_up),

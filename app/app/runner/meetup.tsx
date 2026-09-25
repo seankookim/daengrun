@@ -326,7 +326,7 @@ export default function Meetup() {
     return loopUnlessReduced(() => Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ])), () => pulse.setValue(0));
+    ])), () => pulse.setValue(0), () => pulse.setValue(0));
   }, [isWaiting, pulse]);
 
   // [P2-12] 반드시 마지막 effect — 같은 커밋에서 useStamp·celebrate effect가 먼저 실행된 뒤에

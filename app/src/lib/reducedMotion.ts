@@ -76,7 +76,7 @@ export type LoopHandle = { start: () => void; stop: () => void };
  *
  *   useEffect(() => {
  *     if (!isWaiting) { pulse.setValue(0); return; }
- *     return loopUnlessReduced(() => <the loop>, () => pulse.setValue(0));
+ *     return loopUnlessReduced(() => <the loop>, () => pulse.setValue(0), () => pulse.setValue(0));
  *   }, [isWaiting, pulse]);
  *
  * Why a plain function and not `useReducedMotionState()`: both meetup screens are under the
@@ -95,9 +95,19 @@ export type LoopHandle = { start: () => void; stop: () => void };
  *   · `rest` puts the value where the element is still DRAWN (§7c: the loop stops, the element
  *     stays — never hidden, never a different meaning). Called under Reduce Motion, and when the
  *     setting flips on mid-loop.
+ *   · `from` puts the value back at the loop's START phase, and runs before EVERY `make()`. A
+ *     native-driver `Animated.loop` does not reset its value before the first iteration (RN 0.86
+ *     `loopImpl` → `_startNativeLoop` → `start(value, …)`; the reset at `restart` is JS-path only),
+ *     and a JS `Animated.sequence` resets only the steps it has already reached — so after a live
+ *     ON→OFF toggle a fresh loop would otherwise begin from the parked `rest` phase and, on the
+ *     native path, keep looping from there for good (radar rings emanating from 68px, not the core).
  *   · a live toggle is honoured both ways, like the hook's `reduceMotionChanged` listener.
  */
-export function loopUnlessReduced(make: () => LoopHandle, rest: () => void): () => void {
+export function loopUnlessReduced(
+  make: () => LoopHandle,
+  rest: () => void,
+  from: () => void,
+): () => void {
   let alive = true;
   let settled = false;
   let running: LoopHandle | null = null;
@@ -109,7 +119,7 @@ export function loopUnlessReduced(make: () => LoopHandle, rest: () => void): () 
       rest();
       return;
     }
-    if (!running) { running = make(); running.start(); }
+    if (!running) { from(); running = make(); running.start(); }
   };
   AccessibilityInfo.isReduceMotionEnabled()
     .then((v) => apply(!!v))

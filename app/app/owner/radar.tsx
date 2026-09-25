@@ -75,12 +75,14 @@ const RIPPLE_MAX = 2.5;
 // Phase 0 is RIPPLE_BASE (52) — under the 54 core disc, i.e. hidden — so the three rings rest at
 // 0.2 / 0.4 / 0.6 instead: 68 / 83 / 99 px at 0.31 / 0.23 / 0.14 opacity, three static concentric
 // rings fading outward inside the 132 stage. The same radar picture, without the travel.
+// The third callback returns a ring to phase 0 before any (re)start, so a live OFF-toggle emanates
+// from the core again instead of looping from the parked phase (the native loop does not reset).
 function Ripple({ delay, rest }: { delay: number; rest: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     return loopUnlessReduced(() => Animated.loop(
       Animated.timing(v, { toValue: 1, duration: 3200, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    ), () => v.setValue(rest));
+    ), () => v.setValue(rest), () => v.setValue(0));
   }, [v, delay, rest]);
   return (
     <Animated.View
