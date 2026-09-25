@@ -206,11 +206,27 @@ Deno.serve(handle(async (req) => {
           // 사유를 이름 붙여 돌려준다 — ⑫ 메모: 왜 막혔는지도, 무엇이 푸는지도 모르는 게이트는
           // 설명 없는 정지이고, 이미 확인을 마친 러너에게 '확인하세요'라고 말하면 자기 행동에
           // 대한 거짓말이 된다. waiting_on이 그 구분을 서버에서 이미 해준다.
+          //
+          // [0226 · codex s2 on 0224] 0224 §E added two words — `start_run` (a picked-up dog whose run
+          // never started, past the threshold) and `end_run` (a run never stopped). They used to fall
+          // to the last arm and be told to finish a RETURN that does not exist yet. Each now names its
+          // own exit. `end_run` does not promise work on stopping: a stopped run still owes the return
+          // stamps, and the gate's return arm holds the runner until both land. `both` is spelled out
+          // rather than being the fallthrough, so a word the server adds LATER fails closed to a
+          // neutral sentence instead of inheriting someone else's instruction.
+          // `_test/runner_accept_waiting_on_test.ts` pins every value, the three older sentences
+          // byte for byte.
           const msg = gate.waiting_on === "owner"
             ? "이전 러닝의 인계를 보호자가 아직 확인하지 않았어요 — 확인되면 바로 새 러닝을 받을 수 있어요"
             : gate.waiting_on === "runner"
             ? "이전 러닝의 인계 확인이 남아 있어요 — 인계를 확인하면 새 러닝을 받을 수 있어요"
-            : "이전 러닝의 인계가 양측 확인으로 끝나지 않았어요 — 인계를 마치면 새 러닝을 받을 수 있어요";
+            : gate.waiting_on === "both"
+            ? "이전 러닝의 인계가 양측 확인으로 끝나지 않았어요 — 인계를 마치면 새 러닝을 받을 수 있어요"
+            : gate.waiting_on === "start_run"
+            ? "인계받은 러닝이 아직 시작되지 않았어요 — 러닝을 시작하면 새 러닝을 받을 수 있어요"
+            : gate.waiting_on === "end_run"
+            ? "진행 중인 러닝이 아직 종료되지 않았어요 — 러닝을 종료하고 반환 확인까지 마치면 새 러닝을 받을 수 있어요"
+            : "이전 러닝이 아직 마무리되지 않았어요 — 지금은 새 러닝을 받을 수 없어요";
           throw new HttpError(409, msg);
         }
       }
