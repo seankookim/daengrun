@@ -3,10 +3,9 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../../src/components/status-bar-cover';
-import { Row } from '../../../src/components/ui';
+import { Row, ScreenHead } from '../../../src/components/ui';
 import { fetchOpsStrandedReturns, OpsStrandedReturn } from '../../../src/lib/api';
 import { kstCal, kstMonthDay, kstClock } from '../../../src/lib/kst';
-import { goBackOrHome } from '../../../src/lib/nav';
 import {
   STRAND_EMPTY_UNKNOWN_KO,
   strandAgeLabel, strandDeadlineFrom, strandDeadlineNote, strandNotifiedNote, strandStateLabel,
@@ -81,13 +80,7 @@ export default function OpsStrandedReturns() {
         style={{ flex: 1, backgroundColor: colors.cream }}
         contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
       >
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5 }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>반환 좌초</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <ScreenHead title="반환 좌초" />
 
         <Text style={s.lead}>
           러닝은 끝났는데 반환 확인이 끝나지 않아 러너가 정산을 받지 못하는 예약이에요.
@@ -162,7 +155,6 @@ export default function OpsStrandedReturns() {
 
 // 15pt floor (DESIGN.md:145). No Korean below 15 here; the kicker exemption is latin-only.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   lead: { fontSize: 15.5, lineHeight: 22, color: paper.dim, marginTop: 14 },
   deadlineNote: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 10, marginBottom: 12 },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 16 },

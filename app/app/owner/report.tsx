@@ -11,7 +11,7 @@ import { ProfileGaps } from '../../src/components/profile-gaps';
 // 매주 반복 — see the delimited block further down; the import sits alone so the feature's whole
 // footprint in this shared file is one import line plus one fenced block.
 import { RecurringCta } from '../../src/components/recurring-cta';
-import { Monogram, Row, Skeleton } from '../../src/components/ui';
+import { Monogram, Row, ScreenHead, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { bookingStateLabel, reportShowsInProgress } from '../../src/lib/booking-state-copy';
@@ -23,10 +23,9 @@ import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, smoothTrace } from '../../src/lib/geo';
 import { motionPolicy } from '../../src/lib/motion-policy';
 import { useReducedMotionState } from '../../src/lib/reducedMotion';
-import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { draft, TracePoint } from '../../src/store';
-import { colors, lilac, paper } from '../../src/theme';
+import { colors, lilac, paper, secTitle } from '../../src/theme';
 
 // [DESIGN.md §7a-bis · Sean 2026-08-26] Ink is the default; the grey ramp marks only what a
 // customer may skip. On this screen that moved the stopped-run audit block, the honest gaps and
@@ -670,15 +669,17 @@ export default function Report() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.cream }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
-        <Row style={{ justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: insets.top }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          {/* Chrome title, not the display moment — plain 900 ink, the grammar request.tsx and
-              review.tsx already use. The screen's ONE Black Han Sans is the run title below. */}
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러닝 리포트</Text>
-          {canShare ? (
-            <Pressable onPress={share} style={s.backBtn} accessibilityRole="button" accessibilityLabel="공유하기"><Text style={{ fontSize: 17 }}>↗</Text></Pressable>
-          ) : <View style={{ width: 40 }} />}
-        </Row>
+        {/* Chrome header (DESIGN.md §3b), not the display moment — the screen's ONE Black Han Sans
+            is the run title below. Share rides the trailing slot; without it ScreenHead keeps the
+            40-wide spacer so the title stays centred. */}
+        <View style={{ paddingHorizontal: 12, paddingTop: insets.top }}>
+          <ScreenHead
+            title="러닝 리포트"
+            right={canShare ? (
+              <Pressable onPress={share} style={s.shareKey} accessibilityRole="button" accessibilityLabel="공유하기"><Text style={{ fontSize: 17, color: paper.ink }}>↗</Text></Pressable>
+            ) : undefined}
+          />
+        </View>
 
         {/* Failure: a reversible fact, so it gets a retry rather than a door out. */}
         {err && (
@@ -1815,9 +1816,9 @@ function GoalBar({ label, pct, detail }: { label: string; pct: number; detail: s
 }
 
 const s = StyleSheet.create({
-  // §2 종이 크롬: 40×40 **정사각**, 캔버스 면, 1px 코랄 트림 (runner/meetup circleBtn 문법 —
-  // 이름만 circle이고 모양은 사각이다). 종전 borderRadius 20 + 베이지 트림은 V4 잔재였다.
-  backBtn: { width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
+  // Icon-only control (DESIGN.md §3b): 40×40 square, canvas, 1px coral — the twin of ScreenHead's
+  // back key beside it. (It was `backBtn`, shared with the hand-rolled back key it has replaced.)
+  shareKey: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   // ---------- ② 타이틀 + ③ 숫자 셋 (14a) — 흰 캔버스, 섹션 리듬은 s.section과 같다 ----------
   head: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   headTitle: { fontSize: 27.5, fontWeight: '900', color: paper.ink, marginTop: 6 },
@@ -1872,7 +1873,7 @@ const s = StyleSheet.create({
   // 섹션 분할은 풀블리드 솔리드 코랄 1px — 이 선이 곧 브랜드 (§2 종이 법)
   section: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크. 화면마다 크기를 달리 쓰지 않는다.
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, marginBottom: 6 },
+  sectionTitle: { ...secTitle, marginBottom: 6 }, // §3b — theme.secTitle, never retyped
   // 기록 줄 안의 실주행 km — Oswald. [BUG A] 16 × 1.25 = 20
   recordNum: { fontSize: 16, lineHeight: 20, fontWeight: '900', color: paper.ink },
   barTrack: { height: 8, borderRadius: 99, backgroundColor: '#EEEEEE', marginTop: 6, overflow: 'hidden' }, // 은퇴 팔레트 크림(#f0eee3) → 뉴트럴

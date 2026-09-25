@@ -4,8 +4,9 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../../../src/components/paper-btn';
 import { StatusBarCover } from '../../../src/components/status-bar-cover';
-import { Row } from '../../../src/components/ui';
+import { ScreenHead } from '../../../src/components/ui';
 import { fetchOpsGearClaimsPending, OpsGearClaim, opsMarkGearShipped } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { kstCal, kstMonthDay } from '../../../src/lib/kst';
@@ -107,13 +108,7 @@ export default function OpsGearClaimScreen() {
           contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-              <Text style={{ fontSize: 20.5 }}>‹</Text>
-            </Pressable>
-            <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>발송 처리</Text>
-            <View style={{ width: 40 }} />
-          </Row>
+          <ScreenHead title="발송 처리" />
 
           {phase === 'loading' && <Text style={s.loading}>수령 신청을 불러오는 중이에요…</Text>}
 
@@ -151,13 +146,7 @@ export default function OpsGearClaimScreen() {
                 </Text>
                 <Text style={s.doneSub}>「발송」은 부쳤다는 뜻이고 도착했다는 뜻은 아니에요</Text>
               </View>
-              <Pressable
-                onPress={goBackOrHome}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.primary, pressed && s.primaryPressed]}
-              >
-                <Text style={s.primaryLabel}>목록으로</Text>
-              </Pressable>
+              <PaperBtn label="목록으로" onPress={goBackOrHome} style={s.cta} />
             </>
           )}
 
@@ -220,17 +209,7 @@ export default function OpsGearClaimScreen() {
                 </View>
               )}
 
-              <Pressable
-                onPress={submit}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: saving, busy: saving }}
-                style={({ pressed }) => [s.primary, saving ? s.flatDisabled : (pressed && s.primaryPressed)]}
-              >
-                <Text style={[s.primaryLabel, saving && s.flatDisabledLabel]}>
-                  {saving ? '처리 중…' : '발송 처리'}
-                </Text>
-              </Pressable>
+              <PaperBtn label="발송 처리" busyLabel="처리 중…" busy={saving} onPress={submit} style={s.cta} />
             </>
           )}
         </ScrollView>
@@ -242,7 +221,6 @@ export default function OpsGearClaimScreen() {
 
 // 15pt floor (DESIGN.md:145) — no Korean below 15 on this screen, and no latin kicker to exempt.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: colors.line },
   kicker: { fontSize: 15, fontWeight: '700', color: paper.dim },
   itemName: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 4 },
@@ -253,15 +231,8 @@ const s = StyleSheet.create({
   fieldLabel: { fontSize: 15, fontWeight: '700', color: paper.ink, marginTop: 18, marginBottom: 6 },
   input: { fontSize: 17, color: paper.ink, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, minHeight: 52 },
   warnNote: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 8 },
-  primary: {
-    marginTop: 20, minHeight: 56, borderRadius: 0, backgroundColor: paper.ink,
-    borderBottomWidth: 4, borderBottomColor: paper.inkPressed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  primaryPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
-  primaryLabel: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  flatDisabled: { borderBottomWidth: 1, backgroundColor: paper.disabledFill },
-  flatDisabledLabel: { color: paper.faint },
+  // Layout only — PaperBtn owns the fill (coral primary, DESIGN.md §3b), the lip and the busy swap.
+  cta: { marginTop: 20 },
   secondary: {
     marginTop: 14, minHeight: 48, borderRadius: 0, backgroundColor: colors.cream,
     borderWidth: 1, borderColor: paper.ink, alignItems: 'center', justifyContent: 'center',

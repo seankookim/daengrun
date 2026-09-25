@@ -5,12 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { homePath } from '../src/components/bottomnav';
 import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
 import { PaperBtn } from '../src/components/paper-btn';
-import { Row } from '../src/components/ui';
+import { ScreenHead } from '../src/components/ui';
 import {
   BillingCard, PaymentRecord, cardRegistrationLive, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
 import { kstCal, kstYearMonthDay } from '../src/lib/kst';
-import { goBackOrHome } from '../src/lib/nav';
 import { TOSS_CLIENT_KEY } from '../src/lib/toss';
 import { paper, secTitle } from '../src/theme';
 
@@ -140,13 +139,11 @@ export default function Payments() {
       style={{ flex: 1, backgroundColor: paper.canvas }}
       contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 40 }}
     >
-      <Row style={{ justifyContent: 'space-between', paddingHorizontal: 16 }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-        </Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>결제 관리</Text>
-        <View style={{ width: 40 }} />
-      </Row>
+      {/* Chrome header (DESIGN.md §3b) — the shared ScreenHead this screen's inline copy was the
+          reference for. */}
+      <View style={{ paddingHorizontal: 16 }}>
+        <ScreenHead title="결제 관리" />
+      </View>
 
       {/* ── 예외 배너 — 숨길 수 없는 상태 (§0-bis: 예외는 크게, 영수증은 조용히) ── */}
       {/* [2026-08-26] 이 배너의 CTA는 mailto: 였다 — 카드 등록 화면이 없던 시절의 유일한 출구.
@@ -302,10 +299,6 @@ function SectionHead({ title }: { title: string }) {
 }
 
 const s = StyleSheet.create({
-  backBtn: {
-    width: 40, height: 40, backgroundColor: paper.canvas,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
-  },
   rule: { borderTopWidth: 1, borderColor: paper.line, marginTop: 22 },
   sectionTitle: { ...secTitle, paddingHorizontal: 16, marginTop: 14 },
   section: { paddingHorizontal: 16, marginTop: 8 },

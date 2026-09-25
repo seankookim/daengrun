@@ -5,12 +5,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperSheet } from '../../src/components/paper-sheet';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
-import { Row } from '../../src/components/ui';
+import { ScreenHead } from '../../src/components/ui';
 import {
   fetchOpsRoster, opsProfileLookup, OpsProfileCandidate, opsRosterSet, OpsRosterWireRow,
 } from '../../src/lib/api';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
 import {
   chipLabel, classLabel, CONSOLE_CLASS, dormantNote, groupRoster, OpsRosterPerson, personSummary,
   SELECTABLE_CLASSES, wouldStrandConsole,
@@ -159,13 +158,7 @@ export default function OpsRoster() {
           paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40,
         }}
       >
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5 }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>운영자 명단</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <ScreenHead title="운영자 명단" />
 
         <Text style={s.lede}>
           누가 어떤 운영 알림을 받는지 정해요 · 정산 지급 담당만 이 콘솔에 들어올 수 있어요
@@ -402,10 +395,6 @@ function PersonCard({ person, rows, busyKey, onToggle }: {
 
 // 15pt floor (DESIGN.md:145). The kicker exemption is latin-only and this screen has none.
 const s = StyleSheet.create({
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line,
-  },
   lede: { fontSize: 15, lineHeight: 22, color: paper.dim, marginTop: 10, marginBottom: 16 },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 14 },
   card: {

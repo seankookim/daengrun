@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { opsMe } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
 import { OpsProvider } from '../../src/lib/ops-context';
@@ -156,13 +157,7 @@ export default function OpsLayout() {
       )}
 
       {phase !== 'checking' && (
-        <Pressable
-          onPress={goBackOrHome}
-          accessibilityRole="button"
-          style={({ pressed }) => [s.primary, pressed && s.primaryPressed]}
-        >
-          <Text style={s.primaryLabel}>돌아가기</Text>
-        </Pressable>
+        <PaperBtn label="돌아가기" onPress={goBackOrHome} style={s.cta} />
       )}
     </View>
   );
@@ -179,12 +174,8 @@ const s = StyleSheet.create({
   failText: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   retryLabel: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
-  // DESIGN.md:203-216 button matrix — Primary is an ink fill with the 3D lip, radius 0.
-  primary: {
-    marginTop: 26, minHeight: 56, borderRadius: 0, backgroundColor: paper.ink,
-    borderBottomWidth: 4, borderBottomColor: paper.inkPressed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  primaryPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
-  primaryLabel: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+  // Layout only. This comment used to cite the DESIGN.md button table's stale 「Primary is an ink
+  // fill」 row (corrected 2026-09-25) and hand-roll an ink key from it; the shipped matrix is
+  // PaperBtn — coral primary, 3D lip, busy as a label swap.
+  cta: { marginTop: 26 },
 });

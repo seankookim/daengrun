@@ -3,15 +3,14 @@ import { useCallback, useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import {
   fetchIncidentOutcome, fetchIncidentRunContext, fetchOpenIncident, openBookingIncident, verifyBookingIncident,
   IncidentKind, IncidentOutcome, IncidentRunContext, IncidentSeverity, OpenIncident, NOT_FOUND,
 } from '../../src/lib/api';
 import { incidentOutcomeFace } from '../../src/lib/incident-outcome';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
-import { paper } from '../../src/theme';
+import { paper, secTitle } from '../../src/theme';
 
 // 사고 신고 — 마켓플레이스 인시던트의 클라이언트 절반 (서버는 0094 ⑪ + 0114 §3 로 완성돼 있었고
 // 화면만 없었다). 계약과 그 계약을 읽은 자리는 api.ts 의 「사고 신고」 블록 헤더에.
@@ -326,13 +325,9 @@ export default function IncidentScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         {/* §2 종이 크롬 — 헤더는 거터 밖에 서서 코랄 헤어라인이 화면 끝까지 간다 */}
-        <Row style={[s.topBar, { paddingTop: insets.top }]}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>사고 신고</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <View style={[s.topBar, { paddingTop: insets.top }]}>
+          <ScreenHead title="사고 신고" />
+        </View>
 
         <View style={{ paddingHorizontal: 15 }}>
           {/* 어느 러닝인지 — 서버가 준 두 필드뿐이다. 강아지 이름이 없으면 자리도 없다. */}
@@ -357,17 +352,13 @@ function StampRow({ label, done }: { label: string; done: boolean }) {
 
 const s = StyleSheet.create({
   topBar: {
-    justifyContent: 'space-between', paddingBottom: 12, paddingHorizontal: 15,
+    paddingBottom: 12, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: paper.line,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
-  },
   run: { fontSize: 15, lineHeight: 19, color: paper.text, marginTop: 16 },
-  // §3b 섹션 헤더 — 풀블리드 코랄 1px + 20/800 잉크 (라틴 키커·서브타이틀 없음)
+  // §3b section header — full-bleed coral 1px, then theme.secTitle (no latin kicker, no subtitle)
   secTitle: {
-    fontSize: 20, fontWeight: '800', color: paper.ink,
+    ...secTitle,
     marginTop: 22, paddingTop: 14, borderTopWidth: 1, borderTopColor: paper.line,
     marginHorizontal: -15, paddingHorizontal: 15,
   },

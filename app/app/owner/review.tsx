@@ -3,9 +3,8 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { colors, paper } from '../../src/theme';
 
@@ -85,13 +84,9 @@ export default function OwnerReview() {
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* §2 종이 크롬 — 헤더는 거터 밖에 서서 코랄 헤어라인이 화면 끝까지 간다 (사이드 마진 금지) */}
-        <Row style={[s.topBar, { paddingTop: insets.top }]}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>러너 후기</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <View style={[s.topBar, { paddingTop: insets.top }]}>
+          <ScreenHead title="러너 후기" />
+        </View>
 
         <View style={{ paddingHorizontal: 15 }}>
           <Text style={{ fontSize: 17, fontWeight: '800', color: paper.ink, textAlign: 'center', marginTop: 22 }}>
@@ -177,14 +172,10 @@ export default function OwnerReview() {
 }
 
 const s = StyleSheet.create({
-  // 페이퍼 크롬 상단 — 풀블리드 코랄 헤어라인 + 40×40 스퀘어 백 (report/dog 와 같은 문법)
+  // Paper chrome top — ScreenHead (DESIGN.md §3b) over a full-bleed coral hairline.
   topBar: {
-    justifyContent: 'space-between', paddingBottom: 12, paddingHorizontal: 15,
+    paddingBottom: 12, paddingHorizontal: 15,
     borderBottomWidth: 1, borderBottomColor: paper.line,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 0, backgroundColor: paper.canvas,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
   },
   star: { paddingHorizontal: 4, paddingVertical: 2 }, // 43.5pt 글리프(lineHeight 52) + 패딩 → 44pt 초과
   starGlyph: { fontSize: 43.5, lineHeight: 52 },
