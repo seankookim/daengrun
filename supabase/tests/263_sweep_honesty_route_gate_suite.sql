@@ -1,6 +1,6 @@
 -- ═══ 263 — 0232: the cancel-money sweep stops sending a false 「delayed」 notice · the recurring
 -- ═══        generator honours a suspended/retired course · a debt pause's episode is recorded
--- ═══        0232-A1 · A2 · A3 · B1 · B2 · B3 · B4 · D1 · D2 · D3 · H1 · S1, tag `shr`
+-- ═══        0232-A1 · A2 · A3 · A4 · A5 · B1 · B2 · B3 · B4 · B5 · D1 · D2 · D3 · H1 · S1, tag `shr`
 --
 -- Three defects (0232 §0a), each REPRODUCED here on the pre-0232 bodies (0117's sweep, 0227's
 -- generator) before 0232 existed; the measured reds are in the REGISTRY row.
@@ -17,6 +17,12 @@
 --        Charging live, updated after the flip, comp written on time, no payments row: the tick
 --        counts it and mints the intent, and the runner gets no 「지연됐다가 방금 반영됐어요」 (the
 --        comp was never delayed). A second tick counts nothing.
+--   · A4 **A COMP THE WRITER DID NOT WRITE IS NOT COUNTED OR TOLD.** The loop's snapshot says the comp
+--        is missing, an on-time comp commits before the call, and the writer answers `written =
+--        false`: n = 0 and no 「지연됐다가 방금 반영됐어요」 — for the en-route AND the late writer.
+--        Control: the same row with the real writer is counted and told once.
+--   · A5 **AN INTENT THE MINT DID NOT MINT IS NOT COUNTED.** The same race on the owner's side
+--        (`minted = false`). Control: the real mint on the same row is counted.
 --   · B1 **A SUSPENDED COURSE MINTS NOTHING AND TELLS THE OWNER ONCE.** A due series on a
 --        `suspended` route: zero bookings, exactly one 「반복 예약 코스 점검 중」 (NULL ref, the brief's
 --        body) across three ticks, the third two hours after the first notice.
@@ -28,6 +34,9 @@
 --        series of B1's owner on another suspended course gets its own notice.
 --   · B4 **THE EPISODE RESETS WHEN THE SERIES BOOKS AGAIN.** Suspended → told; the course comes back
 --        and the series books; suspended again inside the 24 h → told again.
+--   · B5 **A MONEY PAUSE OF THE SAME SERIES DOES NOT SILENCE A ROUTE NOTICE.** A debt pause (and,
+--        separately, a no-card pause) writes an episode row carrying the series; the money problem
+--        is fixed and the course suspended inside the 24 h → exactly one route notice, not repeated.
 --   · D1 **A PENDING THAT BECOMES DEBT AFTER THE OLD DEBT CLEARED IS A NEW PAUSE** (codex s2).
 --        A failed, B a freshly dispatched pending when the notice goes out; A is paid; B crosses the
 --        hour; no tick, no booking in between → the next tick tells the owner again. The fixture is
@@ -50,9 +59,17 @@
 --     candidate counts nothing and sends nothing. Each is observable only with the other removed —
 --     measured as a pair in the REGISTRY battery, and each held on its own by S1's source arm. Not a
 --     blind pin: the property 「a row nothing was done to is not counted」 genuinely has two locks.
---   · The notice guard (`r.comp_missing`) IS separately observable — A3's row is a candidate.
---   · 0232 §0c's named residue (paid + a pending turning debt inside ONE hourly interval, no tick
---     between) is not pinned: a pin could only restate it.
+--   · The notice guard (`v_wrote`) IS separately observable — A3's row is a candidate, and A4 stages
+--     the case where the comp branch runs and writes nothing.
+--   · A4/A5 STAGE a race: one harness session cannot interleave two transactions, so the writer is
+--     replaced by its already-written twin (it inserts the row the concurrent request would have
+--     committed, then answers what the real writer answers on finding one) inside a rolled-back
+--     subtransaction. They prove the sweep believes the writer's report; they do not prove the
+--     real writers report `false` under a real race — that is 0080 §K / 0085 ⑩'s own existence
+--     check, read, not re-measured here.
+--   · 0232 §0c's named residue (paid + a pending turning debt inside any stretch in which no series
+--     of the owner reaches the money gate — which can be many hours, not one hourly interval) is
+--     not pinned: a pin could only restate it.
 --   · Whether an owner's phone draws 「반복 예약 코스 점검 중」 as a tap: client, not SQL. Today
 --     `notification-route.ts` has no entry for it, so it is an inbox line without a destination.
 --
@@ -195,6 +212,157 @@ begin
 end $$;
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- [0232-A4] the sweep keys on the COMP WRITER'S report — a comp that landed after the snapshot
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- The race this key exists for: the loop's snapshot says 「comp missing」, the request that owns the
+-- cancel commits its on-time comp before the sweep's call, and the writer (0080 §K / 0085 ⑩) then
+-- finds the ledger row and answers `written = false`. One harness session cannot interleave two
+-- transactions, so each STAGE replaces the writer with its already-written twin — it inserts the
+-- ledger row the concurrent request would have committed, then answers exactly what the real
+-- writer answers when it finds one — inside a subtransaction that is rolled back, so the real
+-- writer is back for the CONTROL: the same row, real writer, IS counted and told. Both comp
+-- branches (en-route and late) are staged, each as its own site.
+do $$
+declare
+  oo uuid; rr uuid; dg uuid; rt uuid; bE uuid; bL uuid; v_feeE int; v_feeL int; v_reasonE text; v_reasonL text;
+  nE int; ledE int; notesE int; nEc int; ledEc int; notesEc int;
+  nL int; ledL int; notesL int; nLc int; ledLc int; notesLc int;
+  v_err text := ''; v_bad text; v_msg text;
+  T_COMP constant text := '시간을 비워둔 보상이 기록됐어요';
+begin
+  update ops_flags set payments_live_since = null, late_protocol_live_since = now(), updated_at = now() where id;
+  perform set_config('app.cancel_gap_grace', '-1 minutes', true);
+  oo := t_user('shr_o4', 'owner'); rr := t_user('shr_r4', 'runner');
+  dg := t_dog(oo, 'shr견4'); rt := t_route('shr코스4');
+
+  -- ── en-route ──
+  bE := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+  select f.fee into v_feeE from marketplace_cancel_fee(bE) f;
+  update bookings set status = 'cancelled_owner', cancel_fee = v_feeE where id = bE;
+  select b.cancel_reason into v_reasonE from bookings b where b.id = bE;
+  begin
+    execute $ddl$
+      create or replace function record_enroute_cancel_comp(p_booking uuid)
+      returns table (comp int, written boolean)
+      language plpgsql security definer set search_path = public, pg_temp as $fn$
+      begin
+        insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay,
+                                  tip, remaining_guarantee, platform_fee)
+        select b.runner_id, b.id, 0, 0, 0, 0, b.cancel_fee, 0 from bookings b where b.id = p_booking;
+        return query select (select b.cancel_fee from bookings b where b.id = p_booking), false;
+      end $fn$ $ddl$;
+    nE := sweep_cancel_money_gaps();
+    select count(*) into ledE from ledger_items where booking_id = bE;
+    select count(*) into notesE from notifications where profile_id = rr and ref_id = bE and title = T_COMP;
+    raise exception 'shr_rollback';
+  exception when others then
+    if sqlerrm is distinct from 'shr_rollback' then v_err := v_err || ' en-route stage: ' || sqlerrm; end if;
+  end;
+  nEc := sweep_cancel_money_gaps();                                     -- CONTROL: the real writer
+  select count(*) into ledEc from ledger_items where booking_id = bE;
+  select count(*) into notesEc from notifications where profile_id = rr and ref_id = bE and title = T_COMP;
+
+  -- ── late (<24 h confirmed) — bE is repaired now, so it is no longer a candidate ──
+  bL := t_av_booking(oo, dg, rt, rr, now() + interval '6 hours', 5.0, 'confirmed');
+  select f.fee into v_feeL from marketplace_cancel_fee(bL) f;
+  update bookings set status = 'cancelled_owner', cancel_fee = v_feeL where id = bL;
+  select b.cancel_reason into v_reasonL from bookings b where b.id = bL;
+  begin
+    execute $ddl$
+      create or replace function record_late_cancel_share(p_booking uuid)
+      returns table (comp int, written boolean)
+      language plpgsql security definer set search_path = public, pg_temp as $fn$
+      begin
+        insert into ledger_items (runner_id, booking_id, base, distance_pay, addon_pay,
+                                  tip, remaining_guarantee, platform_fee)
+        select b.runner_id, b.id, 0, 0, 0, 0, round(b.cancel_fee * 0.5)::int, 0 from bookings b where b.id = p_booking;
+        return query select (select round(b.cancel_fee * 0.5)::int from bookings b where b.id = p_booking), false;
+      end $fn$ $ddl$;
+    nL := sweep_cancel_money_gaps();
+    select count(*) into ledL from ledger_items where booking_id = bL;
+    select count(*) into notesL from notifications where profile_id = rr and ref_id = bL and title = T_COMP;
+    raise exception 'shr_rollback';
+  exception when others then
+    if sqlerrm is distinct from 'shr_rollback' then v_err := v_err || ' late stage: ' || sqlerrm; end if;
+  end;
+  nLc := sweep_cancel_money_gaps();                                     -- CONTROL: the real writer
+  select count(*) into ledLc from ledger_items where booking_id = bL;
+  select count(*) into notesLc from notifications where profile_id = rr and ref_id = bL and title = T_COMP;
+
+  begin
+    v_bad := v_err;
+    if v_reasonE is distinct from 'owner_cancel_enroute' or coalesce(v_feeE, 0) <= 0 then v_bad := v_bad || ' FIXTURE: en-route row ' || coalesce(v_reasonE, 'NULL') || '/' || coalesce(v_feeE::text, 'NULL'); end if;
+    if v_reasonL is distinct from 'owner_cancel_late' or coalesce(v_feeL, 0) <= 0 then v_bad := v_bad || ' FIXTURE: late row ' || coalesce(v_reasonL, 'NULL') || '/' || coalesce(v_feeL::text, 'NULL'); end if;
+    if ledE is distinct from 1 or ledL is distinct from 1 then v_bad := v_bad || ' FIXTURE: the staged race did not leave exactly one comp (' || coalesce(ledE::text, 'NULL') || '/' || coalesce(ledL::text, 'NULL') || ')'; end if;
+    if nE is distinct from 0 then v_bad := v_bad || ' 🔴 en-route: a comp the writer reported NOT writing was counted (n=' || coalesce(nE::text, 'NULL') || ')'; end if;
+    if notesE is distinct from 0 then v_bad := v_bad || ' 🔴 en-route: the runner was told a comp written ON TIME was 「지연됐다가 방금 반영됐어요」 (' || coalesce(notesE::text, 'NULL') || ')'; end if;
+    if nL is distinct from 0 then v_bad := v_bad || ' 🔴 late: a comp the writer reported NOT writing was counted (n=' || coalesce(nL::text, 'NULL') || ')'; end if;
+    if notesL is distinct from 0 then v_bad := v_bad || ' 🔴 late: the runner was told a comp written ON TIME was delayed (' || coalesce(notesL::text, 'NULL') || ')'; end if;
+    if nEc is distinct from 1 or ledEc is distinct from 1 or notesEc is distinct from 1 then v_bad := v_bad || ' CONTROL en-route: the real writer on the same row gave n=' || coalesce(nEc::text, 'NULL') || ' ledger=' || coalesce(ledEc::text, 'NULL') || ' notices=' || coalesce(notesEc::text, 'NULL') || ' (1/1/1)'; end if;
+    if nLc is distinct from 1 or ledLc is distinct from 1 or notesLc is distinct from 1 then v_bad := v_bad || ' CONTROL late: n=' || coalesce(nLc::text, 'NULL') || ' ledger=' || coalesce(ledLc::text, 'NULL') || ' notices=' || coalesce(notesLc::text, 'NULL') || ' (1/1/1)'; end if;
+    if v_bad = '' then call _pass('shr','0232-A4 스냅샷 뒤·호출 전에 제때 보상이 커밋된 경합(러너 보상 작성기가 written=false로 답함)은 이동 중·24시간 이내 두 갈래 모두 세지 않고(n=0) 러너에게 「지연됐다가 방금 반영됐어요」를 보내지 않는다 — 같은 행을 실제 작성기로 돌리면 n=1·원장 1·알림 1(대조군)');
+    else v_msg := v_bad; call _fail('shr','0232-A4 the comp writer''s own report keys the count and the notice', v_msg); end if;
+  exception when others then call _fail('shr','0232-A4 the comp writer''s own report keys the count and the notice', sqlerrm); end;
+end $$;
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- [0232-A5] the sweep keys on the MINT's report — an intent that landed after the snapshot
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- Same staging as A4, on the owner's side: the loop's snapshot says 「intent missing」, the cancel
+-- request's own mint commits first, and `mint_cancel_fee_intent` (0118 §B) returns the existing row
+-- with `minted = false`. CONTROL: the same row with the real mint is counted.
+do $$
+declare
+  oo uuid; rr uuid; dg uuid; rt uuid; bM uuid; v_fee int;
+  nM int; payM int; nMc int; payMc int; mintedMc boolean; v_notes int;
+  v_err text := ''; v_bad text; v_msg text;
+begin
+  update ops_flags set payments_live_since = now(), late_protocol_live_since = now(), updated_at = now() where id;
+  perform set_config('app.cancel_gap_grace', '-1 minutes', true);
+  oo := t_user('shr_o5', 'owner'); rr := t_user('shr_r5', 'runner');
+  dg := t_dog(oo, 'shr견5'); rt := t_route('shr코스5');
+  bM := t_av_booking(oo, dg, rt, rr, now() + interval '2 hours', 5.0, 'runner_enroute');
+  select f.fee into v_fee from marketplace_cancel_fee(bM) f;
+  update bookings set status = 'cancelled_owner', cancel_fee = v_fee where id = bM;
+  perform record_enroute_cancel_comp(bM);               -- the comp, on time …
+  delete from payments where booking_id = bM;           -- … the intent, not yet
+  begin
+    execute $ddl$
+      create or replace function mint_cancel_fee_intent(p_booking uuid)
+      returns table (payment_id uuid, order_id text, amount int, status text, minted boolean)
+      language plpgsql security definer set search_path = public, pg_temp as $fn$
+      declare v_row payments%rowtype;
+      begin
+        insert into payments (booking_id, order_id, amount, status, raw)
+        select b.id, 'dr_' || gen_random_uuid()::text, b.cancel_fee, 'pending',
+               jsonb_build_object('kind', 'cancel_fee', 'fee_kind', 'cancel_fee', 'attempts', 0)
+          from bookings b where b.id = p_booking
+        returning * into v_row;
+        return query select v_row.id, v_row.order_id, v_row.amount, v_row.status, false;
+      end $fn$ $ddl$;
+    nM := sweep_cancel_money_gaps();
+    select count(*) into payM from payments where booking_id = bM;
+    raise exception 'shr_rollback';
+  exception when others then
+    if sqlerrm is distinct from 'shr_rollback' then v_err := v_err || ' stage: ' || sqlerrm; end if;
+  end;
+  nMc := sweep_cancel_money_gaps();                                     -- CONTROL: the real mint
+  select count(*) into payMc from payments where booking_id = bM;
+  select count(*) into v_notes from notifications where profile_id = rr and title = '시간을 비워둔 보상이 기록됐어요';
+
+  begin
+    v_bad := v_err;
+    if coalesce(v_fee, 0) <= 0 then v_bad := v_bad || ' FIXTURE: fee ' || coalesce(v_fee::text, 'NULL'); end if;
+    if payM is distinct from 1 then v_bad := v_bad || ' FIXTURE: the staged race did not leave exactly one intent (' || coalesce(payM::text, 'NULL') || ')'; end if;
+    if nM is distinct from 0 then v_bad := v_bad || ' 🔴 an intent the mint reported NOT minting was counted (n=' || coalesce(nM::text, 'NULL') || ')'; end if;
+    if nMc is distinct from 1 or payMc is distinct from 1 then v_bad := v_bad || ' CONTROL: the real mint on the same row gave n=' || coalesce(nMc::text, 'NULL') || ' intents=' || coalesce(payMc::text, 'NULL') || ' (1/1)'; end if;
+    if v_notes is distinct from 0 then v_bad := v_bad || ' the runner was told about an owner-side repair (' || v_notes || ')'; end if;
+    if v_bad = '' then call _pass('shr','0232-A5 스냅샷 뒤·호출 전에 취소 요청의 인텐트가 먼저 커밋된 경합(mint가 minted=false로 답함)은 세지 않는다(n=0) — 같은 행을 실제 mint로 돌리면 n=1·인텐트 1(대조군), 러너 알림은 어느 쪽에도 없다');
+    else v_msg := v_bad; call _fail('shr','0232-A5 the mint''s own report keys the count', v_msg); end if;
+  exception when others then call _fail('shr','0232-A5 the mint''s own report keys the count', sqlerrm); end;
+end $$;
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
 -- [0232-B1 · B2 · B3 · B4] the route gate
 -- ══════════════════════════════════════════════════════════════════════════════════════════════
 do $$
@@ -308,6 +476,72 @@ begin
   exception when others then call _fail('shr','0232-B4 the route episode resets on a booking', sqlerrm); end;
 
   update recurring_series set paused = true where id in (sS, sS2, sR, sC, sE);
+end $$;
+
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- [0232-B5] the route dedupe reads ROUTE episodes only — a money pause of the same series is not one
+-- ══════════════════════════════════════════════════════════════════════════════════════════════
+-- A money pause writes an episode row carrying the SAME `series_id` (0232 §D ④). The route dedupe
+-- must not count it: a debt paid (or a card added) inside 24 h, then the course suspended, is a
+-- course problem the owner has not been told about. One arm per money reason, charging live so
+-- both reasons are reachable (the debt owner holds a card, so paying is the whole fix).
+do $$
+declare
+  rtD uuid; rtN uuid; oD uuid; dD uuid; bD uuid; pD uuid; sD uuid; oK uuid; dN uuid; sN uuid;
+  epD int; epN int; mD int; mN int; gD int; gN int; rD1 int; rD2 int; rN1 int; rN2 int;
+  debtD boolean; v_st text;
+  v_bad text; v_msg text;
+  T_ROUTE constant text := '반복 예약 코스 점검 중';
+  T_PAUSE constant text := '반복 예약 일시 중지';
+begin
+  update ops_flags set payments_live_since = now(), updated_at = now() where id;
+  rtD := t_route('shr빚정지코스'); rtN := t_route('shr카드정지코스');
+
+  oD := t_user('shr_b5d', 'owner'); dD := t_dog(oD, 'shr견B5D');
+  insert into billing_keys (profile_id, billing_key) values (oD, 'bk_shr_b5d');
+  insert into bookings (owner_id, dog_id, route_id, status, scheduled_at, km,
+                        base_fare, distance_fare, addon_fare, total_price, min_fare, cancel_fee)
+  values (oD, dD, rtD, 'cancelled_owner', now() - interval '3 days', 5.0, 9900, 15000, 0, 24900, 9900, 5000)
+  returning id into bD;
+  insert into payments (booking_id, order_id, amount, status, raw)
+  values (bD, 'ord_shr_b5d', 5000, 'failed', jsonb_build_object('kind', 'cancel_fee')) returning id into pD;
+  sD := t_shr_series(oD, dD, rtD);
+
+  oK := t_user('shr_b5n', 'owner'); dN := t_dog(oK, 'shr견B5N');     -- no card yet
+  sN := t_shr_series(oK, dN, rtN);
+
+  perform generate_recurring_bookings();                               -- the two money pauses
+  select count(*) into epD from recurring_pause_notices pn where pn.series_id = sD and pn.reason = 'debt';
+  select count(*) into epN from recurring_pause_notices pn where pn.series_id = sN and pn.reason = 'no_card';
+  mD := t_shr_n(oD, T_PAUSE); mN := t_shr_n(oK, T_PAUSE);
+  -- two hours later: the money problems are fixed, and both courses are suspended
+  update notifications set created_at = now() - interval '2 hours' where profile_id in (oD, oK) and title = T_PAUSE;
+  update payments set status = 'confirmed', payment_key = 'pk_shr_b5d', updated_at = now() where id = pD;
+  insert into billing_keys (profile_id, billing_key) values (oK, 'bk_shr_b5n');
+  update routes set status = 'suspended' where id in (rtD, rtN);
+  debtD := owner_has_unsettled_charge(oD);
+  select count(*) into gD from bookings where series_id = sD;
+  select count(*) into gN from bookings where series_id = sN;
+  perform generate_recurring_bookings();
+  rD1 := t_shr_n(oD, T_ROUTE); rN1 := t_shr_n(oK, T_ROUTE);
+  perform generate_recurring_bookings();
+  rD2 := t_shr_n(oD, T_ROUTE); rN2 := t_shr_n(oK, T_ROUTE);
+  begin
+    v_bad := '';
+    select status into v_st from routes where id = rtD;
+    if v_st is distinct from 'suspended' then v_bad := v_bad || ' FIXTURE: the course is ' || coalesce(v_st, 'NULL'); end if;
+    if epD is distinct from 1 or mD is distinct from 1 then v_bad := v_bad || ' FIXTURE: the debt pause wrote ' || mD || ' notice(s) / ' || epD || ' debt episode row(s) on this series (1/1)'; end if;
+    if epN is distinct from 1 or mN is distinct from 1 then v_bad := v_bad || ' FIXTURE: the no-card pause wrote ' || mN || ' notice(s) / ' || epN || ' no_card episode row(s) on this series (1/1)'; end if;
+    if debtD is not false then v_bad := v_bad || ' FIXTURE: the debt owner is still a debtor'; end if;
+    if gD is distinct from 0 or gN is distinct from 0 then v_bad := v_bad || ' FIXTURE: a series booked in between (' || gD || '/' || gN || ') — the case is 「same episode window」'; end if;
+    if rD1 is distinct from 1 then v_bad := v_bad || ' 🔴 debt paid, then the course suspended: ' || rD1 || ' route notice(s) (1) — the money pause''s episode row of the same series silenced it'; end if;
+    if rN1 is distinct from 1 then v_bad := v_bad || ' 🔴 card added, then the course suspended: ' || rN1 || ' route notice(s) (1) — the no-card pause''s episode row silenced it'; end if;
+    if rD2 is distinct from rD1 or rN2 is distinct from rN1 then v_bad := v_bad || ' the route notice repeated on the next tick (' || rD1 || '→' || rD2 || ', ' || rN1 || '→' || rN2 || ')'; end if;
+    if v_bad = '' then call _pass('shr','0232-B5 경로 중복 억제는 route 에피소드만 센다 — 같은 시리즈의 결제 일시 중지(미수금·카드 없음) 에피소드 행이 24시간 안에 있어도, 결제를 해결한 뒤 코스가 정지되면 「반복 예약 코스 점검 중」이 정확히 한 번 간다; 다음 틱은 반복하지 않는다');
+    else v_msg := v_bad; call _fail('shr','0232-B5 a money pause does not silence a route notice', v_msg); end if;
+  exception when others then call _fail('shr','0232-B5 a money pause does not silence a route notice', sqlerrm); end;
+
+  update recurring_series set paused = true where id in (sD, sN);
 end $$;
 
 -- ══════════════════════════════════════════════════════════════════════════════════════════════
@@ -488,8 +722,13 @@ begin
     then v_bad := v_bad || ' sweep: the payments arm does not carry the mint gate''s conjuncts'; end if;
   if (coalesce(v_src, '') like '%if v_did then n := n + 1; end if;%') is not true
     then v_bad := v_bad || ' sweep: n is not guarded by v_did'; end if;
-  if (coalesce(v_src, '') like '%and r.comp_missing%') is not true
-    then v_bad := v_bad || ' sweep: the runner notice is not guarded by the comp branch'; end if;
+  if (coalesce(v_src, '') like '%and v_wrote%') is not true
+    then v_bad := v_bad || ' sweep: the runner notice is not guarded by the comp write'; end if;
+  if (coalesce(v_src, '') like '%select c.written into v_wrote from record_enroute_cancel_comp(r.id) c;%') is not true
+     or (coalesce(v_src, '') like '%select c.written into v_wrote from record_late_cancel_share(r.id) c;%') is not true
+    then v_bad := v_bad || ' sweep: a comp writer''s own `written` is not read'; end if;
+  if (coalesce(v_src, '') like '%select m.minted into v_minted from mint_cancel_fee_intent(r.id) m;%') is not true
+    then v_bad := v_bad || ' sweep: the mint''s own `minted` is not read'; end if;
 
   select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
     from pg_proc p where p.oid = to_regprocedure('public.generate_recurring_bookings()');
@@ -503,6 +742,9 @@ begin
     then v_bad := v_bad || ' generator: the debt dedupe does not read the episode row'; end if;
   if (coalesce(v_src, '') like '%insert into recurring_generation_failures%') is not true
     then v_bad := v_bad || ' generator: 0227''s failure record is gone'; end if;
+  -- the route dedupe reads ROUTE episode rows only (B5 is the behaviour; this is the shape)
+  if (coalesce(v_src, '') like '%and pn.reason = ''route''%') is not true
+    then v_bad := v_bad || ' generator: the route dedupe is not keyed on reason = route'; end if;
 
   v_rel := to_regclass('public.recurring_pause_notices');
   if v_rel is null then v_bad := v_bad || ' NO-TABLE(recurring_pause_notices)';
@@ -516,7 +758,7 @@ begin
       end loop;
     end loop;
   end if;
-  if v_bad = '' then call _pass('shr','0232-S1 배포 형상 — 세 definer 모두 본문 search_path, anon·authenticated 실행 불가; 주석을 뗀 본문에 스윕의 두 조건·생성기의 경로 게이트(예약 insert 앞)·에피소드 술어·0227의 실패 기록이 있다; recurring_pause_notices는 RLS on, 정책 0, 클라이언트 권한 0');
+  if v_bad = '' then call _pass('shr','0232-S1 배포 형상 — 세 definer 모두 본문 search_path, anon·authenticated 실행 불가; 주석을 뗀 본문에 스윕의 두 조건·작성기 보고(written/minted) 키·생성기의 경로 게이트(예약 insert 앞)와 route 사유 키·에피소드 술어·0227의 실패 기록이 있다; recurring_pause_notices는 RLS on, 정책 0, 클라이언트 권한 0');
   else v_msg := v_bad; call _fail('shr','0232-S1 deployed shape', v_msg); end if;
 exception when others then call _fail('shr','0232-S1 deployed shape', sqlerrm);
 end $$;

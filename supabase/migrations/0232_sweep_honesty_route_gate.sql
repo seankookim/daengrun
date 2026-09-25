@@ -2,8 +2,8 @@
 -- 0232 — the cancel-money sweep stops sending a false 「delayed」 notice · the recurring generator
 --        honours a suspended/retired course · a debt pause's episode is recorded, not inferred
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
--- Suite: 263_sweep_honesty_route_gate_suite.sql (tag `shr`) — 0232-A1 · A2 · A3 · B1 · B2 · B3 · B4 ·
---        D1 · D2 · D3 · H1 · S1
+-- Suite: 263_sweep_honesty_route_gate_suite.sql (tag `shr`) — 0232-A1 · A2 · A3 · A4 · A5 · B1 · B2 ·
+--        B3 · B4 · B5 · D1 · D2 · D3 · H1 · S1
 -- Deploy: `supabase db push` only. No edge function, no cron change, no flag. One NEW owner-facing
 --        title (§B) has no client route yet — see §0d.
 -- ⚠ Numbers 0229–0231 (and suites 260–262) were SKIPPED: they are held by unpushed worktrees on
@@ -41,8 +41,11 @@
 --        ① the payments arm of the candidate predicate carries the mint gate's own two conjuncts
 --          (flag set, row updated at or after it) — a row is a candidate only if a writer below can
 --          act on it;
---        ② `n` counts a row only when the comp branch or the mint ran (`v_did`), and the runner
---          notice fires only when the COMP branch ran (`r.comp_missing`).
+--        ② `n` counts a row only when a writer REPORTED writing — `record_*`'s `written`, the mint's
+--          `minted` (`v_did`) — and the runner notice fires only when the COMP was written
+--          (`v_wrote`). Keyed on the writer's report, not on 「the branch ran」: both comp writers
+--          return `written = false` when a ledger row is already there (an on-time comp that
+--          committed between this loop's snapshot and the call), and then nothing was repaired.
 --        No LIMIT (unchanged). ACL restated.
 --   §B `recurring_pause_notices` — NEW server-only table: one row per recurring pause notice the
 --        generator writes, keyed by the notification's id (on delete cascade), carrying the series,
@@ -75,19 +78,28 @@
 --     header records that this is a disjunction the pins can observe only as a pair (the `0232-A1`
 --     plant battery), not arm by arm. ②'s NOTICE guard is separately observable: a post-flip row with
 --     its comp written and its intent missing IS a candidate (the mint runs) and must not tell the
---     runner their comp was delayed (`0232-A3`).
+--     runner their comp was delayed (`0232-A3`). ②'s WRITER-REPORT keys are observable only through
+--     the race they exist for (a writer that finds the row already written); `0232-A4`/`A5` stage
+--     that race with the writer replaced by its already-written twin inside a rolled-back
+--     subtransaction — the harness has one session, so it cannot interleave two.
 --   · §D ③ — the episode is identified by the charges that were debt WHEN THE NOTICE WENT OUT, the
 --     thing codex s2 says 0226 inferred. 0226-C2/C3 (257) still hold: paying everything the notice
 --     was about ends the episode (C2); a second charge failing while the first is unpaid does not
 --     (C3 — and ④ writes that second charge into the episode, so paying the FIRST one later does not
 --     read as a new episode either: `0232-D2`).
---   · §D ④ observes continuity only at tick granularity. NAMED RESIDUE (prose — a pin could only
---     restate it): if the original debt is paid and a pre-existing pending becomes debt within ONE
---     hourly interval with no tick in between, the owner is told again although, minute by minute,
---     they were never out of debt. That errs toward telling — the opposite direction from 0226's
---     residue, which erred toward silence.
+--   · §D ④ observes continuity only when a series of this owner REACHES THE MONEY GATE — the
+--     continuity UPDATE sits inside that branch, and a series stops being due at T-2h (the 72 h /
+--     2 h window above it `continue`s first). NAMED RESIDUE (prose — a pin could only restate it):
+--     if the original debt is paid and a pre-existing pending becomes debt within ANY STRETCH IN
+--     WHICH NO SERIES OF THE OWNER REACHES THE MONEY GATE — which can be many hours, not one hourly
+--     interval, since the notice's 24 h window outlives any one series' due window — the owner is
+--     told again although, minute by minute, they were never out of debt. That errs toward
+--     telling — the opposite direction from 0226's residue, which erred toward silence.
 --   · §D ⑤ is keyed PER SERIES (the brief), with the series' own booking as the episode witness —
 --     0226's shape one level down. It does not read `v_notified` (an owner-level, money-only guard).
+--     It reads ONLY `reason = 'route'` episode rows: a money pause writes an episode row carrying
+--     the same `series_id`, and without that conjunct a debt paid inside 24 h followed by a
+--     suspended course would stay silent (`0232-B5`, found by the executing review).
 --
 -- ═══ §0d WHAT THIS FILE DELIBERATELY DOES NOT DO ════════════════════════════════════════════════
 --   · Codex s1 (high) — an OPS escalation for a series that fails every tick — is NOT here. It needs
@@ -101,7 +113,14 @@
 --     「반복 예약 일시 중지」: that title routes to `/payments` (REFLESS_BOOKING_DESTINATIONS) — the
 --     wrong screen for a course problem — and the money dedupe matches it by title, so a route
 --     notice would have suppressed a debt pause. The same body goes to a `retired` course (permanent)
---     as to a `suspended` one (temporary), as the brief wrote it.
+--     as to a `suspended` one (temporary), as the brief wrote it — 「점검 중」 and 「이번 주」 are not
+--     true of a retired course, and B2's 24 h re-tell means up to ~3 notices a week until the owner
+--     cancels the series. Copy and cadence for `retired` are Sean's call.
+--   · ⚠ A CALLER WHOSE MEANING WIDENED (no edit here — app/ is outside this slice):
+--     `app/src/lib/recurring-state.ts` renders `PENDING_NEXT` 「다음 예약은 3일 전에 자동으로 잡혀요」
+--     for any unpaused series with no upcoming booking; `SeriesFacts` carries no course status. After
+--     §D ⑤ a series on a suspended/retired course never mints, so that line promises a booking this
+--     generator refuses to create. A client slice must read `routes.status` for the series and say so.
 --   · `marketplace_cancel_fee`, `record_enroute_cancel_comp`, `cancel_owner.ts`, the recurring
 --     clash/billing checks: untouched.
 --   · No backfill of episode rows for pre-0232 notices (they fall back to 0226's witness and age out
@@ -116,9 +135,9 @@
 --   (both built by script, every other line asserted identical). CREATES `recurring_pause_notices`
 --   and `_unsettled_charge_ids(uuid)`. Every ACL restated in THIS file.
 --   ⚠ A later slice re-declaring `generate_recurring_bookings` must keep 0227's per-series block and
---   nested record write, AND this file's route gate (263 `0232-B1…B4`) and episode rows (`0232-D1…D3`).
---   ⚠ A later slice re-declaring `sweep_cancel_money_gaps` must keep the payments-arm conjuncts and the
---   `r.comp_missing` notice guard (263 `0232-A1…A3`).
+--   nested record write, AND this file's route gate (263 `0232-B1…B5`) and episode rows (`0232-D1…D3`).
+--   ⚠ A later slice re-declaring `sweep_cancel_money_gaps` must keep the payments-arm conjuncts, the
+--   writer-report keys and the `v_wrote` notice guard (263 `0232-A1…A5`).
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- §A sweep_cancel_money_gaps — a candidate is a row a writer below can act on
@@ -127,7 +146,9 @@
 create or replace function sweep_cancel_money_gaps() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare r record; n int := 0;
-  v_did boolean;   -- [0232 §A] did the comp branch or the mint run for THIS row?
+  v_did boolean;     -- [0232 §A] did a writer below WRITE something for THIS row?
+  v_wrote boolean;   -- [0232 §A] the comp writer's own `written` (false: a comp was already there)
+  v_minted boolean;  -- [0232 §A] the mint's own `minted` (false / no row: nothing was minted)
 begin
   -- [blind r5 NOTE-10] gated by the SAME flag as the rest of the protocol. Ungated, this cron
   -- would start writing runner ledger rows for HISTORICAL cancellations the moment the file
@@ -180,13 +201,19 @@ begin
   loop
     begin
       v_did := false;
+      v_wrote := false;
       if r.comp_missing then
+        -- [0232 §A] the writer's own report, not 「the branch ran」: both return `written = false`
+        -- when a ledger row is already there (0080 §K, 0085 ⑩) — an on-time comp that committed
+        -- after this loop's snapshot and before this call (inside cancel_gap_grace). Nothing was
+        -- repaired then, so nothing is counted and the runner is told nothing.
         if r.cancel_reason = 'owner_cancel_enroute' then
-          perform record_enroute_cancel_comp(r.id);
+          select c.written into v_wrote from record_enroute_cancel_comp(r.id) c;
         else
-          perform record_late_cancel_share(r.id);
+          select c.written into v_wrote from record_late_cancel_share(r.id) c;
         end if;
-        v_did := true;
+        v_wrote := coalesce(v_wrote, false);
+        v_did := v_wrote;
       end if;
       -- the owner's side of the same tear. `mint_cancel_fee_intent` is idempotent and returns
       -- ZERO ROWS while charging is off (0080 §E), so this is inert pre-cutover and cannot
@@ -204,18 +231,21 @@ begin
       if r.intent_missing
          and (select f.payments_live_since from ops_flags f) is not null
          and r.updated_at >= (select f.payments_live_since from ops_flags f) then
-        perform mint_cancel_fee_intent(r.id);
-        v_did := true;
+        -- [0232 §A] likewise the mint's own `minted`: it returns the existing row with
+        -- minted = false when an intent is already there, and zero rows when it declines.
+        v_minted := null;
+        select m.minted into v_minted from mint_cancel_fee_intent(r.id) m;
+        v_did := v_did or coalesce(v_minted, false);
       end if;
-      -- [0232 §A] counted only when a writer ran for this row, and the runner is told only when
-      -- the COMP branch ran — a repaired charge intent is the owner's side, not the runner's.
+      -- [0232 §A] counted only when a writer WROTE for this row, and the runner is told only when
+      -- the COMP was written — a repaired charge intent is the owner's side, not the runner's.
       if v_did then n := n + 1; end if;
       insert into notifications (profile_id, kind, title, body, ref_id)
       select b.runner_id, 'booking', '시간을 비워둔 보상이 기록됐어요',
              '취소 보상 기록이 지연됐다가 방금 반영됐어요', b.id
       from bookings b
       where b.id = r.id and b.runner_id is not null
-        and r.comp_missing                           -- [0232 §A] the comp branch ran
+        and v_wrote                                  -- [0232 §A] the comp was written just now
         and not exists (select 1 from notifications nt
                         where nt.ref_id = b.id and nt.profile_id = b.runner_id
                           and nt.title = '시간을 비워둔 보상이 기록됐어요');
@@ -241,9 +271,9 @@ comment on function sweep_cancel_money_gaps is
 행들을 찾아 멱등한 보상 기록을 다시 몬다 (0080의 sweep_settled_without_payments 와 같은
 형상). 타이머가 돈을 결정하지 않는다 — 사람이 이미 결정한 것을 마저 쓸 뿐이다 (0068 구분).
 + [0232 §A] the payments arm admits a row only when charging is live and the row was updated at or
-after payments_live_since (the mint gate''s own conditions), n counts a row only when the comp branch
-or the mint ran, and the runner''s 「시간을 비워둔 보상이 기록됐어요」 fires only when the comp branch
-ran. 263 0232-A1/A2/A3 pin it.';
+after payments_live_since (the mint gate''s own conditions), n counts a row only when a writer
+reported writing (record_*''s written, mint_cancel_fee_intent''s minted), and the runner''s
+「시간을 비워둔 보상이 기록됐어요」 fires only when the comp was written. 263 0232-A1…A5 pin it.';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- §B recurring_pause_notices — the episode each recurring pause notice announced
@@ -617,8 +647,13 @@ begin
       then v_bad := v_bad || ' sweep: the payments arm lost its mint-gate conjuncts;'; end if;
     if (v_src like '%if v_did then n := n + 1; end if;%') is not true
       then v_bad := v_bad || ' sweep: n is counted unconditionally;'; end if;
-    if (v_src like '%and r.comp_missing%') is not true
-      then v_bad := v_bad || ' sweep: the runner notice is not guarded by the comp branch;'; end if;
+    if (v_src like '%and v_wrote%') is not true
+      then v_bad := v_bad || ' sweep: the runner notice is not guarded by the comp write;'; end if;
+    if (v_src like '%select c.written into v_wrote from record_enroute_cancel_comp(r.id) c;%') is not true
+       or (v_src like '%select c.written into v_wrote from record_late_cancel_share(r.id) c;%') is not true
+      then v_bad := v_bad || ' sweep: a comp writer''s own `written` is not read;'; end if;
+    if (v_src like '%select m.minted into v_minted from mint_cancel_fee_intent(r.id) m;%') is not true
+      then v_bad := v_bad || ' sweep: the mint''s own `minted` is not read;'; end if;
   end if;
 
   select regexp_replace(p.prosrc, '--[^' || chr(10) || ']*', '', 'g') into v_src
@@ -635,6 +670,9 @@ begin
       then v_bad := v_bad || ' generator: the debt dedupe does not read the episode row;'; end if;
     if (v_src like '%insert into recurring_generation_failures%') is not true
       then v_bad := v_bad || ' generator: 0227''s failure record is gone;'; end if;
+    -- the route dedupe reads ROUTE episode rows only — a money pause's row carries the same series
+    if (v_src like '%and pn.reason = ''route''%') is not true
+      then v_bad := v_bad || ' generator: the route dedupe is not keyed on reason = route;'; end if;
   end if;
 
   if to_regclass('public.recurring_pause_notices') is null then
