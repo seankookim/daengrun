@@ -3784,24 +3784,9 @@ export interface LiveLedgerItem {
   // the same deletion for the same reason. The earnings list keeps using `when`, the KST label.
 }
 
-/** [0132] The `end_reason` enum's SIX members (0001:18), every one mapped.
- *  ⚠ An unmapped value must resolve to null, NEVER to the raw token — `CHARGE_LABEL`'s
- *    `?? d.chargeLabel` fallback printed the English words 'none' and 'hold' as chips in a
- *    Korean UI, and that is the bug this comment exists to not repeat. If a seventh member is
- *    ever added, this screen goes quiet instead of speaking English.
- *  `owner_forced` and `owner_request` share one phrase deliberately: they are the same event to
- *  a runner (owner-caused end) and 0101 §A prices them IDENTICALLY, guarantee included. The
- *  distinction is who may declare it — server-only vs runner-declarable (0083's whitelist) —
- *  which is an ops fact, not something a runner can act on. Inventing two words for one
- *  outcome would imply a difference in the money that does not exist. */
-const END_REASON_LABEL: Record<string, string> = {
-  completed: '완주',
-  dog_condition: '강아지 상태로 중단',
-  owner_request: '보호자 요청으로 중단',
-  owner_forced: '보호자 요청으로 중단',
-  runner_personal: '러너 사정으로 중단',
-  incident: '사고로 중단',
-};
+// [0132] The `end_reason` table moved to end-reason.ts (fix/runner-postrun-screens) so the seal
+// screen reads the same six words as the ledger; the rationale moved with it.
+import { END_REASON_LABEL } from './end-reason';
 
 export async function fetchLedger(): Promise<LiveLedgerItem[]> {
   // [0121] my_ledger_rows: net + cancel_comp + km computed server-side. The runs-lookup 2-step

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
 import { fetchMyReviewedBookingIds, fetchMyRunnerStatus, fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
@@ -224,9 +225,14 @@ export default function RunnerCalendar() {
           </Text>
           {/* [C③] 완료 행의 문장. 종전 '정산 완료'는 정산 사실이 아니라 표시 어휘(STATUS_MAP이
               뭉갠 'completed')에서 파생돼 있었다 — 이 화면에는 정산 여부를 아는 필드가 없다.
-              수익 화면이 이미 쓰는 문장으로 맞춘다: 세 화면이 같은 사실을 같은 말로. */}
+              [copy-hierarchy-4, 2026-09-25] The completed row now carries NO payout sentence. Its
+              replacement copied earnings' 「no payout date yet」 line, and that line stopped being
+              true: since 0192 a run can be PAID, earnings prints 지급 완료 for it, and earnings
+              itself has since dropped the sentence (less-is-more-19). This row reads no payout
+              field, so it cannot say which of the two a run is — the 러닝 기록 door below opens the
+              receipt that can. */}
           <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
-            {done ? '지급 일정은 아직 정해지지 않았어요' : runnerJobCaption(j)}
+            {done ? null : runnerJobCaption(j)}
           </Text>
         </View>
         {/* FINISHER 도장 (완료) — latin stamp glyph class (15pt floor exempt) */}
@@ -286,13 +292,17 @@ export default function RunnerCalendar() {
           >
             <Text style={s.doneDoorTxt}>인증샷 ›</Text>
           </Pressable>
+          {/* [less-is-more-3] THIS run's receipt, not the whole 수익 tab. `/runner/done?bid=` reads
+              every number from the server for that booking (done.tsx §0193) and prints 「—」 where
+              the ledger has no row, so it cannot claim money it does not have — the same door
+              earnings.tsx opens a run with (「러닝 기록 보기」). */}
           <Pressable
-            onPress={() => router.push('/runner/earnings')}
+            onPress={() => router.push({ pathname: '/runner/done', params: { bid: j.bookingId } })}
             style={({ pressed }) => [s.doneDoor, pressed && { backgroundColor: paper.wash }]}
             accessibilityRole="button"
-            accessibilityLabel="수익 상세 보기"
+            accessibilityLabel={`${j.dogName} 러닝 기록 보기`}
           >
-            <Text style={s.doneDoorTxt}>수익 상세 ›</Text>
+            <Text style={s.doneDoorTxt}>러닝 기록 ›</Text>
           </Pressable>
         </Row>
         {/* 리뷰 문은 제 줄을 갖는다 — 셋째 `flex: 1` 칸에 넣으면 320dp에서 「리뷰 남기기 ›」가
@@ -323,14 +333,14 @@ export default function RunnerCalendar() {
         <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
           {/* [§3c 화면 타이틀 2026-08-11] 30/900 · lineHeight 37 (1.23× — BUG A) */}
           <Text style={[{ fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink }, df]}>캘린더</Text>
-          {/* secondary chip — canvas + coral border + ink label (§3b secondary; chip may stay 14) */}
-          <Pressable
+          {/* [ui-consistency-10] the secondary action is PaperBtn secondary (wash 면 + coral 1px +
+              actionInk 16/800), not a hand-rolled canvas copy of it. Layout only here. */}
+          <PaperBtn
+            label="가용시간 설정"
+            variant="secondary"
             onPress={() => router.push('/runner/availability')}
-            style={({ pressed }) => [s.availBtn, pressed && { backgroundColor: paper.wash }]}
-            accessibilityRole="button"
-          >
-            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>가용시간 설정</Text>
-          </Pressable>
+            style={s.availBtn}
+          />
         </Row>
 
         {/* ---------- 출발 보드 (C1) — 예상 수익 스플릿-플랩. Dark artifact on paper.ink (the
@@ -401,13 +411,12 @@ export default function RunnerCalendar() {
                 ? '인증이 끝나면 확정된 러닝이 여기에 떠요'
                 : <>확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요</>}
             </Text>
-            <Pressable
+            <PaperBtn
+              label={preCert ? '인증 센터 ›' : '요청 보러 가기 ›'}
+              variant="secondary"
               onPress={() => router.push(preCert ? '/runner/apply' : '/runner/requests')}
-              style={({ pressed }) => [s.emptyBtn, pressed && { backgroundColor: paper.wash }, pressed && { transform: [{ scale: 0.96 }] }]}
-              accessibilityRole="button"
-            >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{preCert ? '인증 센터 ›' : '요청 보러 가기 ›'}</Text>
-            </Pressable>
+              style={s.emptyBtn}
+            />
           </View>
         )}
 
@@ -458,7 +467,8 @@ export default function RunnerCalendar() {
 }
 
 const s = StyleSheet.create({
-  availBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14 },
+  // PaperBtn owns fill, border, vertical padding and label; these two carry layout only.
+  availBtn: { paddingHorizontal: 14 },
   board: { backgroundColor: paper.ink, padding: 16, marginTop: 14 },
   // paddingHorizontal 8 → 5: 30pt 승격의 폭 예산 (위 주석의 320dp 계산). 세로 패딩은 유지.
   flap: { backgroundColor: '#000000', paddingVertical: 6, paddingHorizontal: 5 },
@@ -515,5 +525,5 @@ const s = StyleSheet.create({
   // 안에 있는데, 잉크 테두리가 크리티컬 잉크와 싸웠다. 실패 스트립은 박스 버튼이 필요 없다 —
   // runner/run.tsx failAction의 밑줄 텍스트 문법으로 통일 (박스 9개 삭제, 결정 1개).
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
-  emptyBtn: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 12, paddingHorizontal: 16 },
+  emptyBtn: { paddingHorizontal: 16 },
 });
