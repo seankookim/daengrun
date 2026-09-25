@@ -50,6 +50,18 @@
 --     exists — pre-run incident; awaiting Sean ruling」. A pre-run incident that DID hold the dog
 --     (a handoff stamp, no run) still gates its runner and still has no exit: that is the honest
 --     state until Sean rules, and it is now LISTED and BELLED rather than silent.
+--   · ⚠ **OPEN QUESTION FOR SEAN — a ONE-sided handoff stamp is knowingly left as a permanent
+--     lockout until he rules** (executing review of 8682181, finding 2 — READ, not measured on a
+--     device). §A gates on EITHER stamp, as the gap-sweep brief specified (「one handoff stamp →
+--     gated」). That shape is reachable and is not a handoff in flight: 0117's ceiling arm
+--     (0117:565-580) ends a one-stamp booking `runner_enroute → incident_review` precisely because 「at
+--     the ceiling a one-stamp booking is rotted, not mid-handoff」, and the handoff never promoted
+--     (0185:103-133 promotes only on BOTH stamps). Every other custody predicate in the repo requires
+--     BOTH stamps (0072:66, 0116:452, 0121:284, 0152:80). So such a runner is refused new work with no
+--     door — the very lockout this file removes for the arrived-only row. Two rulings would end it:
+--     L2/L3 (a door), or the predicate moved to BOTH stamps (the one-stamp row then joins the
+--     arrived-only row: not gated, still listed and belled). 264 `0233-G2` pins the current rule and
+--     is the pin that moves if he rules the second way.
 --   · `confirm_return_tx`, `my_booking_payment_state` and the client's `work-gate-strip.ts` copy are
 --     untouched (DO NOT BUILD). `runner_work_gate` is not re-declared — it reads §A by name.
 --   · Clubs are out of scope (`club_session_id is not null` → neither the gate arm, the bell nor the
@@ -85,7 +97,8 @@
 --   | state                                          | gated? | swept by            | listed by          | exit            |
 --   |------------------------------------------------|--------|---------------------|--------------------|-----------------|
 --   | incident_review, arrived_at only (no stamps)   | NO     | ⓗ (return_strand)   | ops_prerun_cases   | none — Sean's L2/L3 |
---   | incident_review, a handoff stamp, no run       | yes    | ⓗ                   | ops_prerun_cases · ops_gated_runners | none — Sean's L2/L3 |
+--   | incident_review, BOTH stamps, no run (picked_up) | yes  | ⓗ                   | ops_prerun_cases · ops_gated_runners | none — Sean's L2/L3 |
+--   | incident_review, ONE stamp, no run (0117 ceiling) | yes  | ⓗ                   | ops_prerun_cases · ops_gated_runners | none — PERMANENT until Sean rules (§0c) |
 --   | incident_review, run ended                     | yes    | ⓕ (0193, threshold) | ops_stranded_returns · ops_gated_runners | ops_resolve_return_tx / confirm_return_tx |
 --   | any of the above, roster empty                 | —      | ⓗ retried every tick | still listed     | —               |
 --
@@ -250,6 +263,18 @@ function, not a pager. service_role only. 255 0224-A3 · 264 0233-R1 pin it.';
 --   behind older ones that merely have smaller ids (cold review 0188 #3).
 -- ⚠ LOCK, THEN LOOK AGAIN: `for update skip locked`, every candidate predicate re-asserted on the
 --   locked row, the one-shot re-taken under the lock (arm ⓑ's law).
+-- ⚠ BELL IDENTITY (executing review of 8682181, finding 1 — MEASURED there): a row counts as 「the
+--   bell already rang」 only when it is kind `system` AND addressed to someone who is or was seated at
+--   `return_strand` (`ops_recipients`, active or not — a deactivated operator's bell was still
+--   delivered). Matching on (ref_id, title) alone let a booking PARTY silence the bell: 0114's
+--   `noti party insert` admits `kind='booking'` rows with any title on a booking the caller is
+--   party to (incident_review included), and `noti self update` (0002, USING-only) lets ANY signed-in
+--   user rewrite one of their own rows' kind/title/ref_id/created_at — so `kind = 'system'` alone is
+--   not enough; the recipient conjunct is what a client cannot forge. `ops_recipients` has no client
+--   write door (0208). The same identity is used by §F's `notified_at`. 264 `0233-B4` pins both.
+--   Residual, named: a profile once seated at `return_strand` can still forge one on their own row —
+--   an operator, the role this bell exists to reach. If every such row's recipient later deletes
+--   their account (0115 deletes the roster row) the bell rings again for the current roster.
 -- ⚠ The ops row carries NO identifier and NO amount (0084 §E); the booking rides in `ref_id`. The
 --   title is a CONSTANT, so `app/test/ops-system-titles.test.cjs` resolves it to a literal.
 -- ⚠ One protected block around the loop (0224 §C's outer handler): a surprise outside any row rolls
@@ -276,7 +301,12 @@ begin
        and b.run_ended_at is null
        and b.club_session_id is null
        and not exists (select 1 from notifications nt
-                        where nt.ref_id = b.id and nt.title = c_prerun_ops_title)
+                        where nt.ref_id = b.id and nt.title = c_prerun_ops_title
+                          -- [0233 fix] the bell's OWN row, not a look-alike (see ⚠ BELL IDENTITY)
+                          and nt.kind = 'system'
+                          and exists (select 1 from ops_recipients orr
+                                       where orr.profile_id = nt.profile_id
+                                         and orr.event_class = c_ops_class))
      order by b.updated_at, b.id
      limit c_batch
   loop
@@ -293,7 +323,11 @@ begin
          or v_b.club_session_id is not null then continue; end if;
       -- the candidate read was a snapshot; the one-shot is re-taken under the lock
       if exists (select 1 from notifications nt
-                 where nt.ref_id = v_b.id and nt.title = c_prerun_ops_title) then continue; end if;
+                 where nt.ref_id = v_b.id and nt.title = c_prerun_ops_title
+                   and nt.kind = 'system'
+                   and exists (select 1 from ops_recipients orr
+                                where orr.profile_id = nt.profile_id
+                                  and orr.event_class = c_ops_class)) then continue; end if;
       insert into notifications (profile_id, kind, title, body, ref_id)
       select rc.profile_id, 'system'::noti_kind, c_prerun_ops_title, c_prerun_ops_body, v_b.id
         from ops_recipients_for(c_ops_class) as rc(profile_id);
@@ -1027,8 +1061,13 @@ begin
          b.runner_confirmed_handoff_at,
          (b.owner_confirmed_handoff_at is not null or b.runner_confirmed_handoff_at is not null),
          b.updated_at,
+         -- [0233 fix] the same BELL IDENTITY as §C's one-shot: a look-alike row is not the bell
          (select min(nt.created_at) from notifications nt
-           where nt.ref_id = b.id and nt.title = c_prerun_ops_title)
+           where nt.ref_id = b.id and nt.title = c_prerun_ops_title
+             and nt.kind = 'system'
+             and exists (select 1 from ops_recipients orr
+                          where orr.profile_id = nt.profile_id
+                            and orr.event_class = c_ops_class))
     from bookings b
     left join dogs d      on d.id = b.dog_id
     left join profiles po on po.id = b.owner_id

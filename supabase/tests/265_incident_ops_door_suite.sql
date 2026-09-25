@@ -1,6 +1,6 @@
 -- ═══ 265 — 0234: a reported incident reaches an operator — the `incident_opened` class, the bell on
 -- ═══        `open_incident_tx`, and the roster's read of every open incident
--- ═══        0234-C1 · I1 · I2 · I3 · I4 · B2 · L1 · L2 · S1, tag `iod`
+-- ═══        0234-C1 · I1 · I2 · I3 · I4 · B2 · L1 · L2 · L3 · S1, tag `iod`
 --
 -- THE PROPOSITIONS THIS FILE OWNS, each stated without reference to any mutation:
 --   · C1 **AN OPERATOR CAN BE SEATED AT THE NEW DESK FROM THE PRODUCT.** A `payout_due` operator's
@@ -32,6 +32,14 @@
 --        listed and its RESOLVED one is not; SOS sorts before urgent before normal; `reporter_role`
 --        is owner / runner as reported; `notified_at` is set on the belled rows; the KEY SET is exact
 --        (no note, no media).
+--   · L3 **`notified_at` IS THE BELL'S OWN ROW, NOT A LOOK-ALIKE.** A signed-in stranger, through
+--        `noti self update` (0002, USING-only — the world production ships, asserted first: the UPDATE
+--        affects exactly one row), rewrites one of their OWN rows to kind `system`, this incident's
+--        `ref_id`, an incident title and `created_at` 2000-01-01; a seated operator rewrites one of
+--        theirs the same way but leaves kind `booking`. For a BELLED incident the listed `notified_at`
+--        is still the real bell's instant (never 2000); for an incident opened while the roster was
+--        EMPTY it stays NULL — the console never says 「sent」 for a page nobody got. Each forged row
+--        is observable through exactly one conjunct (recipient · kind). Rolled back after measuring.
 --   · S1 **DEPLOYED SHAPE.** Definers with in-body search_path and effective ACLs both ways; the read
 --        takes zero arguments, its roster gate precedes its first read and names `incident_opened`;
 --        in `open_incident_tx` (comment-stripped) the bell follows the insert and sits inside its own
@@ -43,6 +51,8 @@
 --   · The bell's subtransaction is proven with a FORCED insert failure (a constraint), not with the
 --     real-world failure it guards against (a recipient row held past a lock wait). The property —
 --     「the report stands when the bell cannot be written」 — is the same; the cause is staged.
+--   · L3's battery (fix round, lab copy, gated plants, control 1622/0): `notified_at`'s kind conjunct
+--     deleted → 1621/1 (L3 alone); its recipient conjunct deleted → 1621/1 (L3 alone, both arms).
 --
 -- ─── FIXTURE NOTES ───
 --  ① Counts are scoped to this suite's bookings / incidents. `incident_opened` is NEW, but 239
@@ -138,6 +148,8 @@ declare
   f_id jsonb; f_rows int; f_inc int; f_err text; g_id jsonb; g_rows int;
   e_id jsonb; e_rows int; e_list jsonb; e_err text;
   v_saved uuid[];
+  l3_err text; l3_upd_sx int; l3_upd_op int; l3_upd_sx2 int; l3_real timestamptz; l3_list jsonb;
+  l3_empty uuid; l3_nid uuid; l3_nid_op uuid; l3_nid2 uuid; bL uuid;
 begin
   perform set_config('request.jwt.claim.sub', '', true);
   oo   := t_user('iod_owner', 'owner');
@@ -158,7 +170,7 @@ begin
   bN := t_iod_booking(oo, rr, dg, rt); bU := t_iod_booking(oo, rr, dg, rt);
   bS := t_iod_booking(oo, rr, dg, rt); bF := t_iod_booking(oo, rr, dg, rt);
   bE := t_iod_booking(oo, rr, dg, rt); bR := t_iod_booking(oo, rr, dg, rt);
-  bG := t_iod_booking(oo, rr, dg, rt);
+  bG := t_iod_booking(oo, rr, dg, rt); bL := t_iod_booking(oo, rr, dg, rt);
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [0234-C1] the new class is seatable through the product's door
@@ -347,6 +359,68 @@ begin
     if v_bad = '' then call _pass('iod','0234-L2 incident_opened 운영자에게 열린 사고 전부(해결된 것 없음), SOS → 긴급 → 일반 순, 신고자 역할 owner/runner, 울린 사고는 notified_at, 키 집합 정확(메모·미디어 없음)');
     else v_msg := v_bad; call _fail('iod','0234-L2 open incidents for the operator', v_msg); end if;
   exception when others then call _fail('iod','0234-L2 open incidents for the operator', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [0234-L3] notified_at is the bell's own row, not a look-alike (rolled back after measuring)
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    v_bad := ''; l3_err := null;
+    begin
+      -- the real bell's instant on the belled incident, read BEFORE any forgery
+      select min(created_at) into l3_real from notifications
+       where ref_id = inc_n and kind = 'system' and profile_id = opsI and title = T_N;
+      -- an incident opened while the roster is EMPTY (no bell), then the operator re-seated
+      update ops_recipients set active = false where event_class = 'incident_opened' and active;
+      l3_empty := (t_iod_open(oo, bL, 'equipment', 'normal')->>'id')::uuid;
+      update ops_recipients set active = true where event_class = 'incident_opened' and profile_id = opsI;
+      -- each forger's OWN pre-existing row (written as the table owner, like any product row)
+      insert into notifications (profile_id, kind, title, body) values (sx,   'booking', 'iod l3 a', 'x') returning id into l3_nid;
+      insert into notifications (profile_id, kind, title, body) values (sx,   'booking', 'iod l3 b', 'x') returning id into l3_nid2;
+      insert into notifications (profile_id, kind, title, body) values (opsI, 'booking', 'iod l3 c', 'x') returning id into l3_nid_op;
+      -- the STRANGER, as an authenticated client under RLS: kind system, the incident, 2000-01-01
+      perform set_config('request.jwt.claim.sub', sx::text, true);
+      set local role authenticated;
+      if current_user <> 'authenticated' then raise exception 'l3: role did not take'; end if;
+      update notifications set kind = 'system', title = T_N, ref_id = inc_n, created_at = '2000-01-01'
+       where id = l3_nid;
+      get diagnostics l3_upd_sx = row_count;
+      update notifications set kind = 'system', title = T_N, ref_id = l3_empty, created_at = '2000-01-01'
+       where id = l3_nid2;
+      get diagnostics l3_upd_sx2 = row_count;
+      reset role;
+      -- a SEATED operator, same door, but the row stays kind booking (only the kind conjunct sees it)
+      perform set_config('request.jwt.claim.sub', opsI::text, true);
+      set local role authenticated;
+      update notifications set title = T_N, ref_id = inc_n, created_at = '2000-01-01' where id = l3_nid_op;
+      get diagnostics l3_upd_op = row_count;
+      reset role;
+      perform set_config('request.jwt.claim.sub', '', true);
+      l3_list := t_iod_list_as(opsI);
+      raise exception 'iod_l3_rollback';
+    exception when others then
+      if sqlerrm is distinct from 'iod_l3_rollback' then l3_err := sqlerrm; end if;
+    end;
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if l3_err is not null then v_bad := v_bad || ' staging raised: ' || l3_err; end if;
+    -- the fixture world starts where production starts: the forging door is OPEN
+    if l3_upd_sx is distinct from 1 or l3_upd_sx2 is distinct from 1 or l3_upd_op is distinct from 1
+      then v_bad := v_bad || ' FIXTURE: a forging update did not land (' || coalesce(l3_upd_sx::text, 'NULL') || '/'
+                   || coalesce(l3_upd_sx2::text, 'NULL') || '/' || coalesce(l3_upd_op::text, 'NULL') || ') — the pin would prove nothing'; end if;
+    if l3_real is null then v_bad := v_bad || ' FIXTURE: the belled incident has no real bell row'; end if;
+    if l3_empty is null then v_bad := v_bad || ' FIXTURE: the unpaged incident was not opened'; end if;
+    if l3_list ? 'raised' or l3_list is null then v_bad := v_bad || ' list: ' || coalesce(l3_list::text, 'NULL');
+    else
+      if (l3_list->'rows'->inc_n::text->>'notified_at')::timestamptz is distinct from l3_real
+        then v_bad := v_bad || ' 🔴 belled incident notified_at=' || coalesce(l3_list->'rows'->inc_n::text->>'notified_at', 'NULL')
+                     || ' (real bell ' || l3_real || ') — a look-alike row was read as the bell'; end if;
+      if (l3_list->'rows' ? l3_empty::text) is not true then v_bad := v_bad || ' the unpaged incident is not listed';
+      elsif (l3_list->'rows'->l3_empty::text->>'notified_at') is not null
+        then v_bad := v_bad || ' 🔴 an UNPAGED incident shows notified_at=' || (l3_list->'rows'->l3_empty::text->>'notified_at'); end if;
+    end if;
+    if v_bad = '' then call _pass('iod','0234-L3 notified_at은 벨이 쓴 행만 — 낯선 사람이 noti self update로 자기 행을 system·이 사고·2000-01-01로 바꾸고(1행 반영 확인), 운영자가 자기 행을 kind booking 그대로 바꿔도 울린 사고의 notified_at은 실제 벨 시각, 명부가 비었을 때 열린 사고는 NULL 유지 (측정 후 롤백)');
+    else v_msg := v_bad; call _fail('iod','0234-L3 notified_at is the bell''s own row', v_msg); end if;
+  exception when others then reset role; call _fail('iod','0234-L3 notified_at is the bell''s own row', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [0234-S1] deployed shape

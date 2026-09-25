@@ -1,6 +1,6 @@
 -- ═══ 264 — 0233: a pre-run incident_review no longer work-gates a runner whose dog never left home ·
 -- ═══        the pre-run incident bell (arm ⓗ) · the roster's read of the same set
--- ═══        0233-G1 · G2 · G3 · G4 · R1 · B1 · B2 · B3 · L1 · S1, tag `pig`
+-- ═══        0233-G1 · G2 · G3 · G4 · R1 · B1 · B2 · B3 · B4 · L1 · S1, tag `pig`
 --
 -- THE PROPOSITIONS THIS FILE OWNS, each stated without reference to any mutation:
 --   · G1 **A RUNNER WHO ONLY TAPPED 도착 IS NOT GATED.** A marketplace booking reached
@@ -30,6 +30,17 @@
 --   · B3 **AN EMPTY ROSTER WRITES NOTHING AND RETRIES.** Every active `return_strand` row off → a
 --        tick writes no row for a fresh pre-run booking; ONE operator seated → the next tick writes
 --        exactly one; a third tick none. Rolled back after measuring (the shared roster is restored).
+--   · B4 **NO CLIENT CAN SILENCE THE BELL OR FAKE ITS INSTANT.** Three look-alike rows, each written
+--        through a door production ships (asserted first — each write lands exactly one row): the
+--        booking's RUNNER inserts a `kind='booking'` row with the bell's title on their own booking
+--        (0114 `noti party insert`); a signed-in STRANGER rewrites one of their own rows to kind
+--        `system`, the bell's title, another booking's id and `created_at` 2000-01-01 (0002 `noti self
+--        update`); a SEATED operator who is also a booking's OWNER inserts a `kind='booking'` look-alike
+--        dated 2000-01-01. One real tick: each of the three bookings still gets exactly one `system`
+--        row to the seated operator — like an untouched CONTROL booking — and `ops_prerun_cases()`
+--        reports the REAL bell's instant for each, never 2000. Each forged row is observable through
+--        exactly one conjunct of the bell identity (the stranger's: recipient; the two party rows:
+--        kind). Rolled back after measuring.
 --   · L1 **`ops_prerun_cases()` IS THE `return_strand` ROSTER'S READ OF ARM ⓗ'S SET.** A signed-in
 --        stranger and a `payout_due`-only operator get `not_ops`; no caller gets `not_signed_in`.
 --        For the operator, this suite's bookings in the list are EXACTLY the pre-run fixtures (not
@@ -56,6 +67,12 @@
 --     alone leaves B1 green (measured, battery M7a / M7b); deleting both reddens B1 + B3 (M7). The
 --     re-check exists for the race between the candidate read and the lock, which one session
 --     cannot stage. Named here, not pinned.
+--   · B4's battery (fix round, a lab copy, every plant asserted and &&-gated to its run, control
+--     1622/0): all four bell-identity sites unfixed → 1620/2 (B4 + 265 `0234-L3` — the hole
+--     reproduces); each ONE conjunct deleted — candidate kind · re-check kind · candidate recipient ·
+--     re-check recipient · `ops_prerun_cases` kind · `ops_prerun_cases` recipient — → 1621/1, B4
+--     alone. Unlike B1's once-guard, the two halves ARE separately observable here, because a
+--     suppressed bell (either half excludes the row) is visible where a duplicate one is not.
 --
 -- ─── FIXTURE NOTES ───
 --  ① Every count is SCOPED to this suite's own bookings. `bookings`, `notifications` and the rosters
@@ -149,6 +166,8 @@ declare
   v jsonb; v2 jsonb; v_bad text; v_msg text; v_n int; v_roster int; v_src text; v_txt text;
   v_ids uuid[]; v_keys text[]; r record; p_a int; p_b int; v_oid oid; fn text;
   b3_first int; b3_second int; b3_third int; b3_err text; b3_roster0 int;
+  r9 uuid; r10 uuid; r11 uuid; r12 uuid; bAI uuid; bAU uuid; bAR uuid; bCtl uuid;
+  b4_err text; b4_ins_r int; b4_ins_o int; b4_upd int; b4_nid uuid; b4_n jsonb; b4_cases jsonb; b4_pre int;
 begin
   perform set_config('request.jwt.claim.sub', '', true);
   oo   := t_user('pig_owner', 'owner');
@@ -344,6 +363,77 @@ begin
     if v_bad = '' then call _pass('pig','0233-B3 명부가 비면 아무것도 쓰지 않고(0) 매 tick 재시도한다 — 운영자 한 명이 앉으면 다음 tick에 정확히 1, 그다음 tick은 그대로 1 (측정 후 롤백, 명부 복원 확인)');
     else v_msg := v_bad; call _fail('pig','0233-B3 empty roster retries', v_msg); end if;
   exception when others then call _fail('pig','0233-B3 empty roster retries', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [0233-B4] no client can silence the bell or fake its instant (rolled back after measuring)
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    v_bad := ''; b4_err := null;
+    r9 := t_user('pig_r9', 'runner'); r10 := t_user('pig_r10', 'runner');
+    r11 := t_user('pig_r11', 'runner'); r12 := t_user('pig_r12', 'runner');
+    begin
+      bAI  := t_pig_booking(oo,   r9,  dg, rt, 'incident_review', true, false, false, false, true);
+      bAU  := t_pig_booking(oo,   r11, dg, rt, 'incident_review', true, false, false, false, true);
+      bAR  := t_pig_booking(opsR, r12, dg, rt, 'incident_review', true, false, false, false, true);
+      bCtl := t_pig_booking(oo,   r10, dg, rt, 'incident_review', true, false, false, false, true);
+      -- (i) the RUNNER, party insert on their own booking
+      perform set_config('request.jwt.claim.sub', r9::text, true);
+      set local role authenticated;
+      if current_user <> 'authenticated' then raise exception 'b4: role did not take'; end if;
+      insert into notifications (profile_id, kind, title, body, ref_id) values (r9, 'booking', T_OPS, '내 알림', bAI);
+      get diagnostics b4_ins_r = row_count;
+      reset role;
+      -- (ii) a STRANGER rewrites one of their own rows (noti self update)
+      insert into notifications (profile_id, kind, title, body) values (sx, 'booking', 'pig b4', 'x') returning id into b4_nid;
+      perform set_config('request.jwt.claim.sub', sx::text, true);
+      set local role authenticated;
+      update notifications set kind = 'system', title = T_OPS, ref_id = bAU, created_at = '2000-01-01' where id = b4_nid;
+      get diagnostics b4_upd = row_count;
+      reset role;
+      -- (iii) a SEATED operator who owns a booking, party insert, dated 2000-01-01
+      perform set_config('request.jwt.claim.sub', opsR::text, true);
+      set local role authenticated;
+      insert into notifications (profile_id, kind, title, body, ref_id, created_at)
+        values (opsR, 'booking', T_OPS, '내 알림', bAR, '2000-01-01');
+      get diagnostics b4_ins_o = row_count;
+      reset role;
+      perform set_config('request.jwt.claim.sub', '', true);
+      -- the bell has not rung for any of them yet (a delta this pin causes)
+      select count(*)::int into b4_pre from notifications
+       where ref_id in (bAI, bAU, bAR, bCtl) and title = T_OPS and kind = 'system' and profile_id = opsR;
+      perform sweep_run_end_recovery();
+      select jsonb_object_agg(x.id::text, (select count(*) from notifications nt
+                                            where nt.ref_id = x.id and nt.title = T_OPS
+                                              and nt.kind = 'system' and nt.profile_id = opsR))
+        into b4_n from (select unnest(array[bAI, bAU, bAR, bCtl]) as id) x;
+      b4_cases := t_pig_cases_as(opsR);
+      raise exception 'pig_b4_rollback';
+    exception when others then
+      if sqlerrm is distinct from 'pig_b4_rollback' then b4_err := sqlerrm; end if;
+    end;
+    reset role;
+    perform set_config('request.jwt.claim.sub', '', true);
+    if b4_err is not null then v_bad := v_bad || ' staging raised: ' || b4_err; end if;
+    if b4_ins_r is distinct from 1 or b4_upd is distinct from 1 or b4_ins_o is distinct from 1
+      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(b4_ins_r::text, 'NULL') || '/'
+                   || coalesce(b4_upd::text, 'NULL') || '/' || coalesce(b4_ins_o::text, 'NULL') || ') — the pin would prove nothing'; end if;
+    if b4_pre is distinct from 0 then v_bad := v_bad || ' FIXTURE: a real bell existed before the tick (' || coalesce(b4_pre::text, 'NULL') || ')'; end if;
+    if (b4_n->>bCtl::text) is distinct from '1' then v_bad := v_bad || ' CONTROL: the untouched booking got ' || coalesce(b4_n->>bCtl::text, 'NULL') || ' (1) — the tick proves nothing'; end if;
+    if (b4_n->>bAI::text) is distinct from '1' then v_bad := v_bad || ' 🔴 the runner''s booking-kind look-alike silenced the bell (' || coalesce(b4_n->>bAI::text, 'NULL') || ')'; end if;
+    if (b4_n->>bAU::text) is distinct from '1' then v_bad := v_bad || ' 🔴 the stranger''s rewritten system row silenced the bell (' || coalesce(b4_n->>bAU::text, 'NULL') || ')'; end if;
+    if (b4_n->>bAR::text) is distinct from '1' then v_bad := v_bad || ' 🔴 the operator-owner''s booking-kind look-alike silenced the bell (' || coalesce(b4_n->>bAR::text, 'NULL') || ')'; end if;
+    if b4_cases ? 'raised' or b4_cases is null then v_bad := v_bad || ' cases: ' || coalesce(b4_cases::text, 'NULL');
+    else
+      foreach v_txt in array array[bAI::text, bAU::text, bAR::text, bCtl::text] loop
+        if (b4_cases->'rows'->v_txt->>'notified_at') is null
+          then v_bad := v_bad || ' ' || v_txt || ' notified_at NULL';
+        elsif ((b4_cases->'rows'->v_txt->>'notified_at')::timestamptz > '2001-01-01'::timestamptz) is not true
+          then v_bad := v_bad || ' 🔴 ' || v_txt || ' notified_at=' || (b4_cases->'rows'->v_txt->>'notified_at') || ' — a look-alike row was read as the bell'; end if;
+      end loop;
+    end if;
+    if v_bad = '' then call _pass('pig','0233-B4 클라이언트는 벨을 끄거나 시각을 꾸밀 수 없다 — 러너의 booking 종류 흉내(파티 insert), 낯선 사람이 자기 행을 system·다른 예약·2000-01-01로 바꾼 행(self update), 명부 운영자이자 보호자의 booking 종류 흉내(2000-01-01) 모두 1행 반영 확인 후, 한 tick에 세 예약 모두 대조군처럼 운영자 system 1행, ops_prerun_cases의 notified_at은 실제 벨 시각 (측정 후 롤백)');
+    else v_msg := v_bad; call _fail('pig','0233-B4 bell identity', v_msg); end if;
+  exception when others then reset role; call _fail('pig','0233-B4 bell identity', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [0233-L1] ops_prerun_cases — the return_strand roster's read of arm ⓗ's set

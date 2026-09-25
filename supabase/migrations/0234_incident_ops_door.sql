@@ -43,6 +43,12 @@
 --     unchanged; the ops titles are distinct strings and are NOT urgent — they file as `ops`, which
 --     an operator can switch off on their phone (the console still shows them). That is the
 --     category every other ops title has; making an ops title undisableable is Sean's call.
+--     ⚠ **OPEN QUESTION FOR SEAN** (executing review of 8682181, finding 5): that includes 「SOS 사고
+--     접수 — 즉시 확인 필요」 and 「긴급 사고 접수 — 확인 필요」 — an operator who switched off 운영 알림
+--     on their phone gets NO push for an SOS. Whether the SOS (and urgent) ops titles join the
+--     always-on urgent family (0189) decides what people are told about safety, which CLAUDE.md
+--     §Operations reserves to Sean. Until he rules, 265 `0234-B2` pins the current filing and is the
+--     pin that moves.
 --   · `_shared/ops.ts`'s `OpsEventClass` union is not touched: the emitter is SQL, like
 --     `return_strand` or `handoff_unanswered`, and `notifyOps` never sends this class.
 --   · `my_booking_payment_state`, `confirm_return_tx`, `work-gate-strip.ts` — untouched.
@@ -303,7 +309,9 @@ grant  execute on function ops_roster_set(uuid, text, boolean) to authenticated;
 -- 0224 §F / 0233 §F's shape. `reporter_role` is DERIVED against the booking's CURRENT parties
 -- ('owner' | 'runner' | 'other' — the last when the reporter is no longer a party, e.g. a runner who
 -- was replaced; never guessed). `notified_at` is the bell's instant on THIS incident (§B's ref_id),
--- NULL when the roster was empty at report time. SOS first, then urgent, then normal; oldest first.
+-- NULL when the roster was empty at report time — and only §B's own rows count (kind system, to a
+-- profile that is or was seated at incident_opened; 265 `0234-L3`). SOS first, then urgent, then
+-- normal; oldest first.
 create or replace function ops_open_incidents()
 returns table (
   incident_id    uuid,
@@ -349,9 +357,17 @@ begin
               else 'other' end,
          i.created_at,
          i.verified_at,
+         -- [0234 fix] the bell's OWN row (0233 §C's BELL IDENTITY): kind system, addressed to someone
+         -- who is or was seated at incident_opened. (ref_id, title) alone is forgeable through
+         -- `noti self update` (0002, USING-only): any signed-in user can rewrite one of their own
+         -- rows to this ref_id, title and an arbitrary created_at.
          (select min(nt.created_at) from notifications nt
            where nt.ref_id = i.id
-             and nt.title in (c_ops_title_normal, c_ops_title_urgent, c_ops_title_sos))
+             and nt.title in (c_ops_title_normal, c_ops_title_urgent, c_ops_title_sos)
+             and nt.kind = 'system'
+             and exists (select 1 from ops_recipients orr
+                          where orr.profile_id = nt.profile_id
+                            and orr.event_class = c_ops_class))
     from incidents i
     left join bookings b  on b.id = i.booking_id
     left join dogs d      on d.id = b.dog_id
