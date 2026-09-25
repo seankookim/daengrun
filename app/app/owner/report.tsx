@@ -16,7 +16,8 @@ import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { bookingStateLabel, reportShowsInProgress } from '../../src/lib/booking-state-copy';
 import { haptic } from '../../src/lib/haptics';
-import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
+import { kstAmPm, kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
+import { withParticle } from '../../src/lib/particle';
 import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
@@ -171,7 +172,11 @@ function resolveNextWeek(iso: string | null): { iso: string; timeLabel: string; 
   return {
     iso: target.toISOString(),
     timeLabel: `${dayLabel} ${hhmm}`,
-    whenLabel: `${WD[cal.wd]} ${hhmm}`, // panel subcopy — the lab's '수 19:30'
+    // Panel subcopy. [sweep 2 · copy-hierarchy-5] 12h 「수 오후 7:30」, not the lab's 24h 「수 19:30」:
+    // this screen also draws RecurringCta, whose line now reads 「매주 수요일 오후 7:30」 (recurring-state
+    // .ts), and one screen must not spell the same wall clock two ways. `timeLabel` above stays 24h
+    // because it is written into request.tsx's 언제 row, whose slot chips are 24h.
+    whenLabel: `${WD[cal.wd]} ${kstAmPm(cal)}`,
   };
 }
 
@@ -728,7 +733,7 @@ export default function Report() {
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>러닝 진행 중</Text>
             <Text style={[s.emptyText, { marginTop: 6 }]}>
-              {report.dogName}가 지금 달리고 있어요{'\n'}기록은 러닝이 끝난 뒤에 여기에 채워져요
+              {withParticle(report.dogName, '가/이')} 지금 달리고 있어요{'\n'}기록은 러닝이 끝난 뒤에 여기에 채워져요
             </Text>
             <PaperBtn
               label="실시간 보기 ›"
@@ -820,11 +825,13 @@ export default function Report() {
                 반환 확인 · {(mine ? 1 : 0) + (theirs ? 1 : 0)}/2
               </Text>
               <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 6, lineHeight: 23 }}>
+                {/* Particles follow the name's last syllable (withParticle) — they were hardcoded, so a
+                    name ending in a consonant, and the fallback itself, read wrong. */}
                 {done
-                  ? `${report?.dogName ?? '반려견'}가 집에 돌아왔어요`
+                  ? `${withParticle(report?.dogName ?? '반려견', '가/이')} 집에 돌아왔어요`
                   : mine
                     ? '러너 확인을 기다리고 있어요'
-                    : `${report?.dogName ?? '반려견'}를 받으셨나요?`}
+                    : `${withParticle(report?.dogName ?? '반려견', '를/을')} 받으셨나요?`}
               </Text>
               <Text style={{ fontSize: 15, color: paper.dim, marginTop: 4, lineHeight: 21 }}>
                 {done
@@ -941,8 +948,9 @@ export default function Report() {
               }
               return (
                 <View style={{ backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 }}>
+                  {/* [sweep 2 · less-is-more-7] The caption under the trace talked about BUILDS to a
+                      customer. The trace is the route; it needs no line saying so. */}
                   <HeatTrace points={traceToBox(run.trace)} width={W - 60} height={140} />
-                  <Text style={{ fontSize: 15, color: '#8fa093', marginTop: 6 }}>실제 GPS 경로 · 지도 배경은 새 빌드에서</Text>
                 </View>
               );
             })()}
@@ -1032,9 +1040,6 @@ export default function Report() {
               <View style={{ backgroundColor: '#fff', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink, textAlign: 'center' }}>
                   이번 러닝은 사진이 없어요
-                </Text>
-                <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 3 }}>
-                  러너가 러닝 중 남긴 사진이 있으면 여기에 표시돼요
                 </Text>
               </View>
             )}
@@ -1332,9 +1337,6 @@ export default function Report() {
                     </View>
                   );
                 })}
-                <Text style={{ fontSize: 15, color: paper.ink, width: '100%', marginTop: 4 }}>
-                  러너가 러닝 중 실시간으로 기록한 순간들이에요
-                </Text>
               </View>
             )}
 
@@ -1825,7 +1827,8 @@ const s = StyleSheet.create({
   shareKey: { width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   // ---------- ② 타이틀 + ③ 숫자 셋 (14a) — 흰 캔버스, 섹션 리듬은 s.section과 같다 ----------
   head: { backgroundColor: paper.canvas, paddingHorizontal: 12, paddingTop: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
-  headTitle: { fontSize: 27.5, fontWeight: '900', color: paper.ink, marginTop: 6 },
+  // [BUG A] Black Han Sans clips its ascenders without an explicit lineHeight: 27.5 × 1.22 ≈ 34.
+  headTitle: { fontSize: 27.5, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 6 },
   statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
   statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },
   // 기록 없음 셀 — 숫자 자리를 차지하되 숫자인 척하지 않는다 (15pt 바닥 · dim · lineHeight는 27pt 셀과 동일).

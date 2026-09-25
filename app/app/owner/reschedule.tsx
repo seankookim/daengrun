@@ -12,7 +12,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOr, goBackOrHome } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
-import { kstCal, kstInstant, type KstCal } from '../../src/lib/kst';
+import { kstAmPm, kstCal, kstDateLabel, kstInstant, type KstCal } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
 // [0215] 후보 슬롯 규칙은 순수 모듈 한 벌 — 이 화면과 runner-profile/[id] 가 같은 것을 읽는다.
 import { EXTRA_CHIP_KO, kstDayKey, OfferedSource, slotStartsForDay, windowsFromRules } from '../../src/lib/offered-slots';
@@ -44,22 +44,21 @@ import { EXTRA_CHIP_KO, kstDayKey, OfferedSource, slotStartsForDay, windowsFromR
 // 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
 // paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
 // 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
-const DAY = ['일', '월', '화', '수', '목', '금', '토'];
 // 잉크 면 위의 보조 텍스트 — owner/home.tsx:596·fitness.tsx:515가 쓰는 같은 문법(흰색 알파).
 // 새 헥스가 아니라 '흰 잉크의 약한 단계'다.
 const ON_INK_SOFT = 'rgba(255,255,255,0.82)';
-const fmtMin = (m: number) => {
-  const h = Math.floor(m / 60);
-  return `${h < 12 ? '오전' : '오후'} ${h % 12 === 0 ? 12 : h % 12}시${m % 60 ? ` ${m % 60}분` : ''}`;
-};
 // [E6] 슬롯 시각은 기기 로컬이 아니라 **KST 벽시계**로 짓는다 — 서버 가용 규칙과 홀드 검증이
 // KST 고정이라, 로컬로 지으면 UTC 시뮬레이터·해외 기기에서 화면이 07:30을 보여주고 16:30 KST를
 // 저장한다. 산술은 src/lib/kst.ts 한 곳에 있다 (세 입구가 복제하던 것을 모았다 — 그 복제가
 // E6 를 처음 고칠 때 셋 중 둘만 고치게 만든 원인이다). 테스트: app/test/run-kst-tests.sh
 
-const fmtIso = (iso: string) => {
-  const c = kstCal(Date.parse(iso));
-  return `${c.m + 1}.${c.d} (${DAY[c.wd]}) ${fmtMin(c.h * 60 + c.min)}`;
+// [sweep 2 · copy-hierarchy-5] This screen had its own date/time vocabulary — 「9.26 (금) 오후 7시」
+// from a local formatter pair — while the 현재 확정 일정 card directly above it (api.ts kstParts)
+// and every schedule row say 「9월 26일 (금) 오후 7:00」. One instant, two spellings, one screen.
+// Both halves now come from kst.ts: this is composition, not a third formatter.
+const kstWhen = (ms: number) => {
+  const c = kstCal(ms);
+  return `${kstDateLabel(c)} ${kstAmPm(c)}`;
 };
 
 export default function Reschedule() {
@@ -112,7 +111,7 @@ export default function Reschedule() {
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const cal = kstCal(Date.now() + i * 86400_000);
-    return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: DAY[cal.wd] };
+    return { cal, label: i === 0 ? '오늘' : i === 1 ? '내일' : undefined, d: cal.d, w: '일월화수목금토'[cal.wd] };
   }), []);
 
   // [0215] 가용 달력 로드. `rules`와 나란히 사는 이유: `rules`는 요일 점과 폴백이 쓰고, 이쪽은
@@ -172,7 +171,7 @@ export default function Reschedule() {
     slotStartsForDay(windows, dayKey, durMin).forEach((sl) => {
       const start = kstInstant(day.cal, Math.floor(sl.startMin / 60), sl.startMin % 60);
       if (start.getTime() < minStart) return;
-      out.push({ key: start.toISOString(), label: fmtMin(sl.startMin), start, source: sl.source });
+      out.push({ key: start.toISOString(), label: kstAmPm(kstCal(start.getTime())), start, source: sl.source });
     });
     return out;
   }, [rules, dayIdx, days, durMin, offered, offeredState]);
@@ -280,7 +279,8 @@ export default function Reschedule() {
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
-          <Text style={[{ fontSize: 24, fontWeight: '900', color: paper.ink }, df]}>일정 변경</Text>
+          {/* [BUG A] Black Han Sans clips its ascenders without an explicit lineHeight: 24 × 1.25 = 30 */}
+          <Text style={[{ fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink }, df]}>일정 변경</Text>
         </Row>
       </View>
       <View style={s.rule} />
@@ -333,7 +333,7 @@ export default function Reschedule() {
               <View style={s.pendingBanner}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, lineHeight: 19, fontWeight: '900', color: paper.paceSlowInk }}>
-                    변경 요청 대기 중 → {fmtIso(info.proposedIso)}
+                    변경 요청 대기 중 → {kstWhen(Date.parse(info.proposedIso))}
                   </Text>
                   <Text style={{ fontSize: 15, lineHeight: 19, color: paper.paceSlowInk, marginTop: 2 }}>
                     러너 수락 전까지 기존 시간 유지 · 새로 고르면 요청이 교체돼요
@@ -499,7 +499,7 @@ export default function Reschedule() {
       {dockOpen && picked && (
         <View style={[s.dock, { paddingBottom: Math.max(insets.bottom, 12) + 12 }]}>
           <Text style={{ fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink }} numberOfLines={1}>
-            {fmtIso(picked.start.toISOString())}로 변경 요청
+            {kstWhen(picked.start.getTime())}로 변경 요청
           </Text>
           <View style={{ marginTop: 10 }}>
             <PaperBtn label="러너에게 변경 요청 ›" busyLabel="보내는 중…" busy={busy} onPress={send} />

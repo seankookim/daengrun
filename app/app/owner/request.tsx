@@ -17,6 +17,7 @@ import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/l
 import { haptic } from '../../src/lib/haptics';
 import { holdReplayNotice, holdStatusLine } from '../../src/lib/hold-replay-copy';
 import { goBackOrHome } from '../../src/lib/nav';
+import { withParticle } from '../../src/lib/particle';
 import { requestBlocker } from '../../src/lib/request-gate';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
@@ -327,13 +328,23 @@ export default function Request() {
   const [prefRules, setPrefRules] = useState<AvailRule[] | null>(null);
   useEffect(() => {
     if (!preferred) { setPrefRules(null); return; }
-    fetchRunnerAvailability(preferred).then(setPrefRules).catch(() => setPrefRules(null));
+    // The read is dropped once `preferred` moves on. Without this, a runner's rules that land AFTER
+    // the owner switched to 자동 매칭 (dropNomination below) would re-constrain every slot to a
+    // runner nobody nominated any more — the sheet would say 러너 불가 under 자동 매칭.
+    let alive = true;
+    fetchRunnerAvailability(preferred)
+      .then((r) => { if (alive) setPrefRules(r); })
+      .catch(() => { if (alive) setPrefRules(null); });
+    return () => { alive = false; };
   }, [preferred]);
 
-  const slotAllowed = (di: number, t: string): boolean => {
+  // `rules` defaults to the rendered state. dropNomination's caller passes `null` explicitly: the
+  // state reset lands on the NEXT render, and a pickEarliest() in the same tap would otherwise ask
+  // the dropped runner's rules again and find the same zero slots.
+  const slotAllowed = (di: number, t: string, rules: AvailRule[] | null = prefRules): boolean => {
     const start = toDate(di, t);
     if (start.getTime() < Date.now() + 2 * 3600_000) return false; // 최소 2시간 통보
-    if (!prefRules) return true; // 오픈 매칭 — 서버 홀드가 최종 검증
+    if (!rules) return true; // 오픈 매칭 — 서버 홀드가 최종 검증
     // 요일·분은 KST 벽시계에서 온다. prefRules의 weekday/startMin/endMin이 KST 고정이라, 합성된
     // instant를 로컬 getDay()/getHours()로 되읽으면 UTC 기기에서 다른 요일·다른 분을 물어보게 된다.
     const [slotH, slotM] = t.split(':').map(Number);
@@ -341,7 +352,7 @@ export default function Request() {
     const min = slotH * 60 + slotM;
     // 실소요 = km×8 + 25분 버퍼 (서버 hold와 동일 — 60분 고정은 7km+에서 러너 가용시간을 넘겼다)
     const durMin = expectedDurationMs(km) / 60_000; // 한 벌: src/lib/lateness.ts. draft.km은 pay() 전까지 lag
-    return prefRules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + durMin);
+    return rules.some((r) => r.weekday === wd && r.startMin <= min && r.endMin >= min + durMin);
   };
 
   const addonSum = addons.reduce((s2, k) => s2 + pricing.addons[k].price, 0);
@@ -373,11 +384,11 @@ export default function Request() {
 
   // 가장 빠른 가능 슬롯. 반환값 = 실제로 고를 수 있었는가 — 8일 안에 한 칸도 없으면 false이고,
   // 그때 화면은 '가장 빠른'이라고 우기는 대신 시간을 되묻는다.
-  const pickEarliest = (): boolean => {
+  const pickEarliest = (rules: AvailRule[] | null = prefRules): boolean => {
     for (let di = 0; di < DATES.length; di++) {
       for (const g of SLOT_GROUPS) {
         for (const t of g.times) {
-          if (slotAllowed(di, t)) { setDateIdx(di); pickSlot(t, di); setAutoPicked(true); return true; }
+          if (slotAllowed(di, t, rules)) { setDateIdx(di); pickSlot(t, di); setAutoPicked(true); return true; }
         }
       }
     }
@@ -455,7 +466,7 @@ export default function Request() {
       if (r.status === 'candidate' && candidateAck !== r.id) {
         Alert.alert(
           '아직 점검 전 코스예요',
-          `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
+          `${withParticle(r.name, '는/은')} 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
           [
             {
               text: '다른 코스 볼게요',
@@ -515,6 +526,37 @@ export default function Request() {
     }
     return () => { alive = false; };
   }, [routes, routeId, candidateAck, routesState]));
+
+  // ═══ 지명 해제 — 「자동 매칭으로」 (sweep 2 · owner-journey-3) ═══
+  // Rebooking pre-fills the last run's runner (report.tsx rebook(), home.tsx), and slotAllowed then
+  // limits every slot to that runner's rules. When none of them passes, the screen used to TELL the
+  // owner to 「지명을 해제해주세요」 with no control on it that could — matching?mode=pick only ever
+  // sets a nomination. This is that control, and the no-slot Alert's button runs it too.
+  // The four writes are one act:
+  //   · draft — pay() ③ reads draft.preferredRunnerId after the hold; a screen that says 자동 매칭
+  //     while the draft still holds a runner would send that runner a 지명 anyway.
+  //   · seenDraft.current.pref — the focus sync above compares the draft against what it last
+  //     CONSUMED. Left at the old id, re-picking the SAME runner in matching comes back as 「no
+  //     change」 and is dropped: the draft holds the runner, the screen says 자동 매칭.
+  //   · rulesApplied — the late-rules effect runs once per runner id; re-nominating the same runner
+  //     must re-check the chosen slot against their rules, not skip it as already done.
+  //   · state — the chip, the quiet note, the sheet's 러너 불가 and the rules fetch all key off it.
+  // `rules` is then null for this tap's own pickEarliest — see slotAllowed.
+  // `thenEarliest` = the owner asked for 가장 빠른 시간 (the no-slot Alert). ⚠ Never pass this
+  // function as a bare onPress: the press event is truthy and would read as `thenEarliest`.
+  const dropNomination = (thenEarliest = false) => {
+    draft.preferredRunnerId = null;
+    draft.preferredRunnerName = null;
+    seenDraft.current.pref = null;
+    rulesApplied.current = null;
+    setPreferred(null);
+    setPreferredName(null);
+    haptic('light');
+    // A nominated runner whose rules passed nothing left the time EMPTY (late-rules effect). Open
+    // matching allows every slot past the 2-hour floor, so fill it; from the row, a time the owner
+    // already has is left alone — dropping a restriction cannot make it invalid.
+    if (thenEarliest || !draft.scheduledAtIso) pickEarliest(null);
+  };
 
   const payBusy = useRef(false);
   // [카드 게이트 · Sean 2026-08-26] 「모든 선호가 채워지고 러너·코스가 정해진 뒤, 요청이 나가기
@@ -1045,13 +1087,23 @@ export default function Request() {
               draft 두 칸을 쓰고 돌아온다 — pay() ③ 이 그 지명을 홀드 직후에 보낸다).
               pace 를 같이 넘기는 이유: 순위의 페이스 축은 **이 화면이 지금 쥔 값**을 기준으로
               해야 한다. draft.pace 는 pay() 에서만 갱신되므로 지난 플로우의 잔여물일 수 있다. */}
-          <Pressable onPress={() => router.push(`/owner/matching?mode=pick&pace=${encodeURIComponent(pace)}`)} style={s.prefRow} accessibilityRole="button" accessibilityLabel="러너 직접 고르기">
+          <Pressable onPress={() => router.push(`/owner/matching?mode=pick&pace=${encodeURIComponent(pace)}`)} style={[s.prefRow, !!preferred && s.prefRowJoined]} accessibilityRole="button" accessibilityLabel="러너 직접 고르기">
             <Text style={s.prefLabel}>러너</Text>
             <View style={s.prefValueBox}>
               <Text style={s.prefValue} numberOfLines={1}>{preferred ? (preferredName ?? '지명 러너') : '자동 매칭'}</Text>
             </View>
             <Text style={s.prefAction}>{preferred ? '다시 고르기 ›' : '직접 고르기 ›'}</Text>
           </Pressable>
+          {/* 지명 해제 — a SIBLING of the row, not a child: a Pressable nested inside the row's
+              Pressable is folded into the row's one VoiceOver element and cannot be reached.
+              Quiet by design (no fill, no border); the screen's one primary stays the CTA dock. */}
+          {preferred && (
+            <View style={s.prefSubRow}>
+              <Pressable onPress={() => dropNomination()} style={s.prefSubHit} accessibilityRole="button" accessibilityLabel="지명 해제하고 자동 매칭으로 바꾸기">
+                <Text style={s.prefSubAction}>자동 매칭으로 ›</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* 어디서 — 준비 전에는 주소를 그리지 않는다. 로딩·실패·미등록을 각각 말한다 */}
           <Pressable onPress={() => router.push('/owner/addresses')} style={s.prefRow} accessibilityRole="button" accessibilityLabel="픽업 주소 변경">
@@ -1322,7 +1374,7 @@ export default function Request() {
                             // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
                             Alert.alert(
                               '아직 점검 전 코스예요',
-                              `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
+                              `${withParticle(r.name, '는/은')} 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
                               [
                                 { text: '다른 코스 볼게요', style: 'cancel' },
                                 {
@@ -1495,12 +1547,21 @@ export default function Request() {
               accessibilityRole="button"
               onPress={() => {
                 if (pickEarliest()) return;
-                Alert.alert(
-                  '고를 수 있는 시간이 없어요',
-                  preferred
-                    ? `앞으로 8일 안에 ★ ${preferredName ?? '지명'} 러너가 가능한 시간이 없어요 — 날짜·시간을 직접 고르거나 지명을 해제해주세요`
-                    : '앞으로 8일 안에 고를 수 있는 시간이 없어요 — 날짜·시간을 직접 골라주세요',
-                );
+                // [sweep 2 · owner-journey-3] With a nomination, the body used to end in an
+                // instruction — 「지명을 해제해주세요」 — that no control on this screen could carry
+                // out. The Alert now carries the action itself (dropNomination fills the time).
+                if (preferred) {
+                  Alert.alert(
+                    '고를 수 있는 시간이 없어요',
+                    `앞으로 8일 안에 ★ ${preferredName ?? '지명'} 러너가 가능한 시간이 없어요`,
+                    [
+                      { text: '닫기', style: 'cancel' },
+                      { text: '자동 매칭으로 바꾸기', onPress: () => dropNomination(true) },
+                    ],
+                  );
+                  return;
+                }
+                Alert.alert('고를 수 있는 시간이 없어요', '앞으로 8일 안에 고를 수 있는 시간이 없어요 — 날짜·시간을 직접 골라주세요');
               }}
             >
               <Text style={{ fontSize: 15, fontWeight: '700', color: paper.text }}>가장 빠른 시간</Text>
@@ -1716,6 +1777,15 @@ const s = StyleSheet.create({
   // 값이 아니라 **상태**를 말하는 자리 (주소 로딩·실패·미등록) — 굵은 잉크로 그리면 주소로 읽힌다
   prefValueState: { fontSize: 15, color: paper.dim, textAlign: 'right' },
   prefAction: { fontSize: 15, fontWeight: '800', color: paper.ink, marginLeft: 10, marginTop: 1 },
+  // 러너 row + its 지명 해제 line read as ONE row: the row gives up its hairline and bottom
+  // padding, and the sub-line under it carries the hairline instead.
+  prefRowJoined: { borderBottomWidth: 0, paddingBottom: 2 },
+  prefSubRow: { alignItems: 'flex-end', paddingBottom: 6, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  // The hit area is the words, not the full-width strip: a stray tap on the blank left of the row
+  // must not drop a runner the owner chose.
+  prefSubHit: { minHeight: 44, justifyContent: 'center', paddingLeft: 12 },   // 44pt 터치 타깃 (a11y 계약)
+  // Quiet action: a notch below the row's own 다시 고르기 (text, not ink; 700, not 800).
+  prefSubAction: { fontSize: 15, fontWeight: '700', color: paper.text },
   moreRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
