@@ -17,14 +17,19 @@
 // THE MUTATIONS THAT REDDEN THIS FILE: flip the window back to ascending · return the page without
 // reversing it · cursor off the NEWEST held message instead of the oldest · call a full page the
 // last one · keep the door visible once the history is exhausted · turn busy into a disabled
-// button · let an unknown or empty kind fall through to a bare body.
+// button · let an unknown or empty kind fall through to a bare body · [codex #2] cursor by
+// smallest ID instead of by (created_at, id) · drop the id tie-breaker from either read · page on
+// `created_at <` alone (the boundary-tie pin at ⑧b reproduces the reviewer's measured hole) ·
+// [codex #1] record a read on focus BEFORE the refresh, or after a FAILED one · let a
+// realtime-only message be acknowledged (⑩).
 const {
   CHAT_PAGE_SIZE, olderCursor, toDisplayOrder, pageIsLast, olderDoorState, olderDoorLabel,
   OLDER_DOOR_LABEL, OLDER_DOOR_BUSY_LABEL, chatBubble,
   CHAT_KIND_LOCATION_LABEL, CHAT_KIND_UNSUPPORTED_LABEL, CHAT_EMPTY_LABEL,
 } = require('./chat-window.build.cjs');
 const {
-  mergeMessageSnapshot, snapshotGap, gapClosedBy, GAP_DOOR_LABEL,
+  mergeMessageSnapshot, snapshotGap, gapClosedBy, GAP_DOOR_LABEL, compareMessageOrder,
+  olderThanCursorFilter,
 } = require('./chat-messages.build.cjs');
 
 let pass = 0, fail = 0;
@@ -34,6 +39,8 @@ const t = (name, cond, detail = '') => {
 };
 
 const msg = (id, iso, over) => Object.assign({ id, createdAt: iso, body: 'm' + id, kind: 'text', mediaUrl: null }, over);
+/** A real server instant for message n — `olderCursor` refuses a timestamp it cannot place. */
+const at = (n) => new Date(Date.UTC(2026, 8, 23, 10, 0, 0) + n * 1000).toISOString();
 
 // ── ① the window is the NEWEST page ───────────────────────────────────────────────────────────
 // The server read is `order('created_at', {ascending:false}).limit(n)` — newest first — and the
@@ -46,13 +53,26 @@ t('reversing does not mutate the array the caller handed in',
   JSON.stringify(serverPage.map((m) => m.id)) === JSON.stringify([9, 8, 7]));
 t('the window is 100 — the same number the server LIMITs by', CHAT_PAGE_SIZE === 100);
 
-// ── ② the cursor is the OLDEST held message ───────────────────────────────────────────────────
-// Cursoring off the newest would page the thread that is already on screen, forever.
+// ── ② the cursor is the OLDEST held message, as the (created_at, id) PAIR ─────────────────────
+// Cursoring off the newest would page the thread that is already on screen, forever. And since
+// [0223 · codex #2] the cursor is the PAIR the server orders by: `created_at` alone left a
+// same-instant sibling unreachable, and 「smallest id」 is not 「oldest」 — concurrent inserts need
+// not commit in start order.
 const held = [msg(7, '2026-09-23T10:07:00Z'), msg(8, '2026-09-23T10:08:00Z'), msg(9, '2026-09-23T10:09:00Z')];
-t('the cursor is the created_at of the oldest held message',
-  olderCursor(held) === '2026-09-23T10:07:00Z', String(olderCursor(held)));
-t('the cursor reads the oldest by ID, not by array position (an unsorted array cannot fool it)',
-  olderCursor([msg(9, 'C'), msg(7, 'A'), msg(8, 'B')]) === 'A');
+t('the cursor is the (created_at, id) of the oldest held message',
+  JSON.stringify(olderCursor(held)) === JSON.stringify({ createdAt: '2026-09-23T10:07:00Z', id: 7 }),
+  JSON.stringify(olderCursor(held)));
+t('the cursor reads the oldest by ORDER, not by array position (an unsorted array cannot fool it)',
+  olderCursor([msg(9, '2026-09-23T10:09:00Z'), msg(7, '2026-09-23T10:07:00Z'), msg(8, '2026-09-23T10:08:00Z')]).id === 7);
+t('🔴 [#2] an OLDER instant with a LARGER id is the oldest — the server pages by time first, id second',
+  olderCursor([msg(7, '2026-09-23T10:07:00.000500Z'), msg(8, '2026-09-23T10:07:00.000400Z')]).id === 8);
+t('🔴 [#2] …and that is decided at the MICROSECOND — Date.parse alone would call those two equal',
+  Date.parse('2026-09-23T10:07:00.000500Z') === Date.parse('2026-09-23T10:07:00.000400Z'));
+t('[#2] equal instants fall back to the smaller id, which is the server\'s tie rule',
+  olderCursor([msg(8, '2026-09-23T10:07:00Z'), msg(7, '2026-09-23T10:07:00Z')]).id === 7);
+t('a message that cannot be placed in time is never the cursor — the server could not use it',
+  olderCursor([msg(3, ''), msg(4, '2026-09-23T10:07:00Z')]).id === 4
+  && olderCursor([msg(3, 'not a date')]) === null);
 t('no messages means no cursor (and therefore no request)', olderCursor([]) === null);
 
 // ── ③ when the history has run out ────────────────────────────────────────────────────────────
@@ -83,26 +103,26 @@ t('the door says what it opens, in the product\'s own words', OLDER_DOOR_LABEL =
 // `mergeMessageSnapshot` is a union keyed by id and sorted by id, so an OLDER page merging below
 // the window has to behave exactly like a newer snapshot merging above it. This is the pin that
 // makes paging safe: the screen calls the same merge in both directions.
-const window100 = [msg(101, 'w1'), msg(102, 'w2'), msg(103, 'w3')];
-const olderPage = [msg(98, 'o1'), msg(99, 'o2'), msg(100, 'o3')];
+const window100 = [msg(101, at(101)), msg(102, at(102)), msg(103, at(103))];
+const olderPage = [msg(98, at(98)), msg(99, at(99)), msg(100, at(100))];
 const afterOlder = mergeMessageSnapshot(window100, olderPage);
 t('an older page merges BELOW the window, in id order',
   JSON.stringify(afterOlder.map((m) => m.id)) === JSON.stringify([98, 99, 100, 101, 102, 103]),
   JSON.stringify(afterOlder.map((m) => m.id)));
 t('an older page that overlaps the window does not duplicate anything',
-  JSON.stringify(mergeMessageSnapshot(window100, [msg(100, 'o3'), msg(101, 'w1')]).map((m) => m.id))
+  JSON.stringify(mergeMessageSnapshot(window100, [msg(100, at(100)), msg(101, at(101))]).map((m) => m.id))
   === JSON.stringify([100, 101, 102, 103]));
 t('the message already held wins the overlap (it is at least as fresh as the page)',
-  mergeMessageSnapshot([msg(101, 'w1', { body: 'held' })], [msg(101, 'w1', { body: 'page' })])[0].body === 'held');
+  mergeMessageSnapshot([msg(101, at(101), { body: 'held' })], [msg(101, at(101), { body: 'page' })])[0].body === 'held');
 // Two pages loaded back to back, then a poll of the newest window on top: nothing may be lost and
 // nothing may double.
-const twoPages = mergeMessageSnapshot(afterOlder, [msg(95, 'p1'), msg(96, 'p2'), msg(97, 'p3')]);
-const thenPolled = mergeMessageSnapshot(twoPages, [msg(103, 'w3'), msg(104, 'w4')]);
+const twoPages = mergeMessageSnapshot(afterOlder, [msg(95, at(95)), msg(96, at(96)), msg(97, at(97))]);
+const thenPolled = mergeMessageSnapshot(twoPages, [msg(103, at(103)), msg(104, at(104))]);
 t('two older pages plus a newer poll produce one unbroken, deduped run',
   JSON.stringify(thenPolled.map((m) => m.id)) === JSON.stringify([95, 96, 97, 98, 99, 100, 101, 102, 103, 104]),
   JSON.stringify(thenPolled.map((m) => m.id)));
 t('the cursor after paging points at the NEW oldest, so the next tap goes further back',
-  olderCursor(thenPolled) === 'p1');
+  olderCursor(thenPolled).id === 95 && olderCursor(thenPolled).createdAt === at(95));
 
 // ── ⑥ every kind gets a shape, and none of them is nothing ────────────────────────────────────
 t('a plain text message is a text bubble',
@@ -241,7 +261,7 @@ t('the source extractor found all three function bodies (control — a broken ex
   && newest.length > 0 && older.length > 0 && mapper.length > 0,
   `newest=${newest && newest.length} older=${older && older.length} mapper=${mapper && mapper.length}`);
 t('the extractor scopes to ONE body — fetchMessages does not contain fetchOlderMessages\' cursor',
-  typeof newest === 'string' && !newest.includes(".lt('created_at'"));
+  typeof newest === 'string' && !newest.includes('olderThanCursorFilter('));
 
 t('THE DEFECT: fetchMessages reads the NEWEST page, not the oldest',
   typeof newest === 'string' && newest.includes('ascending: false'));
@@ -251,8 +271,15 @@ t('fetchMessages limits by the window this module owns, not a loose literal',
   typeof newest === 'string' && newest.includes('.limit(CHAT_PAGE_SIZE)'));
 t('fetchMessages hands the page back in display order',
   typeof newest === 'string' && newest.includes('toDisplayOrder('));
-t('fetchOlderMessages pages strictly older, on the server\'s created_at',
-  typeof older === 'string' && older.includes(".lt('created_at', beforeCreatedAt)"));
+t('🔴 [#2] fetchOlderMessages pages strictly older on the (created_at, id) PAIR — the filter this module pins',
+  typeof older === 'string' && older.includes('.or(olderThanCursorFilter(before))')
+  && !older.includes(".lt('created_at'"));
+t('🔴 [#2] BOTH reads carry the id tie-breaker after the timestamp, so the window is a suffix of one total order',
+  typeof newest === 'string' && typeof older === 'string'
+  && newest.includes(".order('created_at', { ascending: false })") && newest.includes(".order('id', { ascending: false })")
+  && older.includes(".order('created_at', { ascending: false })") && older.includes(".order('id', { ascending: false })")
+  && newest.indexOf(".order('created_at'") < newest.indexOf(".order('id'")
+  && older.indexOf(".order('created_at'") < older.indexOf(".order('id'"));
 t('fetchOlderMessages reads newest-first and reverses, like its sibling',
   typeof older === 'string' && older.includes('ascending: false') && older.includes('toDisplayOrder('));
 t('fetchOlderMessages limits by the same window',
@@ -279,10 +306,13 @@ t('mapMsg carries the server createdAt through — the paging cursor cannot be a
 //   screen. It proves the three decisions compose; that `chat.tsx` actually calls them is the
 //   SOURCE pin at ⑨, and NEITHER IS EVIDENCE FOR THE OTHER.
 const thread = [];
-for (let id = 1; id <= 400; id += 1) thread.push(msg(id, 't' + String(id).padStart(3, '0')));
+for (let id = 1; id <= 400; id += 1) thread.push(msg(id, at(id)));
+/** The server's order and its strict-less-than on the PAIR — what `olderThanCursorFilter` asks for. */
+const byPair = (a, b) => compareMessageOrder(a, b);
+const olderThanPair = (m, c) => byPair(m, c) < 0;
 /** The server: every message strictly older than the cursor, newest first, capped at one window,
  *  handed back in display order — exactly `fetchOlderMessages`. */
-const olderThan = (cursor) => thread.filter((m) => m.createdAt < cursor).slice(-CHAT_PAGE_SIZE);
+const olderThan = (cursor) => thread.filter((m) => olderThanPair(m, cursor)).sort(byPair).slice(-CHAT_PAGE_SIZE);
 
 const fillDriver = (held, afterId, cursor, server, maxPages) => {
   let list = held, pages = 0, closed = false;
@@ -320,7 +350,7 @@ t('🔴 a bound that runs out STOPS — it does not spin, and it does not preten
   two.closed === false && two.pages === 2);
 t('…and the cursor it stops on is further back than the one it started from, so the door resumes '
   + 'rather than repeating a page',
-  two.cursor < olderCursor(reconnect) && two.list.length > merged.length);
+  compareMessageOrder(two.cursor, olderCursor(reconnect)) < 0 && two.list.length > merged.length);
 t('…and not one held message was dropped on the way',
   heldOld.every((m) => two.list.some((x) => x.id === m.id)));
 
@@ -329,6 +359,37 @@ const emptyHole = fillDriver(merged, hole.afterId, olderCursor(reconnect), () =>
 t('a hole the server has nothing for closes on the first page — a door that could only ever '
   + 'return nothing is a dead control',
   emptyHole.closed === true && emptyHole.pages === 1);
+
+// ── ⑧b the BOUNDARY TIE — the reviewer's measured hole, reproduced and closed ─────────────────
+// 101 messages sharing one instant. The window holds the newest 100. The old predicate
+// (`created_at <` the cursor's instant) returns NOTHING for the 101st, which is then unreachable
+// forever; the pair predicate returns exactly it. The control is the OLD predicate, run on the
+// same fixture, so 「the hole is real」 and 「the fix closes it」 are two observations, not one.
+const TIED_AT = '2026-09-23T11:00:00.123456Z';
+const tied = [];
+for (let id = 1; id <= 101; id += 1) tied.push(msg(id, TIED_AT));
+const pairServer = (c) => tied.filter((m) => olderThanPair(m, c)).sort(byPair).slice(-CHAT_PAGE_SIZE);
+const timeOnlyServer = (c) => tied.filter((m) => m.createdAt < c.createdAt).slice(-CHAT_PAGE_SIZE);
+const tiedWindow = tied.slice(-CHAT_PAGE_SIZE);
+const tiedCursor = olderCursor(tiedWindow);
+t('control — the OLD predicate returns NOTHING for the 101st message: the defect reproduces on this fixture',
+  tiedCursor !== null && timeOnlyServer(tiedCursor).length === 0);
+t('🔴 [#2] the pair predicate reaches the 101st message — every message is reachable',
+  tiedCursor !== null && pairServer(tiedCursor).length === 1 && pairServer(tiedCursor)[0].id === 1,
+  JSON.stringify(tiedCursor));
+t('🔴 [#2] …and the filter the server actually receives is that pair, verbatim, timestamp quoted',
+  tiedCursor !== null && olderThanCursorFilter(tiedCursor)
+    === `created_at.lt."${TIED_AT}",and(created_at.eq."${TIED_AT}",id.lt.2)`,
+  tiedCursor && olderThanCursorFilter(tiedCursor));
+t('[#2] the same cursor drives the gap fill: a hole whose far side is the tie closes through it',
+  (() => {
+    const heldBelow = [msg(0, '2026-09-23T10:59:00Z')];
+    const hole = snapshotGap(heldBelow, tiedWindow);
+    if (hole === null) return false;
+    const out = fillDriver(mergeMessageSnapshot(heldBelow, tiedWindow), hole.afterId, tiedCursor,
+      (c) => tied.concat(heldBelow).filter((m) => olderThanPair(m, c)).sort(byPair).slice(-CHAT_PAGE_SIZE), 3);
+    return out.closed === true && out.list.length === 102;
+  })());
 
 t('the mid-thread door does not borrow the other door\'s word …', GAP_DOOR_LABEL !== OLDER_DOOR_LABEL);
 t('… but it DOES share the busy one — two words for one state is how a screen starts lying',
@@ -348,8 +409,11 @@ const marks = CHAT.split('shouldMarkRead({').length - 1;
 const focusArgs = CHAT.split('focused:').length - 1;
 t('🔴 [c1] EVERY shouldMarkRead call site passes the navigation-focus fact',
   marks > 0 && marks === focusArgs, `${marks} calls / ${focusArgs} focused:`);
-t('[c1] …and there are three of them: open/message, focus regained, app returned',
-  marks === 3, String(marks));
+// [0223 · codex #1] ONE, not three. The focus-regained and app-returned callbacks no longer judge
+// (or record) anything: they refresh, and the single acknowledgement effect judges on the commit
+// that renders the refreshed snapshot — so every path into a read passes through one call site.
+t('[c1 → #1] …and there is exactly ONE of them — the acknowledgement effect every path goes through',
+  marks === 1, String(marks));
 // ⚠ The count above cannot tell `focused: screenFocused.current` from a hard-wired `focused: true`
 // — and neither can tsc, which only demands the field. Stated without reference to any mutation:
 // a call site that can RUN while the screen is not focused must read the live ref; only the focus
@@ -378,6 +442,62 @@ t('[c3] a closed hole REMOVES the door rather than leaving a control that fetche
   CHAT.includes('setGapDoor(null)'));
 t('[c3] the fill is bounded by a named constant, not by a loop that decides for itself',
   /const GAP_FILL_MAX_PAGES = \d+;/.test(CHAT) && CHAT.includes('i < GAP_FILL_MAX_PAGES'));
+
+// ── ⑩ [0223 · codex #1] refresh FIRST, acknowledge only what a fetch returned and the screen drew ──
+// The defect: the focus and app-return callbacks recorded a read IMMEDIATELY, on the previously
+// ready screen, before the poll refetched — so messages that arrived during a suspension became
+// 「읽음」 to the peer without ever being drawn, and stayed so when the refresh then failed.
+// Source pins, because no test can drive the route module; `chat-read.test.cjs` pins the
+// judgment (which message, and when) and neither is evidence for the other.
+const focusStart = CHAT.indexOf('useFocusEffect(useCallback(() => {');
+const focusEnd = CHAT.indexOf('}, [refreshThenRead]));');
+const appStart = CHAT.indexOf("AppState.addEventListener('change'");
+const appEnd = CHAT.indexOf('return () => sub.remove();');
+const refreshStart = CHAT.indexOf('const refreshThenRead = useCallback(');
+const refreshEnd = CHAT.indexOf('}, [absorbSnapshot]);', refreshStart);
+const ackStart = CHAT.indexOf('if (!shouldMarkRead({');
+const ackEnd = CHAT.indexOf('}, [ctx, state, msgs, gapDoor, ackTick, recordRead]);');
+const focusBlock = CHAT.slice(focusStart, focusEnd);
+const appBlock = CHAT.slice(appStart, appEnd);
+const refreshBody = CHAT.slice(refreshStart, refreshEnd);
+const ackBody = CHAT.slice(CHAT.lastIndexOf('useEffect(() => {', ackStart), ackEnd);
+t('control — the four blocks were found (an extractor that matched nothing would make every arm below vacuous)',
+  focusStart > 0 && focusEnd > focusStart && appStart > 0 && appEnd > appStart
+  && refreshStart > 0 && refreshEnd > refreshStart && ackStart > 0 && ackEnd > ackStart && ackBody.length > 0,
+  `focus=${focusStart}..${focusEnd} app=${appStart}..${appEnd} refresh=${refreshStart}..${refreshEnd} ack=${ackStart}..${ackEnd}`);
+t('🔴 [#1] neither the focus callback nor the app-return listener records a read — both only refresh',
+  focusBlock.includes('refreshThenRead(') && !focusBlock.includes('recordRead(') && !focusBlock.includes('markChatRead(')
+  && appBlock.includes('refreshThenRead(') && !appBlock.includes('recordRead(') && !appBlock.includes('markChatRead('));
+const catchStart = refreshBody.indexOf('catch (e) {');
+const catchEnd = refreshBody.indexOf('if (!mounted.current || ctxRef.current !== opCtx) return;');
+const catchBlock = refreshBody.slice(catchStart, catchEnd);
+t('🔴 [#1] the refresh AWAITS the fetch before it asks for an acknowledgement, and a FAILED fetch returns having asked for nothing',
+  catchStart > 0 && catchEnd > catchStart
+  && refreshBody.indexOf('await fetchMessages(') >= 0
+  && refreshBody.indexOf('await fetchMessages(') < refreshBody.indexOf('focusAckDue.current = true')
+  && refreshBody.indexOf('absorbSnapshot(opCtx, next)') < refreshBody.indexOf('focusAckDue.current = true')
+  && catchBlock.includes('return;') && catchBlock.includes('setPollErr(true)')
+  && !catchBlock.includes('focusAckDue') && !catchBlock.includes('setAckTick') && !catchBlock.includes('recordRead('),
+  JSON.stringify(catchBlock));
+t('🔴 [#1] the refresh itself records nothing — the record happens in the effect, on the commit that renders it',
+  !refreshBody.includes('recordRead(') && !refreshBody.includes('markChatRead(') && !refreshBody.includes('shouldMarkRead('));
+t('[#1] exactly one record in the file, inside the acknowledgement effect, and it names a message',
+  (CHAT.match(/recordRead\(/g) || []).length === 1 && (CHAT.match(/markChatRead\(/g) || []).length === 1
+  && ackBody.includes('recordRead(ctx.threadId, target,'));
+t('🔴 [#1] the target is the newest peer message a FETCH returned, under the gap ceiling',
+  /newestPeerMessageId\(msgs, \{ ceilingId, fetchedIds: fetchedIds\.current \}\)/.test(ackBody)
+  && ackBody.includes('const ceilingId = gapDoor === null ? null : gapDoor.afterId;'));
+t('🔴 [#1] ids become acknowledgeable only through a fetch: the snapshot merge notes them, the realtime handler does not',
+  bodyOf(CHAT, 'const absorbSnapshot = useCallback(') !== null
+  && bodyOf(CHAT, 'const absorbSnapshot = useCallback(').includes('noteFetched(snapshot)')
+  && (() => {
+    const i = CHAT.indexOf('unsub = subscribeMessages(');
+    const j = CHAT.indexOf('}, (s) => {', i);
+    return i > 0 && j > i && !CHAT.slice(i, j).includes('noteFetched(') && !CHAT.slice(i, j).includes('setAckTick(');
+  })());
+t('[#1] the skew-window fallback to now() is asked for only with no hole open and the target the newest peer message held',
+  ackBody.includes('recordRead(ctx.threadId, target, ceilingId === null && newestHeld === target)')
+  && ackBody.includes('const newestHeld = newestPeerMessageId(msgs);'));
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

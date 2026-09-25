@@ -5,10 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import {
-  GAP_DOOR_LABEL, gapClosedBy, mergeMessageSnapshot, snapshotGap,
+  GAP_DOOR_LABEL, gapClosedBy, mergeMessageSnapshot, MessageCursor, snapshotGap,
 } from '../src/lib/chat-messages';
 import {
-  MarkReadReason, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
+  MarkReadReason, newestPeerMessageId, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
 } from '../src/lib/chat-read';
 import {
   CHAT_PAGE_SIZE, chatBubble, OLDER_DOOR_BUSY_LABEL, olderCursor, olderDoorLabel, olderDoorState,
@@ -98,6 +98,22 @@ export default function Chat() {
   // RPC 를 부르지 않게 하는 게이트이고, 「열었다」와 「새 메시지가 왔다」를 가르는 기준이다.
   const markedOpen = useRef(false);
   const lastMarkedPeer = useRef<number | null>(null);
+  // [0223 · codex #1] The ids a SUCCESSFUL FETCH has returned — the only messages a read may be
+  // recorded up to (chat-read.ts `newestPeerMessageId`). A snapshot is the newest window of one
+  // server order, so every message between its oldest and its newest was in it, and below its
+  // oldest lies either the history the screen already holds or a hole it has marked (the gap
+  // ceiling). A message that arrived by realtime alone carries no such guarantee — the channel
+  // drops events across a reconnect, and the dropped ones sit below the delivered one, undrawn —
+  // so it waits for the next successful poll to vouch for it. Message ids are unique across the
+  // whole table, so a stale id from another thread can never match; the set is still reset with
+  // the thread, for hygiene.
+  const fetchedIds = useRef<Set<number>>(new Set());
+  // Bumped when a fetch vouches for ids the screen already held (merge returns the same array, so
+  // `msgs` alone would not re-run the acknowledgement), and after every successful return-refresh.
+  const [ackTick, setAckTick] = useState(0);
+  // Set by a successful return-refresh, consumed by the acknowledgement effect on the commit that
+  // renders it: the acknowledgement for 'focus' happens AFTER the refreshed snapshot is on screen.
+  const focusAckDue = useRef(false);
   // [codex r3-13] bid 교체는 초안·전송 플래그도 비운다 — A용 초안이 B 스레드로 전송될 수 있었고,
   // A의 진행 중 전송이 B의 보내기를 막았다. 60행의 공유 리셋 목록에 넣지 않는 이유: 그 목록은
   // loadAttempt(같은 스레드 재시도)에도 돌아, 재시도마다 멀쩡한 초안을 지우게 된다.
@@ -133,17 +149,27 @@ export default function Chat() {
   /** 한 번에 하나의 메우기만 — 폴 간격(5~15초)은 한 번의 백필보다 짧을 수 있다. */
   const gapFilling = useRef(false);
   /** 스스로 메우지 못한 구멍. `afterId` 아래에 문이 그려지고, `cursor` 가 다음 페이지의 기준이다. */
-  const [gapDoor, setGapDoor] = useState<{ afterId: number; cursor: string } | null>(null);
+  const [gapDoor, setGapDoor] = useState<{ afterId: number; cursor: MessageCursor } | null>(null);
   const [gapBusy, setGapBusy] = useState(false);
+
+  /** Record that a fetch returned these messages. True when it vouched for an id not seen before. */
+  const noteFetched = useCallback((page: readonly ChatMsg[]): boolean => {
+    let grew = false;
+    for (const m of page) {
+      if (!fetchedIds.current.has(m.id)) { fetchedIds.current.add(m.id); grew = true; }
+    }
+    return grew;
+  }, []);
 
   /** 구멍 위에서 아래로 최대 `GAP_FILL_MAX_PAGES` 페이지를 당겨 온다. 닫혔는지와 다음 커서를
    *  돌려주고, 쓰기는 전부 스레드 정체(ctxRef)로 게이트한다 — send/deliverPhoto 와 같은 관용구. */
-  const fillGap = useCallback(async (opCtx: ChatContext, afterId: number, fromCursor: string) => {
+  const fillGap = useCallback(async (opCtx: ChatContext, afterId: number, fromCursor: MessageCursor) => {
     let cursor = fromCursor;
     for (let i = 0; i < GAP_FILL_MAX_PAGES; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       const page = await fetchOlderMessages(opCtx.threadId, cursor);
       if (!mounted.current || ctxRef.current !== opCtx) return { closed: false, cursor };
+      noteFetched(page);
       // 읽는 사람 위로 자라는 것이므로 loadOlder 와 같은 스크롤 억제를 쓴다.
       holdScroll.current = true;
       setMsgs((current) => mergeMessageSnapshot(current, page));
@@ -155,13 +181,18 @@ export default function Chat() {
       cursor = next;
     }
     return { closed: false, cursor };
-  }, []);
+  }, [noteFetched]);
 
   /** 최신 스냅샷을 화면에 들인다 — 머지 + 구멍 탐지 + (a) 자동 메우기.
    *  ⚠ 구멍은 **이 순간에만** 관측된다: 머지가 끝나면 held 가 스냅샷을 포함하므로 다음 틱의
-   *    `snapshotGap` 은 영원히 null 이다. 그래서 메우기를 시도하기 **전에** 문을 먼저 기록한다. */
+   *    `snapshotGap` 은 영원히 null 이다. 그래서 메우기를 시도하기 **전에** 문을 먼저 기록한다.
+   *  [0223] Every caller holds a SUCCESSFUL fetch, so this is also where ids become acknowledgeable
+   *  (`noteFetched`). The door below is set in the same synchronous block as the merge, so the
+   *  commit that renders a hole also renders its door — the acknowledgement effect never sees one
+   *  without the other. */
   const absorbSnapshot = useCallback((opCtx: ChatContext, snapshot: ChatMsg[]) => {
     const held = msgsRef.current;
+    if (noteFetched(snapshot)) setAckTick((n) => n + 1);
     setMsgs((current) => mergeMessageSnapshot(current, snapshot));
     const hole = snapshotGap(held, snapshot);
     const cursor = olderCursor(snapshot);
@@ -189,7 +220,7 @@ export default function Chat() {
         gapFilling.current = false;
         if (mounted.current && ctxRef.current === opCtx) setGapBusy(false);
       });
-  }, [fillGap]);
+  }, [fillGap, noteFetched]);
 
   /** (b) 문. 자동 메우기가 한도에 걸렸거나 실패했을 때만 존재한다. */
   const loadGap = useCallback(() => {
@@ -220,6 +251,7 @@ export default function Chat() {
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
     setOlderBusy(false); setOlderExhausted(false); setPeerReadAt(null);
     setGapDoor(null); setGapBusy(false); gapFilling.current = false;
+    fetchedIds.current = new Set(); focusAckDue.current = false;
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -230,6 +262,7 @@ export default function Chat() {
         const history = await fetchMessages(c.threadId);
         if (!alive) return;
         setCtx(c);
+        noteFetched(history);
         // ⚠ 여기만 `absorbSnapshot` 을 쓰지 않는다: 위에서 msgs 를 비웠고 msgsRef 는 아직 **이전
         //   스레드**의 배열을 들고 있어(렌더 뒤에 갱신된다) 구멍 탐지가 남의 대화를 기준으로 돈다.
         //   첫 페이지는 창 그 자체이므로 구멍이 있을 수 없고, 그 아래는 olderExhausted 가 맡는다.
@@ -260,7 +293,7 @@ export default function Chat() {
       }
     })();
     return () => { alive = false; };
-  }, [bid, isRunner, loadAttempt]);
+  }, [bid, isRunner, loadAttempt, noteFetched]);
 
   // 실시간 수신 — 내 발신도 서버 에코로 수신 (중복은 id로 방지)
   // [leak 2026-08-20] alive 가드가 없었다. cleanup이 `unsub` 초기값(빈 함수)을 실행한 뒤에
@@ -342,71 +375,98 @@ export default function Chat() {
     return () => { alive = false; clearInterval(t); };
   }, [ctx, state, link]);
 
-  // ── [0212] 내가 읽었다는 사실을 기록한다 — 열었을 때 · 새 메시지가 왔을 때 ──────────────
-  // 판정은 전부 chat-read.ts 의 `shouldMarkRead` 가 한다 (테스트가 닿는 유일한 자리).
-  // ⚠ **백그라운드면 아무것도 기록하지 않는다.** Expo Router 는 이전 화면을 마운트한 채로 두고
-  //   위 폴러도 계속 도므로, 잠금 화면 뒤의 채팅 화면에도 메시지는 계속 들어온다. 그걸 읽음으로
-  //   표시하면 상대에게 **아무도 보지 않은 메시지**를 「읽음」이라고 말하게 된다 — 일어나지 않은
-  //   사람의 행동을 앱이 주장하는 것이고, 주머니 속 전화기는 아무것도 읽지 않는다.
-  const recordRead = useCallback((threadId: string) => {
-    markChatRead(threadId).catch((e) => console.warn('[chat] mark read:', (e as Error)?.message ?? e));
+  // ── [0212 → 0223] recording that the caller has read — open · a fetched message · coming back ──
+  // Every judgment is `shouldMarkRead`'s (chat-read.ts — the only place a test can reach), and
+  // there is exactly ONE call site: the effect below.
+  // ⚠ **A backgrounded screen records nothing.** Expo Router keeps the previous screen mounted and
+  //   the poller above keeps running, so a chat screen behind a lock screen keeps receiving
+  //   messages. Marking those read would tell the counterpart 「읽음」 about a message nobody looked
+  //   at — the app asserting a human action that did not happen. A phone in a pocket reads nothing.
+  // 🔴 [0223 · codex #1] A read is recorded UP TO A MESSAGE, never 「up to now」. 0212's RPC wrote the
+  //   server's now(), and the focus and app-return callbacks fired it BEFORE their refetch, on the
+  //   screen as it was before a suspension — so every peer message that had piled up on the server
+  //   became 「읽음」 unseen, and stayed so if the refetch then failed. Now:
+  //   (a) coming back refreshes FIRST (`refreshThenRead`); a failed refresh records nothing;
+  //   (b) the record happens in this effect, i.e. on the COMMIT that renders the refreshed snapshot;
+  //   (c) it names the newest peer message a SUCCESSFUL fetch returned, below any open hole
+  //       (`newestPeerMessageId`), and the server writes that message's created_at (0223).
+  const recordRead = useCallback((threadId: string, upToMessageId: number, legacyFallback: boolean) => {
+    markChatRead(threadId, upToMessageId, { legacyFallback })
+      .catch((e) => console.warn('[chat] mark read:', (e as Error)?.message ?? e));
   }, []);
 
   useEffect(() => {
     if (!ctx || state !== 'ready') return;
-    let newestPeer: number | null = null;
-    for (const m of msgs) if (!m.mine && (newestPeer === null || m.id > newestPeer)) newestPeer = m.id;
-    const reason: MarkReadReason = markedOpen.current ? 'message' : 'open';
+    const focusDue = focusAckDue.current;
+    focusAckDue.current = false;
+    const ceilingId = gapDoor === null ? null : gapDoor.afterId;
+    const target = newestPeerMessageId(msgs, { ceilingId, fetchedIds: fetchedIds.current });
+    const reason: MarkReadReason = focusDue ? 'focus' : markedOpen.current ? 'message' : 'open';
     if (!shouldMarkRead({
       reason,
       ready: true,
       appActive: AppState.currentState === 'active',
       // [codex c1] 앱이 앞에 있는 것만으로는 부족하다 — 이 화면이 다른 화면 뒤에 마운트된 채
       // 폴링만 돌고 있을 수 있고, 그때 들어온 메시지를 읽음으로 찍으면 상대의 「읽음」이 거짓말이
-      // 된다. 포커스를 되찾는 순간 위 useFocusEffect 가 그때까지의 것을 한 번에 표시한다.
+      // 된다. 포커스를 되찾으면 refreshThenRead 가 리페치하고, 그 커밋에서 이 effect 가 표시한다.
       focused: screenFocused.current,
-      newestPeerMessageId: newestPeer,
+      newestPeerMessageId: target,
       lastMarkedPeerMessageId: lastMarkedPeer.current,
     })) return;
+    // `shouldMarkRead` refuses a null target for every reason; this guard is for the type.
+    if (target === null) return;
     markedOpen.current = true;
-    if (newestPeer !== null) lastMarkedPeer.current = newestPeer;
-    recordRead(ctx.threadId);
-  }, [ctx, state, msgs, recordRead]);
+    lastMarkedPeer.current = target;
+    // The skew-window fallback to 0212's now() (api.ts markChatRead) is allowed only when that
+    // now() cannot read past what is on screen by more than the round trip: no hole open, and the
+    // target IS the newest peer message the screen holds (no realtime-only message above it).
+    const newestHeld = newestPeerMessageId(msgs);
+    recordRead(ctx.threadId, target, ceilingId === null && newestHeld === target);
+  }, [ctx, state, msgs, gapDoor, ackTick, recordRead]);
+
+  /** Coming back to the screen: REFRESH, and only a successful refresh asks for an
+   *  acknowledgement — which the effect above performs on the commit that renders it. A failed
+   *  refresh is a failure (pollErr) and records nothing. Writes are gated on thread identity. */
+  const refreshThenRead = useCallback(async (opCtx: ChatContext) => {
+    let next: ChatMsg[];
+    try {
+      next = await fetchMessages(opCtx.threadId);
+    } catch (e) {
+      console.warn('[chat] refresh on return:', (e as Error)?.message ?? e);
+      if (mounted.current && ctxRef.current === opCtx) setPollErr(true);
+      return;
+    }
+    if (!mounted.current || ctxRef.current !== opCtx) return;
+    setPollErr(false);
+    absorbSnapshot(opCtx, next);
+    focusAckDue.current = true;
+    setAckTick((n) => n + 1);
+  }, [absorbSnapshot]);
 
   // 화면이 다시 앞으로 왔을 때. 내비게이션 포커스(useFocusEffect)와 **앱 복귀**(AppState)는 서로를
   // 대신하지 못한다 — 백그라운드는 포커스된 화면을 블러하지 않으므로, 앱을 내렸다 올리는 동안
   // 도착한 메시지는 포커스 이벤트를 만들지 않는다 (owner/home.tsx:334 가 같은 이유로 둘 다 둔다).
-  // ⚠ 이 팔이 c1 의 나머지 절반이다: 포커스가 없는 동안 도착한 메시지는 **표시되지 않고**, 여기서
-  //   표시된다. `reason: 'focus'` 는 `newestPeerMessageId` 게이트보다 앞에서 true 를 돌려주므로
-  //   `null` 은 「지금 화면에 있는 것까지 전부」라는 뜻이고 (chat-read.ts 의 'focus' 팔), 그래서
-  //   자리를 비운 사이 쌓인 메시지가 돌아온 순간 한 번에 읽음이 된다 — 잃어버리지 않는다.
+  // ⚠ This is c1's other half: messages that arrived while unfocused are NOT recorded then, and
+  //   are recorded here — [0223] after a successful refresh has put them on screen, never before.
+  //   Nothing is lost, and nothing is claimed ahead of the screen.
   useFocusEffect(useCallback(() => {
     screenFocused.current = true;
     const c = ctxRef.current;
-    if (c && stateRef.current === 'ready' && shouldMarkRead({
-      reason: 'focus', ready: true, appActive: AppState.currentState === 'active',
-      // 이 콜백이 도는 것 자체가 포커스를 얻었다는 사실이다 (바로 위에서 세팅했다).
-      focused: true,
-      newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
-    })) recordRead(c.threadId);
+    if (c && stateRef.current === 'ready') void refreshThenRead(c);
     return () => { screenFocused.current = false; };
-  }, [recordRead]));
+  }, [refreshThenRead]));
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
       const c = ctxRef.current;
-      if (!screenFocused.current || !c) return;
-      if (!shouldMarkRead({
-        reason: 'focus', ready: stateRef.current === 'ready', appActive: st === 'active',
-        // 위의 early return 과 같은 사실을 **판정 함수에** 넘긴다 — 게이트가 한 군데에만 있으면
-        // 다음 사람이 위 줄을 건드릴 때 조용히 사라진다.
-        focused: screenFocused.current,
-        newestPeerMessageId: null, lastMarkedPeerMessageId: lastMarkedPeer.current,
-      })) return;
-      recordRead(c.threadId);
+      // This early return does not replace the judgment's own gates — the effect above hands the
+      // same facts to `shouldMarkRead` after the refresh. Here it only saves a pointless fetch.
+      if (!screenFocused.current || !c || st !== 'active') return;
+      if (stateRef.current !== 'ready') return;
+      void refreshThenRead(c);
     });
     return () => sub.remove();
-  }, [recordRead]);
+  }, [refreshThenRead]);
 
   // 사진 메시지 — 픽업 장소·아이 상태 공유의 핵심 수단
   const sendPhoto = async () => {
@@ -522,13 +582,16 @@ export default function Chat() {
     setGapDoor(null);
     setGapBusy(false);
     gapFilling.current = false;
+    fetchedIds.current = new Set();
+    focusAckDue.current = false;
     setLoadAttempt((attempt) => attempt + 1);
   };
 
   // ── 「이전 메시지 더 보기」 ─────────────────────────────────────────────────────────────────
-  // Pages strictly older than the oldest message on screen, by the SERVER's `created_at` on that
-  // message. A failure is a failure: the door comes back and `pollErr` says the screen is not
-  // receiving, rather than the tap silently doing nothing.
+  // Pages strictly older than the oldest message on screen, by the SERVER's `(created_at, id)` on
+  // that message ([0223 · codex #2] — `created_at` alone left a same-instant sibling unreachable).
+  // A failure is a failure: the door comes back and `pollErr` says the screen is not receiving,
+  // rather than the tap silently doing nothing.
   const loadOlder = async () => {
     const opCtx = ctx;
     if (!opCtx || olderBusy || olderExhausted) return;
@@ -538,6 +601,7 @@ export default function Chat() {
     try {
       const older = await fetchOlderMessages(opCtx.threadId, cursor);
       if (!mounted.current || ctxRef.current !== opCtx) return;
+      noteFetched(older);
       holdScroll.current = true;
       // mergeMessageSnapshot is a union keyed by id, sorted by id — so it is direction-agnostic:
       // an older page merges below the window exactly as a newer snapshot merges above it, and a

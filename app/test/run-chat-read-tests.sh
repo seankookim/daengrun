@@ -4,7 +4,8 @@
 #
 # Bundled from the REAL source (the run-notification-prefs idiom), not a retyped copy, so what
 # these cases pin is the module `app/app/chat.tsx`, `runner/home.tsx`, `owner/schedule.tsx` and
-# `home-hero.tsx` actually import. chat-read.ts imports nothing — pure functions. No stubbing.
+# `home-hero.tsx` actually import. chat-read.ts imports only chat-messages.ts (the server-order
+# comparator), which esbuild bundles in — pure functions throughout. No stubbing.
 set -eu
 cd "$(dirname "$0")"
 trap 'rm -f chat-read.build.cjs' EXIT

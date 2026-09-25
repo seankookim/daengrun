@@ -1,5 +1,6 @@
 import {
-  GAP_DOOR_LABEL, gapClosedBy, mergeMessageSnapshot, snapshotGap,
+  GAP_DOOR_LABEL, compareInstant, compareMessageOrder, gapClosedBy, mergeMessageSnapshot,
+  olderThanCursorFilter, parseInstant, snapshotGap,
 } from '../src/lib/chat-messages';
 
 interface Message { id: number; source: string }
@@ -131,6 +132,46 @@ equal('a filled hole is one unbroken run, oldest first, with nothing lost or dup
 equal('the messages already held won their own ids through the fill',
   filled[49].source, 'held');
 equal('…and the refilled hole is gone', snapshotGap<Message>(filled, run(200, 299, 'snapshot')), null);
+
+// ── [0223 · codex #2] the (created_at, id) order — compared the way the SERVER compares it ──────
+// `Date.parse` is millisecond-coarse and `created_at` is microsecond-precise; a cursor built on
+// Date.parse would misorder two messages 100µs apart and, on a page boundary, never move. These
+// pin that every digit the server sent survives, that the order is time-then-id, and that the
+// filter string the server receives is the row-order strict-less-than.
+const T0 = Date.UTC(2026, 8, 23, 10, 0, 0);
+equal('parseInstant keeps a 6-digit fraction: ms into Date.parse, the rest as sub-ms nanoseconds',
+  parseInstant('2026-09-23T10:00:00.123456+00:00'), [T0 + 123, 456000]);
+equal('parseInstant: Z and +00:00 spell the same instant',
+  parseInstant('2026-09-23T10:00:00.123456Z'), [T0 + 123, 456000]);
+equal('parseInstant: no fraction is [ms, 0]', parseInstant('2026-09-23T10:00:00Z'), [T0, 0]);
+equal('parseInstant: a 1-digit fraction is tenths, not a raw digit', parseInstant('2026-09-23T10:00:00.5Z'), [T0 + 500, 0]);
+equal('parseInstant: a 3-digit fraction has no sub-ms part', parseInstant('2026-09-23T10:00:00.250Z'), [T0 + 250, 0]);
+equal('parseInstant: a +09:00 offset is placed on the timeline', parseInstant('2026-09-23T19:00:00.000001+09:00'), [T0, 1000]);
+equal('parseInstant: unparseable is null, never a guess', [parseInstant('not a date'), parseInstant(''), parseInstant('2026-13-45T99:00:00Z')], [null, null, null]);
+
+equal('🔴 compareInstant orders by the microsecond Date.parse cannot see',
+  [compareInstant('2026-09-23T10:00:00.000400Z', '2026-09-23T10:00:00.000500Z'),
+    compareInstant('2026-09-23T10:00:00.000500Z', '2026-09-23T10:00:00.000400Z'),
+    Date.parse('2026-09-23T10:00:00.000400Z') === Date.parse('2026-09-23T10:00:00.000500Z')],
+  [-1, 1, true]);
+equal('compareInstant: equal instants in two spellings are 0',
+  compareInstant('2026-09-23T10:00:00.123456+00:00', '2026-09-23T10:00:00.123456Z'), 0);
+equal('compareInstant: whole seconds still order', compareInstant('2026-09-23T10:00:01Z', '2026-09-23T10:00:00.999999Z'), 1);
+equal('compareInstant: null when either side cannot be placed',
+  [compareInstant('x', '2026-09-23T10:00:00Z'), compareInstant('2026-09-23T10:00:00Z', '')], [null, null]);
+
+equal('compareMessageOrder: time first — a larger id with an older instant is OLDER',
+  compareMessageOrder({ createdAt: '2026-09-23T10:00:00.000500Z', id: 1 }, { createdAt: '2026-09-23T10:00:00.000400Z', id: 2 }), 1);
+equal('compareMessageOrder: id breaks an exact tie',
+  [compareMessageOrder({ createdAt: '2026-09-23T10:00:00Z', id: 1 }, { createdAt: '2026-09-23T10:00:00Z', id: 2 }),
+    compareMessageOrder({ createdAt: '2026-09-23T10:00:00Z', id: 2 }, { createdAt: '2026-09-23T10:00:00Z', id: 2 })],
+  [-1, 0]);
+equal('compareMessageOrder: null when a side cannot be placed — no silent fall-back to id order',
+  compareMessageOrder({ createdAt: '', id: 1 }, { createdAt: '2026-09-23T10:00:00Z', id: 2 }), null);
+
+equal('olderThanCursorFilter is the row-order strict less-than, timestamp double-quoted, id bare',
+  olderThanCursorFilter({ createdAt: '2026-09-23T10:00:00.123456+00:00', id: 42 }),
+  'created_at.lt."2026-09-23T10:00:00.123456+00:00",and(created_at.eq."2026-09-23T10:00:00.123456+00:00",id.lt.42)');
 
 console.log(`\n${passed} pass / ${failed} fail`);
 process.exit(failed === 0 ? 0 : 1);
