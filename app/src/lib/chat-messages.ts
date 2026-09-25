@@ -193,3 +193,147 @@ export function olderThanCursorFilter(before: MessageCursor): string {
   const at = `"${before.createdAt}"`;
   return `created_at.lt.${at},and(created_at.eq.${at},id.lt.${before.id})`;
 }
+
+// ── FETCHED COVERAGE — what a successful read VOUCHED FOR, kept apart from what realtime delivered ──
+//
+// 🔴 THE DEFECT THIS CLOSES (codex client review wave 4, 2026-09-25 · c1 — MEASURED by the reviewer
+//    on the compiled helpers). `snapshotGap` above anchors a snapshot on ANY held message. A held
+//    message that arrived by REALTIME alone is not an anchor: the channel drops events across a
+//    reconnect, and the ones it dropped sit BELOW the one it delivered. The reviewer's sequence —
+//    the screen holds fetched message 1 and realtime-only 102, then a poll returns 102–201 — makes
+//    `snapshotGap` answer `null` (102 is held), so there was no hole, no door and no ceiling, and
+//    the read was acknowledged up to 201 across 2–101, which no fetch had returned and no screen
+//    had drawn. `chat.tsx` no longer asks `snapshotGap`; the pins keep it as the CONTROL that
+//    reproduces the reviewer's measurement on the same fixture.
+//
+// The fix is a second fact, tracked apart from what the screen holds: the stretches of the thread
+// a successful FETCH returned IN FULL. A newest-window snapshot vouches for everything between its
+// oldest and newest message (one server order, one LIMIT); an older page vouches for everything
+// between its oldest message and the cursor it was asked for. Realtime vouches for nothing. Then:
+//   · a hole is the space between the LOWEST vouched stretch and the next one (`coverageHole`);
+//   · a read may be recorded only inside the lowest stretch (`coverageCeiling`) — everything below
+//     that stretch's top was returned by a fetch, so the position cannot cover an undrawn message.
+// A hole is no longer 「observable at one merge or never」: it is a standing property of the
+// coverage, so a second hole found while a fill is running is not dropped, and the door is always
+// the lowest open hole.
+//
+// ⚠ Order is the SERVER's `(created_at, id)` — `compareMessageOrder`, the comparator every cursor
+//   already uses — never id arithmetic (ids are table-wide, see the gap section above). A page
+//   holding a message that cannot be placed in time vouches for NOTHING (`null` span): coverage
+//   never grows on a guess, and the cost of refusing is only that the acknowledgement waits.
+//
+// ⚠ Two stretches merge only when they OVERLAP (one's lowest message at or below the other's
+//   highest). Stretches that merely touch — nothing between them — stay apart until a fetch
+//   crosses the boundary, because only the server can say nothing lies between two messages. The
+//   cost is at most one extra older-page read per hole; the alternative is a guess.
+
+/** One stretch of the thread, in the server's order, that successful fetches returned IN FULL.
+ *  `lo === null` = the stretch reaches the thread's FIRST message (the server said nothing is older). */
+export interface CoverageSpan {
+  lo: MessageCursor | null;
+  hi: MessageCursor;
+}
+
+/** Disjoint vouched stretches, lowest first. */
+export type Coverage = readonly CoverageSpan[];
+
+interface PlacedMessage { id: number; createdAt: string }
+
+/** Oldest and newest of a page in the server's order — `null` if ANY message cannot be placed. */
+function pageBounds(page: readonly PlacedMessage[]): { oldest: MessageCursor; newest: MessageCursor } | null {
+  let oldest: MessageCursor | null = null;
+  let newest: MessageCursor | null = null;
+  for (const m of page) {
+    if (parseInstant(m.createdAt) === null) return null;
+    const c: MessageCursor = { createdAt: m.createdAt, id: m.id };
+    if (oldest === null || compareMessageOrder(c, oldest) === -1) oldest = c;
+    if (newest === null || compareMessageOrder(c, newest) === 1) newest = c;
+  }
+  return oldest === null || newest === null ? null : { oldest, newest };
+}
+
+/**
+ * What a NEWEST-WINDOW read (`fetchMessages`) vouches for: its oldest message through its newest.
+ * `reachesStart` = the page was shorter than the window (`pageIsLast`), so it IS the whole thread
+ * and the stretch reaches the first message. `null` for an empty page (nothing to vouch for) or a
+ * page with a message that cannot be placed in time.
+ */
+export function windowSpan(page: readonly PlacedMessage[], reachesStart: boolean): CoverageSpan | null {
+  const b = pageBounds(page);
+  if (b === null) return null;
+  return { lo: reachesStart ? null : b.oldest, hi: b.newest };
+}
+
+/**
+ * What an OLDER-PAGE read (`fetchOlderMessages(cursor)`) vouches for: every message strictly older
+ * than `cursor`, down to the page's oldest — plus the cursor message itself, which the caller took
+ * from a message it holds. `reachesStart` (a short page) or an EMPTY page means the server has
+ * nothing older, so the stretch reaches the first message.
+ *
+ * `null` — vouch for nothing — when the cursor cannot be placed, when a message cannot be placed,
+ * or when the page holds a message that is NOT strictly older than the cursor: that page does not
+ * answer the question that was asked, and coverage built on it would be a guess.
+ */
+export function olderPageSpan(
+  page: readonly PlacedMessage[],
+  cursor: MessageCursor,
+  reachesStart: boolean,
+): CoverageSpan | null {
+  if (parseInstant(cursor.createdAt) === null) return null;
+  const hi: MessageCursor = { createdAt: cursor.createdAt, id: cursor.id };
+  if (page.length === 0) return { lo: null, hi };
+  const b = pageBounds(page);
+  if (b === null) return null;
+  if (compareMessageOrder(b.newest, cursor) !== -1) return null;
+  return { lo: reachesStart ? null : b.oldest, hi };
+}
+
+/** `a` at or below `b` in the server's order, with `null` as the thread's start. */
+function loAtOrBelow(a: MessageCursor | null, b: MessageCursor): boolean {
+  if (a === null) return true;
+  const c = compareMessageOrder(a, b);
+  return c !== null && c <= 0;
+}
+
+/** The union of `cov` and `span`, as disjoint stretches lowest first. `null` adds nothing. */
+export function addCoverage(cov: Coverage, span: CoverageSpan | null): Coverage {
+  if (span === null) return cov;
+  const all = [...cov, span].sort((x, y) => {
+    if (x.lo === null || y.lo === null) return x.lo === y.lo ? 0 : x.lo === null ? -1 : 1;
+    return compareMessageOrder(x.lo, y.lo) ?? 0;
+  });
+  const out: CoverageSpan[] = [];
+  for (const s of all) {
+    const top = out[out.length - 1];
+    // Overlap: this stretch starts at or below the current top stretch's highest message.
+    if (top !== undefined && loAtOrBelow(s.lo, top.hi)) {
+      const higher = compareMessageOrder(s.hi, top.hi) === 1 ? s.hi : top.hi;
+      out[out.length - 1] = { lo: top.lo, hi: higher };
+    } else {
+      out.push({ lo: s.lo, hi: s.hi });
+    }
+  }
+  return out;
+}
+
+/**
+ * The highest message a read may be recorded UP TO: the top of the LOWEST vouched stretch.
+ * Everything at or below it (down to the stretch's start) was returned by a fetch; above it lies
+ * either nothing or a hole. `null` = nothing has been vouched for, and then nothing may be recorded.
+ */
+export function coverageCeiling(cov: Coverage): MessageCursor | null {
+  return cov.length === 0 ? null : cov[0].hi;
+}
+
+/**
+ * The LOWEST open hole, or `null`. `afterId` is the message the door is drawn under (the top of the
+ * lowest stretch); `cursor` is where the fill reads backward from (the bottom of the next one).
+ */
+export function coverageHole(cov: Coverage): { afterId: number; cursor: MessageCursor } | null {
+  if (cov.length < 2) return null;
+  const upper = cov[1].lo;
+  // Unreachable after `addCoverage` (a stretch reaching the start merges with everything below it),
+  // but a door with no cursor would be a control that cannot fetch — refuse it rather than draw it.
+  if (upper === null) return null;
+  return { afterId: cov[0].hi.id, cursor: upper };
+}

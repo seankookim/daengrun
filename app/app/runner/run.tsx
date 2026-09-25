@@ -55,6 +55,9 @@ const WIN_H = Dimensions.get('window').height;
 const MAP_MIN_H = Math.round(WIN_H * 0.26);
 
 type CamMode = 'approach' | 'fit' | 'follow' | 'free';
+/** The ended-check's answer ([codex wave 4 · c3]): the run was stopped · it was not · the read
+ *  FAILED and nobody knows. Three values so 「unknown」 can never be read as 「not ended」. */
+type EndedVerdict = 'ended' | 'live' | 'failed';
 type LatLng = { latitude: number; longitude: number };
 /** getNaverMap()이 동적 require라 컴포넌트가 any다 — ref로 쓰는 표면만 여기 좁게 적는다. */
 interface NaverMapHandle {
@@ -304,11 +307,46 @@ export default function ActiveRun() {
   const [coeffs, setCoeffs] = useState<{ netBase: number; netPerKm: number } | null>(null);
   const coeffsRetryAt = useRef(0);
 
-  // [runner-journey-2] Resolves to true when the hydrated booking's run has ALREADY ENDED (server
-  // `run_ended_at`). startRun awaits it before doing anything, so a tap that lands during the check
-  // cannot open a second run on a frozen booking — `start_run_tx` answers an `active` row with
-  // {unchanged:true} and the edge function would re-send 「러닝 시작」 to the owner.
-  const endedCheck = useRef<Promise<boolean> | null>(null); // null = no check started (no bid yet)
+  // [runner-journey-2] Resolves to what the server says about whether the hydrated booking's run
+  // has ALREADY ENDED (`run_ended_at`). startRun awaits it before doing anything, so a tap that
+  // lands during the check cannot open a second run on a frozen booking — `start_run_tx` answers an
+  // `active` row with {unchanged:true} and the edge function would re-send 「러닝 시작」 to the owner.
+  // 🔴 [codex client review wave 4 · c3] THREE answers, not two. The check used to resolve a FAILED
+  //   read to `false` — 「not ended」 — and cache it, so one transient failure on an ended-but-still-
+  //   active booking authorised every later start: tracking re-armed, the run re-recorded, and the
+  //   owner got another 「러닝 시작」. Unknown is not 「not ended」. 'failed' blocks start and resume
+  //   and puts a 다시 시도 on screen (`blockStrip`), which re-reads; only 'live' lets a start through.
+  const endedCheck = useRef<Promise<EndedVerdict> | null>(null); // null = no check started (no bid yet)
+  // The render-visible twin of the ref above — the strip and the CTA read it. 'idle' = no bid yet.
+  const [endedState, setEndedState] = useState<EndedVerdict | 'checking' | 'idle'>('idle');
+  const runEndedCheck = useCallback((bid: string): Promise<EndedVerdict> => {
+    setEndedState('checking');
+    const check = fetchReturnSeal(bid)
+      // `null` is zero rows — a real answer (foreign or deleted booking), which the server's own
+      // start refusal then speaks for. Only a THROWN read is unknown.
+      .then((r): EndedVerdict => (r?.runEndedAt ? 'ended' : 'live'))
+      .catch((e): EndedVerdict => { console.warn('[run] ended check:', (e as Error)?.message); return 'failed'; });
+    endedCheck.current = check;
+    void check.then((v) => { if (endedCheck.current === check) setEndedState(v); });
+    return check;
+  }, []);
+  // 다시 시도 on the failed check: read again; an ended run goes to the seal screen, a live one is
+  // startable, and another failure stays a failure (and is said aloud — the runner just tapped).
+  // `endedRetrying` keeps the strip on screen through the re-read with its action swapped to the
+  // busy word — busy is a LABEL SWAP, never a strip that vanishes and comes back.
+  const [endedRetrying, setEndedRetrying] = useState(false);
+  const retryEndedCheck = useCallback(async () => {
+    const bid = runnerJob.bookingId;
+    if (!bid) return;
+    setEndedRetrying(true);
+    try {
+      const v = await runEndedCheck(bid);
+      if (v === 'ended') router.replace({ pathname: '/runner/return-seal', params: { bid } });
+      else if (v === 'failed') announce('러닝 상태를 확인하지 못했어요');
+    } finally {
+      setEndedRetrying(false);
+    }
+  }, [runEndedCheck]);
 
   // + 트레이스 시드 (2026-08-08): 재진입 시 km이 0부터 다시 시작해 서버 트레이스를 덮어쓰던 구멍.
   useEffect(() => {
@@ -327,11 +365,10 @@ export default function ActiveRun() {
       // 0188 the booking stays `active` after end_run_tx, so every door that reached here on status
       // alone (the calendar ticket, a stale in-memory id, the lock-screen Live Activity) mounted the
       // live screen — 러닝 시작 CTA and all — over a frozen run. The seal screen is the next step.
-      // A failed read falls through to today's behaviour: the server still refuses a second end.
-      endedCheck.current = fetchReturnSeal(bid)
-        .then((r) => !!r?.runEndedAt)
-        .catch((e) => { console.warn('[run] ended check:', (e as Error)?.message); return false; });
-      if (await endedCheck.current) {
+      // [codex wave 4 · c3] A FAILED read no longer falls through as 「not ended」: the booking's
+      // context still loads below (the chat pin, the incident door and the map stay reachable),
+      // but start and resume are blocked behind the 다시 시도 strip until a read answers.
+      if (await runEndedCheck(bid) === 'ended') {
         router.replace({ pathname: '/runner/return-seal', params: { bid } });
         return;
       }
@@ -1146,7 +1183,15 @@ export default function ActiveRun() {
   };
   const startRunInner = async () => {
     setRationale(false);
-    if (endedCheck.current && await endedCheck.current) return; // the hydrate is already replacing this screen
+    // [codex wave 4 · c3] Only a check that ANSWERED 「live」 lets a start through. 'ended': the
+    // hydrate (or the retry) is already replacing this screen. 'failed': unknown is not 「not
+    // ended」 — the strip carries the 다시 시도, and tracking stays off. A null check means no
+    // booking was resolved, so there is no run to have ended (unchanged).
+    const verdict = endedCheck.current ? await endedCheck.current : null;
+    if (verdict !== null && verdict !== 'live') {
+      if (verdict === 'failed') announce('러닝 상태를 확인하지 못했어요');
+      return;
+    }
     setStartErr(false);
     const h = await startTracking(onTrack, { dogName: dogName ?? undefined });
     setTrackMode(h.mode);
@@ -1197,8 +1242,19 @@ export default function ActiveRun() {
   };
 
   // 추적 불가 사유별 정직 카피 — '모듈 없는 빌드'와 '권한 거부'는 같은 문장이 아니다
-  const blockStrip = (): { text: string; action?: string; onAction?: () => void } | null => {
+  const blockStrip = (): { text: string; action?: string; busy?: boolean; onAction?: () => void } | null => {
     if (ceilingHit) return { text: '정산 가능한 최대 거리에 근접했어요 — 지금 종료해주세요' };
+    // [codex wave 4 · c3] The ended-check could not be read, so this screen does not know whether
+    // the run was already stopped. Start and resume are blocked (startRunInner, and the CTA is not
+    // drawn — a door that refuses on every tap is a dead button); this strip is the one way on.
+    if ((endedState === 'failed' || endedRetrying) && !running) {
+      return {
+        text: '러닝 상태를 확인하지 못했어요 — 확인되기 전에는 시작할 수 없어요',
+        action: endedRetrying ? '확인 중…' : '다시 시도',
+        busy: endedRetrying,
+        onAction: () => { if (!endedRetrying) void retryEndedCheck(); },
+      };
+    }
     if (trackMode == null || trackMode === 'background') {
       // [runner-journey-9] The server refused (or never heard) the start. Tracking was stopped again,
       // so nothing is being recorded — the retry is the same beginRun the CTA runs.
@@ -1274,7 +1330,8 @@ export default function ActiveRun() {
           <View style={s.pStrip}>
             <Text style={s.pTxt}>{strip.text}</Text>
             {strip.action && (
-              <Pressable onPress={strip.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={strip.action}>
+              <Pressable onPress={strip.onAction} hitSlop={8} accessibilityRole="button" accessibilityLabel={strip.action}
+                accessibilityState={{ busy: !!strip.busy }}>
                 <Text style={s.pAction}>{strip.action}</Text>
               </Pressable>
             )}
@@ -1710,7 +1767,10 @@ export default function ActiveRun() {
               recording: `start_run_tx` refuses every state but picked_up/active (`not_picked_up`),
               so 러닝 시작 / 기록 이어가기 would be a door that fails on every tap. The incident
               banner above says what is happening and carries the chat door; 사고 신고 stays. */}
-          {!(incidentBid && !running) && (
+          {/* [codex wave 4 · c3] Nor while the ended-check has FAILED: startRunInner refuses until a
+              read answers, so the CTA would be a door that does nothing — the strip's 다시 시도 is
+              the one way on. */}
+          {!(incidentBid && !running) && !((endedState === 'failed' || endedRetrying) && !running) && (
           <Pressable
             // busy = label swap below ('위치 확인 중...') — the opacity paint retired (§2 button law)
             /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. The lip's colour

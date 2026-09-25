@@ -4154,8 +4154,9 @@ export async function fetchOlderMessages(threadId: string, before: MessageCursor
 //   surface here is SILENT by design (no badge, no receipt), so there is no sentence to replace.
 //   `chat_mark_read_to` (0223) IS registered, for a different reason: this build ships before
 //   0223 reaches production, the call is refused with PGRST202 until then, and `markChatRead`
-//   must know that refusal by name to fall back to 0212's writer (see there). The entry comes out
-//   once the migration is on production.
+//   must know that refusal by name to record NOTHING rather than throw (see there — the fallback
+//   to 0212's now()-writer was retired, codex wave 4 · c2). The entry comes out once the
+//   migration is on production.
 
 /** One row of `my_chat_unread()`. Shape mirrored by `chat-read.ts`'s `ChatUnreadRow`. */
 export interface ChatUnread {
@@ -4194,34 +4195,29 @@ export async function fetchChatUnread(): Promise<ChatUnread[]> {
  *    its own clock).
  *
  * ⚠ THE SKEW WINDOW (this build before 0223's push). `chat_mark_read_to` is refused with PGRST202,
- *   recognised BY NAME (`isPendingDeploy` — a typo or signature mismatch still throws). Then:
- *   · `legacyFallback: true` → 0212's `chat_mark_read`. The screen passes true only when the
- *     target is the newest peer message it holds and no reconnect hole is open, and it only ever
- *     calls this right after a successful fetch — so `now()` over-reaches by one render and one
- *     round trip, not by a suspension. That residual is the price of receipts and badges that
- *     keep working until the push, and it ends there.
- *   · `legacyFallback: false` → nothing is recorded (`null`): `now()` would read through the hole
- *     or past a message no fetch has vouched for.
+ *   recognised BY NAME (`isPendingDeploy` — a typo or signature mismatch still throws). Then
+ *   NOTHING is recorded (`null`): unread stays unread until the server can take a cursor.
+ *
+ * 🔴 [codex client review wave 4 · c2 — MEASURED by the reviewer with this wrapper and a deferred
+ *    mocked RPC] This used to fall back to 0212's `chat_mark_read`, which writes the server's
+ *    `now()` and ignores the message. The screen asked for it only when the target was the newest
+ *    peer message it held, reasoning that `now()` over-reached by one round trip — but the skew
+ *    error can arrive LATE, the fallback then runs at whatever `now()` it lands on, and leaving or
+ *    backgrounding the screen while the first request is pending does not cancel it. Every message
+ *    committed in that unbounded interval became 「읽음」 unseen. A missing receipt is honest; a
+ *    false one tells the sender their 「5분 늦어요」 landed. So the cursor-less writer is never called
+ *    from this build — receipts and badges simply stop advancing until 0223 is on production.
  * Every other failure throws, folded.
  */
-export async function markChatRead(
-  threadId: string,
-  upToMessageId: number,
-  opts: { legacyFallback: boolean },
-): Promise<string | null> {
+export async function markChatRead(threadId: string, upToMessageId: number): Promise<string | null> {
   // ⚠ Keys with the colon, never the shorthand — `check-rpc-contracts`'s key regex requires it,
   // and a shorthand key slips past the gate unchecked (the same note as elsewhere here).
   const { data, error } = await supabase.rpc('chat_mark_read_to', {
     p_thread: threadId, p_up_to_message_id: upToMessageId,
   });
   if (!error) return lastReadAtOf(data);
-  if (!isPendingDeploy('chat_mark_read_to', error)) {
-    throw foldRpcError(error, { fn: 'chat_mark_read_to', empty: '읽음 표시를 하지 못했어요' });
-  }
-  if (!opts.legacyFallback) return null;
-  const legacy = await supabase.rpc('chat_mark_read', { p_thread: threadId });
-  if (legacy.error) throw foldRpcError(legacy.error, { fn: 'chat_mark_read', empty: '읽음 표시를 하지 못했어요' });
-  return lastReadAtOf(legacy.data);
+  if (isPendingDeploy('chat_mark_read_to', error)) return null;
+  throw foldRpcError(error, { fn: 'chat_mark_read_to', empty: '읽음 표시를 하지 못했어요' });
 }
 
 function lastReadAtOf(data: unknown): string | null {

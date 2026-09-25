@@ -179,21 +179,36 @@ export function readReceiptMessageId(
  *    realtime-only message waits for the next successful poll to vouch for it (≤15 s while live).
  *    `null` = no restriction; the screen always passes its set.
  *
- * `ceilingId` is the reconnect hole's `afterId` (chat-messages.ts `snapshotGap`): while a hole is
- * open the screen has NOT shown what sits in it, so the acknowledgement stops at the newest peer
- * message at or below the hole and advances past it only once the fill closes. A position cannot
- * say 「everything except a hole」, so the honest position is the one below it.
+ * `ceilingId` is a reconnect hole's `afterId`: while a hole is open the screen has NOT shown what
+ * sits in it, so the acknowledgement stops at the newest peer message at or below the hole. A
+ * position cannot say 「everything except a hole」, so the honest position is the one below it.
+ *
+ * 🔴 `ceiling` — THE TOP OF VERIFIED FETCHED COVERAGE (codex client review wave 4 · c1). The screen
+ *    passes `coverageCeiling(...)` (chat-messages.ts): the highest message of the lowest stretch
+ *    that fetches returned IN FULL. `fetchedIds` alone was not enough — a snapshot anchored on a
+ *    REALTIME-only held message hid the hole below it, every id in that snapshot became 「fetched」,
+ *    and the read jumped the hole. Compared in the server's `(created_at, id)` order; a message
+ *    that cannot be placed against the ceiling is excluded, never let through.
  */
 export function newestPeerMessageId(
   msgs: readonly ReceiptMessage[],
-  opts: { ceilingId?: number | null; fetchedIds?: ReadonlySet<number> | null } = {},
+  opts: {
+    ceilingId?: number | null;
+    ceiling?: { createdAt: string; id: number } | null;
+    fetchedIds?: ReadonlySet<number> | null;
+  } = {},
 ): number | null {
   const ceilingId = opts.ceilingId ?? null;
+  const ceiling = opts.ceiling ?? null;
   const fetchedIds = opts.fetchedIds ?? null;
   let best: ReceiptMessage | null = null;
   for (const m of msgs) {
     if (m.mine) continue;
     if (ceilingId !== null && m.id > ceilingId) continue;
+    if (ceiling !== null) {
+      const c = compareMessageOrder(m, ceiling);
+      if (c === null || c > 0) continue;
+    }
     if (fetchedIds !== null && !fetchedIds.has(m.id)) continue;
     if (best === null) { best = m; continue; }
     const c = compareMessageOrder(m, best);
