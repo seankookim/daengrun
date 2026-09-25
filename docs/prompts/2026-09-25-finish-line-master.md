@@ -222,4 +222,12 @@ club v2 ships in the pilot at all.
   (1527/0, +8; the repo's first dblink two-session pins — reproduction showed session 2 NOT blocked and the console class EMPTY on trunk's
   bodies). Every Codex server finding (#1–#6) now has a landed correct-forward; the Codex re-review of 0216–0220 and the client half are
   owed after the 07:26 quota reset. Migrations on trunk above production: 0203–0220 (sixteen).
+- 16:32 — Sim: Release build of trunk `b12c68f` installed on the iPhone 16 Pro sim, boots to login (screenshot taken; every route module
+  evaluates — `fee_unminted` in the bundle). **The gap sweep hit the CLAUDE SESSION LIMIT at 03:44 (resets 07:10 KST)**: 9/9 finders done
+  (127 findings), the dedup agent overflowed its 64K output (it returned every finding in full), 31/… refuters finished (20 confirmed ·
+  2 refuted · 105 unverified), the planner never ran — 7.6M subagent tokens in 85 min. Salvaged to
+  `docs/reviews/2026-09-25-gap-sweep-partial.md`. Script rewritten for the resume (dedup → merge MAP; ONE verifier per lens; v1's
+  verdicts passed in as settled) — resume one-shot at 07:12 (`Workflow` scriptPath + `resumeFromRunId: wf_ed4f322e-68e`; finders replay
+  from cache). Sean 03:4x: *"credits full soon, continue at 7:11 am"* · *"continue the finish-line-gap-sweep flow"*. Also queued at
+  07:31: the Codex re-review of 0216–0220 + the client half (`run-mig17.sh`, lock-idempotent).
 
