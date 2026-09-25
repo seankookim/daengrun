@@ -121,8 +121,13 @@ const REFUSALS: Record<string, Refusal> = {
     body: '남은 유상 거리가 있어요. 남은 거리를 모두 사용하거나 문의로 환불받은 뒤 다시 시도해주세요.',
     action: { label: '문의하기', href: SUPPORT_MAIL },
   },
+  // [2026-09-25 backend-logic-3, client half] 문의하기, like km_balance: nothing in the product
+  // resolves a marketplace `incidents` row today (no writer of resolved_at exists outside
+  // club_incidents), so 「해결된 뒤」 alone pointed at a door no one opens. Support is the one
+  // real remedy. refusal-routes.ts still gives this token no deep link (one token, two entities).
   open_incident: {
     body: '해결되지 않은 사고 접수가 있어요. 사고가 해결된 뒤 다시 시도해주세요.',
+    action: { label: '문의하기', href: SUPPORT_MAIL },
   },
   club_host_duty: {
     body: '아직 끝나지 않은 클럽 러닝의 호스트예요. 호스트를 넘기거나 세션이 끝난 뒤 다시 시도해주세요.',
@@ -348,8 +353,10 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={close}>
       <Pressable style={s.backdrop} onPress={close} accessibilityRole="button" accessibilityLabel="닫기" />
+      {/* [2026-09-25 ui-consistency-6] No grabber bar: nothing here drags, so it promised a swipe
+          that did nothing (paper-sheet.tsx header). The backdrop, onRequestClose and each phase's
+          닫기/취소 are the exits. */}
       <View style={s.sheet}>
-        <View style={s.handle} />
         <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
           {phase.k === 'confirm' && (
             <>
@@ -492,8 +499,8 @@ export function DeleteAccountSheet({ onClose }: { onClose: () => void }) {
 
 const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: '#00000055' },
-  sheet: { backgroundColor: paper.canvas, paddingHorizontal: 16, paddingTop: 8, paddingBottom: 36 },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#E0E0E0', marginBottom: 12 },
+  // paddingTop 8 → 16: the grabber's 4 + 12 used to hold the title off the top edge.
+  sheet: { backgroundColor: paper.canvas, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 36 },
   title: { fontSize: 23, fontWeight: '900', color: paper.ink, marginBottom: 8 },
   lead: { fontSize: 16, fontWeight: '700', color: paper.text, lineHeight: 23 },
   h: { fontSize: 16, fontWeight: '900', color: paper.dim, marginTop: 16, marginBottom: 4 },

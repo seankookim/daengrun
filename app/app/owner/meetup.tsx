@@ -12,6 +12,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
+import { withParticle } from '../../src/lib/particle';
 import { draft } from '../../src/store';
 import { layout, paper } from '../../src/theme';
 
@@ -511,17 +512,19 @@ export default function OwnerMeetup() {
             <Text style={s.holdTtl}>확인이 진행 중이에요</Text>
             <Text style={s.holdBody}>이 예약에 확인이 필요한 일이 접수됐어요. 처리되는 동안 이 화면의 진행이 잠시 멈춰요 — 처리되면 알림으로 알려드릴게요.</Text>
             {/* Both push, never replace — the owner has to be able to come back to this screen and
-                to the seals, which are the record of what actually happened. */}
+                to the seals, which are the record of what actually happened.
+                [2026-09-25 ui-consistency-1] PaperBtn, same pair as owner/live.tsx's hold strip:
+                the ink-filled plate was the retired primary, and the door now uses the destination's
+                own name, 「안심 센터」. Every other CTA on this screen is gated on !hold, so this
+                primary is the only coral fill while the hold lasts. */}
             <Row style={{ gap: 8, marginTop: 12 }}>
-              <Pressable
+              <PaperBtn
+                label="러너와 채팅"
+                variant="secondary"
                 onPress={() => router.push({ pathname: '/chat', params: bookingId ? { bid: bookingId } : {} })}
-                style={s.holdBtn} accessibilityRole="button" accessibilityLabel="러너와 채팅"
-              >
-                <Text style={s.holdBtnTxt}>러너와 채팅</Text>
-              </Pressable>
-              <Pressable onPress={() => router.push('/safety')} style={s.holdBtnInk} accessibilityRole="button" accessibilityLabel="안전 센터 열기">
-                <Text style={s.holdBtnInkTxt}>안전 센터</Text>
-              </Pressable>
+                style={{ flex: 1 }}
+              />
+              <PaperBtn label="안심 센터 열기" onPress={() => router.push('/safety')} style={{ flex: 1 }} />
             </Row>
           </View>
         )}
@@ -785,7 +788,7 @@ export default function OwnerMeetup() {
           <Text style={s.dockHint}>러너도 확인하면 러닝이 시작돼요</Text>
           {/* 화면당 코랄 면 CTA 1개 — 이 화면의 계약 행동은 인계 확인 하나뿐.
               라벨의 동사는 RULING 8(현재 UI를 그대로 가져온다)에 따라 유지, 작은 화살표는 RULING 6. */}
-          <PaperBtn label={`${dogName}를 인계했어요 ›`} onPress={handoff} style={{ marginTop: 8 }} />
+          <PaperBtn label={`${withParticle(dogName, '를/을')} 인계했어요 ›`} onPress={handoff} style={{ marginTop: 8 }} />
         </View>
       )}
     </View>
@@ -940,7 +943,8 @@ const s = StyleSheet.create({
 
   // ── 의식 헤더 ──
   kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (15pt 플로어 면제)
-  ttl: { fontSize: 20, fontWeight: '900', color: paper.ink, marginTop: 3 },
+  // Black Han Sans (df) — explicit lineHeight or the ascenders clip (DESIGN §3 「BUG A」).
+  ttl: { fontSize: 20, lineHeight: 25, fontWeight: '900', color: paper.ink, marginTop: 3 },
   countPill: { alignSelf: 'flex-start', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 4, paddingHorizontal: 9 },
   countPillOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   countText: { fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.text },
@@ -1055,14 +1059,6 @@ const s = StyleSheet.create({
   },
   holdTtl: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.critical },
   holdBody: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.critical, marginTop: 5 },
-  // Two different affordances, never two of the same button: 안전 센터 is the emphasized door
-  // (ink plate + white label — countPillOn's vocabulary; white on coral is forbidden, ink is not),
-  // 채팅 is the critical-hairline plate on canvas. Same 46pt height so neither outranks by size.
-  holdBtn: {
-    flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.critical,
-    alignItems: 'center', paddingVertical: 12,
-  },
-  holdBtnTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
-  holdBtnInk: { flex: 1, backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 13 },
-  holdBtnInkTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#fff' },
+  // The strip's two doors are PaperBtn (primary 안심 센터 · secondary 채팅) — the matrix owns their
+  // colour, size and pressed state, so this file carries no hold-button styles of its own.
 });
