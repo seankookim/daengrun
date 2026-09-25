@@ -27,6 +27,23 @@ import { bookingHoldError, dropError, payError } from './edge-errors';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
 import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
+// [R1 c4] The has_bank_account read — pure and pinned (`test/payout-status.test.cjs`), so the
+// unknown-is-not-false rule is held by a test rather than by this one mapper line.
+import { bankAccountFlag } from './payout-status';
+
+// [owner-return-frame, R1 c1] The owner's booking rows now carry both return stamps (mapMyBooking
+// below). Declared here, beside the only mapper that fills them, as an augmentation of store.ts's
+// `Booking`: this slice was scoped away from store.ts. Both are optional, so every other producer
+// of a `Booking` still type-checks and simply does not carry them — which the predicates in
+// `home-hero-route.ts` read as 「owner has not stamped」, the pre-existing behaviour.
+declare module '../store' {
+  interface Booking {
+    /** bookings.owner_confirmed_return_at — the owner's half of the two-stamp return. */
+    ownerReturnAt?: string | null;
+    /** bookings.runner_confirmed_return_at — the runner's half. */
+    runnerReturnAt?: string | null;
+  }
+}
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
@@ -3972,8 +3989,10 @@ export interface LedgerStuckState {
   /** How many rows that predicate matched. A measured 0, never a loading state. */
   awaitingCount: number;
   /** Whether this runner has registered a payout account — the same `exists` read 0210 §E does
-   *  before choosing its sentence. A boolean and nothing else: no bank, no holder, no number. */
-  hasBankAccount: boolean;
+   *  before choosing its sentence. A boolean and nothing else: no bank, no holder, no number.
+   *  null = the answer did not carry a boolean (a client ahead of the deploy, a shape we do not
+   *  understand). Never folded to false — see `bankAccountFlag` (payout-status.ts). */
+  hasBankAccount: boolean | null;
 }
 
 export async function fetchLedgerStuckState(): Promise<LedgerStuckState> {
@@ -3986,7 +4005,10 @@ export async function fetchLedgerStuckState(): Promise<LedgerStuckState> {
     unpaidWon: Number(row?.unpaid_won ?? 0),
     oldestAwaitingMs: msOrNull(row?.oldest_awaiting_at as string | null | undefined),
     awaitingCount: Number(row?.awaiting_count ?? 0),
-    hasBankAccount: row?.has_bank_account === true,
+    // [R1 c4] `bankAccountFlag`, not `=== true`: that fold turned a missing or non-boolean key into
+    // 「no account」, which is exactly what payoutNoAccountLine's strictly-false guard exists to
+    // refuse. Unknown stays null, and null draws nothing.
+    hasBankAccount: bankAccountFlag(row?.has_bank_account),
   };
 }
 
@@ -6601,7 +6623,7 @@ const MY_BOOKING_SELECT =
   // runs(started_at): 러닝이 **실제로** 시작된 시각. 예약 시각으로 초과를 재면 20분 늦게 출발한
   // 러닝을 20분 일찍 '초과'라고 부른다. runs.booking_id 는 unique 단일 FK(0001_init.sql:236)라
   // 임베드가 모호하지 않다 — E1(PGRST201)이 여기서는 발생할 수 없다.
-  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
+  'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, owner_confirmed_return_at, runner_confirmed_return_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
 
 function mapMyBooking(r: any): Booking {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
@@ -6636,6 +6658,13 @@ function mapMyBooking(r: any): Booking {
     // a run the server knows ended — the unchanged line that breaks when a value's MEANING widens
     // (CLAUDE.md ④). Nothing here decides what to draw; it only stops the screens from guessing.
     runEndedAt: r.run_ended_at ?? null,
+    // [owner-return-frame, R1 c1] The two return stamps. Without the owner's own stamp every owner
+    // surface kept asking for the tap after it was made (the report, which reads it, already said
+    // 「러너 확인을 기다리고 있어요」). The runner's stamp decides which waiting sentence is true.
+    // Readable by the owner through the same table grant and `bookings party read` row policy as
+    // every other column in this select (0002:92; 0199 §0 records there is no column narrowing).
+    ownerReturnAt: r.owner_confirmed_return_at ?? null,
+    runnerReturnAt: r.runner_confirmed_return_at ?? null,
     // runs 는 예약당 0~1행(unique). 배열로 오면 첫 행, 객체로 오면 그대로 — PostgREST 가 관계
     // 카디널리티를 어떻게 접든 같은 값을 읽게 한다. 없으면 null = '아직 시작 안 함'.
     startedAt: (Array.isArray(r.runs) ? r.runs[0]?.started_at : r.runs?.started_at) ?? null,

@@ -66,6 +66,10 @@ export interface HomeHeroNext {
   rawStatus?: string | null;
   /** bookings.arrived_at — 러너가 문 앞에 선 시각. null = 아직 도착 보고 없음. */
   arrivedAt?: string | null;
+  /** [owner-return-frame, R1 c1] `ownerReturnWaitLine(booking)` — non-null once the owner has
+   *  stamped their half of the return. The returning frame then WAITS: no coral, no 「반환
+   *  확인하기」, and this sentence (the report's own) instead of 「받으셨으면 확인해주세요」. */
+  returnWait?: string | null;
 }
 
 // ⚠ There is no per-second loop behind `elapsedLabel`. §6 forbids idle motion and the value only
@@ -111,6 +115,11 @@ interface Props {
    *  headline give way to one quiet line that opens that booking on 내 일정. This is not a new
    *  frame — the none frame's options and invitation stay exactly as they were. */
   onOpenReview?: (() => void) | null;
+  /** [owner-return-frame, R1 c1] Non-null when the review row is a return the OWNER has already
+   *  stamped (`ownerReturnWaitLine`). That case no longer holds the hero (heroRank's DECISION note
+   *  in home-hero-route.ts), so the in-flight frames carry it as one quiet line opening it on
+   *  내 일정 — the owner's next booking is the hero, and the pending return does not vanish. */
+  reviewWait?: string | null;
 }
 
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
@@ -158,7 +167,7 @@ function Phrase({ top, bottom, df, topNum }: { top: string; bottom: string; df: 
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null, chatUnread = { status: 'loading' }, onOpenReview = null }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null, chatUnread = { status: 'loading' }, onOpenReview = null, reviewWait = null }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -206,6 +215,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
     draft.bookingId = next.id;
     router.push(heroDestination({ state, isLate: !!isLate, arrivedWaiting, resumable, bid: next.id }));
   };
+  // [owner-return-frame, R1 c1] The owner has stamped their half of the return: only the
+  // returning frame reads this, and there it replaces the coral key with a wait.
+  const returnWait = state === 'returning' ? next?.returnWait ?? null : null;
 
   // 상태별 문구·칩·버튼. 1행은 항상 짧게(마크 자리) — 이름·시각처럼 길이를 모르는 값은
   // 2행이나 서브라인으로 내려보낸다.
@@ -230,7 +242,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           // 세이지는 GO 법의 '준비됨'이고, 그게 지금 참인 사실이다. returning 만 코랄로 남는다:
           // 거기서는 보호자의 확인이 아직 안 찍혔다.
           : state === 'handoff' ? { c: GO_SAGE, t: '인계 완료' }
-            : state === 'returning' ? { c: paper.action, t: '내 차례' }
+            // [owner-return-frame, R1 c1] Coral only while the owner's tap is owed. Once they
+            // have stamped, the wait is someone else's — the GO law's blue family.
+            : state === 'returning' ? (returnWait ? { c: WAIT_BLUE, t: '확인 대기' } : { c: paper.action, t: '내 차례' })
               : { c: paper.dim, t: '비어 있음' };
   // ⚠ 「지난 예약이 하나 있어요」는 Sean이 "무슨 뜻이냐"고 물은 문장이었다 — 맞는 지적이었고,
   // 사실은 "예약 시각이 지났는데 아직 확정으로 남아 있다"이다. 그래서 문구가 그걸 그대로 말하고
@@ -428,14 +442,23 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
         </View>
         <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
-        <Text style={s.sub}>{returnSentence(runner, name)} · 받으셨으면 확인해주세요</Text>
+        <Text style={s.sub}>{returnWait ?? `${returnSentence(runner, name)} · 받으셨으면 확인해주세요`}</Text>
         <View style={s.opts}>
           {/* [copy-hierarchy-8] 반환 확인하기 — the push and the report's gate name this act 반환 확인;
-              the retired label borrowed the PICKUP's word for the return. */}
-          <DrawButton title="반환 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
-            dot onPress={openNext} accessibilityLabel="반환 확인하기" />
-          <DrawButton title="채팅" sub="만나는 곳을 정해요" meta={chatBadge} ground="lilac" art="chat"
-            small onPress={openChat} accessibilityLabel={chatLabel('만나는 곳을 정해요')} />
+              the retired label borrowed the PICKUP's word for the return.
+              [owner-return-frame, R1 c1] Only while the owner's tap is owed. After it, the same
+              door (the bid-scoped report, which shows 반환 확인 · n/2) is a blue, pulse-free key. */}
+          {returnWait ? (
+            <DrawButton title="리포트 보기" sub="반환 확인 현황을 봐요" ground="blue" art="ticket"
+              onPress={openNext} accessibilityLabel="리포트 보기" />
+          ) : (
+            <DrawButton title="반환 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
+              dot onPress={openNext} accessibilityLabel="반환 확인하기" />
+          )}
+          {/* [owner-return-frame] 「만나는 곳을 정해요」 is the owed-return sub; once the owner has
+              said the dog is back, it is the ordinary 「러너에게 물어보세요」 used by every other frame. */}
+          <DrawButton title="채팅" sub={returnWait ? '러너에게 물어보세요' : '만나는 곳을 정해요'} meta={chatBadge} ground="lilac" art="chat"
+            small onPress={openChat} accessibilityLabel={chatLabel(returnWait ? '러너에게 물어보세요' : '만나는 곳을 정해요')} />
         </View>
       </View>
     );
@@ -508,6 +531,16 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         </>
       )}
       <Text style={s.sub}>{subline}</Text>
+      {/* [owner-return-frame, R1 c1] A return the owner already stamped, pending on the runner or on
+          ops: not the hero any more (their next booking is), but not gone from home either. Same
+          quiet alert-row grammar as the empty frame's review line; `none` already has that line. */}
+      {inFlight && reviewWait && onOpenReview ? (
+        <Pressable onPress={onOpenReview} style={s.alertRow} accessibilityRole="button"
+          accessibilityLabel={`반환 확인 · ${reviewWait} — 내 일정에서 보기`}>
+          <View style={[s.dot, { backgroundColor: paper.pending }]} />
+          <Text style={[s.alertMain, { flex: 1 }]}>반환 확인 · {reviewWait} ›</Text>
+        </Pressable>
+      ) : null}
 
       <View style={s.opts}>
         {state === 'none' && (

@@ -34,6 +34,7 @@
 const {
   heroDestination, heroPick, heroState, heroRank, returnOwed, returnSentence, nowBandLine,
   elapsedLabel, deepLinkStep, scheduleDoor, RETURN_PHASE_LABEL,
+  ownerReturnOwed, ownerReturnWaitLine, OWNER_RETURN_WAIT_KO, RETURN_BOTH_STAMPED_KO,
 } = require('./home-hero-route.build.cjs');
 const fs = require('fs');
 const path = require('path');
@@ -323,6 +324,82 @@ t('owed · a status the server refuses (completed, refund_pending) → no door e
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑫ [owner-return-frame · R1 c1] THE OWNER'S OWN RETURN STAMP
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Before this, every owner surface read only the PHASE (`returnOwed`), so after the owner stamped,
+// the hero stayed coral 「반환 확인하기」, the band kept 「받으셨으면 확인해주세요」 and the schedule
+// sheet kept a primary 「반환 확인하기」 — while the report already said 「러너 확인을 기다리고
+// 있어요」. On incident_review (nothing seals, 0193 §B) that lasted until ops resolved the case, and
+// the case held the hero over the owner's next booking.
+// The one new conjunct is `!b.ownerReturnAt` in `ownerReturnOwed`; `ownerReturnWaitLine` is written
+// in terms of it. Every fixture below sits where the old rule and the new rule DISAGREE (the owner
+// has stamped), and each one has an unstamped CONTROL twin where they agree.
+{
+  const STAMP = iso(NOW - 10 * 60_000);
+  const TOMORROW = row({ id: 'tmrw', status: 'confirmed', rawStatus: 'confirmed', matched: true, scheduledAt: iso(NOW + 24 * H) });
+  // A — owner-stamped ACTIVE row: the run ended, the owner stamped, the runner has not.
+  const A_STAMPED = row({ id: 'a-st', status: 'active', rawStatus: 'active', matched: true,
+    runEndedAt: iso(NOW - H), scheduledAt: iso(NOW - 3 * H), ownerReturnAt: STAMP, runnerReturnAt: null });
+  const A_OWED = { ...A_STAMPED, id: 'a-owed', ownerReturnAt: null };
+  t('orf-1 · owner-stamped active: the owner\'s move is NOT owed', ownerReturnOwed(A_STAMPED) === false);
+  t('orf-1 · …but the phase is still open (the run ended; never the live frame)',
+    returnOwed(A_STAMPED) === true && heroState(A_STAMPED) === 'returning', heroState(A_STAMPED));
+  t('orf-1 · …and the waiting sentence is the report\'s, verbatim',
+    ownerReturnWaitLine(A_STAMPED) === '러너 확인을 기다리고 있어요' && OWNER_RETURN_WAIT_KO === '러너 확인을 기다리고 있어요',
+    String(ownerReturnWaitLine(A_STAMPED)));
+  const bandBase = { dogName: '콩', runnerName: '민준', startedAt: iso(NOW - 70 * 60_000), arrivedAt: null };
+  const bSt = nowBandLine({ ...bandBase, rawStatus: 'active', runEndedAt: iso(NOW - H), ownerReturnAt: STAMP, runnerReturnAt: null }, NOW);
+  t('orf-1 · band: no 「받으셨으면 확인해주세요」 after the owner stamped; the waiting sentence instead, no live door',
+    bSt.sub === '러너 확인을 기다리고 있어요' && !/확인해주세요/.test(bSt.sub) && bSt.liveDoor === false, String(bSt.sub));
+  // CONTROL twin — the same row unstamped is exactly what shipped.
+  t('orf-1 · CONTROL · unstamped active: move owed, no wait line, same frame',
+    ownerReturnOwed(A_OWED) === true && ownerReturnWaitLine(A_OWED) === null && heroState(A_OWED) === 'returning');
+  const bOw = nowBandLine({ ...bandBase, rawStatus: 'active', runEndedAt: iso(NOW - H), ownerReturnAt: null }, NOW);
+  t('orf-1 · CONTROL · band unstamped still asks: 「러닝이 끝났어요 · 받으셨으면 확인해주세요」',
+    bOw.sub === '러닝이 끝났어요 · 받으셨으면 확인해주세요', String(bOw.sub));
+  t('orf-1 · a reader that does not carry the stamp (undefined) keeps the pre-existing ask',
+    ownerReturnOwed({ rawStatus: 'active', runEndedAt: iso(NOW - H) }) === true);
+
+  // B — owner-stamped INCIDENT_REVIEW + a confirmed booking tomorrow. The DECISION: the case no
+  // longer holds the hero; tomorrow's booking does, and the case is the quiet review line.
+  const IR_STAMPED = row({ id: 'ir-st', status: 'pending', rawStatus: 'incident_review', matched: true,
+    runEndedAt: iso(NOW - 2 * H), scheduledAt: iso(NOW - 4 * H), ownerReturnAt: STAMP, runnerReturnAt: null });
+  const IR_OWED = { ...IR_STAMPED, id: 'ir-owed', ownerReturnAt: null };
+  {
+    const p = heroPick([IR_STAMPED, TOMORROW], NOW);
+    t('orf-2 · ⚔ owner-stamped incident_review + a booking tomorrow → the hero is TOMORROW\'s booking',
+      !!p.next && p.next.id === 'tmrw' && heroState(p.next) === 'confirmed', `${p.next && p.next.id}/${heroState(p.next)}`);
+    t('orf-2 · …the stamped case is the review line (visible, not the hero), with its waiting sentence',
+      !!p.review && p.review.id === 'ir-st' && ownerReturnWaitLine(p.review) === '러너 확인을 기다리고 있어요',
+      JSON.stringify(p.review && p.review.id));
+    t('orf-2 · …and heroRank puts it nowhere (it drops to the incident_review arm)', heroRank(IR_STAMPED) === null);
+  }
+  {
+    // CONTROL twin — unstamped, the owed return still outranks tomorrow (the shipped behaviour).
+    const p = heroPick([IR_OWED, TOMORROW], NOW);
+    t('orf-2 · CONTROL · unstamped incident_review + tomorrow → the case is still the hero (owed, ranked like active)',
+      !!p.next && p.next.id === 'ir-owed' && heroState(p.next) === 'returning' && p.review === null,
+      `${p.next && p.next.id}/${p.review && p.review.id}`);
+    t('orf-2 · CONTROL · …tomorrow is on the rail', p.upcoming.map((b) => b.id).join() === 'tmrw');
+  }
+  {
+    // Alone (no booking ahead): the empty hero with the review line, never 「비어 있어요」 silently.
+    const p = heroPick([IR_STAMPED], NOW);
+    t('orf-2 · owner-stamped case alone → empty hero + the review line (home says 확인이 진행 중인 일정이 있어요)',
+      p.next === null && heroState(p.next) === 'none' && !!p.review && p.review.id === 'ir-st');
+  }
+  // C — both stamps landed and the row is still open (incident_review seals nothing; an active row
+  // sealed-not-settled is the stranded state). 「waiting for the runner」 would be false there.
+  const BOTH = { ...IR_STAMPED, id: 'ir-both', runnerReturnAt: STAMP };
+  t('orf-3 · both stamped → the report\'s both-stamped sentence, never 「러너 확인을 기다리고 있어요」',
+    ownerReturnWaitLine(BOTH) === RETURN_BOTH_STAMPED_KO
+    && RETURN_BOTH_STAMPED_KO === '양측 확인이 끝났어요 — 정산은 담당자 확인 뒤에 진행돼요', String(ownerReturnWaitLine(BOTH)));
+  t('orf-3 · no wait line outside the phase (a run in progress, a completed row) even with a stamp',
+    ownerReturnWaitLine({ rawStatus: 'active', runEndedAt: null, ownerReturnAt: STAMP }) === null
+    && ownerReturnWaitLine({ rawStatus: 'completed', runEndedAt: iso(NOW - H), ownerReturnAt: STAMP }) === null);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
 // ⑪ SOURCE — the screens CALL these rules (no .cjs suite can import a route module)
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // Comments are stripped first (block, JSX-block and line): this slice's own comments quote the
@@ -367,8 +444,12 @@ t('source · schedule.tsx draws the 지금 band from nowBandLine and gates the l
   // …and the raw word no longer gates a live door or action anywhere in the band's row
   && !/\{b\.rawStatus === 'active' && \(\s*<Pressable/.test(sched)
   && !/accessibilityActions=\{b\.rawStatus === 'active' \?/.test(sched));
-t('source · schedule.tsx: the sheet\'s return arm precedes the live arm, and the review arm has the same door',
-  /selected\.status === 'active' && returnOwed\(selected\) \?/.test(sched) && count(sched, /returnOwed\(selected\)/g) >= 2
+// [owner-return-frame] Updated: this arm counted `returnOwed(selected)` ≥ 2 because the review arm's
+// door used the phase predicate. That door is now keyed on the owner's MOVE (`ownerReturnOwed`), so
+// the phase appears once (the active arm's key) and the ownership of 「반환 확인하기」 moved to the
+// orf-src pin below.
+t('source · schedule.tsx: the sheet\'s return arm precedes the live arm (keyed on the PHASE), and the review arm has the same door',
+  /selected\.status === 'active' && returnOwed\(selected\) \?/.test(sched)
   && count(sched, /label="반환 확인하기"/g) === 2);
 t('source · schedule.tsx: the status caption of an active row whose run ENDED is the return phase, not 「러닝 중 · LIVE」',
   /if \(b\.rawStatus === 'active' && returnOwed\(b\)\) return \{ label: RETURN_PHASE_LABEL/.test(sched)
@@ -390,6 +471,40 @@ t('source · home-hero.tsx: no hard-coded particle after an interpolated name (c
   !/name\}(가|를|와|는)[\s`<]/.test(hero) && /withParticle\(name, '가\/이'\)/.test(hero) && /returnSentence\(runner, name\)/.test(hero));
 t('source · home.tsx: no hard-coded 가 after the dog name (the live sentence and widget)',
   !/'아이'\}가/.test(home) && count(home, /withParticle\(liveNext\.dogName \?\? dogName \?\? '아이', '가\/이'\)/g) === 2);
+// [owner-return-frame · R1 c1] The owner's-move surfaces no behavioural test can reach (route and
+// component modules). Comment-stripped like everything in ⑪: this slice's comments NAME the
+// buttons and predicates they gate, and a comment must not satisfy a check for code.
+const api = stripTs(readApp('src/lib/api.ts'));
+t('orf-src · schedule.tsx: BOTH 「반환 확인하기」 primaries are keyed on the owner\'s MOVE, and there is no third',
+  count(sched, /\{ownerReturnOwed\(selected\) \? \(\s*<PaperBtn\s+label="반환 확인하기"/g) === 2
+  && count(sched, /label="반환 확인하기"/g) === 2,
+  `gated=${count(sched, /\{ownerReturnOwed\(selected\) \? \(\s*<PaperBtn\s+label="반환 확인하기"/g)}`);
+t('orf-src · schedule.tsx: after the owner stamps, both arms say the report\'s waiting sentence',
+  /러닝이 끝났어요 — \{ownerReturnWaitLine\(selected\) \?\? returnSentence\(/.test(sched)
+  && /\) : ownerReturnWaitLine\(selected\) \? \(/.test(sched));
+t('orf-src · home-hero.tsx: the coral 「반환 확인하기」 is the else-arm of `returnWait`, and appears once',
+  /\{returnWait \? \(\s*<DrawButton title="리포트 보기"[^>]*ground="blue"[\s\S]*?\) : \(\s*<DrawButton title="반환 확인하기"[^>]*ground="coral"/.test(hero)
+  && count(hero, /title="반환 확인하기"/g) === 1);
+t('orf-src · home-hero.tsx: the returning chip is coral only without a wait, and the sub reads the wait first',
+  /state === 'returning' \? \(returnWait \? \{ c: WAIT_BLUE, t: '확인 대기' \} : \{ c: paper\.action, t: '내 차례' \}\)/.test(hero)
+  && /\{returnWait \?\? `\$\{returnSentence\(runner, name\)\} · 받으셨으면 확인해주세요`\}/.test(hero)
+  && /const returnWait = state === 'returning' \? next\?\.returnWait \?\? null : null;/.test(hero));
+t('orf-src · home-hero.tsx: the in-flight frames carry a stamped case as one quiet line (pending dot, a role)',
+  /\{inFlight && reviewWait && onOpenReview \? \(\s*<Pressable onPress=\{onOpenReview\} style=\{s\.alertRow\} accessibilityRole="button"/.test(hero));
+t('orf-src · home.tsx hands the hero both wait lines, computed from the real rows',
+  /returnWait: ownerReturnWaitLine\(liveNext\),/.test(home)
+  && /reviewWait=\{reviewRow \? ownerReturnWaitLine\(reviewRow\) : null\}/.test(home));
+{
+  const sel = (api.match(/const MY_BOOKING_SELECT =\s*'([^']*)'/) || [])[1] || '';
+  const mapper = (api.match(/function mapMyBooking\(r: any\): Booking \{[\s\S]*?\n\}\n/) || [])[0] || '';
+  t('orf-src · api.ts: the owner booking select carries BOTH return stamps (exact column names)',
+    /(^|[\s,])owner_confirmed_return_at(,|$)/.test(sel) && /(^|[\s,])runner_confirmed_return_at(,|$)/.test(sel), sel.slice(0, 60));
+  t('orf-src · api.ts: mapMyBooking maps them (the runner reader\'s identical line elsewhere does not count)',
+    mapper.length > 0
+    && /ownerReturnAt: r\.owner_confirmed_return_at \?\? null,/.test(mapper)
+    && /runnerReturnAt: r\.runner_confirmed_return_at \?\? null,/.test(mapper), `mapper=${mapper.length}`);
+}
+
 // CONTROL — the stripper is what keeps prose out. Appending a comment that QUOTES the retired
 // particle to a copy of the source must not move the executable read; the crude raw read must move.
 {

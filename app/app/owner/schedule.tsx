@@ -16,7 +16,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal } from '../../src/lib/kst';
 import { lateness, LATENESS_CEILING_MS } from '../../src/lib/lateness';
-import { deepLinkStep, nowBandLine, RETURN_PHASE_LABEL, returnOwed, returnSentence } from '../../src/lib/home-hero-route';
+import { deepLinkStep, nowBandLine, ownerReturnOwed, ownerReturnWaitLine, RETURN_PHASE_LABEL, returnOwed, returnSentence } from '../../src/lib/home-hero-route';
 import { BottomNav } from '../../src/components/bottomnav';
 import { PaperSheet } from '../../src/components/paper-sheet';
 import { PaymentRow } from '../../src/components/charge-states';
@@ -1172,16 +1172,29 @@ export default function Schedule() {
                       which lives on the bid-scoped report (⑫, 0188) — had no door here. The sentence
                       is the hero's (`returnSentence`); the no-cancel note stays, because the server
                       refuses a cancel in this phase exactly as it does mid-run. */}
+                  {/* [owner-return-frame, R1 c1] The arm stays keyed on the PHASE (`returnOwed`) so an
+                      ended run never falls to the live arm; the primary 「반환 확인하기」 is keyed on
+                      the owner's MOVE (`ownerReturnOwed`). Once the owner has stamped, the sheet says
+                      what the report says and keeps the report as a secondary door. */}
                   {selected.status === 'active' && returnOwed(selected) ? (
                     <>
                       <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10, lineHeight: 20 }}>
-                        러닝이 끝났어요 — {returnSentence(`${selected.runnerName} 러너`, selected.dogName)}
+                        러닝이 끝났어요 — {ownerReturnWaitLine(selected) ?? returnSentence(`${selected.runnerName} 러너`, selected.dogName)}
                       </Text>
-                      <PaperBtn
-                        label="반환 확인하기"
-                        style={{ marginTop: 6 }}
-                        onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
-                      />
+                      {ownerReturnOwed(selected) ? (
+                        <PaperBtn
+                          label="반환 확인하기"
+                          style={{ marginTop: 6 }}
+                          onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                        />
+                      ) : (
+                        <PaperBtn
+                          label="러닝 리포트 보기"
+                          variant="secondary"
+                          style={{ marginTop: 6 }}
+                          onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                        />
+                      )}
                       <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', marginTop: 12, lineHeight: 18.5 }}>
                         이미 시작된 러닝은 일정 변경·취소가 불가능해요{'\n'}긴급 상황은 안심 센터 SOS를 이용해주세요
                       </Text>
@@ -1266,13 +1279,29 @@ export default function Schedule() {
                           0096 §2; the report's ⑫ allow-list draws it). This was reachable only from
                           the push. The case sentence above stays true — a person is looking — and
                           the owner's own half is one tap away. */}
-                      {returnOwed(selected) && (
+                      {/* [owner-return-frame, R1 c1] The primary only while the owner's tap is owed. On
+                          incident_review `confirm_return_tx` seals nothing (0193 §B), so after the
+                          owner stamps this row stays here until ops resolves it — the button kept
+                          asking for a tap already made. The waiting sentence is the report's. */}
+                      {ownerReturnOwed(selected) ? (
                         <PaperBtn
                           label="반환 확인하기"
                           style={{ marginTop: 6 }}
                           onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
                         />
-                      )}
+                      ) : ownerReturnWaitLine(selected) ? (
+                        <>
+                          <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingBottom: 6, lineHeight: 21 }}>
+                            {ownerReturnWaitLine(selected)}
+                          </Text>
+                          <PaperBtn
+                            label="러닝 리포트 보기"
+                            variant="secondary"
+                            style={{ marginTop: 6 }}
+                            onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
+                          />
+                        </>
+                      ) : null}
                       {selected.rawStatus === 'no_show' ? rebookRow : null}
                     </>
                   ) : (

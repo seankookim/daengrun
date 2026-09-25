@@ -146,15 +146,53 @@ export interface InflightRow {
   runEndedAt?: string | null;
   scheduledAt?: string | null;
   matched?: boolean;
+  /** [owner-return-frame, R1 c1] `bookings.owner_confirmed_return_at` — the OWNER's half of the
+   *  two-stamp return. Absent (a reader that does not carry it) reads as 「not stamped」, which
+   *  keeps the pre-existing door: the report it opens reads the real stamp. */
+  ownerReturnAt?: string | null;
+  /** `bookings.runner_confirmed_return_at` — read only to choose WHICH waiting sentence is true. */
+  runnerReturnAt?: string | null;
 }
 
-/** The run is OVER and the two-stamp return is still open — the owner's confirmation is owed.
- *  `confirm_return_tx` accepts exactly `active` and `incident_review` (0096 §2), and 0226 moves an
- *  `active` run nobody stamped to `incident_review` with `run_ended_at` already set, so both server
- *  words carry this phase. Without `run_ended_at` neither does: `active` is a run in progress and
- *  `incident_review` is a case the owner has nothing to stamp in. */
+/** The run is OVER and the two-stamp return is still open — the RETURN PHASE, whoever's stamp is
+ *  missing. `confirm_return_tx` accepts exactly `active` and `incident_review` (0096 §2), and 0226
+ *  moves an `active` run nobody stamped to `incident_review` with `run_ended_at` already set, so
+ *  both server words carry this phase. Without `run_ended_at` neither does: `active` is a run in
+ *  progress and `incident_review` is a case the owner has nothing to stamp in.
+ *  ⚠ [owner-return-frame, R1 c1] This is the PHASE, not the owner's move. It still decides every
+ *  「is this run over?」 question (the `returning` frame, no live door, the phase caption). Whether
+ *  the OWNER still owes a tap is `ownerReturnOwed` below. The name is kept rather than changed
+ *  because its callers need exactly this meaning, and a rename would move every one of them. */
 export function returnOwed(b: Pick<InflightRow, 'rawStatus' | 'runEndedAt'>): boolean {
   return (b.rawStatus === 'active' || b.rawStatus === 'incident_review') && !!b.runEndedAt;
+}
+
+/** [owner-return-frame, R1 c1] The return phase AND the owner has not stamped their half. This is
+ *  the one predicate behind every 「your move」 surface: the hero's coral frame, the band's
+ *  「받으셨으면 확인해주세요」, the hero's owed-return rank, and both 「반환 확인하기」 buttons on
+ *  내 일정. Before it existed, all of them read only `returnOwed`, so after the owner stamped, the
+ *  hero and the schedule sheet kept asking for the tap while the report already said
+ *  「러너 확인을 기다리고 있어요」. On `incident_review` (where `confirm_return_tx` seals nothing,
+ *  0193 §B) that lasted until ops resolved the case. */
+export function ownerReturnOwed(b: Pick<InflightRow, 'rawStatus' | 'runEndedAt' | 'ownerReturnAt'>): boolean {
+  return returnOwed(b) && !b.ownerReturnAt;
+}
+
+/** The report's sentences for the same states (`owner/report.tsx` ⑫ gate), so two screens say the
+ *  same thing about the same stamps. */
+export const OWNER_RETURN_WAIT_KO = '러너 확인을 기다리고 있어요';
+export const RETURN_BOTH_STAMPED_KO = '양측 확인이 끝났어요 — 정산은 담당자 확인 뒤에 진행돼요';
+
+/** What the owner's return surfaces say once the owner has stamped: null while the phase is not
+ *  open or the owner's move is still owed. It is written in terms of `ownerReturnOwed` on purpose,
+ *  so one conjunct decides both 「ask for the tap」 and 「say we are waiting」, and they cannot
+ *  disagree. Runner stamped too → the report's both-stamped sentence, because 「waiting for the
+ *  runner」 would then be false. On `incident_review` both stamps can land and nothing seals. */
+export function ownerReturnWaitLine(
+  b: Pick<InflightRow, 'rawStatus' | 'runEndedAt' | 'ownerReturnAt' | 'runnerReturnAt'>,
+): string | null {
+  if (!returnOwed(b) || ownerReturnOwed(b)) return null;
+  return b.runnerReturnAt ? RETURN_BOTH_STAMPED_KO : OWNER_RETURN_WAIT_KO;
 }
 
 // Most actionable first: active > handoff > confirmed > pending (a stale 「매칭 중」 must never hide
@@ -166,9 +204,18 @@ const SIX_HOURS = 6 * 3_600_000;
  *  ⚠ `returnOwed` is checked FIRST and ranks like `active`: an `incident_review` row reaches here as
  *  the display word 'pending', and ranking it by that word would put the owner's owed return
  *  BELOW an unrelated 「러너 찾는 중」. `no_show` and a review with nothing owed are not upcoming
- *  runs — 내 일정 tells their story (불발 · 확인 중) by `rawStatus`. */
+ *  runs — 내 일정 tells their story (불발 · 확인 중) by `rawStatus`.
+ *  ⚠ [owner-return-frame, R1 c1] DECISION: an `incident_review` row the owner has ALREADY stamped
+ *  does NOT outrank upcoming bookings. The owner has nothing left to do there; the next move is the
+ *  runner's or ops', and ops can take days. Ranking it like `active` held the hero on a case the
+ *  owner can do nothing about and pushed their next real booking to the rail. It drops through to
+ *  the `incident_review → null` arm below and comes back as `heroPick().review`, which home shows
+ *  as a quiet, non-primary line (see `home-hero.tsx`) rather than the hero.
+ *  An `active` row the owner has stamped still ranks as `active` through its display word: that is
+ *  the ordinary few minutes before the runner stamps and the booking completes, and the hero shows
+ *  it in the waiting frame (`ownerReturnWaitLine`), not the coral one. */
 export function heroRank(b: InflightRow): number | null {
-  if (returnOwed(b)) return RANK.active;
+  if (ownerReturnOwed(b)) return RANK.active;
   if (b.rawStatus === 'no_show' || b.rawStatus === 'incident_review') return null;
   return b.status in RANK ? RANK[b.status] : null;
 }
@@ -178,8 +225,9 @@ export interface HeroPick<T> {
   next: T | null;
   /** The rail: up to two FUTURE confirmed/pending bookings other than the hero's. */
   upcoming: T[];
-  /** The most recent `incident_review` row with nothing owed — the one fact that makes 「비어
-   *  있어요」 false while the hero is otherwise empty. */
+  /** The most recent `incident_review` row with nothing owed BY THE OWNER (never stamped-for, or
+   *  already stamped by them) — the one fact that makes 「비어 있어요」 false while the hero is
+   *  otherwise empty. */
   review: T | null;
 }
 
@@ -203,15 +251,21 @@ export function heroPick<T extends InflightRow>(rows: T[], now: number = Date.no
       && !!b.scheduledAt && Date.parse(b.scheduledAt) > now)
     .sort((x, y) => at(x) - at(y))
     .slice(0, 2);
+  // [owner-return-frame] `ownerReturnOwed`, not `returnOwed`: a case the owner has already stamped
+  // is a case to point at, not a hero (see heroRank's DECISION note).
   const review = rows
-    .filter((b) => b.rawStatus === 'incident_review' && !returnOwed(b))
+    .filter((b) => b.rawStatus === 'incident_review' && !ownerReturnOwed(b))
     .sort((x, y) => (y.scheduledAt ? Date.parse(y.scheduledAt) : 0) - (x.scheduledAt ? Date.parse(x.scheduledAt) : 0))[0] ?? null;
   return { next, upcoming, review };
 }
 
 /** The hero frame for the picked booking. `returning` is decided by `returnOwed` BEFORE any
  *  display word is read — an `incident_review` row carries the word 'pending' and would otherwise
- *  read as 「지명 대기」. Six states, mutually exclusive, no gaps; no booking → 'none'. */
+ *  read as 「지명 대기」. Six states, mutually exclusive, no gaps; no booking → 'none'.
+ *  [owner-return-frame] This reads the PHASE (`returnOwed`) and not the owner's move: an `active`
+ *  row the owner has stamped is still a run that ENDED, and falling through to 'active' would put
+ *  the live widget (「N분째 달리는 중」) back over it. The frame's WORDS change instead — the hero
+ *  reads `ownerReturnWaitLine` and drops its coral key. */
 export function heroState(next: InflightRow | null): HeroState {
   if (!next) return 'none';
   if (returnOwed(next)) return 'returning';
@@ -261,6 +315,8 @@ export interface BandRow {
   runnerName: string;
   startedAt?: string | null;
   arrivedAt?: string | null;
+  ownerReturnAt?: string | null;
+  runnerReturnAt?: string | null;
 }
 
 /** 내 일정's 지금 band, one row. `sub: null` means 「the row's route line」, which the screen
@@ -271,7 +327,13 @@ export interface BandRow {
  *  door to a finished run. */
 export function nowBandLine(b: BandRow, now: number = Date.now()): { line: string; sub: string | null; liveDoor: boolean } {
   if (returnOwed(b)) {
-    return { line: returnSentence(`${b.runnerName} 러너`, b.dogName), sub: '러닝이 끝났어요 · 받으셨으면 확인해주세요', liveDoor: false };
+    // [owner-return-frame, R1 c1] 「받으셨으면 확인해주세요」 only while the owner's tap is owed;
+    // once they have stamped, the sub says what the report says.
+    return {
+      line: returnSentence(`${b.runnerName} 러너`, b.dogName),
+      sub: ownerReturnWaitLine(b) ?? '러닝이 끝났어요 · 받으셨으면 확인해주세요',
+      liveDoor: false,
+    };
   }
   if (b.rawStatus === 'active') {
     const el = elapsedLabel(b.startedAt, now);
