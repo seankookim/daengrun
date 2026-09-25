@@ -22,6 +22,7 @@ const {
   ledgerPaymentState, ledgerPaymentLabel,
   payoutStatusLabel, payoutStatusWithMethod, payoutPeriodLabel, sortPayoutsNewestFirst,
   payoutStuckDays, payoutStuckLine, PAYOUT_STUCK_DAYS,
+  payoutNoAccountLine, payoutHomeStrip, PAYOUT_NO_ACCOUNT_KO,
 } = require('./payout-status.build.cjs');
 const fs = require('fs');
 const path = require('path');
@@ -279,6 +280,48 @@ t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 
   t('the two functions compose: a stuck fixture produces a line, a young one produces none',
     payoutStuckLine(payoutStuckDays(st(NOW - 12 * DAY), NOW)) === '정산 지급이 12일째 밀려 있어요'
     && payoutStuckLine(payoutStuckDays(st(NOW - 2 * DAY), NOW)) === null);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [runner-journey-5 · fix/runner-home-truth] MONEY OWED, NO ACCOUNT ON FILE — runner home's line
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// `unpaid_won` / `has_bank_account` had no client reader (0213 §0d said so), so a runner with money
+// owed and nowhere to send it heard nothing for 7 days and then only 「밀려 있어요」. Each of the
+// three conjuncts has an arm that reddens when it is removed — the has-account arm is the one that
+// stops a registered runner being told to register (a fabricated instruction).
+{
+  const DAY = 86400000;
+  const NOW = Date.parse('2026-09-21T03:00:00Z');
+  const acct = (unpaidWon, hasBankAccount, oldestAwaitingMs = null) => ({ unpaidWon, hasBankAccount, oldestAwaitingMs });
+  t('🔴 PNA-1 money owed + no account → 「정산 계좌를 등록해야 지급돼요」',
+    payoutNoAccountLine({ unpaidWon: 1, hasBankAccount: false }) === '정산 계좌를 등록해야 지급돼요'
+    && PAYOUT_NO_ACCOUNT_KO === '정산 계좌를 등록해야 지급돼요');
+  t('PNA-2 a null / undefined state (unread or failed) → null, never 「register」',
+    payoutNoAccountLine(null) === null && payoutNoAccountLine(undefined) === null);
+  t('🔴 PNA-3 an account on file → null — a registered runner is never told to register',
+    payoutNoAccountLine({ unpaidWon: 1, hasBankAccount: true }) === null
+    && payoutNoAccountLine({ unpaidWon: 250000, hasBankAccount: true }) === null);
+  t('PNA-4 nothing owed → null (no nag without money behind it)',
+    payoutNoAccountLine({ unpaidWon: 0, hasBankAccount: false }) === null
+    && payoutNoAccountLine({ unpaidWon: -5, hasBankAccount: false }) === null
+    && payoutNoAccountLine({ unpaidWon: NaN, hasBankAccount: false }) === null);
+  t('PNA-5 hasBankAccount must be strictly false — a missing/odd value is not 「no account」',
+    payoutNoAccountLine({ unpaidWon: 1, hasBankAccount: undefined }) === null
+    && payoutNoAccountLine({ unpaidWon: 1, hasBankAccount: null }) === null);
+  // The home strip: the cause outranks and SUPPRESSES the wait.
+  const both = payoutHomeStrip(acct(50000, false, NOW - 9 * DAY), NOW);
+  t('🔴 PNA-6 no account AND stuck 9 days → ONE strip, the account line with its door; the 7-day line is suppressed',
+    both && both.line === '정산 계좌를 등록해야 지급돼요' && both.link === '계좌 등록 ›' && both.href === '/runner/bank-account',
+    JSON.stringify(both));
+  const stuck = payoutHomeStrip(acct(50000, true, NOW - 9 * DAY), NOW);
+  t('PNA-7 account on file and stuck 9 days → the 7-day line → 수익',
+    stuck && stuck.line === '정산 지급이 9일째 밀려 있어요' && stuck.href === '/runner/earnings' && stuck.link === '수익 보기 ›',
+    JSON.stringify(stuck));
+  t('PNA-8 no account, owed, not yet stuck → the account line still shows (it does not wait 7 days)',
+    payoutHomeStrip(acct(50000, false, NOW - 1 * DAY), NOW)?.href === '/runner/bank-account');
+  t('PNA-9 nothing to say → null (unread state, fine account, nothing owed)',
+    payoutHomeStrip(null, NOW) === null && payoutHomeStrip(acct(50000, true, NOW - 1 * DAY), NOW) === null
+    && payoutHomeStrip(acct(0, false, null), NOW) === null);
 }
 
 console.log(`\n${pass} pass / ${fail} fail`);

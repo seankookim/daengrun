@@ -247,3 +247,51 @@ export function payoutStuckLine(days: number | null): string | null {
   if (days == null || days < PAYOUT_STUCK_DAYS) return null;
   return `정산 지급이 ${days}일째 밀려 있어요`;
 }
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [runner-journey-5] MONEY IS OWED AND THERE IS NOWHERE TO SEND IT
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// `my_ledger_stuck_state()` (0213 §A) has returned `unpaid_won` and `has_bank_account` since it
+// shipped, and 0213 §0d records that neither had a client reader. So a runner who had earned money
+// and never registered a payout account heard NOTHING for seven days, and was then told only
+// 「정산 지급이 N일째 밀려 있어요」 — the wait, with the likeliest cause withheld. Payouts are a
+// concierge bank transfer (0186): with no account on file there is nothing to transfer to, and the
+// server's own runner notice says 「정산 계좌를 확인해주세요」 in exactly this case (0210 §E).
+//
+// ⚠ All three conjuncts are load-bearing and each is pinned by the arm that removes it:
+//   · `state` present — an unread answer is not 「you have no account」 (the 0-as-loading lie);
+//   · `unpaidWon > 0` — nothing owed means nothing to register FOR, and a nag with no money behind
+//     it is noise that trains the runner to ignore the strip;
+//   · `hasBankAccount === false` — strictly false. A runner who registered must never be told to
+//     register; that is a fabricated instruction (0210 §E's own wording of the rule).
+
+/** The two fields of `LedgerStuckState` (api.ts) this line reads. Structural, like
+ *  `LedgerStuckFields`, so the pin needs no network module. */
+export interface LedgerAccountFields {
+  unpaidWon: number;
+  hasBankAccount: boolean;
+}
+
+export const PAYOUT_NO_ACCOUNT_KO = '정산 계좌를 등록해야 지급돼요';
+
+/** 「정산 계좌를 등록해야 지급돼요」 when money is owed and no account is registered; null otherwise. */
+export function payoutNoAccountLine(state: LedgerAccountFields | null | undefined): string | null {
+  if (state == null) return null;
+  if (!(Number.isFinite(state.unpaidWon) && state.unpaidWon > 0)) return null;
+  if (state.hasBankAccount !== false) return null;
+  return PAYOUT_NO_ACCOUNT_KO;
+}
+
+/** Runner home's ONE payout strip: the no-account line (with its door to the registration screen)
+ *  outranks the 7-day line and SUPPRESSES it — the cause is the more useful sentence, and two
+ *  critical strips about one sum is the crying-gate shape. null = draw nothing. */
+export function payoutHomeStrip(
+  state: (LedgerAccountFields & LedgerStuckFields) | null | undefined,
+  nowMs: number,
+): { line: string; link: string; href: '/runner/bank-account' | '/runner/earnings' } | null {
+  const noAccount = payoutNoAccountLine(state);
+  if (noAccount !== null) return { line: noAccount, link: '계좌 등록 ›', href: '/runner/bank-account' };
+  const stuck = payoutStuckLine(payoutStuckDays(state, nowMs));
+  if (stuck !== null) return { line: stuck, link: '수익 보기 ›', href: '/runner/earnings' };
+  return null;
+}

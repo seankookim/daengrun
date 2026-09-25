@@ -11,6 +11,7 @@ import { acceptBooking, acceptReschedule, AvailRule, declineBooking, declineResc
 import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
 import { workGateDoor, type WorkGateRead } from '../../src/lib/work-gate-door';
 import { workGateStrip } from '../../src/lib/work-gate-strip';
+import { acceptedLine } from '../../src/lib/runner-home-pick';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -454,14 +455,20 @@ export default function Requests() {
         { text: '수락', style: 'default', onPress: () => { setAsking(false); void commitAccept(req); } },
       ]);
   };
+  // 🔴 [runner-journey-7] THIS DOOR NO LONGER NAVIGATES. It pushed the meetup screen after every
+  // accept, and meetup fires `runnerEnroute` on mount — so for any booking within 24h the server
+  // flipped it confirmed → runner_enroute and told the owner 「러너가 픽업 장소로 출발했어요」 seconds
+  // after the match, with no runner action (and moved the owner into the en-route cancel tier).
+  // Home's 수락 door already stayed put; both now say the same sentence (`acceptedLine`) and the
+  // runner continues from home's 진행 중 ticket when the booking is next. meetup.tsx's mount-time
+  // enroute itself is Sean's open letter and is not touched here.
   const commitAccept = async (req: OpenRequest) => {
     setAccepting(req.bookingId);
     try {
       await acceptBooking(req.bookingId);
       haptic('success');
-      runnerJob.bookingId = req.bookingId;
-      Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요');
-      router.push('/runner/meetup');
+      Alert.alert('수락 완료', acceptedLine(req.when));
+      load();
     } catch (e) {
       alertFail('수락 실패', e);
       load();
