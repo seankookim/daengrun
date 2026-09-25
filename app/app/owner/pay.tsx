@@ -8,6 +8,7 @@ import { useNumFont } from '../../src/lib/fonts';
 import { kstAmPm, kstCal, kstClock, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { Collection, collectionMatters, derivePayPhase, PayPhase, summarizeCollection } from '../../src/lib/payphase';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { paper, pricing } from '../../src/theme';
 
 // 청구 표면 `/owner/pay?bid=` — 예약 하나의 청구 상태를 서버 진실로만 말하는 **읽기 전용** 화면.
@@ -92,7 +93,12 @@ const HEAD: Record<PayScreen, string> = {
 const ADDON_LABELS = pricing.addons as Record<string, { label: string } | undefined>;
 const addonLabel = (k: string) => ADDON_LABELS[k]?.label ?? k;
 
-const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+// The fail strip's reason. It used to be `e.message` verbatim — PostgREST's English on the money
+// screen. Folded now (a Korean message passes through unchanged), with the original in the log.
+const msgOf = (e: unknown) => {
+  console.warn('[pay] load:', rpcRaw(e));
+  return foldRpcError(e).message;
+};
 const goHome = () => router.replace('/owner/home');
 
 // 예약 시각 — kst.ts로 수렴 (codex 2026-08-31 F13: Intl try의 catch가 기기 로컬로 떨어져

@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTrackPermission, requestTrackPermission } from '../lib/geo';
 import { paper } from '../theme';
+import { PaperBtn } from './paper-btn';
 
 // 첫 실행 위치 프라이머 — lab ①「한 줄」, Sean 확정 2026-08-26.
 //
@@ -28,6 +30,10 @@ import { paper } from '../theme';
 export type PrimerRole = 'owner' | 'runner';
 
 export function LocationPrimer({ role, onDone }: { role: PrimerRole; onDone: () => void }) {
+  // Safe-area insets (fix/first-run-error-fold, 2026-09-25): this is every new owner's FIRST screen
+  // and it rendered from y=0 with a fixed paddingTop 28, so the kicker sat under the status bar /
+  // Dynamic Island and the CTA on the home indicator. notification-primer.tsx's wrap is the model.
+  const insets = useSafeAreaInsets();
   const [asking, setAsking] = useState(false);
 
   const ask = async () => {
@@ -44,7 +50,7 @@ export function LocationPrimer({ role, onDone }: { role: PrimerRole; onDone: () 
   };
 
   return (
-    <View style={s.wrap}>
+    <View style={[s.wrap, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 12) }]}>
       <View style={s.body}>
         <Text style={s.kicker}>위치 사용</Text>
         <Text style={s.head}>러닝을 기록하려면{'\n'}위치가 필요해요</Text>
@@ -58,20 +64,15 @@ export function LocationPrimer({ role, onDone }: { role: PrimerRole; onDone: () 
       <View style={s.rule} />
       <Text style={s.limit}>러닝 중에만 사용하고, 끝나면 멈춰요.</Text>
 
-      <Pressable
-        onPress={ask}
-        disabled={asking}
-        style={[s.cta, asking && s.ctaBusy]}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: asking }}
-        accessibilityLabel="계속"
-      >
+      <View style={s.actions}>
         {/* 「계속」, never 「허용」: HIG (Privacy → pre-alert screens) — a custom screen whose button
             says Allow makes the person think they already granted, then the real system alert asks
             again. The system alert owns the word 허용. (HIG conformance row O4, 2026-09-17.) */}
-        {/* busy = label swap, never an opacity trick (DESIGN.md button matrix) */}
-        <Text style={[s.ctaTxt, asking && s.ctaTxtBusy]}>{asking ? '확인 중…' : '계속'}</Text>
-      </Pressable>
+        {/* busy = label swap, never an opacity trick (DESIGN.md button matrix). The house PaperBtn
+            replaces a hand-rolled lipless bar, so this CTA matches notification-primer's. Still no
+            「나중에」 — see the header. */}
+        <PaperBtn label="계속" busyLabel="확인 중…" busy={asking} onPress={ask} />
+      </View>
     </View>
   );
 }
@@ -96,10 +97,5 @@ const s = StyleSheet.create({
   // solid coral hairline — 이 선이 곧 브랜드 (DESIGN.md §4)
   rule: { height: 1, backgroundColor: paper.line, marginTop: 'auto' },
   limit: { fontSize: 15, lineHeight: 22, color: paper.dim, paddingHorizontal: 20, paddingVertical: 16 },
-  // paper.action (#C6472C), NOT paper.coral — coral is the retired lilac world's CTA. action is
-  // the paper world's primary fill and carries a measured 4.84:1 against a white label.
-  cta: { backgroundColor: paper.action, paddingVertical: 16, marginHorizontal: 20, marginBottom: 24 },
-  ctaBusy: { backgroundColor: paper.disabledFill },
-  ctaTxt: { textAlign: 'center', color: '#FFFFFF', fontSize: 16.5, fontWeight: '800' },
-  ctaTxtBusy: { color: paper.faint },
+  actions: { paddingHorizontal: 20, paddingBottom: 12 },
 });

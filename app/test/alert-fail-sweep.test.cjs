@@ -412,12 +412,100 @@ const CONVERTED = [
   // this slice, then converted here
   'app/compose.tsx', 'app/incident/[bid].tsx', 'app/owner/review.tsx', 'app/owner/addresses.tsx',
   'app/owner/address-pin.tsx', 'app/runner/home.tsx',
+  // fix/first-run-error-fold (2026-09-25): role select's four start-path failures (a local `fail`
+  // forwarder the sweep could not see through — Ⓓ below now does) and 결제 관리's retry Alert.
+  'app/index.tsx', 'app/payments.tsx',
 ];
 for (const rel of CONVERTED) {
   const s = STRIPPED.get(rel) || '';
   t(`${rel} imports alertFail and calls it`,
     /import \{[^}]*\balertFail\b[^}]*\} from '[./]+(src\/)?lib\/alert-fail'/.test(s) && /\balertFail\(/.test(s.replace(/import[^;]*;/g, '')),
     rel);
+}
+
+// The same slice folded four inline fail STRIPS (not Alerts) by hand — the class this file
+// deliberately does not gate by setter shape (header). What IS pinned, per file and by name: each
+// imports the fold and draws it. A file that deleted its strip, or went back to `e.message`
+// without the fold, loses the call and reddens here.
+const FOLDED_STRIPS = [
+  'app/onboard/owner.tsx', 'app/onboard/runner.tsx', 'app/profile/edit.tsx', 'app/owner/pay.tsx',
+];
+for (const rel of FOLDED_STRIPS) {
+  const s = STRIPPED.get(rel) || '';
+  const body = s.replace(/import[^;]*;/g, '');
+  t(`${rel} imports foldRpcError and draws foldRpcError(…).message`,
+    /import \{[^}]*\bfoldRpcError\b[^}]*\} from '[./]+(src\/)?lib\/rpc-error'/.test(s)
+    && /foldRpcError\([^)]*\)\s*\.\s*message\b/.test(body)
+    && !RAW_READ.test(dropFolds(codeOnly(body.replace(/console\.warn\([^;]*;/g, '')))),
+    rel);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Ⓓ THE ERROR ARGUMENT — hand the fold the error, never a string pulled out of it
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Ⓑ reads the title and the drawn text. It did not read the ERROR argument, and index.tsx showed
+// why that matters: its local `fail(title, msg)` took `x.message` and drew it with `Alert.alert` —
+// a forwarder the sweep could not see through, so four raw reads on the first screen a new user
+// meets were invisible. Passing `.message` into `alertFail` is folded, but it throws away `code`/
+// `details` for the log and turns `(e as Error)?.message ?? '한국어'` into dead code on an Error.
+// So: the error argument of `alertFail(…)` AND of any file-local forwarder whose body calls
+// `alertFail(` (a `const NAME = (…) => { … }`) must not be a raw `.message` read.
+// ⚠ Named blind spot, prose not pin: the finder sees only `const NAME = (…) => {` forwarders in the
+// SAME file. A `function NAME(…)` declaration, or a forwarder imported from another module, is not
+// followed — measured: rewriting index.tsx's `fail` as a declaration reddens only the arm below that
+// names index.tsx, not Ⓓ itself.
+function closeBrace(s, open) {
+  let depth = 0, i = open;
+  while (i < s.length) {
+    const c = s[i];
+    if (c === "'" || c === '"') { i = skipQuoted(s, i); continue; }
+    if (c === '`') { i = skipTemplate(s, i); continue; }
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) return i; }
+    i++;
+  }
+  return -1;
+}
+function forwarders(stripped) {
+  const out = [];
+  const re = /\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*(?::[^=>{]*)?=>\s*\{/g;
+  let m;
+  while ((m = re.exec(stripped)) !== null) {
+    const open = m.index + m[0].length - 1;
+    const close = closeBrace(stripped, open);
+    if (close > 0 && /\balertFail\s*\(/.test(stripped.slice(open, close))) out.push({ name: m[1], at: m.index });
+  }
+  return out;
+}
+const errArgReads = (stripped) => {
+  const names = ['alertFail', ...forwarders(stripped).map((f) => f.name)];
+  const hits = [];
+  for (const name of names) {
+    const re = new RegExp('(^|[^\\w$.])' + name.replace(/\$/g, '\\$') + '\\s*\\(', 'g');
+    let m;
+    while ((m = re.exec(stripped)) !== null) {
+      const open = m.index + m[0].length - 1;
+      // skip the definition `function alertFail(` / `const fail = (`
+      const before = stripped.slice(Math.max(0, m.index - 12), m.index + 1);
+      if (/function\s*$/.test(before) || /\bconst\s+$/.test(stripped.slice(Math.max(0, m.index - 8), m.index + m[1].length))) continue;
+      const close = closeParen(stripped, open);
+      if (close < 0) continue;
+      const arg = topArgs(stripped.slice(open + 1, close))[1] || '';
+      if (RAW_READ.test(dropFolds(codeOnly(arg)))) hits.push(m.index + m[1].length);
+    }
+  }
+  return hits;
+};
+{
+  const byFile = [];
+  for (const rel of judged) {
+    const hits = errArgReads(STRIPPED.get(rel));
+    if (hits.length) byFile.push(`${rel}:${hits.map((o) => lineOf(SRC.get(rel), o)).join(',')}`);
+  }
+  t('🔴 Ⓓ no alertFail (or file-local forwarder to it) is handed a raw `.message` as its error',
+    byFile.length === 0, byFile.join(' | '));
+  t('Ⓓ the forwarder finder sees index.tsx\'s `fail` (a finder that finds nothing makes Ⓓ vacuous)',
+    forwarders(STRIPPED.get('app/index.tsx') || '').some((f) => f.name === 'fail'));
 }
 
 // ── CONTROLS — each names the one failure mode it is blind to if removed ─────────────────────────
@@ -464,6 +552,18 @@ t('CONTROL · alertFail\'s own definition is not a call site',
   && ttl("export function alertFail(title: string, e: unknown, tail?: string | null, opts: AlertFailOpts = {}): void {}") === 0);
 t('CONTROL · a message COMPARISON choosing between two Korean bodies is not a render',
   raw("Alert.alert('x', e?.message === NOT_FOUND ? '가' : '나');") === 0);
+
+const ea = (src) => errArgReads(stripComments(src)).length;
+t('CONTROL Ⓓ · a raw `.message` handed to alertFail IS seen', ea("alertFail('저장 실패', (e as Error).message);") === 1);
+t('CONTROL Ⓓ · the error object handed to alertFail is NOT', ea("alertFail('저장 실패', e);") === 0);
+t('CONTROL Ⓓ · a raw `.message` handed to a local forwarder IS seen',
+  ea("const fail = (title: string, e: unknown) => { setBusy(null); alertFail(title, e); };\nif (x) { fail('시작 실패', readErr.message); }") === 1);
+t('CONTROL Ⓓ · the forwarder\'s own definition is not a call site',
+  ea("const fail = (title: string, e: unknown) => { alertFail(title, e); };") === 0);
+t('CONTROL Ⓓ · a same-named local function that does NOT call alertFail is not a forwarder',
+  ea("const fail = (m: string) => { setErr(m); };\nfail(e.message);") === 0);
+t('CONTROL Ⓓ · a commented-out raw hand-off is not seen',
+  ea("// fail('x', readErr.message)\nconst fail = (t: string, e: unknown) => { alertFail(t, e); };") === 0);
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

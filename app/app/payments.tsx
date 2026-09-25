@@ -6,6 +6,7 @@ import { homePath } from '../src/components/bottomnav';
 import { ChargeBanner, PaymentRow } from '../src/components/charge-states';
 import { PaperBtn } from '../src/components/paper-btn';
 import { ScreenHead } from '../src/components/ui';
+import { alertFail } from '../src/lib/alert-fail';
 import {
   BillingCard, PaymentRecord, cardRegistrationLive, fetchMyBillingCard, fetchMyPayments, fetchUnsettledCharge, retryCollect,
 } from '../src/lib/api';
@@ -112,12 +113,18 @@ export default function Payments() {
     if (busy || retryTargets.length === 0) return;
     setBusy(true);
     setRetryNote(null);
-    let failure: string | null = null;
+    // Keep the caught error OBJECT, not its message: `retryCollect` folds (edge-errors.ts
+    // `collectError`) and `alertFail` folds again and logs the original. This used to be
+    // `(e as Error).message // 서버가 한 말 그대로` — which, for anything the old local table did
+    // not name, was PostgREST's or supabase-js's English in a Korean Alert.
+    let failed = false;
+    let failure: unknown = null;
     for (const bid of retryTargets) {
       try {
         await retryCollect(bid);
       } catch (e) {
-        failure = (e as Error).message; // 서버가 한 말 그대로
+        failed = true;
+        failure = e;
         break;
       }
     }
@@ -126,8 +133,8 @@ export default function Payments() {
     const stillFailed = (fresh ?? rows).some((r) => r.status === 'failed');
     await fetchUnsettledCharge().then(setLocked).catch(() => setLocked(null));
     setBusy(false);
-    if (failure) {
-      Alert.alert('다시 시도 실패', failure);
+    if (failed) {
+      alertFail('다시 시도 실패', failure);
       return;
     }
     // 200 응답이 '수금 완료'는 아니다 — 결과는 다시 읽은 행이 말한다.

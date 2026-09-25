@@ -11,13 +11,20 @@
 // `confirm-payment`, printed by `owner/pay.tsx`'s `failReason` strip) and on `open-drop`'s
 // envelope.
 //
-// The repo had already closed this class three times — `settleRun` (api.ts), `retryCollect`,
+// The repo had already met this class three times — `settleRun` (api.ts), `retryCollect`,
 // `billingAuthError` — and each fix was a `Record<string,string>` local to one wrapper. This
-// module is those three tables in one place, routed through `foldRpcError` so they also inherit
-// the two rules those local tables did NOT have:
+// module is where those tables are meant to live, routed through `foldRpcError` so they also
+// inherit the two rules the local tables did NOT have:
 //   · a message that already carries Hangul passes through UNTOUCHED (the server wrote copy)
 //   · anything English and unmapped folds to `RPC_FOLD_KO` with the original kept on `cause` AND
 //     on `raw` — a person never reads a token, a log never loses one.
+//
+// ⚠ CORRECTED 2026-09-25 (fix/first-run-error-fold). This header used to say the three tables
+// WERE consolidated here. Only the booking-hold / pay / drop doors were: `retryCollect` kept its
+// own four-token table and rethrew everything else raw — `unauthorized`, a PostgREST sentence,
+// supabase-js's 「Failed to send a request to the Edge Function」 — straight into 결제 관리's
+// Alert. It now folds through `collectError` below. `settleRun` and `billingAuthError` still hold
+// local tables (api.ts); they are the remaining two, named so nobody reads this header as 「done」.
 //
 // ⚠ The tokens are SUBSTRING-matched (matchToken sorts longest-first). That is deliberate: two of
 // create-booking-hold's tokens are template literals — `unknown addon ${k}` — so the key is the
@@ -28,6 +35,9 @@
 // against the handler source rather than against this comment.
 
 import { foldRpcError } from './rpc-error';
+// Re-exported so `test/edge-errors.test.cjs` compares against the ONE literal the fold draws,
+// instead of a retyped copy that could drift from it.
+export { RPC_FOLD_KO } from './rpc-error';
 
 /** OUR bug, not theirs. A `bad_body` or a `missing fields` means the app sent a request this
  *  server cannot read — blaming the owner for it (「입력을 확인해주세요」) is a lie about who is
@@ -152,3 +162,26 @@ export const payError = (e: unknown): Error => foldRpcError(e, { tokens: PAY_TOK
  *  included), so it costs nothing and keeps working for any older path. */
 export const dropError = (e: unknown): Error =>
   foldRpcError(e, { tokens: DROP_TOKENS, empty: '드랍을 열지 못했어요' });
+
+/**
+ * `collect-charges` — 결제 관리's 「다시 시도」 (`retryCollect`, api.ts). The four tokens its local
+ * table already mapped, plus `unauthorized` (`_shared/ctx.ts` `caller()`'s 401), which it did not.
+ *
+ * ⚠ `internal` IS mapped here, unlike on the booking-hold door: this table carried a retry
+ * sentence for it before the move, and moving the fold up must not silently change the copy a
+ * 결제 관리 owner already reads. `missing fields` / `bad_body` move from that same retry sentence
+ * to `APP_BUG_KO` — the app sent a request the server cannot read, and telling the owner to
+ * 「잠시 후 다시 시도」 a request that will fail identically every time is a lie about who is broken.
+ */
+export const COLLECT_TOKENS: Record<string, string> = {
+  forbidden: '이 예약의 청구가 아니에요',
+  unauthorized: SESSION_EXPIRED_KO,
+  internal: '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
+  'missing fields': APP_BUG_KO,
+  bad_body: APP_BUG_KO,
+};
+
+/** 재청구 실패 — `payments.tsx`'s 「다시 시도 실패」 Alert (via `alertFail`, which folds again: a
+ *  Korean message passes through unchanged, so the double pass costs nothing). Anything English
+ *  and unmapped folds to `RPC_FOLD_KO` with the original on `raw`/`cause`. */
+export const collectError = (e: unknown): Error => foldRpcError(e, { tokens: COLLECT_TOKENS });

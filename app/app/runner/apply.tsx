@@ -1,6 +1,5 @@
-import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -520,15 +519,20 @@ export default function Apply() {
             <Text style={s.stateT}>인증이 끝났어요</Text>
             <Text style={s.stateD}>운영자 확인을 마쳤어요 — 이제 요청을 받을 수 있어요</Text>
             {cert !== null && (
-              <Text style={s.stateMeta}>지금 등급은 {runnerTierLabel(cert.tier)}예요 — 위 러너 레코드와 같은 값이에요</Text>
+              <Text style={s.stateMeta}>지금 등급은 {runnerTierLabel(cert.tier)}예요</Text>
             )}
             {online !== null && (
               <View style={s.onlineLine}>
                 <View style={[s.onlineDot, { backgroundColor: online ? paper.readyDeep : paper.dim }]} />
                 <Text style={s.onlineTxt}>
+                  {/* ⚠ Open requests arrive whether or not the runner is online — runner/home.tsx:1660
+                      says so in the product's own words (「열린 요청은 온라인과 무관하게 도착해요 —
+                      지명은 온라인일 때만 새로 들어와요」), and home.tsx:659 names what the switch does
+                      (the owner's recommendation / runner shelf). The old offline line 「온라인으로
+                      켜야 요청이 와요」 contradicted it. Both lines now say what the switch changes. */}
                   {online
-                    ? '지금 온라인 상태예요 · 요청이 오면 러너 홈에 떠요'
-                    : '온라인으로 켜야 요청이 와요 · 러너 홈에서 켤 수 있어요'}
+                    ? '지금 온라인 상태예요 · 보호자의 러너 목록과 추천에 보여요'
+                    : '열린 요청은 그대로 와요 · 지명을 받으려면 러너 홈에서 온라인을 켜주세요'}
                 </Text>
               </View>
             )}
@@ -784,7 +788,7 @@ export default function Apply() {
                 swaps the label instead of greying the button out. */}
             <PaperBtn
               label="지원서 접수하기"
-              busyLabel="접수 중이에요…"
+              busyLabel="접수 중…"
               busy={submitting}
               onPress={submit}
               style={s.submit}
@@ -840,17 +844,23 @@ function StateStrap({ tone, label }: { tone: string; label: string }) {
 }
 
 // 문의하기 — only rendered where 문의 is genuinely the next action (hard bar, attempt cap).
+// It opens the mail composer directly (the login.tsx:27 pattern). It used to push /settings and
+// make a refused applicant find 문의하기 a second time on another screen. A device with no mail
+// app is a failure shown as a failure — the address is still printed so it can be copied by hand.
+const SUPPORT_MAIL = 'mailto:seankookim@uchicago.edu?subject=도그스하이 러너 지원 문의';
 function ContactCta() {
   return (
     <Pressable
-      onPress={() => router.push('/settings')}
+      onPress={() => {
+        Linking.openURL(SUPPORT_MAIL).catch(() =>
+          Alert.alert('메일 앱을 열 수 없어요', 'seankookim@uchicago.edu 로 메일을 보내주세요'));
+      }}
       style={s.cta}
       accessibilityRole="button"
-      accessibilityLabel="설정 화면의 문의하기로 이동"
+      accessibilityLabel="문의하기"
     >
       <View style={{ flex: 1 }}>
         <Text style={s.ctaT}>문의하기</Text>
-        <Text style={s.ctaD}>설정 › 문의하기로 이동해요</Text>
       </View>
       <Text style={s.ctaGo}>›</Text>
     </Pressable>
@@ -889,7 +899,7 @@ function WithdrawBlock({ confirm, setConfirm, busy, err, onWithdraw }: {
                 original no-op-while-busy — it is never rendered as disabled. */}
             <PaperBtn
               label="네, 취소할게요"
-              busyLabel="취소 중이에요…"
+              busyLabel="취소 중…"
               busy={busy}
               variant="destructive"
               onPress={onWithdraw}

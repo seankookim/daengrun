@@ -29,9 +29,9 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  BOOKING_HOLD_TOKENS, PAY_TOKENS, DROP_TOKENS,
-  APP_BUG_KO, SESSION_EXPIRED_KO,
-  bookingHoldError, payError, dropError,
+  BOOKING_HOLD_TOKENS, PAY_TOKENS, DROP_TOKENS, COLLECT_TOKENS,
+  APP_BUG_KO, SESSION_EXPIRED_KO, RPC_FOLD_KO,
+  bookingHoldError, payError, dropError, collectError,
 } = require('./edge-errors.build.cjs');
 
 let pass = 0, fail = 0;
@@ -280,6 +280,54 @@ t('payError refuses to claim the payment failed when it does not know — it sta
   payError(null).message === payError(new Error('some unmapped english')).message
   && !payError(null).message.includes('결제'),
   payError(null).message);
+
+// ── ⑦ collect-charges — 결제 관리's 「다시 시도」 (fix/first-run-error-fold) ──────────────────────
+// `retryCollect` (api.ts) used to hold a local four-token table and rethrow everything else RAW.
+// The property: every English thing that door can throw reaches a person as Korean, and the
+// original survives on `raw` and `cause`. Rows, not a map census — the map census is ⑧.
+const COLLECT = path.join(FN, 'collect-charges', 'handler.ts');
+t('collectError: `unauthorized` (ctx.ts caller()\'s 401) → the re-login door',
+  collectError(new Error('unauthorized')).message === SESSION_EXPIRED_KO,
+  collectError(new Error('unauthorized')).message);
+t('collectError: `forbidden` → 「이 예약의 청구가 아니에요」',
+  collectError(new Error('forbidden')).message === '이 예약의 청구가 아니에요',
+  collectError(new Error('forbidden')).message);
+t('collectError: `missing fields` / `bad_body` are OUR bug, not a retry',
+  collectError(new Error('missing fields')).message === APP_BUG_KO
+  && collectError(new Error('bad_body')).message === APP_BUG_KO);
+t('collectError: `internal` keeps the retry sentence the old local table drew',
+  collectError(new Error('internal')).message === '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
+  collectError(new Error('internal')).message);
+for (const wire of [
+  'new row violates row-level security policy for table "payments"', // a PostgREST sentence (handler :92/:98 pass bErr.message through)
+  'Failed to send a request to the Edge Function',                   // supabase-js FunctionsFetchError
+  'Edge Function returned a non-2xx status code',                    // FunctionsHttpError whose body had no `error`
+]) {
+  const out = collectError(new Error(wire));
+  t(`🔴 collectError: 「${wire.slice(0, 40)}…」 folds to RPC_FOLD_KO`, out.message === RPC_FOLD_KO, out.message);
+  t(`collectError: 「${wire.slice(0, 40)}…」 keeps the original on raw AND cause`,
+    out.raw === wire && out.cause instanceof Error && out.cause.message === wire,
+    JSON.stringify({ raw: out.raw, cause: out.cause && out.cause.message }));
+}
+t('collectError: a Korean message passes through unchanged, same object',
+  (() => { const ko = new Error('이미 처리된 청구예요'); return collectError(ko) === ko; })());
+
+// ── ⑧ collect-charges drift — every English literal its handler throws is mapped ────────────────
+const collectEn = [...new Set(httpErrorLiterals(COLLECT).filter((s) => !hasHangul(s)))].sort();
+t('the collect-charges extractor finds its literals (≥2: missing fields, forbidden)',
+  collectEn.length >= 2, JSON.stringify(collectEn));
+t('every English HttpError literal in collect-charges is mapped in COLLECT_TOKENS',
+  collectEn.every((tok) => tok in COLLECT_TOKENS), JSON.stringify(collectEn.filter((k) => !(k in COLLECT_TOKENS))));
+t('COLLECT_TOKENS: every value is Hangul, and `unauthorized` is the re-login door',
+  Object.values(COLLECT_TOKENS).every(hasHangul) && COLLECT_TOKENS.unauthorized === SESSION_EXPIRED_KO);
+t('the local table is gone from api.ts retryCollect (the fold is the only map)',
+  (() => {
+    const api = stripComments(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'api.ts'), 'utf8'));
+    const at = api.indexOf('export async function retryCollect(');
+    if (at < 0) return false; // a moved function must fail loudly, never read as 「no table」
+    const body = api.slice(at, api.indexOf('\n}\n', at));
+    return /throw collectError\(/.test(body) && !/Record<string,\s*string>/.test(body) && !/forbidden/.test(body);
+  })());
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail === 0 ? 0 : 1);

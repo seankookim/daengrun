@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { markRolePicked, useAuth } from '../src/auth-context';
+import { alertFail } from '../src/lib/alert-fail';
 import { ensureRunner } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
@@ -54,12 +55,21 @@ export default function RoleSelect() {
     setBusy(role);
 
     // 실패는 실패로 — 시작 경로의 모든 단계가 재시도 가능한 알림으로 끝난다 (조용한 스킵 금지).
-    const fail = (title: string, msg: string) => {
+    // ⚠ It takes the caught ERROR, never its `.message` (fix/first-run-error-fold, 2026-09-25):
+    // this helper used to take a string and every step handed it `x.message`, so a PostgREST
+    // sentence (「null value in column "name" … violates not-null constraint」 was measured here on
+    // device) was the body of a Korean dialog on the first screen a new user sees. `alertFail` folds
+    // it and logs the original; the local wrapper made the old form invisible to the Alert sweep,
+    // which is why `alert-fail-sweep.test.cjs` now also reads the error argument of a file-local
+    // forwarder like this one.
+    const fail = (title: string, e: unknown) => {
       setBusy(null);
-      Alert.alert(title, msg, [
-        { text: '다시 시도', onPress: () => { void start(role); } },
-        { text: '닫기', style: 'cancel' },
-      ]);
+      alertFail(title, e, undefined, {
+        buttons: [
+          { text: '다시 시도', onPress: () => { void start(role); } },
+          { text: '닫기', style: 'cancel' },
+        ],
+      });
     };
 
     // 프로필 실화: profiles 행 upsert (RLS self-insert)
@@ -80,7 +90,7 @@ export default function RoleSelect() {
     // This read also feeds the first-run gate below (profiles select grants: 0088 §A + 0091 §E⑤).
     const { data: existing, error: readErr } = await supabase
       .from('profiles').select('name, district').eq('id', auth.user.id).maybeSingle();
-    if (readErr) { fail('프로필을 불러오지 못했어요', readErr.message); return; }
+    if (readErr) { fail('프로필을 불러오지 못했어요', readErr); return; }
 
     // ⚠ UPDATE or INSERT — never `upsert` here. `upsert` is INSERT … ON CONFLICT DO UPDATE, and
     // Postgres forms and NOT NULL-checks the proposed tuple BEFORE conflict resolution — so an
@@ -107,7 +117,7 @@ export default function RoleSelect() {
     const { error } = existing
       ? await supabase.from('profiles').update({ role }).eq('id', auth.user.id)
       : await supabase.from('profiles').insert({ id: auth.user.id, role, name: seeded ?? '사용자' });
-    if (error) { fail('프로필 저장 실패', error.message); return; }
+    if (error) { fail('프로필 저장 실패', error); return; }
 
     // 러너 선택 시 runners 행 + 기본 가용시간 확보 (0057 K-3: applicant 민팅)
     // ⚠ [2026-09-15] 이 단계만 `catch { console.warn }` 로 삼키고 있었다 — 이 함수 :29 가 자기
@@ -120,7 +130,7 @@ export default function RoleSelect() {
       try {
         await ensureRunner();
       } catch (e) {
-        fail('러너 정보를 준비하지 못했어요', (e as Error)?.message ?? '네트워크를 확인하고 다시 시도해주세요');
+        fail('러너 정보를 준비하지 못했어요', e);
         return;
       }
     }
@@ -138,7 +148,7 @@ export default function RoleSelect() {
       // answers, and only the second one is "you have no dog yet".
       const { count, error: dogErr } = await supabase
         .from('dogs').select('id', { count: 'exact', head: true }).eq('owner_id', auth.user.id);
-      if (dogErr) { fail('시작하지 못했어요', dogErr.message); return; }
+      if (dogErr) { fail('시작하지 못했어요', dogErr); return; }
       next = (count ?? 0) === 0 ? '/onboard/owner' : '/owner/home';
     } else {
       // `existing` was read before ensureRunner, which never writes district — still current.

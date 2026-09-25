@@ -23,7 +23,7 @@ import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
 // The same law for the OTHER door — `functions.invoke` refusals, whose tokens are English by
 // construction (`_shared/ctx.ts` raises `HttpError(400, "bad_body")`). See edge-errors.ts's header
 // for what reached an owner's 「예약 실패」 Alert before this existed.
-import { bookingHoldError, dropError, payError } from './edge-errors';
+import { bookingHoldError, collectError, dropError, payError } from './edge-errors';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
 import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
@@ -1111,15 +1111,10 @@ export async function retryCollect(bookingId: string): Promise<void> {
     body: { booking_id: bookingId },
   });
   if (error || data?.error) {
-    const original = await fnError(error, data);
-    const messages: Record<string, string> = {
-      forbidden: '이 예약의 청구가 아니에요',
-      'missing fields': '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
-      internal: '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
-      bad_body: '결제를 다시 시도하지 못했어요 — 잠시 후 다시 시도해주세요',
-    };
-    const message = messages[original.message];
-    throw message ? new Error(message, { cause: original }) : original;
+    // The table lives in edge-errors.ts (COLLECT_TOKENS). The local one mapped four tokens and
+    // rethrew everything else RAW — `unauthorized`, PostgREST, 「Failed to send a request to the
+    // Edge Function」 — into 결제 관리's Alert.
+    throw collectError(await fnError(error, data));
   }
 }
 

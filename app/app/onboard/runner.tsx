@@ -9,6 +9,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { updateMyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { getTrackPermission, requestTrackPermission } from '../../src/lib/geo';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { supabase } from '../../src/lib/supabase';
 import { layout, paper } from '../../src/theme';
 
@@ -75,7 +76,10 @@ export default function OnboardRunner() {
       if ((data?.district ?? '') !== dt) throw new Error('프로필이 아직 없어요 — 시작 화면에서 러너를 다시 골라주세요');
       router.replace('/runner/home');
     } catch (e) {
-      setErr((e as Error)?.message ?? '알 수 없는 오류');
+      // Folded: the read-back's own Korean (「프로필이 아직 없어요 …」) passes through unchanged; a
+      // PostgREST sentence becomes the house fold. The original goes to the log.
+      console.warn('[onboard-runner] save:', rpcRaw(e));
+      setErr(foldRpcError(e).message);
     } finally {
       setBusy(false);
     }
@@ -168,11 +172,12 @@ export default function OnboardRunner() {
                 disabled={perm == null || asking}
                 style={s.plateBtn}
                 accessibilityRole="button"
-                accessibilityLabel="위치 권한 허용"
+                accessibilityLabel="위치 권한 요청 계속"
                 accessibilityState={{ disabled: perm == null || asking }}
               >
                 <Text style={[s.plateAction, (perm == null || asking) && { color: paper.faint }]}>
-                  {perm == null ? '권한 상태 확인 중…' : asking ? '권한 요청 중…' : '위치 권한 허용 ›'}
+                  {/* 「계속」, never 「허용」 (HIG O4): the system alert owns the word 허용 — location-primer.tsx */}
+                  {perm == null ? '권한 상태 확인 중…' : asking ? '권한 요청 중…' : '계속 ›'}
                 </Text>
               </Pressable>
             </>
