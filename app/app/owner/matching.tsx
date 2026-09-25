@@ -4,7 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
-import { fetchAvailableRunnersFor, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
+import { fetchAvailableRunnersFor, fetchCertifiedRunners, fetchGearFor, fetchRunnerProfile, GEAR_META, GearItem, LiveRunner, requestRunner } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { goBackOrHome } from '../../src/lib/nav';
@@ -172,24 +172,33 @@ export default function Matching() {
   const insets = useSafeAreaInsets();
   const df = useDisplayFont(); // Black Han Sans — 화면에서 딱 한 번(시트의 러너 이름)
   const nf = useNumFont();     // Oswald — 응답률·러닝·페이스 등 모든 숫자
-  // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23)
-  const live = !!draft.bookingId;
   // 러너 변경 모드 — 일정 화면의 '러너 변경'이 이 예약 id를 들고 넘어온다.
   // 새 예약을 만들지 않는다: 같은 예약에 request_runner를 다시 쏘면 서버가 지명을 갈아끼운다.
   // [리뷰 F4] 현재 지명자는 호출부(일정 탭)가 이미 들고 있다 — 라운드트립·직접 supabase 임포트 대신 파라미터로
   // pace: 이 예약의 목표 페이스 라벨 (선택 — 없으면 draft.pace, 그것도 없으면 420 폴백)
   const { mode, current, pace } = useLocalSearchParams<{ mode?: string; current?: string; pace?: string }>();
   const rebook = mode === 'rebook';
+  // 예약 **전** 러너 고르기 (요청 화면의 「직접 고르기 ›」). 그 행은 리더보드로 갔고, 리더보드에는
+  // 누를 것이 없었다 — 예약 깔때기 한가운데의 막다른 골목. 이 모드는 bookingId 없이 열리고,
+  // 고른 러너는 서버로 가지 않는다: draft 두 칸에 담겼다가 pay() ③ 이 홀드 직후에 지명을 보낸다.
+  const pickMode = mode === 'pick';
+  // 목업 러너 참조 은퇴 — 이 화면은 실러너 전용 (2026-07-23).
+  // `live` = 이 화면이 그릴 **로스터가 있는가**. 예약이 있거나(지명·변경) 예약 전 고르기 모드면 참.
+  // ⚠ 아래 자동 지명 이펙트는 그래서 pickMode 를 따로 막는다 — draft.bookingId 는 지난 플로우의
+  //   잔여물일 수 있고, 그 예약에 지명을 쏘는 것은 이 모드가 하기로 한 일이 아니다.
+  const live = pickMode || !!draft.bookingId;
   const currentRunnerId = (typeof current === 'string' && current.length > 0) ? current : null;
   // 리북은 이 예약의 페이스를 파라미터로 받는다 (draft는 지난 플로우 잔여물일 수 있다)
   const paceParam = (typeof pace === 'string' && pace.length > 0) ? pace : null;
-  const targetPaceLabel = rebook ? paceParam : (draft.pace ?? null);
+  // 예약 전 고르기도 파라미터를 받는다 — 요청 화면이 지금 쥔 페이스이고, draft.pace 는 pay() 에서만
+  // 갱신되므로 지난 플로우의 값일 수 있다 (없으면 null 이고, paceSecOf 가 7'00" 로 떨어진다).
+  const targetPaceLabel = (rebook || pickMode) ? paceParam : (draft.pace ?? null);
   const targetPaceSec = paceSecOf(targetPaceLabel);
   const [liveRunners, setLiveRunners] = useState<LiveRunner[]>([]);
   const [nominating, setNominating] = useState<string | null>(null);
   // 러너별 장비 로드아웃 (0019) — 배치 조회, 실패해도 카드는 뜬다
   const [gearMap, setGearMap] = useState<Record<string, GearItem[]>>({});
-  // 선택된 러너 — null이면 AI 1순위로 폴백한다 (시트는 절대 비지 않는다)
+  // 선택된 러너 — null이면 추천 1순위로 폴백한다 (시트는 절대 비지 않는다)
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -201,13 +210,18 @@ export default function Matching() {
   // 0054: 이 예약 시간에 실제로 갈 수 있는 러너만 (수락 게이트의 표시측 거울 RPC).
   // 바쁜 러너를 보여주고 지명하게 한 뒤 수락 409로 튕기던 흐름의 뿌리를 표시에서 끊는다.
   // 로딩·오류를 상태로 분리 — 실패나 로딩 중을 '가용 러너 없음'으로 위장하지 않는다 (정직 원칙)
-  const [rosterLoading, setRosterLoading] = useState(!!draft.bookingId); // 첫 페인트에 '없어요' 오표시 방지
+  const [rosterLoading, setRosterLoading] = useState(pickMode || !!draft.bookingId); // 첫 페인트에 '없어요' 오표시 방지
   const [rosterError, setRosterError] = useState<string | null>(null);
   const loadRoster = () => {
-    if (!live || !draft.bookingId) return;
+    const bid = draft.bookingId;
+    if (!pickMode && !bid) return;
     setRosterLoading(true);
     setRosterError(null); // 재시도 중엔 '찾는 중'이 보여야 한다 — 오류 박스가 낡은 채 남지 않게
-    fetchAvailableRunnersFor(draft.bookingId)
+    // 예약 전에는 「이 예약 시각에 갈 수 있는가」를 물을 수 없다 — runners_available_for 는 booking
+    // id 를 요구한다. 그래서 pick 모드는 홈 셸프가 그리는 것과 같은 인증 러너 목록을 쓴다
+    // (api.ts:1403, 같은 LiveRunner 모양). ⚠ 두 목록을 합치지 않는다: 가용 정의 셋은 서로 다른
+    // 질문이고 일부러 갈라져 있다 (CLAUDE.md DO-NOT-REFACTOR).
+    (bid && !pickMode ? fetchAvailableRunnersFor(bid) : fetchCertifiedRunners())
       .then((rs) => { setLiveRunners(rs); setRosterError(null); })
       .catch((e) => {
         console.warn('[matching] runners:', e?.message ?? e);
@@ -240,10 +254,14 @@ export default function Matching() {
   // 프로필→슬롯→결제로 온 경우: 이미 러너를 골랐으므로 지명을 자동 전송 (CTA 약속 이행)
   // 단, 러너 변경 모드에선 자동 전송 금지 — 남아 있던 preferredRunnerId가
   // '다른 러너를 고르러 온' 보호자 대신 멋대로 지명을 보내버린다.
+  // 🔴 pick 모드도 같은 이유로 금지, 그리고 더 나쁘다: 이 모드는 예약 **전**이라 draft.bookingId 가
+  //    있다면 그건 **지난** 예약이다. 막지 않으면 「러너 직접 고르기」를 누른 것만으로 지난 예약에
+  //    지명이 나간다 — 사용자가 시킨 적 없는 서버 쓰기. (`live` 가 이제 pickMode 로도 참이라,
+  //    아래 `!draft.bookingId` 가 더는 이 경로를 막아 주지 않는다.)
   const autoRef = useRef(false);
   useEffect(() => {
     const pref = draft.preferredRunnerId;
-    if (!live || rebook || !pref || !draft.bookingId || autoRef.current) return;
+    if (!live || rebook || pickMode || !pref || !draft.bookingId || autoRef.current) return;
     autoRef.current = true;
     requestRunner(draft.bookingId, pref)
       .then(() => {
@@ -259,9 +277,9 @@ export default function Matching() {
         // 침묵 금지 — '이 러너와 예약하기' 약속이 왜 안 지켜졌는지 말한다 (서버 409는 이제 행동 가능한 문장)
         Alert.alert('지명하지 못했어요', e?.message ?? '아래 목록에서 다른 러너를 골라주세요');
       });
-  }, [live, rebook]);
+  }, [live, rebook, pickMode]);
 
-  // 점수순 정렬 — 1위가 AI 추천 1순위(=시트 기본 선택), 나머지는 같은 격자의 로스터 행.
+  // 점수순 정렬 — 1위가 추천 1순위(=시트 기본 선택), 나머지는 같은 격자의 로스터 행.
   // 프로필에서 '이 러너와 예약하기'로 왔으면 그 러너가 최상단.
   const scored = useMemo(() => {
     const arr = liveRunners
@@ -275,7 +293,7 @@ export default function Matching() {
   }, [liveRunners, gearMap, targetPaceSec]);
   const top = scored[0];
   const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
-  // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 AI 1순위로 폴백
+  // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 추천 1순위로 폴백
   const selIdx = scored.findIndex((x) => x.r.profileId === selectedId);
   const sel = selIdx >= 0 ? scored[selIdx] : top;
   const selRank = (selIdx >= 0 ? selIdx : 0) + 1;
@@ -289,6 +307,19 @@ export default function Matching() {
   const rosterEmpty = live && !rosterError && !rosterLoading && liveRunners.length === 0;
 
   const nominate = async (r: LiveRunner) => {
+    // 예약 전 고르기 — 서버에 보낼 것이 아직 없다. 러너 프로필의 confirmSlot 이 쓰는 것과 **같은 두
+    // 칸**에 담고 요청 화면으로 돌아간다 (`runner-profile/[id].tsx:249`). 지명을 실제로 보내는 곳은
+    // request.tsx pay() ③ 하나뿐이고, 홀드가 잡힌 뒤에 보낸다 — 여기서 「요청을 보냈어요」라고
+    // 말하면 그 순간 거짓이다.
+    if (pickMode) {
+      draft.preferredRunnerId = r.profileId;
+      draft.preferredRunnerName = r.name;
+      // goBackOrHome() 이 아니다: 이 두 칸은 **요청 화면에서만** 의미가 있으므로, 스택이 비어 있을
+      // 때의 올바른 착지는 역할 홈이 아니라 그 화면이다 (nav.ts 의 한계는 홈 폴백 쪽에 있다).
+      if (router.canGoBack()) router.back();
+      else router.replace('/owner/request');
+      return;
+    }
     if (!draft.bookingId) return;
     setNominating(r.profileId);
     try {
@@ -330,6 +361,9 @@ export default function Matching() {
         <Text style={{ fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 8 }}>
           {rebook
             ? '새 러너를 지명하면 기존 지명은 자동으로 취소돼요'
+            /* pick 모드는 예약 전이다 — 「지명」도 「오픈 매칭으로 기다린다」도 아직 일어나지 않았다.
+               고른 러너가 어디로 가는지만 말한다 (요청 화면의 러너 행 → pay() 가 보낸다). */
+            : pickMode ? '고른 러너는 요청 화면에 담겨요 — 예약할 때 함께 요청해요'
             : live ? '러너를 지명하거나, 오픈 매칭으로 기다릴 수 있어요'
               /* 🔴 [정직 2026-08-27] 이 자리는 「보호자님과 러너의 선호도를 종합 분석했어요」였다.
                  그런데 이건 **예약이 없는 분기**다 (`!live`) — 화면 본문이 바로 아래에서
@@ -355,7 +389,15 @@ export default function Matching() {
           <>
             {/* 컬럼 레일 = 범례 + 명단 규모. 행과 같은 트랙을 쓴다 */}
             <Row style={s.rail}>
-              <Text style={{ flex: 1, fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim }}>러너 {scored.length}명 · AI 추천 순</Text>
+              {/* [정직 2026-09-25] 이 레일과 시트 태그와 설명 블록은 이 순위를 기계학습의 산물인 양
+                  이름 붙이고 있었다. 실제로는 이 파일 :57-87 의 고정 공식이다 — 응답률·(62 + 러닝×5)·
+                  |Δ페이스|/4 의 가중합. 모델도, 학습도, 서버 스코어러도 없다. 세 축은 그대로 공개된
+                  채 남고(아래 「이 순서는 어떻게 나왔나요」), 없는 기제를 주장하던 두 글자만 뺐다.
+                  ⚠ 은퇴한 문구는 이 저장소 어디에도 **인용하지 않는다** — 지운 카피를 인용하는 주석은
+                  그것을 찾는 모든 grep 에 잡혀서, 고친 것과 안 고친 것을 구별할 수 없게 만든다
+                  (CLAUDE.md 주석-인용 법, src/lib/copy.ts 가 같은 이유로 같은 규칙을 쓴다).
+                  축 자체를 바꾸는 건 Sean 의 결정이다. */}
+              <Text style={{ flex: 1, fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim }}>러너 {scored.length}명 · 추천 순</Text>
               <Text style={[s.railCol, { width: COL.resp }]}>응답률</Text>
               <Text style={[s.railCol, { width: COL.runs }]}>러닝</Text>
               <Text style={[s.railCol, { width: COL.pace }]}>페이스</Text>
@@ -383,14 +425,15 @@ export default function Matching() {
                   <Text style={{ fontWeight: '800', color: paper.ink }}>러닝</Text> — 지금까지 완료한 러닝 횟수를 봐요.
                 </Text>
                 <Text style={{ fontSize: 15, lineHeight: 19, color: paper.text }}>
-                  <Text style={{ fontWeight: '800', color: paper.ink }}>페이스 적합</Text> — 이 예약의 페이스
+                  {/* pick 모드엔 아직 예약이 없다 — 기준이 되는 값은 요청 화면이 지금 쥔 페이스다 */}
+                  <Text style={{ fontWeight: '800', color: paper.ink }}>페이스 적합</Text> — {pickMode ? '요청하려는' : '이 예약의'} 페이스
                   {/* Oswald는 명시 lineHeight ≥1.2× 없이는 어센더가 잘린다 (BUG A) — 중첩 Text도 예외 아님 */}
                   {targetPaceLabel ? <Text style={[{ fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.ink }, nf]}>{` ${targetPaceLabel} `}</Text> : ' '}
                   기준으로 러너 페이스가 얼마나 맞는지예요.
                 </Text>
               </View>
               <Text style={{ marginTop: 11, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#EEEEEE', fontSize: 15, lineHeight: 19, color: paper.dim }}>
-                세 축을 합쳐 순위를 정해요 — 1순위가 AI 추천이에요. 아직 데이터가 없는 축이 있는 신규 러너는 그 축을 빼고 나머지로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
+                세 축을 합쳐 순위를 정해요. 아직 데이터가 없는 축이 있는 신규 러너는 그 축을 빼고 나머지로만 계산해요. 인증 장비는 슬롯당 +1(최대 +2)만 더해요.
               </Text>
             </View>
 
@@ -436,16 +479,40 @@ export default function Matching() {
           </View>
         )}
 
-        {/* [M④ · LOADING] 로딩은 빈 명단이 아니다 */}
+        {/* [M④ · LOADING] 로딩은 빈 명단이 아니다.
+            pick 모드는 예약 시각이 없으므로 「이 시간에」라고 말할 수 없다 — 다른 질문, 다른 문장 */}
         {live && !rosterError && rosterLoading && liveRunners.length === 0 && (
           <Text style={{ paddingTop: 22, fontSize: 15, lineHeight: 19, color: paper.text }}>
-            이 시간에 갈 수 있는 러너를 찾는 중…
+            {pickMode ? '러너를 불러오는 중…' : '이 시간에 갈 수 있는 러너를 찾는 중…'}
           </Text>
+        )}
+
+        {/* [PICK · NO ONLINE RUNNERS] 예약 전의 빈 명단은 **다른 사실**이다: 시간과 겹치는 일정이
+            있어서가 아니라 지금 온라인인 인증 러너가 없는 것이고, 여기엔 기다릴 예약도, 볼 일정도
+            없다. 그래서 아래 예약 후 arm 의 문장(오픈 매칭 등록·이 예약은 살아 있어요·내 일정)을
+            그대로 쓰면 전부 거짓이 된다. 문은 둘: 다시 찾기, 그리고 러너 없이 요청 계속하기. */}
+        {rosterEmpty && pickMode && (
+          <View style={{ paddingTop: 22 }}>
+            <Text style={{ fontSize: 19, lineHeight: 26, fontWeight: '800', color: paper.ink }}>
+              지금 고를 수 있는{'\n'}러너가 없어요
+            </Text>
+            <Text style={{ fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 9 }}>
+              러너를 고르지 않아도 예약할 수 있어요 — 오픈 매칭으로 접수되고, 일정이 빈 러너가 응답할 수 있어요.
+            </Text>
+            <View style={{ marginTop: 18, gap: 10 }}>
+              <PaperBtn label="러너 다시 찾기" variant="secondary" onPress={loadRoster} />
+              <PaperBtn
+                label="러너 없이 요청 계속하기 ›"
+                variant="secondary"
+                onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/owner/request'); }}
+              />
+            </View>
+          </View>
         )}
 
         {/* [M④ · NO AVAILABLE RUNNERS] 같은 문장, 이제 문이 있다.
             ⚠ 여기서 취소 수수료를 인용하지 않는다 — 일정 화면이 예약별로 계산해 말한다 */}
-        {rosterEmpty && (
+        {rosterEmpty && !pickMode && (
           <View style={{ paddingTop: 22 }}>
             <Text style={{ fontSize: 19, lineHeight: 26, fontWeight: '800', color: paper.ink }}>
               이 시간에 갈 수 있는{'\n'}러너가 지금 없어요
@@ -490,7 +557,9 @@ export default function Matching() {
                 {top && sel.r.profileId === top.r.profileId && (
                   <View style={s.aiTag}>
                     <Text style={{ fontSize: 15, lineHeight: 18, fontWeight: '800', color: paper.actionInk }}>
-                      {topIsPreferred ? '내가 고른 러너' : 'AI 1순위'}
+                      {/* [정직 2026-09-25] 레일의 수정과 한 벌 — 같은 순위, 같은 세 축, 없는 기제를
+                          주장하던 두 글자만 빠졌다. 은퇴한 문구는 인용하지 않는다 (위 레일 주석) */}
+                      {topIsPreferred ? '내가 고른 러너' : '추천 1순위'}
                     </Text>
                   </View>
                 )}
@@ -591,7 +660,7 @@ export default function Matching() {
               onPress={() => nominate(sel.r)}
               disabled={nominating !== null} /* 전송 중 잠금 = 이중 지명 방지 (디렉터 판정: 안전 우선) */
               accessibilityRole="button"
-              accessibilityLabel={`${sel.r.name} 러너 지명 요청`}
+              accessibilityLabel={`${sel.r.name} 러너 ${pickMode ? '고르기' : '지명 요청'}`}
               /* The lock was visible (opacity) and enforced (disabled) but never announced —
                  VoiceOver read a live 지명 요청 button mid-send. Same predicate, three outputs.
                  [2026-08-24] 불투명도 트릭 은퇴 — 잠금은 라벨 스왑 + pressed 면으로만 말한다 (F2.1). */
@@ -615,7 +684,9 @@ export default function Matching() {
             >
               <Row style={{ gap: 10 }}>
                 <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>
-                  {nominating === sel.r.profileId ? '전송 중…' : '지명 요청'}
+                  {/* pick 모드는 아무것도 보내지 않는다 — 「지명 요청」이라고 적으면 이 탭이 서버에
+                      무엇을 보냈다고 주장하는 것이 된다. 보내는 곳은 pay() ③ 하나뿐이다. */}
+                  {nominating === sel.r.profileId ? '전송 중…' : pickMode ? '이 러너로 고르기' : '지명 요청'}
                 </Text>
                 <View style={{ flex: 1 }} />
                 {/* 플레이트 = 원값 두 개(점수 아님). 작은 흰 글씨는 코랄 위에 직접 앉지 않는다 —

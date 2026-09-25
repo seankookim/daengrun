@@ -16,6 +16,7 @@ import { orderByProximity, PickResult, pickRoute, totalKmFor } from '../../src/l
 import { haptic } from '../../src/lib/haptics';
 import { holdReplayNotice, holdStatusLine } from '../../src/lib/hold-replay-copy';
 import { goBackOrHome } from '../../src/lib/nav';
+import { requestBlocker } from '../../src/lib/request-gate';
 import { AddonKey, cancelPolicy, draft, fmtWon, RouteInfo } from '../../src/store';
 import { colors, layout, paper, pricing } from '../../src/theme';
 import { kstCal, kstInstant, kstKey } from '../../src/lib/kst';
@@ -255,11 +256,22 @@ export default function Request() {
   };
   useEffect(() => {
     loadRoutes();
-    fetchAddresses()
-      .then((l) => { setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null); setAddrState('ready'); })
-      .catch(() => setAddrState('error'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 픽업 주소 — 반려견과 같은 문법(loadDogs, 아래)으로 읽는다. The address moved from 「nice to have」
+  // to a RUNG of the CTA ladder (src/lib/request-gate.ts), so a mount-once read had the same hole
+  // 감사 #26 found for dogs: register an address in /owner/addresses, come back, and the screen
+  // would still say 「픽업 주소를 등록해주세요」 — and now it would also keep the CTA blocked, which
+  // makes the stale read a dead end rather than a cosmetic one. A re-focus read never covers an
+  // address it already holds with a skeleton: 'ready' stays 'ready' while it refreshes.
+  const loadAddrs = useCallback(() => {
+    setAddrState((s) => (s === 'ready' ? s : 'loading'));
+    fetchAddresses()
+      .then((l) => { setPickupAddr(l.find((a) => a.isDefault) ?? l[0] ?? null); setAddrState('ready'); })
+      .catch((e) => { console.warn('[request] addresses:', (e as Error)?.message ?? e); setAddrState('error'); });
+  }, []);
+  useFocusEffect(useCallback(() => { loadAddrs(); }, [loadAddrs]));
 
   // 목록 반영 — 아이가 지워져 인덱스가 밖으로 나가면 0으로 되돌린다 (빈 행·문자 없는 아바타 방지)
   const applyDogs = useCallback((l: DogProfile[]) => {
@@ -440,7 +452,7 @@ export default function Request() {
       if (r.status === 'candidate' && candidateAck !== r.id) {
         Alert.alert(
           '아직 점검 전 코스예요',
-          `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+          `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
           [
             {
               text: '다른 코스 볼게요',
@@ -535,10 +547,48 @@ export default function Request() {
       router.push('/owner/dog'); // 등록 먼저 — 예약도, 아이 생성도 없다
       return;
     }
-    if (!draft.scheduledAtIso) {
-      setSlotSheet(true); // 시간 미선택 → 결제 대신 슬롯 시트
-      return;
+    // ── 픽업 주소 — 반려견과 같은 문법, 사다리에서 바로 다음 칸 ──────────────────────────────
+    // 여기가 없던 동안: 어디서 행이 「주소를 불러오지 못했어요」를 빨갛게 적고 있어도 도크는
+    // 「러너 찾기」였고, 이 함수는 `address_id: pickupAddr?.id` = undefined 를 보냈다. 서버는 NULL
+    // 픽업을 받는다 (create-booking-hold/handler.ts:147) — 그래서 러너가 갈 곳을 모르는 진짜 예약이
+    // 하나 생겼다. 모르는 것을 '없음'으로 만들지 않는 것이 반려견 게이트의 규칙이고, 주소도 같다.
+    let addr = pickupAddr;
+    if (addrState !== 'ready') {
+      try {
+        const list = await fetchAddresses();
+        addr = list.find((a) => a.isDefault) ?? list[0] ?? null;
+        setPickupAddr(addr);
+        setAddrState('ready');
+      } catch (e) {
+        // 실패는 실패로 — 상태는 error 로 남고(사다리가 다음 탭에 '주소 확인 다시'를 건다),
+        // 이 탭은 예약을 만들지 않는다. 무반응 버튼 금지: 실패는 느껴져야 한다.
+        console.warn('[request] addresses:', (e as Error)?.message ?? e);
+        haptic('error');
+        setAddrState('error');
+        return;
+      }
     }
+    // ── 남은 칸은 사다리에게 묻는다 ────────────────────────────────────────────────────────────
+    // 순서와 라벨의 주인은 `src/lib/request-gate.ts` 한 곳이다 — 도크 라벨(아래 ctaLabel)과 이
+    // 함수가 같은 함수를 읽으므로, '무엇이 비었는가'에 대해 둘이 다른 답을 할 수 없다. 위의 두
+    // 읽기(반려견·주소)가 **먼저** 도는 이유는 사다리가 사실을 읽어 주지 않기 때문이다: 모르는 칸은
+    // 여기서 사실로 만든 다음에 묻는다.
+    const blocker = requestBlocker({
+      chargeLocked,
+      // 'ready' 는 단언이 아니라 사실이다 — 두 읽기가 바로 위에서 끝났고, 실패한 쪽은 이미 return 했다
+      dogsState: 'ready', hasDog: !!chosen,
+      addrState: 'ready', hasAddr: !!addr,
+      hasSlot: !!draft.scheduledAtIso,
+    });
+    if (blocker) {
+      if (blocker.key === 'addr-first') { router.push('/owner/addresses'); return; }
+      if (blocker.key === 'slot') { setSlotSheet(true); return; }
+      return; // 알 수 없는 칸으로 예약을 만들지 않는다 (닫힘 실패) — 위 두 읽기가 나머지를 덮는다
+    }
+    // 사다리가 null 이면 `hasAddr` 가 참이라는 뜻이다 (request-gate 의 총체성 핀: hasAddr=false 는
+    // 세 addrState 모두에서 칸을 낸다). TS 는 그 경계를 못 넘는다 — 단언 대신 닫힘 실패로 좁힌다:
+    // 사다리가 언젠가 그 총체성을 잃으면 예약이 나가는 대신 아무 일도 일어나지 않는다.
+    if (!addr) return;
     // ⚠ TOSS_ENABLED로 무장 — 과금이 꺼진 파일럿에선 물을 카드가 없다 (테스트 키로 연결한
     // 샌드박스 빌링키가 production billing_keys에 들어가는 것이 이 게이트가 지금 잠들어 있는
     // 이유다). 플래그가 켜지는 날 이 게이트가 같이 깨어난다 — 별도 작업 없음.
@@ -568,7 +618,7 @@ export default function Request() {
     let res: HoldResult;
     // [0179] the key rides with the exact payload it was minted for
     const holdPayloadFp = JSON.stringify([
-      chosen.id, routesLive && routeId ? routeId : undefined, pickupAddr?.id, draft.scheduledAtIso, km, pace, addons,
+      chosen.id, routesLive && routeId ? routeId : undefined, addr.id, draft.scheduledAtIso, km, pace, addons,
     ]);
     if (!holdKey.current || holdKey.current.fp !== holdPayloadFp) {
       holdKey.current = { id: createHoldRequestKey(), fp: holdPayloadFp };
@@ -587,7 +637,7 @@ export default function Request() {
         // origin은 'auto'지만 보호자는 분명히 선호를 표현했다. 둘을 따로 기록해야 구분된다.
         route_chips: chips,
         candidate_ack: candidateAck != null && candidateAck === routeId ? true : undefined,
-        address_id: pickupAddr?.id,
+        address_id: addr.id, // 사다리가 보장한다 — `pickupAddr?.id`(undefined 가능)가 있던 자리
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km, // fractional-safe: bookings.km is numeric(4,1); the edge fn rounds the fare
         pace_label: pace,
@@ -784,12 +834,17 @@ export default function Request() {
   // /owner/pay('예약 확정 전이에요' + '예약 확정하기')로 갔기 때문에 '러너 찾기'가 목적지와
   // 어긋나는 라벨 거짓말이었다. 이제 홀드가 곧 matching이고 버튼은 레이더로 간다 — 라벨이
   // 목적지와 같은 말을 한다.
-  const ctaLabel = chargeLocked ? '결제 문제부터'
-    : dogsState === 'error' ? '반려견 확인 다시'
-    : dogsState === 'loading' && !myDog ? '반려견 확인 중'
-    : !myDog ? '반려견부터'
-    : !draft.scheduledAtIso ? '시간부터'
-    : '러너 찾기';
+  // [주소 칸 2026-09-25] 이 사다리는 여기 인라인 삼항 사슬이었고, **픽업 주소가 칸에 없었다** —
+  // 어디서 행이 빨갛게 실패를 적고 있어도 도크는 「러너 찾기」였다. 이제 순서·라벨의 주인은
+  // `src/lib/request-gate.ts` 하나고, pay()가 같은 함수를 읽는다. `.cjs` 스위트는 `.tsx` 라우트를
+  // import 할 수 없으므로, 사다리가 이 파일 안에 있는 동안에는 어떤 핀도 그것을 물어볼 수 없었다.
+  const ctaBlocker = requestBlocker({
+    chargeLocked,
+    dogsState, hasDog: !!myDog,
+    addrState, hasAddr: !!pickupAddr,
+    hasSlot: !!draft.scheduledAtIso,
+  });
+  const ctaLabel = ctaBlocker?.label ?? '러너 찾기';
   // ── 하단 CTA 도크 ──────────────────────────────────────────────────────────────────
   // 도크는 **화면 맨 아래(bottom: 0)까지 불투명**하다. 예전처럼 버튼만 인셋 위에 띄우면
   // 바와 홈 인디케이터 사이의 틈으로 스크롤 콘텐츠(페이스 칩)가 그대로 비쳐 보인다 —
@@ -978,9 +1033,15 @@ export default function Request() {
 
         {/* ════════ 러너 · 어디서 · 누가 ════════ */}
         <View style={s.rowGroup}>
-          {/* 러너 — 예약 전 러너를 고르는 실제 경로는 리더보드 → 러너 프로필 하나뿐이다.
-              (matching/radar는 draft.bookingId를 요구하므로 여기서 열면 죽은 문이 된다) */}
-          <Pressable onPress={() => router.push('/leaderboard')} style={s.prefRow} accessibilityRole="button" accessibilityLabel="러너 직접 고르기">
+          {/* 러너 — 예약 전 고르기. 이 행은 **리더보드**로 갔고, 그 화면에는 누를 것이 없다:
+              시상대 비브도 목록 행도 onPress 없는 View 이고 BoardRow 는 profile id 를 쥐지도 않는다
+              (연결이 빠진 게 아니라, 마이그레이션 없이는 연결할 수가 없다).
+              그래서 「직접 고르기 ›」는 예약 깔때기 한가운데의 막다른 골목이었다. matching 이
+              `mode=pick` 로 예약 전에도 열린다 (bookingId 없이 인증 러너 목록을 그리고, 고르면
+              draft 두 칸을 쓰고 돌아온다 — pay() ③ 이 그 지명을 홀드 직후에 보낸다).
+              pace 를 같이 넘기는 이유: 순위의 페이스 축은 **이 화면이 지금 쥔 값**을 기준으로
+              해야 한다. draft.pace 는 pay() 에서만 갱신되므로 지난 플로우의 잔여물일 수 있다. */}
+          <Pressable onPress={() => router.push(`/owner/matching?mode=pick&pace=${encodeURIComponent(pace)}`)} style={s.prefRow} accessibilityRole="button" accessibilityLabel="러너 직접 고르기">
             <Text style={s.prefLabel}>러너</Text>
             <View style={s.prefValueBox}>
               <Text style={s.prefValue} numberOfLines={1}>{preferred ? (preferredName ?? '지명 러너') : '자동 매칭'}</Text>
@@ -1110,9 +1171,11 @@ export default function Request() {
         </View>
 
         {/* 기본값 고지 — 위 행들이 보여 주는 값이 곧 접수되는 값이다.
-            '기본값이 다 채워져 있다'고 쓰지 않는 이유: 주소는 등록 전이면 없고, 카탈로그에
-            active 코스가 0이라 코스도 '미정'으로 접수된다. 화면은 그 사실을 그대로 가리킨다. */}
-        <Text style={s.quietNote}>코스·러너·주소는 지금 안 정해도 돼요 — 위에 보이는 그대로 접수돼요</Text>
+            '기본값이 다 채워져 있다'고 쓰지 않는 이유: 카탈로그에 active 코스가 0이라 코스는
+            '미정'으로 접수된다. 화면은 그 사실을 그대로 가리킨다.
+            ⚠ 주소는 이 문장에서 빠졌다 — 이제 CTA 사다리의 칸이라 「안 정해도 돼요」가 거짓이다
+            (src/lib/request-gate.ts). 주소 없이 눌리면 버튼이 「주소부터」로 바뀐다. */}
+        <Text style={s.quietNote}>코스·러너는 지금 안 정해도 돼요 — 위에 보이는 그대로 접수돼요</Text>
 
         {/* ════════ 폴드 — 페이스 · 옵션 · 매주 반복 · 코스 목록 ════════ */}
         {/* 아무것도 지우지 않았다: 페이스 칩, 애드온 그리드, 매주 반복 토글, RouteChipRow(‘아직
@@ -1253,7 +1316,7 @@ export default function Request() {
                             // 막지 않으면 보호자는 나중에 이유 없는 에러를 만난다.
                             Alert.alert(
                               '아직 점검 전 코스예요',
-                              `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 됩니다.`,
+                              `${r.name}은 지도에 그려두기만 했고, 아직 반려견과 함께 달려본 적이 없어요. 첫 러닝이 이 코스의 점검이 돼요.`,
                               [
                                 { text: '다른 코스 볼게요', style: 'cancel' },
                                 {
