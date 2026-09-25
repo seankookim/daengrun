@@ -27,7 +27,9 @@
 // retype the map-failure sentence at one of the four call sites instead of importing the
 // constant · change MAP_LOAD_FAIL_KO to the retired 「-을 수 없어요」 construction · label a slot
 // chip with a bare 「재시도」 · delete `app/chat.tsx` from the KNOWN ledger while it still has
-// hits, or leave it there after it is clean.
+// hits, or leave it there after it is clean · [2026-09-25, fix/alert-fold-copy] end a Korean
+// sentence in 「…니다」 (④) or spell 「해 주세요」 with a space (⑤) in any file outside those two
+// ledgers, or leave either ledger's line at a count its file no longer has.
 const fs = require('fs');
 const path = require('path');
 const { MAP_LOAD_FAIL_KO } = require('./copy.build.cjs');
@@ -201,6 +203,79 @@ t('🔴 no label ends in a bare 「재시도」 — every retry control says 「
 t('the house retry form is what the app actually uses (≥100 sites), so the rule is the majority one',
   FILES.reduce((n, rel) => n + (STRIPPED.get(rel).match(/다시 시도/g) || []).length, 0) >= 100);
 
+// ── ④ 합니다체 tails in a 해요체 product — fix/alert-fold-copy 2026-09-25 (copy-hierarchy-7) ──────
+// Measured on trunk: ~2,000 요-endings, zero 반말, and fourteen 「…니다」 tails — one of them inside
+// a sentence that also said 예요 and 어요 (community.tsx). The 해요체 majority is unambiguous and
+// nothing had written it down, so the drift was invisible to every gate. This arm reads the same
+// comment-stripped text as ①, so a comment quoting a retired 「…됩니다」 does not redden it.
+// ⚠ The pattern is `…니다` at a phrase end, NOT the planner's `(습니다|ㅂ니다|…)` list: `ㅂ` is a
+// JAMO, and a composed syllable (엽니다 · 봅니다 · 만듭니다 · 갑니다) never contains it — measured,
+// that list missed four of the fourteen. `니까?` and `십시오` ride along; both are 0 today.
+// Legal text (개인정보처리방침 · 이용약관) is 합니다체 by convention and would be exempt — measured,
+// NO legal text lives under app/ or src/ today (it is docs/legal/*.md, which this gate does not
+// walk). The list below is empty on purpose and named so the exemption is a decision, not a filter.
+const LEGAL_TEXT = [];
+const HAMNIDA = /[가-힣]*(니다|니까|십시오)(?=[\s.!?'"`<>{}(),;:·—]|$)/gm;
+// The shrinking ledger. Every entry is a file this slice did not edit, and why; a count must match
+// EXACTLY (above = new debt · below = lower the line · zero = delete it).
+const KNOWN_HAMNIDA = {
+  // DELIBERATE, and it stays: the live-run km caption is a sports-caster parody (「꼬리 텐션
+  // 최상입니다」) — the formal register IS the joke. Two template variants, one caption.
+  'app/runner/run.tsx': 2,
+  'app/runner/home.tsx': 1,        // held by fix/custody-strand-client while this slice ran
+  // not held by any builder, and outside this slice's file list — for the orchestrator
+  'app/owner/course-map.tsx': 1,
+  'src/lib/ops-console.ts': 1,
+};
+const hamnidaIn = (stripped) => {
+  const hits = []; let m; const re = new RegExp(HAMNIDA.source, 'gm');
+  while ((m = re.exec(stripped)) !== null) hits.push(m.index);
+  return hits;
+};
+
+// ── ⑤ spacing — 「해주세요」, closed (copy-hierarchy-8) ──────────────────────────────────────────
+// 181 closed vs 44 spaced on trunk, and `rpc-error.ts` held BOTH four lines apart (PENDING_DEPLOY_KO
+// vs RPC_FOLD_KO), so two consecutive failures spelled one instruction two ways. House form is the
+// majority one. ⚠ Only the 해 + 주세요 junction: 「알려주세요」/「골라주세요」 were already closed
+// everywhere, and a broader 「[가-힣] 주세요」 would also flag a real two-word 「… 주세요」.
+const SPACED = /해 주세요/g;
+const KNOWN_SPACED = {
+  // held by fix/custody-strand-client and be/0225 while this slice ran (this brief: do not touch)
+  'src/lib/api.ts': 7,
+  // TWIN of api.ts's GEAR_CLAIM_ERROR_KO bad_recipient / bad_phone / bad_address: both render on
+  // runner/rewards.tsx's form (the client courtesy check and the server's refusal), so normalising
+  // this half alone would spell one refusal two ways on one screen. Flips WITH api.ts.
+  'src/lib/gear-claim-form.ts': 3,
+  'app/runner/rewards.tsx': 1,     // held by ui/chrome-consistency-2
+};
+const spacedIn = (stripped) => {
+  const hits = []; let m; const re = new RegExp(SPACED.source, 'g');
+  while ((m = re.exec(stripped)) !== null) hits.push(m.index);
+  return hits;
+};
+
+const formArm = (label, fn, KNOWN) => {
+  const byFile = new Map();
+  for (const rel of FILES) {
+    if (CODEX_BATCH.some((x) => rel.startsWith(x)) || LEGAL_TEXT.includes(rel)) continue;
+    const hits = fn(STRIPPED.get(rel));
+    if (hits.length) byFile.set(rel, hits);
+  }
+  const extra = [...byFile].filter(([rel]) => !(rel in KNOWN));
+  t(`🔴 ${label} — no file outside the ledger`,
+    extra.length === 0,
+    extra.map(([rel, hits]) => hits.map((o) => `${rel}:${lineOf(SRC.get(rel), o)}`).join(' ')).join(' | '));
+  for (const [rel, cap] of Object.entries(KNOWN)) {
+    const n = (byFile.get(rel) || []).length;
+    t(`${label} · ledger ${rel} = ${cap} (0 → delete the line · below → lower it · above → new debt)`,
+      n === cap, `${n} found`);
+  }
+};
+formArm('④ no 합니다체 tail in 해요체 copy', hamnidaIn, KNOWN_HAMNIDA);
+formArm('⑤ no spaced 「해 주세요」', spacedIn, KNOWN_SPACED);
+t('the closed 「해주세요」 is what the app actually uses (≥150 sites), so the rule is the majority one',
+  FILES.reduce((n, rel) => n + (STRIPPED.get(rel).match(/해주세요/g) || []).length, 0) >= 150);
+
 // ── CONTROLS — a detector that cannot fail is not a detector ────────────────────────────────────
 // Each arm below names the ONE failure mode it is blind to if it is removed; no two of them share
 // a blind spot, which is the difference between a control pair and the same measurement twice.
@@ -231,6 +306,24 @@ t('CONTROL · 재시도 used as prose mid-sentence is NOT a label',
   scanRetry("const a = '청구 재시도 소진';") === 0);
 t('CONTROL · a 재시도 inside a comment is NOT a label',
   scanRetry("// 실패는 라우드 페일 + 재시도\nconst a = 1;") === 0);
+
+const scanHam = (s) => hamnidaIn(stripComments(s)).length;
+t('CONTROL · a planted 「…됩니다」 IS seen (the arm that makes ④ mean anything)',
+  scanHam("const a = '첫 러닝이 이 코스의 점검이 됩니다.';") === 1);
+t('CONTROL · a composed-syllable tail (엽니다) IS seen — the planner\'s ㅂ-jamo list would miss it',
+  scanHam("<Text>추가 근무는 그날 그 시간만 엽니다</Text>") === 1);
+t('CONTROL · the 해요체 fix is NOT seen (or ④ would fail on the fix itself)',
+  scanHam("const a = '첫 러닝이 이 코스의 점검이 돼요.';") === 0);
+t('🔴 CONTROL · a COMMENT quoting a retired 「…됩니다」 does NOT redden ④',
+  scanHam("// 예전 문장: '반영됩니다'\nconst a = '반영돼요';") === 0);
+t('CONTROL · a 니다 mid-word is not a tail',
+  scanHam("const a = '어머니다운 선택';") === 0);
+
+const scanSp = (s) => spacedIn(stripComments(s)).length;
+t('CONTROL · a planted spaced 「해 주세요」 IS seen', scanSp("const a = '다시 시도해 주세요';") === 1);
+t('CONTROL · the closed form is NOT seen', scanSp("const a = '다시 시도해주세요';") === 0);
+t('🔴 CONTROL · a COMMENT quoting the spaced form does NOT redden ⑤',
+  scanSp("/* 예전엔 '시도해 주세요' */\nconst a = '시도해주세요';") === 0);
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail ? 1 : 0);

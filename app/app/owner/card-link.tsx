@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
+import { alertFail } from '../../src/lib/alert-fail';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { fetchMyPayments, fetchUnsettledCharge, retryCollect } from '../../src/lib/api';
 import { paper } from '../../src/theme';
@@ -64,23 +65,25 @@ export default function CardLink() {
   const onLinked = useCallback(async (card: { brand: string | null; last4: string | null }) => {
     if (!arrears) {
       // 카드만 연결하러 온 방문 — 이름을 말하고 돌아간다.
-      Alert.alert('카드가 연결됐어요', card.last4 ? `${card.brand ?? '카드'} ···· ${card.last4}` : undefined,
+      Alert.alert('카드 연결 완료', card.last4 ? `${card.brand ?? '카드'} ···· ${card.last4}` : undefined,
         [{ text: '확인', onPress: () => router.back() }]);
       return;
     }
     // 미납 컨텍스트의 약속은 「연결하고 결제하기」다 — 연결만 하고 떠나면 그 라벨이 거짓이 된다.
     // retryCollect는 서버가 이미 만든 행을 재집행할 뿐이라 두 번 나가도 이중 청구가 안 된다
     // (api.ts:796의 자기 설명). 200이 수금 완료를 뜻하지 않으므로 결과는 행을 다시 읽어 말한다.
-    let failMsg: string | null = null;
+    // The caught error itself, not its `.message`: `alertFail` folds an English edge/PostgREST
+    // sentence to Korean and logs the original (fix/alert-fold-copy 2026-09-25).
+    let failErr: { e: unknown } | null = null;
     for (const bid of failedIds) {
-      try { await retryCollect(bid); } catch (e) { failMsg = (e as Error).message; break; }
+      try { await retryCollect(bid); } catch (e) { failErr = { e }; break; }
     }
     // 🔴 A 200 FROM collect-charges IS NOT A COLLECTION, and this screen may not say it is.
     //    `collect-charges` deliberately converts per-row exceptions and `unresolved` outcomes
     //    into HTTP 200 (handler.ts:348) — a dispatched-but-unknown row comes back 200 with the
     //    payments row still pending. So success is proven by RE-READING, never by the call
     //    returning. (codex REJECT #1, 2026-08-26: the first draft checked only
-    //    `status === 'failed'`, so an `unresolved` row rendered 「결제까지 끝났어요」.)
+    //    `status === 'failed'`, so an `unresolved` row rendered 「결제까지 끝났어요」 — today's 「결제 완료」.)
     //
     // 🔴 AND A FAILED RE-READ IS NOT A CLEAN RESULT. The first draft did
     //    `.catch(() => null)` and then `(fresh ?? [])`, which turned 「we could not check」 into
@@ -89,9 +92,9 @@ export default function CardLink() {
     const fresh = await fetchMyPayments(30).catch(() => 'read_failed' as const);
     const stillLocked = await fetchUnsettledCharge().catch(() => 'read_failed' as const);
     if (!alive.current) return;
-    if (failMsg) { Alert.alert('결제를 다시 시도하지 못했어요', failMsg); return; }
+    if (failErr) { alertFail('결제 재시도 실패', failErr.e); return; }
     if (fresh === 'read_failed' || stillLocked === 'read_failed') {
-      Alert.alert('카드는 연결됐어요', '결제 결과를 확인하지 못했어요 — 결제 관리에서 확인해주세요',
+      Alert.alert('카드 연결 완료', '결제 결과를 확인하지 못했어요 — 결제 관리에서 확인해주세요',
         [{ text: '확인', onPress: () => router.back() }]);
       return;
     }
@@ -100,10 +103,10 @@ export default function CardLink() {
     // actually governs whether a new booking is possible.
     const settled = !fresh.some((r) => r.status === 'failed') && stillLocked !== true;
     if (!settled) {
-      Alert.alert('카드는 연결됐어요', '결제는 아직 처리되지 않았어요 — 결제 관리에서 다시 시도할 수 있어요',
+      Alert.alert('카드 연결 완료', '결제는 아직 처리되지 않았어요 — 결제 관리에서 다시 시도할 수 있어요',
         [{ text: '확인', onPress: () => router.back() }]);
     } else {
-      Alert.alert('결제까지 끝났어요', '이제 바로 예약할 수 있어요',
+      Alert.alert('결제 완료', '이제 바로 예약할 수 있어요',
         [{ text: '확인', onPress: () => router.back() }]);
     }
   }, [arrears, failedIds]);

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { HeatTrace } from '../../src/components/runcard';
 import { Icon, Row } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchMyReturnResolution, fetchReturnSeal, fetchRunPhotos, fetchRunTrace, type ReturnResolution as ReturnResolutionRow, uploadRunPhoto } from '../../src/lib/api';
 import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -258,7 +259,7 @@ export default function RunDone() {
       setPhotos(next);
       setPhotoState('ready');
     } catch (e) {
-      Alert.alert('업로드 실패', (e as Error).message);
+      alertFail('업로드 실패', e);
     } finally {
       setUploading(false);
     }
@@ -429,7 +430,7 @@ export default function RunDone() {
           }
           return (
             <Text style={s.sub}>
-              {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
+              {dogName ? `${dogName}를 보호자에게 안전하게 인계해주세요` : '반려견을 보호자에게 안전하게 인계해주세요'}
             </Text>
           );
         }
@@ -501,7 +502,7 @@ export default function RunDone() {
           {v.reason === 'dog' && '컨디션 종료 — 실제 거리 정산 · 완주율 무영향\n상태 사진과 메모가 보호자에게 전달돼요'}
           {v.reason === 'owner' && '보호자 요청 종료 — 실제 거리 + 잔여 거리 50% 보장 포함'}
           {v.reason === 'runner' && '개인 사유 종료 — 실제 거리 정산 · 완주율에 반영돼요'}
-          {!v.reason && '조기 종료 — 실제 뛴 거리만큼 정산됩니다'}
+          {!v.reason && '조기 종료 — 실제 뛴 거리만큼 정산돼요'}
         </Text>
       )}
 

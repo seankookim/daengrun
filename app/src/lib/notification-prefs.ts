@@ -90,12 +90,19 @@ export const PREF_ROWS: PrefRow[] = [
     desc: '최고 페이스 경신, 누적 거리 달성, 완주 횟수 같은 기록 알림',
   },
   {
-    // [0210] 운영 알림 — the `system` kind. Operator-only: see `visiblePrefRows`. The description
-    // names the four escalations that actually exist (0186/0190 · 0183/0201 · 0193/0201 · 0206 §C)
-    // and it says what stays, because turning this off changes the phone and nothing else.
+    // [0210] 운영 알림 — the `system` kind. Operator-only: see `visiblePrefRows`. It says what
+    // stays, because turning this off changes the phone and nothing else.
+    // [fix/alert-fold-copy 2026-09-25 · ops-notifications-10] The description used to name FOUR
+    // titles while the switch silenced every title in `_noti_ops_titles()` — eleven at 0214,
+    // FOURTEEN since 0224 (the two custody-strand bells and 정산 미완료). An operator reading it
+    // would switch it off believing card-revocation and payment-cancel failures still rang. It now
+    // names a FAMILY for every title the server files as `ops`, and
+    // `notification-prefs.test.cjs` re-reads the latest `_noti_ops_titles()` declaration and fails
+    // on any title whose family this sentence does not name — so the next system writer cannot
+    // make it a partial list again without reddening a pin.
     key: 'ops',
     label: '운영 알림',
-    desc: '지급 대기, 인계 확인 멈춤, 반환 좌초, 굿즈 수령 신청 — 운영 콘솔은 그대로예요',
+    desc: '지급 대기·정산 미완료, 인계·반환·러닝 좌초, 굿즈 수령 신청, 결제·카드·취소 수수료·보상 처리 실패 같은 운영 확인 요청 — 운영 콘솔은 그대로예요',
     opsOnly: true,
   },
   {
@@ -140,7 +147,7 @@ export function visiblePrefRows(isOps: boolean | null | undefined): PrefRow[] {
 export const ALWAYS_ON_TITLES: string[] = ['SOS', '사고 신고 접수', '러닝 중단 요청'];
 
 /** The one sentence that keeps this screen honest: a preference silences the DEVICE push only. */
-export const PREFS_NOTE = '끄면 휴대폰 알림만 오지 않아요 · 알림함에는 그대로 쌓입니다';
+export const PREFS_NOTE = '끄면 휴대폰 알림만 오지 않아요 · 알림함에는 그대로 쌓여요';
 
 /** Server row (or the defaults) → the strict shape the screen renders. Unknown/missing ⇒ true,
  *  the same direction the server takes: a preference nobody set never silences anything. */

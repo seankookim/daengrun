@@ -81,7 +81,7 @@ t('the always-on row is NOT opsOnly (safety must be visible to everyone)',
   always.length === 1 && always[0].opsOnly !== true);
 t('🔴 the safety row no longer claims the ops escalations — that sentence is what made an undisableable goods ping look like a safety matter',
   always.length === 1 && !always[0].desc.includes('운영'), always[0].desc);
-t('the ops row names what it actually covers (the four shipped system titles), not a category word',
+t('the ops row names what it actually covers (the titles themselves, not a category word — ⑦ below pins every family)',
   !!opsRow && opsRow.desc.includes('지급 대기') && opsRow.desc.includes('굿즈'), opsRow && opsRow.desc);
 t('🔴 the ops row says what STAYS — turning it off changes the phone and not the console',
   !!opsRow && opsRow.desc.includes('콘솔'), opsRow && opsRow.desc);
@@ -346,6 +346,74 @@ t('notification-route.ts RUN_STOP_TITLE matches api.ts RUN_STOP_TITLE',
 for (const title of URGENT_FAMILY) {
   t(`「${title}」 is present in ${urgentFile} both raw and comment-stripped (a title that survives only in prose is not a rule)`,
     urgentRaw.includes(title) && urgentSrc.includes(title));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑦ [fix/alert-fold-copy 2026-09-25 · ops-notifications-10] THE OPS ROW'S SENTENCE NAMES EVERY
+//    FAMILY ITS SWITCH SILENCES
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// The property, stated without reference to any mutation: an operator who reads the 운영 알림
+// description and turns the switch off must not be surprised by what stopped ringing. The switch
+// silences every `system` row whose title is in `_noti_ops_titles()` (0214 §B), so the sentence
+// owes a word for every title in that array. It used to name four while the array held eleven,
+// and 0224 made it fourteen — the drift nothing noticed, because the array lives in SQL and the
+// sentence lives here.
+//
+// Read from the LATEST migration that declares the function (the ③/④ rule above: a gate pinned to
+// one filename keeps measuring a superseded declaration). Each title must fall in exactly one
+// family below, and each family's word must be in the sentence. A NEW system title with no family
+// here fails LOUDLY by name — which is the point: the next writer has to revisit the sentence.
+// ⚠ The FAMILY table is not a second ledger of titles (0214-T1 and `ops-system-titles.test.cjs`
+// own the set); it is the mapping from a title to the word an operator would recognise it by.
+const opsDecls = fs.readdirSync(migDir)
+  .filter((f) => /^\d{4}_.*\.sql$/.test(f))
+  .filter((f) => /create or replace function _noti_ops_titles\(\)/.test(
+    stripSql(fs.readFileSync(path.join(migDir, f), 'utf8'))))
+  .sort();
+t('at least one migration declares _noti_ops_titles() (absence must fail LOUDLY)',
+  opsDecls.length > 0, JSON.stringify(opsDecls));
+const opsFile = opsDecls[opsDecls.length - 1];
+const opsSrc = opsFile ? stripSql(fs.readFileSync(path.join(migDir, opsFile), 'utf8')) : '';
+console.log(`  (ops-title ledger read from ${opsFile}; declared in ${JSON.stringify(opsDecls)})`);
+const opsTitles = (() => {
+  const m = opsSrc.match(/function _noti_ops_titles\(\)[\s\S]*?select\s+array\[([\s\S]*?)\]::text\[\]/);
+  if (!m) return null;
+  return [...m[1].matchAll(/'((?:[^']|'')*)'/g)].map((x) => x[1].replace(/''/g, "'"));
+})();
+t(`${opsFile} declares a parseable ops-title array of at least fourteen titles (fourteen at 0224)`,
+  Array.isArray(opsTitles) && opsTitles.length >= 14, JSON.stringify(opsTitles));
+
+const OPS_FAMILY = [
+  { title: /^지급 대기/, word: '지급 대기' },
+  { title: /^정산 미완료/, word: '정산 미완료' },
+  { title: /^인계 확인 멈춤/, word: '인계' },
+  { title: /^반환 좌초/, word: '반환' },
+  { title: /^러닝 (시작|종료) 좌초/, word: '러닝 좌초' },
+  { title: /^굿즈 수령 신청/, word: '굿즈' },
+  { title: /^카드 해지 실패/, word: '카드' },
+  { title: /^클럽 취소 수수료/, word: '취소 수수료' },
+  { title: /^결제 (자동 )?취소 실패/, word: '결제' },
+  { title: /취소 보상 기록 실패/, word: '보상' },
+  { title: /^운영 확인이 필요한 이벤트/, word: '운영 확인' },
+];
+const unnamedBy = (desc, titles) => titles.filter((ti) => {
+  const fams = OPS_FAMILY.filter((f) => f.title.test(ti));
+  return fams.length !== 1 || !desc.includes(fams[0].word);
+});
+if (Array.isArray(opsTitles) && opsRow) {
+  for (const ti of opsTitles) {
+    t(`「${ti}」 falls in exactly one ops family (a new system title with no family means the 운영 알림 sentence is stale — name it there, then here)`,
+      OPS_FAMILY.filter((f) => f.title.test(ti)).length === 1);
+  }
+  t('🔴 the 운영 알림 description names the family of EVERY title its switch silences',
+    unnamedBy(opsRow.desc, opsTitles).length === 0,
+    `unnamed: ${JSON.stringify(unnamedBy(opsRow.desc, opsTitles))} · desc: ${opsRow.desc}`);
+  // CONTROL — the pin above must be able to fail, and on exactly the defect it exists for: the
+  // sentence this row shipped with until today named four families and silenced fourteen titles.
+  const RETIRED_DESC = '지급 대기, 인계 확인 멈춤, 반환 좌초, 굿즈 수령 신청 — 운영 콘솔은 그대로예요';
+  // `>= 10`, not `=== 10`: a future title must redden the arm ABOVE, not this control.
+  t('CONTROL · the retired four-title description is caught (ten titles unnamed at 0224)',
+    unnamedBy(RETIRED_DESC, opsTitles).length >= 10, JSON.stringify(unnamedBy(RETIRED_DESC, opsTitles)));
 }
 
 console.log(`\n${pass} pass / ${fail} fail`);

@@ -5,6 +5,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDog, Addr, AvailRule, createBookingHold, createHoldRequestKey, createRecurringSeries, DogProfile, fetchAddresses, fetchMyBillingCard, fetchMyDogs, fetchRouteById, fetchRoutes, fetchRunnerAvailability, fetchUnsettledCharge, HoldResult, requestRunner } from '../../src/lib/api';
 import { CardLinkPanel } from '../../src/components/card-link-panel';
+import { alertFail } from '../../src/lib/alert-fail';
 import { PaperSheet } from '../../src/components/paper-sheet';
 import { ChargeBanner } from '../../src/components/charge-states';
 import { TOSS_ENABLED } from '../../src/lib/toss';
@@ -603,7 +604,7 @@ export default function Request() {
       catch { card = 'read_failed'; }
       if (card === 'read_failed') {
         haptic('error');                       // 무반응 버튼 금지 — 실패는 느껴져야 한다
-        Alert.alert('결제 수단을 확인하지 못했어요', '잠시 후 다시 시도해주세요');
+        Alert.alert('결제 수단 확인 실패', '잠시 후 다시 시도해주세요');
         return;
       }
       if (!card) { setCardGate(true); return; }
@@ -650,7 +651,7 @@ export default function Request() {
       //   말한다 — 예약이 이미 만들어진 뒤에 '예약 실패'라고 말하면 그게 거짓말이 된다.
       draft.bookingId = null;
       setHoldVisible(false);
-      Alert.alert('예약 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
+      alertFail('예약 실패', e, null, { fold: { empty: '잠시 후 다시 시도해주세요' } });
       return;
     }
 
@@ -1158,7 +1159,7 @@ export default function Request() {
                             setDogsState('ready'); // 방금 읽은 사실 — 직전이 실패였어도 카드는 이 목록을 말한다
                             setDogIdx(Math.max(list.findIndex((d) => d.id === id), 0));
                             router.push({ pathname: '/owner/dog', params: { dogId: id } });
-                          } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+                          } catch (e) { alertFail('추가 실패', e); }
                         });
                       }}
                     >

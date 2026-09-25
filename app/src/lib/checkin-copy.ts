@@ -210,7 +210,7 @@ export function checkinCopy(
   // 이 표면이 마운트된 화면이 이미 그 문을 갖고 있고, 여기에 또 그리면 값을 모르는 두 번째 출구다.
   const cancelNote =
     side === 'owner' && rawStatus === 'runner_enroute' && custody === 'pre' && mineAnswer == null
-      ? '러너가 이미 출발했어요. 지금 중단하려면 예약 취소로 진행해 주세요 — 그래야 러너 보상이 함께 계산돼요.'
+      ? '러너가 이미 출발했어요. 지금 중단하려면 예약 취소로 진행해주세요 — 그래야 러너 보상이 함께 계산돼요.'
       : null;
 
   const mine = mineAnswer == null ? null : {
@@ -256,7 +256,7 @@ export function recordedCopy(state: CheckinState, side: CheckinSide): RecordedCo
     const r = row.resolution;
     if (r === 'cannot_proceed') {
       note = state.custody === 'post'
-        ? '확인이 필요한 건으로 넘어갔어요 — 아이 상태를 확인해 주세요.'
+        ? '확인이 필요한 건으로 넘어갔어요 — 아이 상태를 확인해주세요.'
         : '이 예약은 불발로 종결됐어요. 수수료는 청구되지 않았어요.';
     } else if (r === 'superseded') {
       note = '이 예약은 다른 경로로 이미 정리돼 있어서, 이 확인은 상태를 바꾸지 않았어요.';
@@ -308,7 +308,7 @@ export const TRIAGE = {
   sosSending: '보내는 중…',
   sosSent: '상대방에게 긴급 알림을 보냈어요.',
   // 실패는 실패로 그린다 — 조용히 삼키면 화면이 '보냈다'고 읽힌다.
-  sosFailed: '긴급 알림을 보내지 못했어요. 119 또는 직접 연락을 이용해 주세요.',
+  sosFailed: '긴급 알림을 보내지 못했어요. 119 또는 직접 연락을 이용해주세요.',
   /** ③ 프레임 그대로. */
   next: '아니요, 다른 이유예요',
   // SOS 를 이미 보냈다면 「아니요」는 거짓이 된다 — 그 사람은 방금 '네'라고 답했다. 라벨 하나가
@@ -356,7 +356,7 @@ const REFUSALS: Record<CheckinToken, { title: string; body: string }> = {
   // 창이 닫혔다 — 늦은 답은 이미 난 결론을 되돌리지 않는다 (FM8).
   checkin_resolved: {
     title: '이 확인은 이미 정리됐어요',
-    body: '마감이나 상대방의 답으로 확인이 끝나서 답이 기록되지 않았어요. 예약 상태를 확인해 주세요.',
+    body: '마감이나 상대방의 답으로 확인이 끝나서 답이 기록되지 않았어요. 예약 상태를 확인해주세요.',
   },
   // 한 번 쓴 답은 그대로 남는다 (per-side immutable, first write wins).
   answer_immutable: {
@@ -372,16 +372,16 @@ const REFUSALS: Record<CheckinToken, { title: string; body: string }> = {
   // 삼켜지는 것보다 낫다 — 삼켜지면 '고려된 것처럼' 읽힌다.
   not_late_eligible: {
     title: '이 예약은 이미 정리됐어요',
-    body: '다른 경로로 예약 상태가 바뀌어서 확인에 답할 수 없어요. 최신 상태를 확인해 주세요.',
+    body: '다른 경로로 예약 상태가 바뀌어서 확인에 답할 수 없어요. 최신 상태를 확인해주세요.',
   },
   // 여기 도달하면 클라이언트 버그다. 그래도 사람에게는 사람 말로 말한다.
   reason_not_applicable: {
     title: '사유를 함께 보낼 수 없는 답이에요',
-    body: '사유는 「진행할 수 없어요」에만 함께 기록돼요. 사유 없이 다시 답해 주세요.',
+    body: '사유는 「진행할 수 없어요」에만 함께 기록돼요. 사유 없이 다시 답해주세요.',
   },
   // §6 이 이름을 대준 문. 여기에 버튼을 만들지 않는 이유는 checkinCopy 의 cancelNote 와 같다.
   use_cancel_path: {
-    title: '예약 취소로 진행해 주세요',
+    title: '예약 취소로 진행해주세요',
     body: '러너가 이미 출발해서, 여기서 끝내면 러너 보상이 계산되지 않아요. 예약 취소를 이용하면 수수료와 러너 보상이 함께 정리돼요.',
   },
 };

@@ -143,7 +143,7 @@ export function CourseDetailBody({ route, style }: { route: RouteInfo; style?: V
       <Text style={s.sect}>점검</Text>
       <Text style={s.body}>
         {route.status === 'candidate'
-          ? '아직 반려견과 함께 달려본 적이 없는 코스예요. 첫 러닝이 이 코스의 점검이 됩니다.'
+          ? '아직 반려견과 함께 달려본 적이 없는 코스예요. 첫 러닝이 이 코스의 점검이 돼요.'
           : route.checkedAt}
       </Text>
 

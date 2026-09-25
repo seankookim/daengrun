@@ -27,10 +27,12 @@
 
 import { isPendingDeploy } from './rpc-skew';
 
-/** ⚠ Byte-identical to the sentence `clubRpc` has shipped since the 0134 skew (api.ts). One
- *  wording for one state — a second phrasing of the same fact is a second product. */
+/** ⚠ The sentence `clubRpc` has shipped since the 0134 skew (api.ts imports THIS constant, so there
+ *  is one literal, not two to keep in step). One wording for one state — a second phrasing of the
+ *  same fact is a second product. Spacing closed to 「시도해주세요」 on 2026-09-25 so it matches
+ *  `RPC_FOLD_KO` below: two consecutive failures used to spell the same instruction two ways. */
 export const PENDING_DEPLOY_KO =
-  '앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해 주세요';
+  '앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해주세요';
 
 /** ⚠ Byte-identical to `invokeTransition`'s fold, for the same reason. It promises nothing about
  *  the retry succeeding — it only refuses to show a person a database sentence. */

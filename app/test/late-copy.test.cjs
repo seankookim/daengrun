@@ -31,6 +31,10 @@ const strings = (copy) => Object.values(copy).filter((value) => typeof value ===
 // ───────────────────────────────────────────── exact copy for every meaningful branch
 // These are observable return values, not a retyped implementation. They pin the component's
 // existing words, line breaks, tones, interpolation, and optional strips across the extraction.
+// [fix/alert-fold-copy 2026-09-25] Five expectations moved from 「…해 주세요」 to the closed
+// 「…해주세요」 — spacing only, no word changed (copy-hierarchy-8: 181 closed vs 44 spaced, and the
+// house form is the majority one). The spacing itself is now owned by copy-forms.test.cjs's
+// 「해 주세요」 arm, which fails if late-copy.ts regains a spaced form; these pins still own the words.
 const exactCases = [
   {
     name: 'post-custody owner: collected but not started',
@@ -41,8 +45,8 @@ const exactCases = [
     // pre-custody CAN resolve a booking that is already past it. The new property — post-custody
     // copy never claims the system will leave the booking alone — is owned by the
     // '자동' ban loop below.
-    expected: { kick: '직접 확인해 주세요', head: '별이와의 러닝이\n아직 시작되지 않았어요', tone: 'warn',
-      strip: '러너에게 직접 연락해 주세요.' },
+    expected: { kick: '직접 확인해주세요', head: '별이와의 러닝이\n아직 시작되지 않았어요', tone: 'warn',
+      strip: '러너에게 직접 연락해주세요.' },
   },
   {
     name: 'post-custody runner: collected but not started',
@@ -54,7 +58,7 @@ const exactCases = [
     late: L({ custody: 'post', started: true }), side: 'owner', names: {},
     // [F2 2026-08-24] same strike, and this branch is the one F2 actually reaches: status
     // 'active' is exactly what arm ⓐ flips to incident_review mid-run.
-    expected: { kick: '직접 확인해 주세요', head: '반려견가 아직\n돌아오지 않았어요', tone: 'critical',
+    expected: { kick: '직접 확인해주세요', head: '반려견가 아직\n돌아오지 않았어요', tone: 'critical',
       strip: '러너에게 연락하거나 긴급 도움을 요청하세요.' },
   },
   {
@@ -93,13 +97,13 @@ const exactCases = [
     name: 'past ceiling owner: elapsed fact + recommendation, never impossibility',
     late: L({ resumable: false, sinceMs: 200 * MIN }), side: 'owner', names: {},
     expected: { kick: '3시간 20분 지남', head: '예약 시각에서\n너무 오래 지났어요', tone: 'warn',
-      strip: '지금 진행하면 예정과 크게 달라져요 — 일정에서 정리하거나 다시 예약해 주세요.' },
+      strip: '지금 진행하면 예정과 크게 달라져요 — 일정에서 정리하거나 다시 예약해주세요.' },
   },
   {
     name: 'past ceiling runner: elapsed fact + recommendation, never impossibility',
     late: L({ resumable: false, sinceMs: 200 * MIN }), side: 'runner', names: {},
     expected: { kick: '3시간 20분 지남', head: '예약 시각에서\n너무 오래 지났어요', tone: 'warn',
-      strip: '지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해 주세요.' },
+      strip: '지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해주세요.' },
   },
 ];
 for (const c of exactCases) {
