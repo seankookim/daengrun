@@ -3,7 +3,7 @@
 // Why this is its own module and not three copies inside three screens: `owner/report.tsx`,
 // `owner/schedule.tsx` and `owner/home.tsx` all now offer the same loop (make this booking weekly ·
 // see what the weekly booking actually is · restart it when it is stopped), and a sentence that
-// says 「매주 수요일 19:30」 is a CLAIM about what the hourly cron will do. The claim has to be
+// says 「매주 수요일 오후 7:30」 is a CLAIM about what the hourly cron will do. The claim has to be
 // checkable, so the arithmetic lives here where `test/recurring-state.test.cjs` can reach it and
 // the screens only render what comes back.
 //
@@ -37,7 +37,7 @@
 //    PARAMETER rather than a `Date.now()` inside, so the suite can pin a moment; the suite runs
 //    under three zones and the labels are literal, so a device-clock leak reddens it.
 
-import { kstCal, kstClock, kstMonthDay } from './kst';
+import { kstAmPm, kstCal, kstMonthDay } from './kst';
 
 /** 0=일 … 6=토, the `extract(dow …)` convention `create_recurring_series` writes (`0077:53`). */
 export const WEEKDAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
@@ -96,13 +96,25 @@ export const CREATE_SERIES_TOKENS: Record<string, string> = {
 
 const hhmm = (t: string): boolean => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
 
-/** 「9월 30일 19:30」 — the booking's OWN KST instant, so a rescheduled row states its real time
+// ⚠ [sweep 2 · copy-hierarchy-5] BOTH clocks on this line are 12h 오전/오후 (kst.ts kstAmPm). They
+//   were 24h 「19:30」 while the rows directly under this block on owner/schedule.tsx say 「오후 7:30」
+//   (api.ts kstParts → kstAmPm): one booking, two spellings, one screen. Converting only the
+//   다음 예약 half would have put the two spellings on ONE line instead, so the rule's time goes too.
+
+/** The rule's 'HH:MM' (already validated by `hhmm`) in the 오전/오후 vocabulary. kstAmPm reads only
+ *  the hour and minute of the calendar it is given, so the date half of this one is never printed. */
+const ruleClock = (t: string): string => {
+  const [h, min] = t.split(':').map(Number);
+  return kstAmPm({ ...kstCal(0), h, min });
+};
+
+/** 「9월 30일 오후 7:30」 — the booking's OWN KST instant, so a rescheduled row states its real time
  *  rather than inheriting the rule's. */
 const whenLabel = (iso: string): string | null => {
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return null;
   const c = kstCal(ms);
-  return `${kstMonthDay(c)} ${kstClock(c)}`;
+  return `${kstMonthDay(c)} ${kstAmPm(c)}`;
 };
 
 /**
@@ -117,7 +129,7 @@ export function describeSeries(f: SeriesFacts, nowMs: number): SeriesView {
     return { line: BROKEN_LINE, note: null, canResume: false, broken: true };
   }
 
-  const base = `매주 ${WEEKDAY_KO[f.weekday]}요일 ${f.time}`;
+  const base = `매주 ${WEEKDAY_KO[f.weekday]}요일 ${ruleClock(f.time)}`;
   const nextMs = f.nextBookingAt ? Date.parse(f.nextBookingAt) : NaN;
   const next = !Number.isNaN(nextMs) && nextMs > nowMs && f.nextBookingAt
     ? whenLabel(f.nextBookingAt)
