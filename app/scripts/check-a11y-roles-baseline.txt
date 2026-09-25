@@ -24,12 +24,22 @@
 #
 # ⚠ THE TRADE-OFF, PAID DELIBERATELY: a fingerprint MOVES when the component it sits in is
 #   renamed, when a role-less element's own copy or props are edited, or when it moves to another
-#   named ancestor. That reddens the gate as one stale line + one new line. The repair is
-#   `node scripts/check-a11y-roles.mjs --rewrite-baseline` IN THE SAME COMMIT, and the rewrite
-#   REFUSES to grow this file (it exits 1 and prints every addition), so re-emitting cannot be
-#   used to absorb new debt. Including the element's visible text is what makes a row of otherwise
-#   identical chips distinguishable — exactly where the fix-one/add-one hole would reopen — which
-#   is why the copy sensitivity is paid rather than avoided.
+#   named ancestor. That reddens the gate as one stale line + one new line. Including the
+#   element's visible text is what makes a row of otherwise identical chips distinguishable —
+#   exactly where the fix-one/add-one hole would reopen — which is why the copy sensitivity is
+#   paid rather than avoided.
+#
+# ── HOW LINES LEAVE AND (RARELY) MOVE — v2.1, 2026-09-25 (fix/client-review-3, Codex c3) ──────
+#   · `node scripts/check-a11y-roles.mjs --rewrite-baseline` may only DELETE lines. It used to
+#     refuse only when the TOTAL grew, and Codex measured +1/−1 (a fix beside a regression)
+#     passing straight through it; now any fingerprint it would add makes it exit 1 and write
+#     nothing.
+#   · A moved element (component renamed, or a still-bare element's copy/props edited) is
+#     re-registered only by `node scripts/check-a11y-roles.mjs --migrate '<old>=<new>'`, in the
+#     same commit. Each pair is checked — <old> in this file and gone from the tree, <new> a
+#     role-less element not in this file, same source file, nothing claimed twice. The script
+#     cannot check that the two are the SAME element; a pair is the author's claim and belongs in
+#     the review. If a control LOST its role, the answer is the role, never a pair.
 #
 # ⚠ NAMED GAP, not closed and deliberately not pinned (a limitation is prose): two bare tappables
 #   with the same tag, the same attribute shape, the same first text, inside the same named

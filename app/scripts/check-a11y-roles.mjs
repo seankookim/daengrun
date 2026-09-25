@@ -89,17 +89,39 @@
 //     ① renaming the component / variable the element sits in,
 //     ② editing the visible copy of a role-less element, or its props,
 //     ③ moving the element into a different named ancestor.
-//   That is the deliberate cost of being able to see a single element at all. The repair is
-//   `node scripts/check-a11y-roles.mjs --rewrite-baseline` **in the same commit as the rename**,
-//   and the rewrite REFUSES to grow the ledger (it exits 1 and prints the additions), so re-emitting
-//   cannot be used to absorb new debt. Including the element's text is what makes a row of
-//   otherwise-identical chips distinguishable, which is exactly where the fix-one/add-one hole
-//   would otherwise reopen; that is why the copy sensitivity is paid rather than avoided.
+//   That is the deliberate cost of being able to see a single element at all. Including the
+//   element's text is what makes a row of otherwise-identical chips distinguishable, which is
+//   exactly where the fix-one/add-one hole would otherwise reopen; that is why the copy
+//   sensitivity is paid rather than avoided.
+//
+// ── THE REWRITE MAY ONLY DELETE; A MOVE IS AN EXPLICIT, CHECKED PAIR (v2.1, 2026-09-25) ────────
+// 🔴 v2's `--rewrite-baseline` refused only when the ledger got LONGER — a TOTAL, the same shape
+//    as v1's per-file count one level up. Codex MEASURED it on the real script (client verdict
+//    c3, `docs/reviews/2026-09-25-wave2-codex-verdicts.md`): fix one bare Pressable, strip another
+//    control's role, and the rewrite accepted +1/−1 and the gate went green. The gate's own
+//    failure hint told people to run exactly that command when a fingerprint moved.
+// Now:
+//   · `--rewrite-baseline` may only DELETE lines (a fixed or removed element). Any fingerprint it
+//     would ADD makes it exit 1, print the element with its file:line, and write nothing.
+//   · A moved element is re-registered ONLY by `--migrate '<old>=<new>'` (repeatable; it implies
+//     the rewrite), and every pair is checked: <old> is in the ledger and has no element; <new> IS
+//     a role-less element and is not in the ledger; both are the same file; no <old> or <new> is
+//     claimed twice. Any failed check exits 1 naming the pair and why, and writes nothing.
+//   · When the gate fails with a new element and a stale line in the same file, it prints the
+//     exact `--migrate` command — AFTER telling you to give the element its role, because a
+//     control that lost its role looks exactly like this too.
+// ⚠ **NAMED LIMIT, prose not pin:** the script cannot check that <old> and <new> are the SAME
+//   element — the old one no longer exists to compare against. A `--migrate` pair is an author's
+//   claim, and a false one (pairing a fixed element with a regressed one) is accepted. What
+//   changed is that laundering now takes an explicit, reviewable pair in the command and the
+//   commit, instead of being the default outcome of the command the gate recommended. The
+//   orchestrator's landing resolver (refuse any fingerprint not already on trunk) is the check
+//   that does not trust the author.
 //
 // ⚠ **NAMED GAP, not closed and not pinned (a limitation is prose):** two bare tappables with the
 //   SAME tag, SAME attribute shape, SAME first text, in the SAME named ancestor are one bucket
 //   distinguished only by ordinal — so fixing one of them while adding another identical bare one
-//   still nets to zero and stays silent. `--rewrite-baseline` prints the bucket count on every
+//   still nets to zero and stays silent. The rewrite (either form) prints the bucket count on every
 //   run, and the hole is exactly as wide as those buckets: measured at the v2 rewrite, **9 buckets
 //   covering 21 of the 162 elements**. Strictly narrower than v1's, which was all 162; not zero.
 //
@@ -109,7 +131,9 @@
 // ledger of debt turns into a list nobody reads.
 //
 // Run: `node scripts/check-a11y-roles.mjs` from `app/`.
-// Re-emit: `node scripts/check-a11y-roles.mjs --rewrite-baseline` (keeps the file's prose header).
+// Shrink the ledger after fixing elements: `node scripts/check-a11y-roles.mjs --rewrite-baseline`
+//   (deletes stale lines only; keeps the file's prose header).
+// Re-register a moved element: `node scripts/check-a11y-roles.mjs --migrate '<old>=<new>'`.
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
@@ -123,7 +147,15 @@ const parser = require('@babel/parser');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOTS = [join(root, 'app'), join(root, 'src')];
 const BASELINE_FILE = join(root, 'scripts', 'check-a11y-roles-baseline.txt');
-const REWRITE = process.argv.includes('--rewrite-baseline');
+const ARGV = process.argv.slice(2);
+// `--migrate '<old>=<new>'` (repeatable; `--migrate=<old>=<new>` also accepted). A migrate pair
+// implies a rewrite — it is the only way the rewrite may ADD a fingerprint. See the header.
+const MIGRATE_RAW = [];
+for (let i = 0; i < ARGV.length; i++) {
+  if (ARGV[i] === '--migrate') MIGRATE_RAW.push(i + 1 < ARGV.length ? ARGV[++i] : '');
+  else if (ARGV[i].startsWith('--migrate=')) MIGRATE_RAW.push(ARGV[i].slice('--migrate='.length));
+}
+const REWRITE = ARGV.includes('--rewrite-baseline') || MIGRATE_RAW.length > 0;
 
 const IS_TAPPABLE = /^(Pressable|Touchable[A-Za-z]*)$/;
 const SEP = ' :: ';
@@ -312,24 +344,108 @@ for (const dir of ROOTS) {
 const observed = new Map();
 for (const f of found) observed.set(f.key, f);
 
-// ── --rewrite-baseline: emit fingerprints for what is there now, and REFUSE to grow ───────────
+// ── --rewrite-baseline: DELETE lines only; ADD one only through a checked --migrate pair ─────
+// 🔴 [fix/client-review-3 · Codex 2026-09-25 c3] This arm used to compare TOTALS: it refused only
+// when the new ledger was LONGER than the old one. Codex MEASURED the hole in the real script: fix
+// one bare Pressable, strip another's role, and the rewrite accepted +1/−1 and the gate went green
+// — the very balanced mutation v2 was written to catch, laundered by the command the gate itself
+// told people to run. Now the ordinary rewrite may only DELETE lines. Every fingerprint it would
+// ADD is refused unless an explicit `--migrate <old>=<new>` pair names it, and each pair is
+// checked (see `checkPair`). The v1 → v2 conversion is the one other way lines are born, and it
+// compares per FILE, never a total.
+const fileOf = (k) => k.split(SEP)[0];
+const lineOf = (k) => { const f = observed.get(k); return f ? `${f.rel}:${f.line}` : fileOf(k); };
+
 if (REWRITE) {
-  if (parseFailed) { console.error('\n❌ 파싱 실패가 있어 기준선을 다시 쓸 수 없다.'); process.exit(1); }
-  const oldCount = v1Lines.length ? v1Total : ledger.size;
+  if (parseFailed) { console.error('\n❌ A file failed to parse, so the ledger cannot be re-emitted.'); process.exit(1); }
   const keys = [...observed.keys()].sort();
+  const dupes = [...buckets.entries()].filter(([, n]) => n > 1);
+  const write = () => writeFileSync(BASELINE_FILE, `${headerLines.join('\n').replace(/\n+$/, '')}\n\n${keys.join('\n')}\n`, 'utf8');
+
+  // ── the one-time v1 → v2 conversion: per-file counts may not grow, file by file ──────────
+  if (v1Lines.length) {
+    if (ledger.size) { console.error(`\n❌ The ledger mixes v1 per-file counts (${v1Lines.length}) and v2 fingerprints (${ledger.size}); fix it by hand.`); process.exit(1); }
+    if (MIGRATE_RAW.length) { console.error('\n❌ --migrate needs a v2 (fingerprint) ledger; convert v1 first with a plain --rewrite-baseline.'); process.exit(1); }
+    const v1 = new Map(v1Lines.map((l) => { const m = V1_LINE.exec(l); return [m[1], Number(m[2])]; }));
+    const now = new Map();
+    for (const k of keys) now.set(fileOf(k), (now.get(fileOf(k)) ?? 0) + 1);
+    const grew = [...now.entries()].filter(([f, n]) => n > (v1.get(f) ?? 0));
+    console.log(`Ledger conversion v1 → v2: ${v1Total} per-file count(s) → ${keys.length} fingerprint(s)`);
+    if (grew.length) {
+      console.error(`\n❌ The ledger cannot grow: ${grew.length} file(s) now hold more role-less elements than v1 recorded:`);
+      for (const [f, n] of grew) console.error(`   ${f}  v1 ${v1.get(f) ?? 0} → now ${n}`);
+      process.exit(1);
+    }
+    write();
+    console.log(`✅ ${BASELINE_FILE} rewritten — ${keys.length} line(s).`);
+    process.exit(0);
+  }
+
+  // ── v2: check every --migrate pair ────────────────────────────────────────────────────────
+  // A pair re-registers ONE element whose fingerprint moved (its component renamed, or the copy
+  // or props of a still-bare element edited). What the script can check is mechanical, and all of
+  // it is checked: the old line is in the ledger and has NO element; the new fingerprint IS a
+  // role-less element in the tree and is NOT in the ledger; both name the same file; and no old or
+  // new appears in two pairs (one ledger line can re-register exactly one element).
+  // ⚠ What it cannot check is that old and new are the SAME element — the old element is gone, so
+  // there is nothing to compare it with. A pair is an author's claim, printed in full so a
+  // reviewer reads it; a pair that re-registers a control that just LOST its role is a false claim
+  // the script cannot see. That limit is prose (header), not a pin.
+  const usedOld = new Set();
+  const usedNew = new Set();
+  const pairs = [];
+  const bad = [];
+  const checkPair = (raw) => {
+    const parts = raw.split('=');
+    if (parts.length !== 2) return { why: ['not exactly one "=" between <old> and <new>'] };
+    const [o, n] = parts.map((x) => x.trim());
+    const why = [];
+    if (!V2_LINE.test(o)) why.push('<old> is not a ledger fingerprint');
+    if (!V2_LINE.test(n)) why.push('<new> is not a ledger fingerprint');
+    if (why.length) return { why };
+    if (!ledger.has(o)) why.push('<old> is not in the ledger');
+    else if (observed.has(o)) why.push('<old> is still a role-less element in the tree — it did not move');
+    if (!observed.has(n)) why.push('<new> is not a role-less element in the tree');
+    else if (ledger.has(n)) why.push('<new> is already in the ledger');
+    if (fileOf(o) !== fileOf(n)) why.push(`<old> and <new> are in different files (${fileOf(o)} vs ${fileOf(n)})`);
+    if (usedOld.has(o)) why.push('<old> is already claimed by another --migrate pair');
+    if (usedNew.has(n)) why.push('<new> is already claimed by another --migrate pair');
+    usedOld.add(o);
+    usedNew.add(n);
+    return { o, n, why };
+  };
+  for (const raw of MIGRATE_RAW) {
+    const r = checkPair(raw);
+    if (r.why.length) bad.push({ raw, why: r.why });
+    else pairs.push([r.o, r.n]);
+  }
+
   const added = keys.filter((k) => !ledger.has(k));
   const removed = [...ledger].filter((k) => !observed.has(k));
-  const dupes = [...buckets.entries()].filter(([, n]) => n > 1);
-  console.log(`기준선 재작성: 기존 ${oldCount}건 → 새로 ${keys.length}건 (추가 ${added.length} · 삭제 ${removed.length})`);
-  console.log(`중복 버킷(순번으로만 구분되는 요소): ${dupes.length}개, 요소 ${dupes.reduce((a, [, n]) => a + n, 0)}건`);
-  for (const k of added) console.log(`   + ${k}`);
-  for (const k of removed) console.log(`   - ${k}`);
-  if (keys.length > oldCount) {
-    console.error(`\n❌ 대장은 늘어날 수 없다 (${oldCount} → ${keys.length}). 새 빚은 재작성이 아니라 고쳐서 없앤다.`);
-    process.exit(1);
+  const migratedOld = new Set(pairs.map(([o]) => o));
+  const migratedNew = new Set(pairs.map(([, n]) => n));
+  const unexplained = added.filter((k) => !migratedNew.has(k));
+  console.log(`Ledger rewrite: ${ledger.size} → ${keys.length} line(s) (deleted ${removed.length - migratedOld.size} · migrated ${pairs.length} · refused ${unexplained.length})`);
+  console.log(`Duplicate buckets (elements told apart only by ordinal): ${dupes.length}, covering ${dupes.reduce((a, [, n]) => a + n, 0)} element(s)`);
+  for (const [o, n] of pairs) console.log(`   ~ ${o}\n     → ${n}   (${lineOf(n)})`);
+  for (const k of removed.filter((k) => !migratedOld.has(k))) console.log(`   - ${k}`);
+
+  if (bad.length) {
+    console.error(`\n❌ --migrate refused ${bad.length} pair(s):`);
+    for (const b of bad) console.error(`   '${b.raw}'\n     ${b.why.join('\n     ')}`);
   }
-  writeFileSync(BASELINE_FILE, `${headerLines.join('\n').replace(/\n+$/, '')}\n\n${keys.join('\n')}\n`, 'utf8');
-  console.log(`✅ ${BASELINE_FILE} 재작성 완료 — ${keys.length}건.`);
+  if (unexplained.length) {
+    console.error(`\n❌ The rewrite may only DELETE ledger lines. ${unexplained.length} role-less element(s) are not in the ledger:`);
+    for (const k of unexplained) console.error(`   ${lineOf(k)}   ${k}`);
+    console.error('\n   A new role-less element is new debt: give it accessibilityRole="button" (and a Korean');
+    console.error('   accessibilityLabel if its visible content is a glyph or nothing). If — and only if — it is');
+    console.error('   the SAME element as a ledger line whose fingerprint moved (its component was renamed, or');
+    console.error('   its own copy/props were edited while it stayed bare), re-register it explicitly, in the');
+    console.error("   same commit:   node scripts/check-a11y-roles.mjs --migrate '<old>=<new>'   (repeatable)");
+  }
+  if (bad.length || unexplained.length) { console.error('\n   The ledger was NOT rewritten.'); process.exit(1); }
+  write();
+  console.log(`✅ ${BASELINE_FILE} rewritten — ${keys.length} line(s).`);
   process.exit(0);
 }
 
@@ -355,11 +471,35 @@ if (bare.length) {
 if (newDebt.length) {
   console.error(`\n❌ 대장에 없는, accessibilityRole 없는 탭 요소 ${newDebt.length}건:`);
   for (const f of newDebt) console.error(`   ${f.rel}:${f.line}   ${f.key}`);
-  console.error(`\n   고치는 법: <Pressable> 에 accessibilityRole="button" 을 단다. 보이는 글자가`);
-  console.error(`   없으면(‹ · ↻ · 백드롭) accessibilityLabel 도 함께 — 라벨은 한국어다.`);
-  console.error(`   바쁨/비활성 버튼은 accessibilityState={{ busy, disabled }} 까지 (DESIGN.md 버튼 매트릭스).`);
-  console.error(`   요소를 옮기거나 이름을 바꿔서 지문이 움직인 것뿐이라면 같은 커밋에서`);
-  console.error(`   --rewrite-baseline 으로 다시 뽑는다 (대장은 늘어날 수 없다).`);
+  console.error('\n   The fix: give the <Pressable> accessibilityRole="button". If its visible content is a');
+  console.error('   glyph (‹ · ↻) or nothing (a backdrop), add a Korean accessibilityLabel too; busy/disabled');
+  console.error('   buttons also carry accessibilityState={{ busy, disabled }} (DESIGN.md button matrix).');
+  console.error('   ⚠ --rewrite-baseline will NOT absorb these: it may only delete ledger lines [c3].');
+  // [c3] A fingerprint that merely MOVED shows up as one new element + one stale line in the same
+  // file. Print the pair so an honest move is one command — but only as the second instruction,
+  // and only as a claim the author makes: the balanced regression (a control that LOST its role
+  // beside one that gained it) has exactly the same shape, and the script cannot tell them apart.
+  const staleNow = [...ledger].filter((k) => !observed.has(k));
+  const byFile = new Map();
+  for (const f of newDebt) {
+    const e = byFile.get(f.rel) ?? { add: [], gone: staleNow.filter((k) => fileOf(k) === f.rel) };
+    e.add.push(f.key);
+    byFile.set(f.rel, e);
+  }
+  const movable = [...byFile.entries()].filter(([, e]) => e.gone.length > 0);
+  if (movable.length) {
+    console.error('\n   ONLY if an element above is the SAME element as a stale line in its file — its component');
+    console.error('   renamed, or its own copy/props edited while it stayed bare — re-register it in the same commit.');
+    console.error('   If a control LOST its role, that is a regression: restore the role instead.');
+    for (const [rel, e] of movable) {
+      if (e.add.length === 1 && e.gone.length === 1) {
+        console.error(`     ${rel}:\n       node scripts/check-a11y-roles.mjs --migrate '${e.gone[0]}=${e.add[0]}'`);
+      } else {
+        console.error(`     ${rel}: ${e.add.length} new · ${e.gone.length} stale — pair each moved element by hand:`);
+        console.error(`       node scripts/check-a11y-roles.mjs --migrate '<old>=<new>' [--migrate '<old>=<new>' …]`);
+      }
+    }
+  }
 }
 if (stale.length) {
   console.error(`\n❌ 대장이 낡았다 ${stale.length}건 — 고쳤으면 그 줄을 지워라 (대장은 정직하게 줄어든다):`);
