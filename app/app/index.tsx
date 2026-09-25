@@ -10,6 +10,31 @@ import { paper } from '../src/theme';
 
 type Role = 'owner' | 'runner';
 
+// The name a brand-new profile is BORN with, and it is not a private detail: `api.ts` builds
+// `${p.name} 보호자님` for the chat header, and the community and club boards draw it beside the
+// owner's posts. Every Kakao account was landing on '사용자' — the fallback — because the only
+// candidate this seed ever read was the email stem, and GoTrue hands back an EMPTY email for Kakao
+// (the email scope needs business verification; see the `||` note at the INSERT below). So the
+// product introduced every first-run owner to other people as 「사용자」.
+//
+// ⚠ WHICH `user_metadata` KEY KAKAO ACTUALLY FILLS IS UNMEASURED. These three are the keys GoTrue
+// populates for OAuth providers generally; nobody here has read a real Kakao session's metadata.
+// That is why the INSERT branch logs `Object.keys(...)` ONCE — so the first real sign-in measures
+// it instead of another session guessing. If the answer turns out to be a key not listed here, add
+// it; the ladder is deliberately ordered, not a merge.
+//
+// Trimmed, and empty strings fall THROUGH — `''` is not a name, and since `name` is written only
+// on INSERT a blank seed could never self-heal.
+const SEED_NAME_KEYS = ['name', 'full_name', 'preferred_username'] as const;
+const seedName = (meta: Record<string, unknown>, email: string | undefined): string => {
+  for (const k of SEED_NAME_KEYS) {
+    const v = meta[k];
+    if (typeof v === 'string' && v.trim() !== '') return v.trim();
+  }
+  const stem = (email ?? '').split('@')[0].trim();
+  return stem !== '' ? stem : '사용자';
+};
+
 // 순백/코랄 1호 화면 (2026-08-06) — 볼트 월드 은퇴 시작점.
 // Sean 지시: 풀스크린·풀블리드 큰 버튼 둘뿐 — 보호자 위, 러너 아래. 탭 한 번 = 역할 확정 + 시작.
 export default function RoleSelect() {
@@ -65,13 +90,23 @@ export default function RoleSelect() {
     // corrupted — but the role write silently never landed. Measured on device 2026-08-20; this is
     // the tail of the same fix that stopped `name` being clobbered, and the two must be solved by
     // choosing the statement, not by shaping the payload.
+    // The seed is computed only on the INSERT path — `name` must never be rewritten on an existing
+    // row (that is the clobber the block above describes), and the measurement below must not fire
+    // on every launch for owners who already have a name.
+    // ⚠ The empty-string trap the old `||` guarded is kept, and widened: `seedName` treats a blank
+    // metadata value and a blank email stem the same way — it falls through, where `??` would not.
+    let seeded: string | null = null;
+    if (!existing) {
+      const meta = (auth.user.user_metadata ?? {}) as Record<string, unknown>;
+      // ONE line, INSERT branch only. The Kakao key that carries a display name is unmeasured (see
+      // the seedName header); this prints the key SET, never a value, so the next real first-run
+      // session answers it. Delete this once the answer is written into seedName.
+      console.warn('[seed-name] keys', Object.keys(meta));
+      seeded = seedName(meta, auth.user.email);
+    }
     const { error } = existing
       ? await supabase.from('profiles').update({ role }).eq('id', auth.user.id)
-      // `||`, not `??`: login is Kakao-only and the email scope needs business verification, so
-      // GoTrue can hand back an EMPTY STRING rather than undefined. `''?.split('@')[0]` is `''`
-      // and `'' ?? x` is `''` — the fallback could never fire, and since `name` is written only on
-      // INSERT it could never self-heal either. `||` catches both shapes.
-      : await supabase.from('profiles').insert({ id: auth.user.id, role, name: auth.user.email?.split('@')[0] || '사용자' });
+      : await supabase.from('profiles').insert({ id: auth.user.id, role, name: seeded ?? '사용자' });
     if (error) { fail('프로필 저장 실패', error.message); return; }
 
     // 러너 선택 시 runners 행 + 기본 가용시간 확보 (0057 K-3: applicant 민팅)
