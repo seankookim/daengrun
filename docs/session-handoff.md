@@ -38,6 +38,8 @@ Codex-plugin broker trees from finished 09-17…09-23 review/build runs (cwd gon
 
 **20:20: trunk `400b8b0` — harness 1573/0 · deno 393/0 · npm 4536/0. Twenty-three migrations above production (0203–0226). Since 19:30: 0225 (server-stamped chat time), the header/button consistency sweep, the custody client half (runner strips + two ops desks), 0226 (Codex's 0224 REJECT answered). Building: copy slice, nav/a11y sweep, 0227 recurring generator isolation. Your letters: queue item 0-custody (0224 thresholds, four questions), 0-sweep (sixteen), and the second push (b).**
 
+**20:35: every slice of the first sweep's plan is on trunk (`b4c273f`: harness 1573/0 · deno 393/0 · npm 4673/0). A SECOND sweep is running to find what's left; 0227 (recurring generator isolation) is building.**
+
 **Running now (02:3x):** (1) Workflow `finish-line-gap-sweep` — nine code-verified finders (owner/runner journeys, server↔client
 contracts, UI consistency measured, less-is-more, backend logic incl. inaction, ops+notifications, first-run, copy) → dedup →
 adversarial refuters → a planner emitting disjoint-file build slices + letters; builders spawn from its plan (numbers 0216+/247+).

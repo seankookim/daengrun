@@ -281,4 +281,10 @@ club v2 ships in the pilot at all.
   answered: per-row isolation of the new bells, edge refusal sentences for start_run/end_run, debt-episode dedupe). **Trunk:
   harness 1573/0 · deno 393/0 · npm 4536/0 + 39 ✅.** Building: copy slice, nav/a11y sweep, 0227 recurring generator isolation.
   Owed: Codex on the client wave (walled until 21:33, one-shot at 21:37) and on 0225/0226/0227.
+- 20:35 — **EVERY SLICE OF SWEEP 1's PLAN IS ON TRUNK**, plus the Codex correct-forwards and the wave-3 extras. Since 20:20: `86ba36e`
+  fix/nav-a11y-sweep (five cold-start dead ends fixed + a `router.back()` gate; a11y ledger 140 → 92) · `b4c273f` fix/alert-fold-copy
+  (42 raw-English failure alerts → Korean via one helper, shrinking ledgers for the rest; +109). **Trunk `b4c273f`: harness 1573/0 ·
+  deno 393/0 · npm 4673/0 + 39 ✅.** SWEEP 2 launched (`wf_9533dccf-00f`, same nine lenses, told the known/queued list in
+  `scratchpad/sweep2-known.md` so it only reports what is left). Building: 0227 recurring generator isolation. Codex client re-review
+  one-shot at 21:37.
 
