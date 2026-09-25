@@ -249,9 +249,12 @@ const guards = {
     && /stage === 'confirmed' && \([\s\S]{0,400}label="러닝 시작하기 ›"[\s\S]{0,120}router\.replace\('\/runner\/run'\)/.test(meet),
   // run: a stamped end bounces to the seal screen; incident_review draws no start/stop; otherwise the
   // CTA resumes (기록 이어가기) and then stops (러닝 종료 → the end sheet), and start is awaited.
-  run: run.includes('.then((r) => !!r?.runEndedAt)')
+  // [codex wave 4 · c3] MOVED with the fix: the ended-check is three-valued now (a failed read is
+  // 'failed', never 「not ended」) and the CTA is also withheld while that check has failed. The
+  // guard this pin models is the same one, reshaped; run-ended-check.test.cjs owns the new arm.
+  run: run.includes(".then((r): EndedVerdict => (r?.runEndedAt ? 'ended' : 'live'))")
     && run.includes("router.replace({ pathname: '/runner/return-seal', params: { bid } });")
-    && run.includes('{!(incidentBid && !running) && (')
+    && run.includes("{!(incidentBid && !running) && !((endedState === 'failed' || endedRetrying) && !running) && (")
     && run.includes('if (running) { openEndSheet(); return; }')
     && run.includes("resumable ? '기록 이어가기'") && run.includes('await startRunServer(bid);'),
 };

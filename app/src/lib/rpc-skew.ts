@@ -32,12 +32,13 @@ export const PENDING_DEPLOY: Record<string, string> = {
   runner_offered_slots: '0215→0221 후보 슬롯 달력 — db push 전까지 주간 그리드로 폴백',
   // 2026-09-25: chat_mark_read_to (0223 §A) added — the writer that records a read UP TO a message
   //   the screen rendered instead of 「up to now()」. It ships in this build before the migration is
-  //   pushed, so a PGRST202 window is real. In that window `markChatRead` (api.ts) falls back to
-  //   0212's `chat_mark_read` ONLY right after a successful refresh with no reconnect hole open,
-  //   and records nothing otherwise. When deployed, delete this line and the list pin in
+  //   pushed, so a PGRST202 window is real. In that window `markChatRead` (api.ts) acknowledges
+  //   NOTHING (fix/client-review-4 c2 retired the 0212 `chat_mark_read` now() fallback — it
+  //   acknowledged messages the screen never rendered), so unread stays unread until the push.
+  //   When deployed, delete this line and the list pin in
   //   test/rpc-skew.test.cjs together:
   //   select count(*) from pg_proc where proname='chat_mark_read_to'  → 1
-  chat_mark_read_to: '0223 read-cursor writer — until db push, falls back to 0212 chat_mark_read after a successful refresh',
+  chat_mark_read_to: '0223 read-cursor writer — until db push, no read is recorded (unread stays unread)',
   // 2026-09-25: ops_stranded_custody + ops_sealed_unsettled (0224 §F) added — the two read-only
   //   console lists behind the custody-strand and sealed-unsettled bells, written in this build
   //   before 0224 is pushed (production is at 0202), so a PGRST202 window is real. In that window
