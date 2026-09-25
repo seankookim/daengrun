@@ -5,10 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
-import { fetchMyReviewedBookingIds, fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
+import { fetchMyReviewedBookingIds, fetchMyRunnerStatus, fetchRunnerJobs, RunnerJob } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { reviewDoor, type ReviewedRead } from '../../src/lib/review-gate';
+import { runnerJobCaption, runnerJobDestination } from '../../src/lib/runner-job-route';
 import { runnerJob } from '../../src/store';
 import { colors, layout, paper } from '../../src/theme';
 
@@ -110,8 +111,23 @@ export default function RunnerCalendar() {
       .catch((e) => { console.warn('[calendar] reviews:', e?.message ?? e); setReviewedRead('err'); });
   };
 
+  // [onboarding-first-run-8] The empty state below told EVERY zero-job runner 「요청 탭에서 새 요청을
+  // 수락해보세요」 — and for an applicant the 요청 tab then says 「인증 전에는 요청이 오지 않아요」 and
+  // sends them to /runner/apply. A two-hop misdirection on the one tab that could point straight at
+  // the next step. Same tri-state as runner/home.tsx's `preCert`: the applicant sentence is drawn
+  // only when the tier READ SUCCEEDED and says pre-certification; unknown or failed keeps today's
+  // copy, because a guessed tier would tell a certified runner to go and apply.
+  const [tier, setTier] = useState<{ s: 'loading' } | { s: 'ok'; tier: string | null } | { s: 'err' }>({ s: 'loading' });
+  const loadTier = () => {
+    fetchMyRunnerStatus()
+      .then((v) => setTier({ s: 'ok', tier: v.tier }))
+      .catch((e) => { console.warn('[calendar] status:', e?.message ?? e); setTier({ s: 'err' }); });
+  };
+  const preCert = tier.s === 'ok' && (tier.tier === null || tier.tier === 'applicant');
+
   const load = () => {
     setLoadErr(false);
+    loadTier();
     return fetchRunnerJobs()
       .then((j) => { setJobs(j); setLoaded(true); return loadReviewed(j); })
       .catch((e) => { console.warn('[calendar] jobs:', e?.message ?? e); setLoadErr(true); });
@@ -123,13 +139,23 @@ export default function RunnerCalendar() {
   // [C③ 2026-08-24] 완료 건의 Alert 분기가 사라졌다. 그 다이얼로그의 유일한 내용은 **데려다주지
   // 않는 목적지의 이름**이었고("수익 탭에서 정산 내역을 확인하세요"), 홈은 같은 행에 대해 이미 진짜
   // 문 두 개를 들고 있다. 완료 티켓은 이제 통짜 탭 타깃이 아니라 문 두 개를 갖는다 (아래 참조).
+  // [runner-journey-2] The destination is the job's PHASE, not its status word. `active` alone sent
+  // a run-ended (귀가) job to the live run screen; runner-job-route.ts reads `run_ended_at` too, and
+  // routes `incident_review` by the same fact (runner-journey-8). The caption below comes from the
+  // same function, so the ticket cannot promise one screen and open another.
   const openJob = (j: RunnerJob) => {
     runnerJob.bookingId = j.bookingId;
-    // active(러닝 중)만 러닝 화면으로 — picked_up(인계 완료)은 미트업의 '러닝 시작하기' 단계로
-    router.push(j.rawStatus === 'active' ? '/runner/run' : '/runner/meetup');
+    router.push(runnerJobDestination(j));
   };
 
-  const upcoming = jobs.filter((j) => j.status !== 'completed');
+  // [runner-journey-8] `incident_review` rows now arrive (api.ts) and draw a ticket below, but they
+  // are not part of the board's 「확정 N건 · 예상 정산 합계 · 다음 러닝」: the booking is held for a
+  // person to decide, its payout is not a forecast anyone can make, and a held run from yesterday
+  // would otherwise be announced as the 「다음 러닝」 with a 「지난 예약」 countdown.
+  const upcoming = jobs.filter((j) => j.status !== 'completed' && j.rawStatus !== 'incident_review');
+  // …and while one is held, the work gate (0092:116) refuses new work, so 「요청 탭에서 수락해보세요」
+  // would point at a door that is shut. The held ticket itself is the thing to open.
+  const held = jobs.some((j) => j.rawStatus === 'incident_review');
   const expected = upcoming.reduce((sum, j) => sum + j.payout, 0);
   const flapChars = `+${expected.toLocaleString()}`.split('');
 
@@ -200,9 +226,7 @@ export default function RunnerCalendar() {
               뭉갠 'completed')에서 파생돼 있었다 — 이 화면에는 정산 여부를 아는 필드가 없다.
               수익 화면이 이미 쓰는 문장으로 맞춘다: 세 화면이 같은 사실을 같은 말로. */}
           <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 2 }}>
-            {j.status === 'confirmed' ? '탭하여 픽업 진행 ›'
-              : j.status === 'in_progress' ? '탭하여 러닝 화면 ›'
-                : '지급 일정은 아직 정해지지 않았어요'}
+            {done ? '지급 일정은 아직 정해지지 않았어요' : runnerJobCaption(j)}
           </Text>
         </View>
         {/* FINISHER 도장 (완료) — latin stamp glyph class (15pt floor exempt) */}
@@ -278,9 +302,9 @@ export default function RunnerCalendar() {
             onPress={() => router.push({ pathname: '/runner/review', params: { bid: j.bookingId } })}
             style={({ pressed }) => [s.reviewDoor, pressed && { backgroundColor: paper.wash }]}
             accessibilityRole="button"
-            accessibilityLabel={`${j.dogName} 리뷰 남기기`}
+            accessibilityLabel={`${j.dogName} 후기 남기기`}
           >
-            <Text style={s.doneDoorTxt}>{j.dogName} 리뷰 남기기 ›</Text>
+            <Text style={s.doneDoorTxt}>{j.dogName} 후기 남기기 ›</Text>
           </Pressable>
         )}
       </View>
@@ -325,7 +349,7 @@ export default function RunnerCalendar() {
               : !loaded ? '불러오는 중…'
                 : `확정 ${upcoming.length}건${upcoming.length > 0 && nextLabel
                   ? ` · 다음 러닝 ${nextLabel}${nextRel ? ` · ${nextRel}` : ''}`
-                  : upcoming.length > 0 ? '' : ' — 요청 탭에서 수락해보세요'}`}
+                  : upcoming.length > 0 || preCert || held ? '' : ' — 요청 탭에서 수락해보세요'}`}
           </Text>
           {/* [Sean 2026-08-11 "캘린더 탭 수익 숫자 더 크게"] 플랩 20 → 30pt.
               폭 예산 (320dp 기준, 넘치면 스플릿-플랩 행이 잘린다 — Row에 wrap 없음):
@@ -371,13 +395,16 @@ export default function RunnerCalendar() {
         {loaded && !loadErr && jobs.length === 0 && (
           <View style={s.emptyJobs}>
             <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 22 }}>
-              확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요
+              {preCert
+                ? '인증이 끝나면 확정된 러닝이 여기에 떠요'
+                : <>확정된 작업이 아직 없어요{'\n'}요청 탭에서 새 요청을 수락해보세요</>}
             </Text>
             <Pressable
-              onPress={() => router.push('/runner/requests')}
+              onPress={() => router.push(preCert ? '/runner/apply' : '/runner/requests')}
               style={({ pressed }) => [s.emptyBtn, pressed && { backgroundColor: paper.wash }, pressed && { transform: [{ scale: 0.96 }] }]}
+              accessibilityRole="button"
             >
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>요청 보러 가기 ›</Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>{preCert ? '인증 센터 ›' : '요청 보러 가기 ›'}</Text>
             </Pressable>
           </View>
         )}

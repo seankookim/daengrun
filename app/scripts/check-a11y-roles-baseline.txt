@@ -178,7 +178,6 @@ app/runner-profile/[id].tsx :: RunnerProfileScreen :: 4844af55 :: 1
 app/runner-profile/[id].tsx :: RunnerProfileScreen :: d78cbfc9 :: 1
 app/runner-profile/[id].tsx :: RunnerProfileScreen :: f78b3b17 :: 1
 app/runner/calendar.tsx :: RunnerCalendar :: 166d58ff :: 1
-app/runner/calendar.tsx :: RunnerCalendar :: 850184f3 :: 1
 app/runner/calendar.tsx :: renderTicket :: 721326be :: 1
 app/runner/home.tsx :: RunnerHome :: 43ed60ec :: 1
 app/runner/home.tsx :: SectionHead :: 72dc108c :: 1

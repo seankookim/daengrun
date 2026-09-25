@@ -49,6 +49,7 @@ import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-polic
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
@@ -309,7 +310,10 @@ export default function ReturnSeal() {
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <View style={[pad, { paddingTop: insets.top + 10, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
+        {/* [runner-journey-10] notification-route.ts sends four push titles straight here, so this
+            screen is routinely the ONLY entry on its stack — a bare back() no-ops and the ‹ is dead
+            (nav.ts). goBackOrHome still pops when it can. */}
+        <Pressable onPress={goBackOrHome} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 22, color: paper.ink }}>‹</Text>
         </Pressable>
         <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>인계 · 반환</Text>

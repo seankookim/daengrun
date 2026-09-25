@@ -6,10 +6,11 @@ import { Alert, AppState, Dimensions, KeyboardAvoidingView, Linking, Modal, Plat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { traceKind } from '../../src/components/course-detail';
-import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, endRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
+import { addRunEvent, ensureThread, fetchBookingAddress, fetchBookingStatus, fetchCurrentRunnerJobId, fetchMeetupInfo, fetchRouteById, fetchRunMeta, fetchReturnSeal, fetchRunPhotos, fetchRunStartedAt, fetchRunTrace, MeetupInfo, notifyKmMilestone, PickupAddress, RunEventKind, saveRunTrace, sendChatMessage, sendChatPhoto, endRun, startRunServer, uploadRunPhoto, fetchRunNetCoeffs } from '../../src/lib/api';
 import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes, publishPos, resetTrace, seedTrace, smoothTrace, startTracking, stopPublishing, TrackHandle, TrackMode, TrackSnapshot } from '../../src/lib/geo';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOrHome } from '../../src/lib/nav';
 import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
@@ -280,11 +281,15 @@ export default function ActiveRun() {
       .catch((e) => { console.warn('[run] info:', e?.message ?? e); setInfoStatus('error'); });
   }, []);
 
+  // [runner-journey-11] `startedAtMs` is a ref, so nothing re-renders when it lands; this is its
+  // render-visible twin. True = the server has a `runs.started_at` for this booking, i.e. there is
+  // a run to CONTINUE — which is what the idle badge/CTA must say instead of 「러닝 준비」.
+  const [serverStarted, setServerStarted] = useState(false);
   const refreshStartedAt = useCallback(() => {
     const bid = runnerJob.bookingId;
     if (!bid) return;
     fetchRunStartedAt(bid)
-      .then((iso) => { if (iso) startedAtMs.current = new Date(iso).getTime(); })
+      .then((iso) => { if (iso) { startedAtMs.current = new Date(iso).getTime(); setServerStarted(true); } })
       .catch(() => { /* 다음 복귀에 다시 시도 */ });
   }, []);
 
@@ -292,6 +297,12 @@ export default function ActiveRun() {
   // [0121] server-issued net coefficients (netBase + km·netPerKm) — see estNet below.
   const [coeffs, setCoeffs] = useState<{ netBase: number; netPerKm: number } | null>(null);
   const coeffsRetryAt = useRef(0);
+
+  // [runner-journey-2] Resolves to true when the hydrated booking's run has ALREADY ENDED (server
+  // `run_ended_at`). startRun awaits it before doing anything, so a tap that lands during the check
+  // cannot open a second run on a frozen booking — `start_run_tx` answers an `active` row with
+  // {unchanged:true} and the edge function would re-send 「러닝 시작」 to the owner.
+  const endedCheck = useRef<Promise<boolean> | null>(null); // null = no check started (no bid yet)
 
   // + 트레이스 시드 (2026-08-08): 재진입 시 km이 0부터 다시 시작해 서버 트레이스를 덮어쓰던 구멍.
   useEffect(() => {
@@ -306,6 +317,18 @@ export default function ActiveRun() {
       }
       const bid = runnerJob.bookingId;
       if (!bid) return;
+      // [runner-journey-2] A run that has already been STOPPED is not this screen's to show. Since
+      // 0188 the booking stays `active` after end_run_tx, so every door that reached here on status
+      // alone (the calendar ticket, a stale in-memory id, the lock-screen Live Activity) mounted the
+      // live screen — 러닝 시작 CTA and all — over a frozen run. The seal screen is the next step.
+      // A failed read falls through to today's behaviour: the server still refuses a second end.
+      endedCheck.current = fetchReturnSeal(bid)
+        .then((r) => !!r?.runEndedAt)
+        .catch((e) => { console.warn('[run] ended check:', (e as Error)?.message); return false; });
+      if (await endedCheck.current) {
+        router.replace({ pathname: '/runner/return-seal', params: { bid } });
+        return;
+      }
       loadInfo(bid);
       refreshStartedAt();
       fetchRunNetCoeffs(bid).then((c) => { if (c) setCoeffs({ netBase: c.netBase, netPerKm: c.netPerKm }); });
@@ -1039,6 +1062,22 @@ export default function ActiveRun() {
   // 가변 모듈 값이다. 감시가 아직 한 번도 성공하지 않은 동안은 그 모듈 값이 유일하게 아는 길이다.
   const incidentDoorBid = bookingWatch?.bid ?? runnerJob.bookingId ?? null;
 
+  // [runner-journey-11] THE IDLE FACE. `running` seeds false and the hydrate restores km/trace/
+  // startedAt but never `running`, so on re-entry to a run the SERVER has active the badge said
+  // 「{dog}와 러닝 준비」 and the CTA 「러닝 시작」 — a fresh start for a run that is already on the
+  // owner's map. Either server fact licenses 「이어가기」: the booking reads `active`, or a
+  // `runs.started_at` exists. beginRun is unchanged (start_run_tx answers {unchanged:true}).
+  // ⚠ Not in `incident_review` — no start of any kind is accepted there (see the CTA note).
+  // ⚠ `runSentence` (the announcement twin) keeps 「러닝 준비」 on purpose: its idle value is only
+  //   ever the PRIMING value of useAnnounceOnChange, and switching it when the watch lands would
+  //   announce a hydration as if it were a change.
+  const resumable = !incidentBid && (bookingWatch?.status === 'active' || serverStarted);
+  const idleBadge = incidentBid
+    ? '확인 진행 중'
+    : resumable
+      ? dogName ? `${dogName}와 러닝 기록 이어가기` : '러닝 기록 이어가기'
+      : dogName ? `${dogName}와 러닝 준비` : '러닝 준비';
+
   // ---------- 사진 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
   // Verbatim: "For the runner done screen (C), make sure there's a mandatory nudge for pictures
   // (make that a requirement and nudge them during the runner live screen so they don't forget."
@@ -1076,8 +1115,29 @@ export default function ActiveRun() {
   const [panelH, setPanelH] = useState(0);
 
   // ---------- 러닝 시작 — 연속 기록이 안 되면 시작하지 않는다 (Sean 2026-08-08) ----------
+  // [runner-journey-9] …and the run is not running until the SERVER says so. This used to be
+  // `startRunServer(bid)` with an empty catch followed by an unconditional setRunning(true), and the
+  // meetup door swallowed the same call once more before it. A refused start (`not_picked_up`, a
+  // transport failure) left the booking at `picked_up` while the screen, the Live Activity and the
+  // owner's map all ran — for as long as the run lasted — and the runner learned it at 종료.
+  // Now the start is awaited: on failure tracking is stopped again and the block strip says so,
+  // with a retry. There is no 'already active' special case: `start_run_tx` answers a second start
+  // with {unchanged:true}, which resolves (0087 §2).
+  const [startErr, setStartErr] = useState(false);
+  const startInFlight = useRef(false);
   const startRun = async () => {
+    if (startInFlight.current) return; // the rationale sheet and the CTA can both reach here
+    startInFlight.current = true;
+    try {
+      await startRunInner();
+    } finally {
+      startInFlight.current = false;
+    }
+  };
+  const startRunInner = async () => {
     setRationale(false);
+    if (endedCheck.current && await endedCheck.current) return; // the hydrate is already replacing this screen
+    setStartErr(false);
     const h = await startTracking(onTrack, { dogName: dogName ?? undefined });
     setTrackMode(h.mode);
     modeRef.current = h.mode;
@@ -1094,8 +1154,21 @@ export default function ActiveRun() {
     setSec(0);
     const bid = runnerJob.bookingId;
     if (bid) {
-      // 캘린더에서 picked_up 상태로 재진입한 경우에도 start_run이 호출되도록
-      startRunServer(bid).catch(() => { /* 이미 active면 무시 */ }).then(() => refreshStartedAt());
+      try {
+        await startRunServer(bid);
+      } catch (e) {
+        console.warn('[run] start:', (e as Error)?.message);
+        await h.stop();
+        handle.current = null;
+        setGps(false);
+        setStartErr(true);
+        haptic('light');
+        // The runner just tapped and is looking for the result — say it on the only channel a
+        // VoiceOver user has (the strip itself appears silently).
+        announce('러닝 시작을 서버에 기록하지 못했어요');
+        return;
+      }
+      refreshStartedAt();
     }
     setRunning(true);
   };
@@ -1117,6 +1190,11 @@ export default function ActiveRun() {
   const blockStrip = (): { text: string; action?: string; onAction?: () => void } | null => {
     if (ceilingHit) return { text: '정산 가능한 최대 거리에 근접했어요 — 지금 종료해주세요' };
     if (trackMode == null || trackMode === 'background') {
+      // [runner-journey-9] The server refused (or never heard) the start. Tracking was stopped again,
+      // so nothing is being recorded — the retry is the same beginRun the CTA runs.
+      if (startErr) {
+        return { text: '러닝 시작을 서버에 기록하지 못했어요', action: '다시 시도', onAction: () => { beginRun(); } };
+      }
       // Booking context failed → target distance unknown → auto-complete is OFF. Say so
       // honestly instead of settling on a guessed threshold, and offer retry.
       if (infoStatus === 'error') {
@@ -1165,6 +1243,22 @@ export default function ActiveRun() {
           신규 헥스는 0개다. 심각도 체인(coralOwner)도 그대로 — 맨 위 하나만 코랄. */}
       {/* 스크롤 인디케이터는 **끄지 않는다**: 레인이 잘렸다는 사실 자체가 러너가 알아야 할 정보다 */}
       <ScrollView style={[s.lane, { maxHeight: laneMax }]} contentContainerStyle={[s.laneContent, { paddingTop: insets.top }]}>
+        {/* [runner-journey-11] THE WAY OUT. This screen had none — no ‹, no goBackOrHome, no tab bar —
+            and the root Stack has no back gesture (nav.ts), so a runner who opened it before the
+            pickup, or from a stale ticket, could only leave by force-quitting. Drawn ONLY while not
+            running: back must never be the way a live recording stops (the end sheet is), and it is
+            hidden while a start is in flight for the same reason. */}
+        {!running && !starting && (
+          <Pressable
+            onPress={goBackOrHome}
+            style={s.backBtn}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="뒤로"
+          >
+            <Text style={{ fontSize: 22, lineHeight: 26, color: paper.ink }}>‹</Text>
+          </Pressable>
+        )}
         {/* 추적 상태 라우드 페일 — 실패는 실패로 보인다 (침묵 강등 금지) */}
         {strip && (
           <View style={s.pStrip}>
@@ -1355,7 +1449,7 @@ export default function ActiveRun() {
                 ? '기록이 멈췄어요'
                 : running
                   ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
-                  : dogName ? `${dogName}와 러닝 준비` : '러닝 준비'}
+                  : idleBadge}
             </Text>
             {running && gps && !ceilingHit && (
               <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 2 }}>화면이 꺼져도 거리가 기록돼요</Text>
@@ -1600,6 +1694,11 @@ export default function ActiveRun() {
               <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
+          {/* [runner-journey-8] Not drawn while the booking is in `incident_review` and no run is
+              recording: `start_run_tx` refuses every state but picked_up/active (`not_picked_up`),
+              so 러닝 시작 / 기록 이어가기 would be a door that fails on every tap. The incident
+              banner above says what is happening and carries the chat door; 사고 신고 stays. */}
+          {!(incidentBid && !running) && (
           <Pressable
             // busy = label swap below ('위치 확인 중...') — the opacity paint retired (§2 button law)
             /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. The lip's colour
@@ -1628,9 +1727,10 @@ export default function ActiveRun() {
             }}
           >
             <Text style={[{ fontSize: 19.5, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
-              {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중…' : '러닝 시작'}
+              {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중…' : resumable ? '기록 이어가기' : '러닝 시작'}
             </Text>
           </Pressable>
+          )}
         </View>
         {/* 천장 종료가 무엇으로 정산되는지 — 시트를 열기 전에 미리 말한다 (시트의 사유별 금액은 그대로) */}
         {ceilingHit && (
@@ -1649,7 +1749,15 @@ export default function ActiveRun() {
             주머니에 넣거나 화면이 꺼져도 거리와 경로가 계속 기록돼요. 이 거리가 보호자에게 보이는 기록이자 정산 기준이에요.{'\n'}
             러닝을 종료하면 기록도 함께 멈춰요.
           </Text>
-          <Pressable style={[s.btn, { backgroundColor: colors.volt, marginTop: 18 }]} onPress={() => { startRun(); }}>
+          {/* [runner-journey-9] Through the same busy flag as the CTA: the start now waits on the
+              server, and without it the CTA would stay tappable and unlabelled for that wait. */}
+          <Pressable
+            style={[s.btn, { backgroundColor: colors.volt, marginTop: 18 }]}
+            onPress={async () => {
+              setStarting(true);
+              try { await startRun(); } finally { setStarting(false); }
+            }}
+          >
             {/* display font retired here — 1/screen budget is spent on the main CTA */}
             <Text style={{ fontSize: 17, fontWeight: '800', color: colors.ink }}>위치 허용하기</Text>
           </Pressable>
@@ -1796,6 +1904,8 @@ const s = StyleSheet.create({
   // flexShrink: 스트립이 많으면 레인이 먼저 줄고(내부 스크롤), 지도는 바닥 아래로 내려가지 않는다.
   lane: { flexGrow: 0, flexShrink: 1, backgroundColor: paper.canvas },
   laneContent: { paddingHorizontal: 16, paddingBottom: 4 },
+  // [runner-journey-11] the lane's ‹ — 44×44, the run screen's own touch-target contract (recenterBtn)
+  backBtn: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center', marginBottom: 4 },
   // 종이 라우드-페일 (F1.2) — criticalWash 면 + critical 1px + critical 잉크. meetup·done·review와
   // 같은 문법이고 신규 헥스 0개. 자문 변형은 wash 면 + 코랄 헤어라인 + 읽는 잉크.
   pStrip: {
