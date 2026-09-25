@@ -444,10 +444,23 @@ declare
   --    stanza (still carries `[0111]`). 258 `0227-R1`/`R2`/`R3`/`V1`/`G1` own the new behaviour.
   --    Previous values: src da4bb3cd510442ab24657eff0e314d14 / 8231, comment
   --    ec485f1cac0f9fb241919427ce950e8b / 522.
-  c_gen_src_md5 constant text := '6dacd315c158269553b56dc8befc0495';
-  c_gen_src_len constant int  := 10920;
-  c_gen_cmt_md5 constant text := '5a249225fd11f029cca76670681af673';
-  c_gen_cmt_len constant int  := 792;
+  -- ⚠ [0232] RE-READ FROM THE CATALOG on 2026-09-26 after 0232 applied, as the note above asks.
+  --    The body moved ON PURPOSE in two places: (1) a ROUTE GATE immediately before the booking
+  --    insert — a series whose course is `suspended` or `retired` mints nothing and tells its owner
+  --    「반복 예약 코스 점검 중」 once per series per 24 h per episode (gap sweep 2 P9: create-booking-hold
+  --    refuses those courses and this generator never read `routes.status`); (2) the debt pause's
+  --    EPISODE is recorded in `recurring_pause_notices` (the charges that were debt when the notice
+  --    went out, extended while the debt continues) and the dedupe reads it instead of inferring the
+  --    episode from `created_at` (codex wave-4 s2). 0232 §D built the body BY SCRIPT from 0227's and
+  --    asserted that undoing the edits gives 0227's text byte for byte, so every line this arm froze
+  --    before — 0227's per-series block included — is still there. The comment gained one `[0232]`
+  --    stanza (still carries `[0111]`). 263 `0232-B1…B4`/`D1…D3` own the new behaviour.
+  --    Previous values: src 6dacd315c158269553b56dc8befc0495 / 10920, comment
+  --    5a249225fd11f029cca76670681af673 / 792.
+  c_gen_src_md5 constant text := 'ac52c31c24d7933b719ed1513d829c03';
+  c_gen_src_len constant int  := 15287;
+  c_gen_cmt_md5 constant text := '3e0908e17979419058cf14ec5e2687ed';
+  c_gen_cmt_len constant int  := 1224;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have
