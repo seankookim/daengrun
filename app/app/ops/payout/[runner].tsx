@@ -5,8 +5,9 @@ import {
   TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../../../src/components/paper-btn';
 import { StatusBarCover } from '../../../src/components/status-bar-cover';
-import { Row } from '../../../src/components/ui';
+import { Row, ScreenHead } from '../../../src/components/ui';
 import {
   fetchOpsBankAccount, fetchOpsRunnerPayoutDetail, OpsBankAccount, OpsPayoutRowDetail,
   opsRecordManualPayout,
@@ -18,11 +19,10 @@ import { kstCal, kstMonthDay } from '../../../src/lib/kst';
 // thing a log should carry: a `console.warn` printing the folded copy has thrown the
 // diagnosis away, which is the cost the fold exists to avoid paying.
 import { rpcRaw } from '../../../src/lib/rpc-error';
-import { goBackOrHome } from '../../../src/lib/nav';
 import {
   batchRefusal, batchSummary, BATCH_REFUSAL_KO, checkedTotalWon, selectedIds, wonLabel,
 } from '../../../src/lib/ops-payout';
-import { colors, paper } from '../../../src/theme';
+import { colors, paper, secTitle } from '../../../src/theme';
 
 // 지급 기록 — one runner's unpaid settled rows, and the transfer that covers them. 0198 §B + 0186 §C.
 //
@@ -230,13 +230,7 @@ export default function OpsPayoutRunner() {
           contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-              <Text style={{ fontSize: 20.5 }}>‹</Text>
-            </Pressable>
-            <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>지급 기록</Text>
-            <View style={{ width: 40 }} />
-          </Row>
+          <ScreenHead title="지급 기록" />
           <Text style={s.note}>러너 {runnerId.slice(0, 8).toUpperCase()}</Text>
 
           {/* ── 계좌 ─────────────────────────────────────────────────────────────────────
@@ -303,7 +297,7 @@ export default function OpsPayoutRunner() {
 
           {/* ── 미지급 행 ──────────────────────────────────────────────────────────────── */}
           <Row style={{ justifyContent: 'space-between', marginTop: 24, alignItems: 'baseline' }}>
-            <Text style={s.secTitle}>미지급 행</Text>
+            <Text style={secTitle}>미지급 행</Text>
             {phase === 'ready' && rows.length > 0 && (
               <Pressable onPress={toggleAll} accessibilityRole="button" style={s.allBtn}>
                 <Text style={s.allLabel}>{allOn ? '전체 해제' : '전체 선택'}</Text>
@@ -396,20 +390,13 @@ export default function OpsPayoutRunner() {
                 </View>
               )}
 
-              {/* ⚠ 「Disabled stays flat」 (DESIGN.md:218) — a dead key has no travel, so the lip and
-                  the press transform both go while busy rather than the whole button being dimmed
-                  with an alpha (the no-opacity law, theme.ts:204). */}
-              <Pressable
-                onPress={submit}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: saving, busy: saving }}
-                style={({ pressed }) => [s.primary, saving ? s.flatDisabled : (pressed && s.primaryPressed)]}
-              >
-                <Text style={[s.primaryLabel, saving && s.flatDisabledLabel]}>
-                  {saving ? '기록 중…' : `지급 기록 · ${wonLabel(total)}`}
-                </Text>
-              </Pressable>
+              {/* PaperBtn (DESIGN.md §3b): coral primary, and busy is a LABEL SWAP with
+                  accessibilityState.busy — the key is blocked while the write is in flight, not
+                  drawn as a dead one (this was an ink primary that went flat-grey while saving). */}
+              <PaperBtn
+                label={`지급 기록 · ${wonLabel(total)}`} busyLabel="기록 중…" busy={saving}
+                onPress={submit} style={s.cta}
+              />
             </>
           )}
         </ScrollView>
@@ -422,7 +409,6 @@ export default function OpsPayoutRunner() {
 // 15pt floor (DESIGN.md:145). The only sub-15 glyph on this screen is the checkbox tick, which is
 // a glyph rather than Korean prose (Sean 2026-08-31: 아바타 dot initials are glyphs and exempt).
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   note: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 12 },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: colors.line },
   kicker: { fontSize: 15, fontWeight: '700', color: paper.dim },
@@ -432,7 +418,6 @@ const s = StyleSheet.create({
   bankHolder: { fontSize: 16, fontWeight: '700', color: paper.ink, marginTop: 3 },
   bankMissing: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 6 },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 14 },
-  secTitle: { fontSize: 20, fontWeight: '900', color: paper.ink },
   allBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   allLabel: { fontSize: 16, fontWeight: '800', color: paper.action, textDecorationLine: 'underline' },
   itemRow: {
@@ -454,15 +439,8 @@ const s = StyleSheet.create({
   totalLabel: { fontSize: 16, fontWeight: '700', color: paper.dim },
   totalValue: { fontSize: 20, fontWeight: '900', color: paper.ink },
   equalityNote: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 5 },
-  primary: {
-    marginTop: 18, minHeight: 56, borderRadius: 0, backgroundColor: paper.ink,
-    borderBottomWidth: 4, borderBottomColor: paper.inkPressed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  primaryPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
-  primaryLabel: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  flatDisabled: { borderBottomWidth: 1, backgroundColor: paper.disabledFill },
-  flatDisabledLabel: { color: paper.faint },
+  // Layout only — PaperBtn owns the fill (coral primary, DESIGN.md §3b), the lip and the busy swap.
+  cta: { marginTop: 18 },
   // Secondary = canvas + 1px line, no lip (「Paper has no depth」 — a lip belongs to filled keys).
   secondary: {
     marginTop: 10, minHeight: 48, borderRadius: 0, backgroundColor: colors.cream,

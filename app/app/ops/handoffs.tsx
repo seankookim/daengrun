@@ -3,10 +3,9 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
-import { Row } from '../../src/components/ui';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { fetchOpsStalledHandoffs, OpsStalledHandoff } from '../../src/lib/api';
 import { kstCal, kstClock, kstMonthDay } from '../../src/lib/kst';
-import { goBackOrHome } from '../../src/lib/nav';
 import { handoffAlertNote, handoffWaitingLabel, strandAgeLabel } from '../../src/lib/ops-console';
 // RAW server text for the log only — `e.message` is the mapped Korean the screen renders.
 import { rpcRaw } from '../../src/lib/rpc-error';
@@ -66,13 +65,7 @@ export default function OpsStalledHandoffs() {
         style={{ flex: 1, backgroundColor: colors.cream }}
         contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
       >
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5 }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>인계 멈춤</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <ScreenHead title="인계 멈춤" />
 
         {/* [ops-notifications-9] The old lead ended 「양측에 직접 연락해 확인해주세요」 — an
             instruction this screen gives the operator nothing to carry out: OpsStalledHandoff
@@ -144,7 +137,6 @@ export default function OpsStalledHandoffs() {
 
 // 15pt floor (DESIGN.md:145). No Korean below 15 here; the kicker exemption is latin-only.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   lead: { fontSize: 15.5, lineHeight: 22, color: paper.dim, marginTop: 14, marginBottom: 14 },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 16 },
   row: {

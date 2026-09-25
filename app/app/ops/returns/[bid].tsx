@@ -4,14 +4,14 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../../../src/components/paper-btn';
 import { StatusBarCover } from '../../../src/components/status-bar-cover';
-import { Row } from '../../../src/components/ui';
+import { Row, ScreenHead } from '../../../src/components/ui';
 import {
   fetchOpsStrandedReturns, OpsStrandedReturn, opsResolveReturn,
 } from '../../../src/lib/api';
 import { haptic } from '../../../src/lib/haptics';
 import { kstCal, kstClock, kstMonthDay } from '../../../src/lib/kst';
-import { goBackOrHome } from '../../../src/lib/nav';
 import {
   memoRefusal, resolveOutcomeLabel, strandAgeLabel, strandNotifiedNote, strandStateLabel,
 } from '../../../src/lib/ops-console';
@@ -130,13 +130,7 @@ export default function OpsStrandedReturnDetail() {
           contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-              <Text style={{ fontSize: 20.5 }}>‹</Text>
-            </Pressable>
-            <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>반환 정리</Text>
-            <View style={{ width: 40 }} />
-          </Row>
+          <ScreenHead title="반환 정리" />
 
           {phase === 'loading' && <Text style={s.loading}>예약을 불러오는 중이에요…</Text>}
 
@@ -171,13 +165,7 @@ export default function OpsStrandedReturnDetail() {
                 <Text style={s.doneText}>{doneMsg}</Text>
                 <Text style={s.doneSub}>판정 기록이 저장됐어요 · 좌초 목록에서 빠져요</Text>
               </View>
-              <Pressable
-                onPress={() => router.replace('/ops/returns')}
-                accessibilityRole="button"
-                style={({ pressed }) => [s.primary, pressed && s.primaryPressed]}
-              >
-                <Text style={s.primaryLabel}>좌초 목록으로</Text>
-              </Pressable>
+              <PaperBtn label="좌초 목록으로" onPress={() => router.replace('/ops/returns')} style={s.cta} />
             </>
           )}
 
@@ -240,17 +228,7 @@ export default function OpsStrandedReturnDetail() {
                 <View style={s.failStrip}><Text style={s.failText}>{formErr}</Text></View>
               )}
 
-              <Pressable
-                onPress={submit}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: saving, busy: saving }}
-                style={({ pressed }) => [s.primary, pressed && !saving && s.primaryPressed, saving && s.flatDisabled]}
-              >
-                <Text style={[s.primaryLabel, saving && s.flatDisabledLabel]}>
-                  {saving ? '처리 중…' : '운영 처리'}
-                </Text>
-              </Pressable>
+              <PaperBtn label="운영 처리" busyLabel="처리 중…" busy={saving} onPress={submit} style={s.cta} />
               <Text style={s.warnNote}>
                 반환을 봉인하고 정산까지 진행해요 · 되돌릴 수 없어요
               </Text>
@@ -274,7 +252,6 @@ function Fact({ label, value, tone }: { label: string; value: string; tone?: 'ok
 
 // 15pt floor (DESIGN.md:145). No Korean below 15 here; the kicker exemption is latin-only.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: colors.line },
   kicker: { fontSize: 15, fontWeight: '700', color: paper.dim },
   dogName: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 4 },
@@ -291,15 +268,8 @@ const s = StyleSheet.create({
   input: { fontSize: 17, color: paper.ink, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, minHeight: 52 },
   memoInput: { minHeight: 110, paddingTop: 13, paddingBottom: 13, textAlignVertical: 'top' },
   warnNote: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 8 },
-  primary: {
-    marginTop: 20, minHeight: 56, borderRadius: 0, backgroundColor: paper.ink,
-    borderBottomWidth: 4, borderBottomColor: paper.inkPressed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  primaryPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
-  primaryLabel: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  flatDisabled: { borderBottomWidth: 1, backgroundColor: paper.disabledFill },
-  flatDisabledLabel: { color: paper.faint },
+  // Layout only — PaperBtn owns the fill (coral primary, DESIGN.md §3b), the lip and the busy swap.
+  cta: { marginTop: 20 },
   secondary: {
     marginTop: 14, minHeight: 48, borderRadius: 0, backgroundColor: colors.cream,
     borderWidth: 1, borderColor: paper.ink, alignItems: 'center', justifyContent: 'center',
