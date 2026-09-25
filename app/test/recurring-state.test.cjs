@@ -29,8 +29,9 @@
 // The 19:30 KST fixture is deliberate: it is the evening slot where UTC and KST agree on the
 // weekday and New_York does not.
 const {
-  describeSeries, ruleWeekdayAndTime, WEEKDAY_KO, CREATE_SERIES_TOKENS,
+  describeSeries, ruleWeekdayAndTime, courseGateOf, WEEKDAY_KO, CREATE_SERIES_TOKENS,
   PENDING_NEXT, PAUSED_NOTE, DEBT_NOTE, BROKEN_LINE,
+  COURSE_SUSPENDED_NOTE, COURSE_RETIRED_NOTE, COURSE_UNKNOWN_NOTE, PAUSED_NOTE_PLAIN,
 } = require('./recurring-state.build.cjs');
 
 let pass = 0, fail = 0;
@@ -44,7 +45,9 @@ const t = (name, cond, detail = '') => {
 // than in Seoul — which is what the zone arms exist to catch).
 const NOW = Date.parse('2026-09-23T10:30:00Z');
 const NEXT_WED = '2026-09-30T10:30:00Z';           // +7d, same wall clock
-const base = { paused: false, weekday: 3, time: '19:30', nextBookingAt: null, unsettledCharge: null };
+// `course: 'open'` — the route gate (0232 §B) lets this series through. Every arm above the ⑥
+// block is about something else, so it starts from the one course state that licenses PENDING_NEXT.
+const base = { paused: false, weekday: 3, time: '19:30', nextBookingAt: null, unsettledCharge: null, course: 'open' };
 const d = (over) => describeSeries({ ...base, ...over }, NOW);
 
 // ── the running series ─────────────────────────────────────────────────────────────────────────
@@ -106,6 +109,121 @@ for (const [what, over] of [
 }
 t('a broken PAUSED series is still broken (brokenness wins — resuming it would be a dead button)',
   d({ paused: true, weekday: null }).canResume === false && d({ paused: true, weekday: null }).broken === true);
+
+// ══ ⑥ THE ROUTE GATE (0232 §B) ═════════════════════════════════════════════════════════════════
+// `generate_recurring_bookings` refuses to mint for a series whose course is `suspended` or
+// `retired` (0232:527-529). PENDING_NEXT — 「다음 예약은 3일 전에 자동으로 잡혀요」 — is therefore a
+// promise about a run the generator WILL create, and it is licensed only when the course is KNOWN
+// open. The property, stated without reference to any implementation: PENDING_NEXT appears iff
+// the series is readable, unpaused, has no upcoming booking, and its course is known open.
+const BASE_LINE = '매주 수요일 오후 7:30';
+const NEXT_LINE = '매주 수요일 오후 7:30 · 다음 예약 9월 30일 오후 7:30';
+{
+  const v = d({ course: 'suspended' });
+  t('⑥ 🔴 a SUSPENDED course with nothing made: no 3일 전 promise — the course note instead',
+    v.line === BASE_LINE && v.note === COURSE_SUSPENDED_NOTE && !v.line.includes(PENDING_NEXT), `${v.line} | ${v.note}`);
+  t('⑥ …and no 다시 시작 on a running series', v.canResume === false && v.broken === false);
+}
+{
+  const v = d({ course: 'retired' });
+  t('⑥ 🔴 a RETIRED course with nothing made: no 3일 전 promise — the retired note instead',
+    v.line === BASE_LINE && v.note === COURSE_RETIRED_NOTE && !v.line.includes(PENDING_NEXT), `${v.line} | ${v.note}`);
+}
+t('⑥ a suspended course with a booking ALREADY made still names it (it exists) and still says the course is closed',
+  d({ course: 'suspended', nextBookingAt: NEXT_WED }).line === NEXT_LINE
+  && d({ course: 'suspended', nextBookingAt: NEXT_WED }).note === COURSE_SUSPENDED_NOTE);
+t('⑥ a retired course with a booking already made: the same',
+  d({ course: 'retired', nextBookingAt: NEXT_WED }).line === NEXT_LINE
+  && d({ course: 'retired', nextBookingAt: NEXT_WED }).note === COURSE_RETIRED_NOTE);
+{
+  const v = d({ course: null });
+  t('⑥ 🔴 UNKNOWN course (read failed) with nothing made: no 3일 전 promise — unknown is not open',
+    v.line === BASE_LINE && !v.line.includes(PENDING_NEXT) && v.note === COURSE_UNKNOWN_NOTE, `${v.line} | ${v.note}`);
+  const u = d({ course: undefined });
+  t('⑥ 🔴 a caller that never asked (course undefined) is UNKNOWN too, never open',
+    u.line === BASE_LINE && u.note === COURSE_UNKNOWN_NOTE, `${u.line} | ${u.note}`);
+}
+t('⑥ UNKNOWN with a booking already made: the booking is a fact and is named; nothing is promised or blamed',
+  d({ course: null, nextBookingAt: NEXT_WED }).line === NEXT_LINE && d({ course: null, nextBookingAt: NEXT_WED }).note === null);
+t('⑥ 🔴 the UNKNOWN note claims neither way — no 점검, no 운영이 끝난, no 잡혀요',
+  !/점검|운영이 끝난|잡혀요/.test(COURSE_UNKNOWN_NOTE), COURSE_UNKNOWN_NOTE);
+t('⑥ the open course keeps the 72h rule (the one state that licenses it)',
+  d({ course: 'open' }).line === `${BASE_LINE} · ${PENDING_NEXT}` && d({ course: 'open' }).note === null);
+
+// paused × course
+for (const c of ['suspended', 'retired']) {
+  const v = d({ paused: true, course: c });
+  t(`⑥ 🔴 a PAUSED series on a ${c} course offers no 다시 시작 (it would restart a series the route gate still refuses) and says why`,
+    v.canResume === false && v.note === (c === 'suspended' ? COURSE_SUSPENDED_NOTE : COURSE_RETIRED_NOTE) && v.line === BASE_LINE,
+    `${v.line} | ${v.note} | ${v.canResume}`);
+}
+t('⑥ a paused series on an OPEN course keeps PAUSED_NOTE and its 다시 시작 (unchanged)',
+  d({ paused: true, course: 'open' }).note === PAUSED_NOTE && d({ paused: true, course: 'open' }).canResume === true);
+t('⑥ 🔴 a paused series with an UNKNOWN course drops PAUSED_NOTE\'s 「다시 시작하면 … 잡혀요」 promise but keeps the control',
+  d({ paused: true, course: null }).note === PAUSED_NOTE_PLAIN && d({ paused: true, course: null }).canResume === true
+  && !PAUSED_NOTE_PLAIN.includes('잡혀요'));
+
+// debt × course — the cron's order: the debt gate (0232:438) runs before the route gate (0232:527)
+t('⑥ debt AND a suspended course: the debt note (the gate the cron meets first), and still no 3일 전 promise',
+  d({ unsettledCharge: true, course: 'suspended' }).note === DEBT_NOTE
+  && d({ unsettledCharge: true, course: 'suspended' }).line === BASE_LINE);
+t('⑥ debt AND an UNKNOWN course: the debt note, no 3일 전 promise',
+  d({ unsettledCharge: true, course: null }).note === DEBT_NOTE && d({ unsettledCharge: true, course: null }).line === BASE_LINE);
+t('⑥ debt on an OPEN course is unchanged — the debt note beside the 72h line',
+  d({ unsettledCharge: true, course: 'open' }).line === `${BASE_LINE} · ${PENDING_NEXT}`);
+t('⑥ debt with a booking already made names it on any course',
+  ['open', 'suspended', null].every((c) => d({ unsettledCharge: true, course: c, nextBookingAt: NEXT_WED }).line === NEXT_LINE));
+
+// broken wins over the course, as it wins over everything
+t('⑥ a broken rule on a suspended course is still just broken',
+  d({ weekday: null, course: 'suspended' }).line === BROKEN_LINE && d({ weekday: null, course: 'suspended' }).broken === true);
+
+// THE PROPERTY, swept over the whole product space: PENDING_NEXT iff unpaused ∧ no upcoming
+// booking ∧ course KNOWN open. It exists so a state combination nobody wrote an arm for cannot
+// carry the promise.
+{
+  const bad = [];
+  let n = 0;
+  for (const course of ['open', 'suspended', 'retired', null, undefined]) {
+    for (const paused of [false, true]) {
+      for (const unsettledCharge of [true, false, null]) {
+        for (const nextBookingAt of [null, NEXT_WED, '2026-09-16T10:30:00Z']) {
+          n++;
+          const v = d({ course, paused, unsettledCharge, nextBookingAt });
+          const hasNext = nextBookingAt === NEXT_WED;
+          const want = course === 'open' && !paused && !hasNext;
+          const got = v.line.includes(PENDING_NEXT) || (v.note || '').includes(PENDING_NEXT);
+          if (got !== want) bad.push(JSON.stringify({ course, paused, unsettledCharge, nextBookingAt }));
+          if (course !== 'open' && (v.note || '').includes('다시 시작하면')) bad.push('resume-promise ' + JSON.stringify({ course, paused }));
+        }
+      }
+    }
+  }
+  t(`⑥ 🔴 SWEEP (${n} states): PENDING_NEXT iff unpaused ∧ nothing upcoming ∧ course known open; no 다시 시작하면 promise off an open course`,
+    n === 90 && bad.length === 0, bad.slice(0, 4).join(' ; '));
+}
+
+// the copy
+t('⑥ the suspended note speaks 0232\'s own vocabulary (점검 중 · 다른 코스로 바꿔 예약해주세요) — the inbox and the screen tell one story',
+  COURSE_SUSPENDED_NOTE.includes('점검 중') && COURSE_SUSPENDED_NOTE.includes('다른 코스로 바꿔 예약해주세요'));
+t('⑥ 🔴 the suspended note does NOT say 이번 주 — it sits beside a 다음 예약 that may be this week',
+  !COURSE_SUSPENDED_NOTE.includes('이번 주'));
+t('⑥ 🔴 the RETIRED note says neither 점검 nor 이번 주 (retired is permanent — the P9 reviewer\'s point) and names the way out',
+  !/점검|이번 주/.test(COURSE_RETIRED_NOTE) && COURSE_RETIRED_NOTE.includes('다른 코스로 바꿔 예약해주세요'));
+t('⑥ every new note is Korean 해요체, no token echoed at a person',
+  [COURSE_SUSPENDED_NOTE, COURSE_RETIRED_NOTE, COURSE_UNKNOWN_NOTE, PAUSED_NOTE_PLAIN]
+    .every((x) => /[가-힣]/.test(x) && /요$/.test(x) && !/[a-z_]{4,}/.test(x)));
+
+// courseGateOf — the route gate's own predicate (`s.route_id is not null and rt.status in
+// ('suspended','retired')`), read from the client's side.
+t('⑥ no course (route_id null / undefined) is OPEN — the gate\'s first conjunct lets it through',
+  courseGateOf(null, undefined) === 'open' && courseGateOf(undefined, 'suspended') === 'open');
+t('⑥ candidate and active are OPEN (the gate names only suspended and retired)',
+  courseGateOf('r1', 'candidate') === 'open' && courseGateOf('r1', 'active') === 'open');
+t('⑥ suspended and retired read as themselves',
+  courseGateOf('r1', 'suspended') === 'suspended' && courseGateOf('r1', 'retired') === 'retired');
+t('⑥ 🔴 a course whose status did not arrive, or arrived outside the 0082 ladder, is UNKNOWN — never open',
+  [undefined, null, '', 'Suspended', 'paused', 42].every((x) => courseGateOf('r1', x) === null));
 
 // ── every weekday reads back as the cron's own convention ─────────────────────────────────────
 // `extract(dow …)` is 0=Sunday (0077:53), and this is the mapping the whole line rests on: an
@@ -269,6 +387,55 @@ t('rebook-door · 🔴 CONTROL · a commented-out seenDraft write does NOT satis
 const movedOut = stripComments(REQ_RAW.replace('    seenDraft.current.pref = null;\n', '').replace('const payBusy = useRef(false);', 'const payBusy = useRef(false); seenDraft.current.pref = null;'));
 t('rebook-door · 🔴 CONTROL · the write elsewhere in the file does NOT count — only dropNomination\'s own body does',
   movedOut !== REQ && clearsSyncMemory(movedOut) === false);
+
+// ══ ⑥ THE READ THAT FEEDS IT — api.ts fetchSeries, as SOURCE ═══════════════════════════════════
+// api.ts imports the supabase client and cannot be required here, so the wiring is pinned as
+// stripped source. ⚠ LIMITATION, as prose: these arms prove the read is WRITTEN (the column is
+// selected, the course is read and returned). They cannot prove PostgREST answers it — that RLS and
+// the 0107 column grant let an owner read `routes_public.status` was checked against the migrated
+// harness schema by hand for this slice, not by a pin in this chain.
+const API_RAW = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'api.ts'), 'utf8');
+const API = stripComments(API_RAW);
+function fnBody(src, sig) {
+  const at = src.indexOf(sig);
+  if (at < 0) return null;
+  const open = src.indexOf('{', src.indexOf(')', at));
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    const c = src[i];
+    if (c === "'" || c === '"' || c === '`') { const q = c; i++; while (i < src.length && src[i] !== q) { if (src[i] === '\\') i++; i++; } continue; }
+    if (c === '{') depth++;
+    else if (c === '}') { depth--; if (depth === 0) return src.slice(open, i + 1); }
+  }
+  return null;
+}
+const SERIES_SIG = 'export async function fetchSeries(';
+const seriesBody = (src) => fnBody(src, SERIES_SIG) || '';
+const selectsRouteId = (src) => /\.from\('recurring_series'\)\.select\('[^']*\broute_id\b[^']*'\)/.test(seriesBody(src));
+const readsCourseStatus = (src) => /\.from\('routes_public'\)\.select\('status'\)\.eq\('id', row\.route_id\)/.test(seriesBody(src));
+const returnsCourse = (src) => { const b = seriesBody(src);
+  return /\[nextRes, debtRes, course\] = await Promise\.all/.test(b) && /unsettledCharge: debtRes,\s*course,\s*\}/.test(b); };
+t('⑥ api · NO-SOURCE guard: fetchSeries is found in executable api.ts', fnBody(API, SERIES_SIG) !== null);
+t('⑥ api · the series read selects route_id (the gate\'s first conjunct)', selectsRouteId(API));
+t('⑥ api · the course status is read through routes_public, keyed on the series\' own route_id', readsCourseStatus(API));
+t('⑥ api · 🔴 the course reaches the SeriesRow the screens hand to describeSeries', returnsCourse(API));
+// The property: every way the course read can FAIL or come back EMPTY yields null (UNKNOWN) — an
+// error, a rejected promise, a missing row — and no path in the read mints a gate value of its own
+// (only courseGateOf does). Blind to: a courseGateOf that itself answers 'open' for garbage, which
+// the courseGateOf arms above own.
+const courseFailsUnknown = (src) => { const b = seriesBody(src);
+  return b.includes("if (rtErr) { console.warn('[series] course:', rpcRaw(rtErr)); return null; }")
+    && b.includes("(e) => { console.warn('[series] course:', rpcRaw(e)); return null; }")
+    && b.includes('return rt ? courseGateOf(row.route_id, (rt as { status?: unknown }).status) : null;')
+    && !/'(open|suspended|retired)'/.test(b); };
+t('⑥ api · 🔴 a failed, rejected or empty course read is UNKNOWN (null) — never a gate value minted in the read', courseFailsUnknown(API));
+// CONTROL — a commented-out `course,` in the return must not satisfy the pin (blind to: a stripper
+// that reads raw text).
+{
+  const planted = API_RAW.replace('    unsettledCharge: debtRes,\n    course,\n', '    unsettledCharge: debtRes,\n    // course,\n');
+  t('⑥ api · CONTROL · the planted copy actually differs (the plant landed)', planted !== API_RAW);
+  t('⑥ api · 🔴 CONTROL · a commented-out `course,` does NOT satisfy the return arm', returnsCourse(stripComments(planted)) === false);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

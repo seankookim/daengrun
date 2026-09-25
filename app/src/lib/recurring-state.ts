@@ -32,6 +32,20 @@
 //     series. That is a real, readable reason for 「the series is on and nothing is appearing」,
 //     and it is the reason the 「반복 예약 일시 중지」 notification now routes to /payments.
 //     `null` means NOT ASKED or the read failed: unknown is never rendered as a problem.
+//  ⑥ [0232 §B] THE ROUTE GATE. `generate_recurring_bookings` now refuses to mint for a series whose
+//     course is `suspended` or `retired` (`0232:527-529`, `s.route_id is not null and exists (…
+//     rt.status in ('suspended','retired'))`), and tells the owner 「반복 예약 코스 점검 중」 instead.
+//     Before this, `PENDING_NEXT` promised 「다음 예약은 3일 전에 자동으로 잡혀요」 for every unpaused
+//     series with nothing upcoming — a run the generator will never create on a closed course
+//     (0232 §0d named this caller). So the course is a FACT this module reads (`course`, below),
+//     and PENDING_NEXT is said only when that fact is KNOWN to be open. ⚠ Unknown is not open:
+//     a failed course read never licenses the promise, and it never claims the course is closed
+//     either — it says the one true thing, that the course could not be checked.
+//     ⚠ Gate ORDER is the cron's: the debt gate (⑤, `0232:438-441`) runs BEFORE the route gate
+//     (`0232:527`), so a series with debt AND a closed course gets the debt notice and never reaches
+//     the route one. The note follows that order, so the screen and the inbox tell one story.
+//     ⚠ Until 0232 is deployed the generator still mints on a closed course. These sentences are
+//     true of 0232's generator, and ship with it.
 //
 // ⚠ Every instant that reaches a label goes through `kst.ts` (fixed +9, no Intl). `nowMs` is a
 //    PARAMETER rather than a `Date.now()` inside, so the suite can pin a moment; the suite runs
@@ -53,7 +67,15 @@ export interface SeriesFacts {
   nextBookingAt: string | null;
   /** `my_unsettled_charge()` — the cron's own debt gate (⑤). null = not asked / read failed. */
   unsettledCharge: boolean | null;
+  /** The route gate (⑥), through `courseGateOf`. null = UNKNOWN (read failed / unrecognised
+   *  status) — never treated as open. */
+  course: CourseGate | null;
 }
+
+/** What the route gate (⑥) will do with this series. `open` = the gate lets it through: either the
+ *  series has no course (`s.route_id is not null` is the gate's first conjunct) or the course is
+ *  `candidate`/`active`. */
+export type CourseGate = 'open' | 'suspended' | 'retired';
 
 export interface SeriesView {
   /** The one line that states what the series IS. Never empty. */
@@ -83,6 +105,19 @@ export const DEBT_NOTE = '결제 문제로 자동 예약이 멈춰 있어요 —
  *  the schedule sheet carries 매주 반복 해지, so a bare 「해지하고 다시 만들어주세요」 would be an
  *  instruction with no control in reach on two of them — the dead-button law in sentence form. */
 export const BROKEN_LINE = '반복 일정을 읽지 못했어요 — 내 일정에서 해지하고 다시 만들어주세요';
+/** ⑥ `suspended` — the vocabulary of 0232's own notice (「반복 예약 코스 점검 중」 · 「다른 코스로 바꿔
+ *  예약해주세요」). ⚠ It deliberately does NOT say 「이번 주」: a booking minted before the suspension
+ *  can still be named on the line above as 다음 예약, and 「이번 주 … 만들어지지 않아요」 beside it
+ *  would contradict it. 「새로 잡히지 않아요」 is true in both cases. */
+export const COURSE_SUSPENDED_NOTE = '코스가 점검 중이라 반복 예약이 새로 잡히지 않아요 — 다른 코스로 바꿔 예약해주세요';
+/** ⑥ `retired` — permanent, so neither 점검 중 (a temporary state) nor 이번 주 (a temporary scope) is
+ *  true of it (the P9 reviewer's point; 0232 §0d leaves the server copy for retired to Sean). */
+export const COURSE_RETIRED_NOTE = '운영이 끝난 코스라 반복 예약이 더 이상 잡히지 않아요 — 다른 코스로 바꿔 예약해주세요';
+/** ⑥ UNKNOWN — the course could not be read. Claims neither open (no 3일 전 promise) nor closed. */
+export const COURSE_UNKNOWN_NOTE = '코스 상태를 확인하지 못해 다음 예약 일정을 알려드릴 수 없어요';
+/** ④ + ⑥ UNKNOWN — the pause is still a fact; PAUSED_NOTE's 「다시 시작하면 … 잡혀요」 is a promise
+ *  the unknown course does not license, so it is dropped rather than asserted. */
+export const PAUSED_NOTE_PLAIN = '반복이 멈춰 있어요';
 
 /** The refusals `create_recurring_series` can raise, token → Korean (`0077:39`, `0077:42`,
  *  `0077:44`). `not_found` and `forbidden` are the same sentence to a person — they differ only in
@@ -139,23 +174,64 @@ export function describeSeries(f: SeriesFacts, nowMs: number): SeriesView {
   // cancelled by pausing (the 해지 confirmation says so in as many words), so it is still named.
   // When there is none, the 다음 예약 clause is omitted rather than filled with 「없음」: the note
   // below already says why there is nothing coming.
+  const withNext = next ? `${base} · 다음 예약 ${next}` : base;
+  // ⑥ `undefined` (a caller that never asked) is folded to null: unknown, never open.
+  const course = f.course ?? null;
+  const closedNote = course === 'suspended' ? COURSE_SUSPENDED_NOTE
+    : course === 'retired' ? COURSE_RETIRED_NOTE
+    : null;
+
   if (f.paused) {
+    // ⑥ A paused series on a closed course: 다시 시작 would restart a series that still creates
+    //   nothing (the route gate refuses every tick), and PAUSED_NOTE's 「다시 시작하면 … 잡혀요」 would
+    //   be false. The course note replaces both — the same reasoning as ②'s dead series.
+    if (closedNote) return { line: withNext, note: closedNote, canResume: false, broken: false };
     return {
-      line: next ? `${base} · 다음 예약 ${next}` : base,
-      note: PAUSED_NOTE,
+      line: withNext,
+      note: course === 'open' ? PAUSED_NOTE : PAUSED_NOTE_PLAIN,
       canResume: true,
       broken: false,
     };
   }
 
+  // ⑤ first — the cron's own order: the debt gate runs before the route gate, so a debtor on a
+  //   closed course is told about the debt and never reaches the course notice.
+  //   `null` (not asked / failed) and `false` both say nothing — an unknown is never rendered as a
+  //   problem, and a 「문제 없음」 line would be noise on a healthy series.
+  if (f.unsettledCharge === true) {
+    return {
+      // PENDING_NEXT only when the course is KNOWN open — debt aside, it is the one promise here.
+      line: next || course === 'open' ? `${base} · ${next ? `다음 예약 ${next}` : PENDING_NEXT}` : base,
+      note: DEBT_NOTE,
+      canResume: false,
+      broken: false,
+    };
+  }
+  if (closedNote) return { line: withNext, note: closedNote, canResume: false, broken: false };
+  if (course !== 'open') {
+    // ⑥ UNKNOWN: a named booking is still a fact and is still said; the 3일 전 promise is not.
+    return { line: withNext, note: next ? null : COURSE_UNKNOWN_NOTE, canResume: false, broken: false };
+  }
+
   return {
     line: `${base} · ${next ? `다음 예약 ${next}` : PENDING_NEXT}`,
-    // ⑤ only `true` speaks. `null` (not asked / failed) and `false` both say nothing — an unknown
-    //   is never rendered as a problem, and a 「문제 없음」 line would be noise on a healthy series.
-    note: f.unsettledCharge === true ? DEBT_NOTE : null,
+    note: null,
     canResume: false,
     broken: false,
   };
+}
+
+/** ⑥ The route gate's reading of a series' course, from `recurring_series.route_id` and
+ *  `routes.status` (the 0082 ladder: candidate · active · suspended · retired). A series with no
+ *  course is `open` — the gate's `s.route_id is not null` conjunct lets it through. A course whose
+ *  status did not arrive, or arrived as a value outside the ladder, is null (UNKNOWN): a new status
+ *  the server may refuse must not fold into 「open」. */
+export function courseGateOf(routeId: string | null | undefined, status: unknown): CourseGate | null {
+  if (routeId == null) return 'open';
+  if (status === 'candidate' || status === 'active') return 'open';
+  if (status === 'suspended') return 'suspended';
+  if (status === 'retired') return 'retired';
+  return null;
 }
 
 /** `rule` as it arrives from PostgREST (jsonb). Parsing lives here so the screen never reaches
