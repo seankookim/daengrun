@@ -268,10 +268,16 @@ t('[runner-journey-4] a non-acting door is disabledFill, never an opacity trick'
 
 t('🔴 [runner-journey-6] 요청함 reads the work gate',
   requests.code.includes('fetchRunnerWorkGate'), 'the screen still cannot see the gate');
+// ⚠ [fix/client-review-3 · Codex 2026-09-25 c2] These two pins asserted `if (gated) return;` and
+// `disabled={busyAny !== null || gated}`. Their pinned behaviour legitimately moved: `gated` was
+// false on a FAILED read, so both lines let an unknown gate through. The screen now asks one
+// helper, `workGateDoor()`, whose `acceptOpen` is true only for a read that answered 「not gated」.
+// The property these pins hold is unchanged (gated → no dialog, door disabled in state); the new
+// property (unknown/failed → the same) is owned by app/test/work-gate-door.test.cjs.
 t('🔴 [runner-journey-6] accept() refuses to open the confirm dialog while gated',
-  /if \(gated\) return;/.test(requests.code), 'the tap still fails AFTER the dialog');
+  /if \(!door\.acceptOpen\) return;/.test(requests.code), 'the tap still fails AFTER the dialog');
 t('[runner-journey-6] a gated accept door is disabled in state as well as in paint',
-  /disabled=\{busyAny !== null \|\| gated\}/.test(requests.code), 'the door is live under the grey');
+  /disabled=\{busyAny !== null \|\| !door\.acceptOpen\}/.test(requests.code), 'the door is live under the grey');
 t('[runner-journey-6] the blocked sentence is drawn once, above the list, not per card',
   (requests.code.match(/반환 확인이 끝나면 여기서 수락할 수 있어요/g) || []).length === 1,
   'the reason is repeated per card');
