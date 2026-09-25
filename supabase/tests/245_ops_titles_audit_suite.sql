@@ -138,7 +138,13 @@ declare
     '이동 중 취소 보상 기록 실패 — 수동 확인 필요',
     '결제 취소 실패 기록이 남지 않았어요 — 즉시 확인 필요',
     '취소 보상 기록 실패 (24시간 이내 취소) — 수동 확인 필요',
-    '운영 확인이 필요한 이벤트가 있어요'];
+    '운영 확인이 필요한 이벤트가 있어요',
+    -- [0224] three more SQL writers (two custody strands, the sealed-unsettled run). 11 → 14; the
+    -- property this list owns — 「the migration's array did not silently move」 — is unchanged, and
+    -- 255 `0224-B2` owns the new titles against what the writers actually wrote.
+    '러닝 시작 좌초 — 확인 필요',
+    '러닝 종료 좌초 — 확인 필요',
+    '정산 미완료 — 확인 필요'];
   -- Every deployed function that writes `kind='system'`, with the migration that last declared it.
   -- A new entry here without a matching `_noti_ops_titles()` entry is what T4 + the client drift
   -- test exist to make loud.
@@ -147,7 +153,8 @@ declare
     'sweep_run_end_recovery',         -- 0201 §B (인계 확인 멈춤 ×2, 반환 좌초)
     'claim_gear_tx',                  -- 0206 §C → 0214 §C
     '_note_revocation_abandoned',     -- 0166 §B
-    '_club_note_fee_mint_failure'];   -- 0118
+    '_club_note_fee_mint_failure',    -- 0118
+    '_sweep_custody_strands'];        -- 0224 §C (러닝 시작 좌초 · 러닝 종료 좌초); 정산 미완료 rides sweep_run_end_recovery
   UNLEDGERED constant text := '아직 아무도 쓰지 않은 운영 제목 (otx)';
 begin
   perform set_config('request.jwt.claim.sub', '', true);                                        -- ①
@@ -166,10 +173,10 @@ begin
     if to_regprocedure('public._noti_ops_titles()') is null then
       v_bad := v_bad || ' NO-FUNCTION(_noti_ops_titles)';
     else
-      if array_length(_noti_ops_titles(), 1) is distinct from 11
+      if array_length(_noti_ops_titles(), 1) is distinct from 14                -- [0224] 11 → 14
       then v_bad := v_bad || ' the ledger holds '
                           || coalesce(array_length(_noti_ops_titles(), 1)::text, 'NULL')
-                          || ' entries (this suite knows 11)'; end if;
+                          || ' entries (this suite knows 14)'; end if;
       -- Duplicates are asked against the array's OWN length, never against 11: comparing to the
       -- expected size would make this arm fire on a ledger that merely changed size and print
       -- 「has duplicates」 about a list that has none — a true failure with a false reason, which is
@@ -201,7 +208,7 @@ begin
       end loop;
     end if;
 
-    if v_bad = '' then call _pass('otx','0214-T1 운영 제목 원장은 11개이고 중복이 없으며, 이 스위트가 적어 둔 11개와 정확히 같은 집합이다(양방향 — 잃어도 늘어도 빨개진다). 🔴 이 팔의 문장은 「마이그레이션의 배열이 몰래 움직이지 않았다」이지 「배열이 옳다」가 아니다: 옳음은 T4와 클라 드리프트 테스트가 쓰는 쪽에서 재유도한다. 그리고 귀속 팔 — 열한 개 중 어느 것도 _noti_urgent_noti_titles의 멤버가 아니므로 T2의 0은 「끌 수 있게 됐다」이지 「원래 끌 수 없던 적이 없다」가 아니다');
+    if v_bad = '' then call _pass('otx','0214-T1 운영 제목 원장은 14개(0224가 셋 추가)이고 중복이 없으며, 이 스위트가 적어 둔 14개와 정확히 같은 집합이다(양방향 — 잃어도 늘어도 빨개진다). 🔴 이 팔의 문장은 「마이그레이션의 배열이 몰래 움직이지 않았다」이지 「배열이 옳다」가 아니다: 옳음은 T4와 클라 드리프트 테스트가 쓰는 쪽에서 재유도한다. 그리고 귀속 팔 — 열한 개 중 어느 것도 _noti_urgent_noti_titles의 멤버가 아니므로 T2의 0은 「끌 수 있게 됐다」이지 「원래 끌 수 없던 적이 없다」가 아니다');
     else v_msg := v_bad; call _fail('otx','0214-T1 ops title ledger', v_msg); end if;
   exception when others then call _fail('otx','0214-T1 ops title ledger', sqlerrm); end;
 
@@ -266,7 +273,7 @@ begin
     end loop;
 
     delete from notification_prefs where profile_id = ops1;
-    if v_bad = '' then call _pass('otx','0214-T2 운영 명부 앞으로 쓰이는 제목 11종 전부가 실제 트리거를 통과해 측정된다 — 설정 행이 없으면 11종 모두 발송(대조), 다섯 칸을 모두 끄면 11종 모두 조용해지고 notifications 행은 남으며, 반대로 ops만 켜고 넷을 끄면 11종 모두 다시 도착한다(귀속). 같은 세계에서 kind=safety와 긴급 제목 4종은 booking으로도 system으로도 그대로 나간다 — 긴급 팔이 두 system 팔보다 위에 있다는 뜻');
+    if v_bad = '' then call _pass('otx','0214-T2 운영 명부 앞으로 쓰이는 제목 14종 전부가 실제 트리거를 통과해 측정된다 — 설정 행이 없으면 14종 모두 발송(대조), 다섯 칸을 모두 끄면 14종 모두 조용해지고 notifications 행은 남으며, 반대로 ops만 켜고 넷을 끄면 14종 모두 다시 도착한다(귀속). 같은 세계에서 kind=safety와 긴급 제목 4종은 booking으로도 system으로도 그대로 나간다 — 긴급 팔이 두 system 팔보다 위에 있다는 뜻');
     else v_msg := v_bad; call _fail('otx','0214-T2 the ops walk', v_msg); end if;
   exception when others then perform set_config('request.jwt.claim.sub', '', true);
     call _fail('otx','0214-T2 the ops walk', sqlerrm); end;
@@ -367,7 +374,7 @@ begin
                           || v_n || ') — either it stopped writing system rows, or the matcher is blind'; end if;
     end loop;
 
-    if v_bad = '' then call _pass('otx','0214-T4 배포된 함수 중 kind=system 알림을 쓰는 것은 선언된 다섯 개뿐이다 — prosrc에서 주석을 벗기고 공백을 접은 뒤 본다(주석이 제거된 코드를 인용하면 모든 grep이 맞는다는 법, 그리고 줄바꿈 하나로 게이트가 눈이 머는 쪽이 위험한 방향이라서). 🔴 양방향 — 선언된 다섯 개가 이 핀 자신의 매처로 실제로 발견되는지도 재므로, 매처가 깨져서 0을 돌려주는 것이 깨끗한 스윕으로 읽히지 않는다');
+    if v_bad = '' then call _pass('otx','0214-T4 배포된 함수 중 kind=system 알림을 쓰는 것은 선언된 여섯 개뿐이다(0224가 _sweep_custody_strands 추가) — prosrc에서 주석을 벗기고 공백을 접은 뒤 본다(주석이 제거된 코드를 인용하면 모든 grep이 맞는다는 법, 그리고 줄바꿈 하나로 게이트가 눈이 머는 쪽이 위험한 방향이라서). 🔴 양방향 — 선언된 다섯 개가 이 핀 자신의 매처로 실제로 발견되는지도 재므로, 매처가 깨져서 0을 돌려주는 것이 깨끗한 스윕으로 읽히지 않는다');
     else v_msg := v_bad; call _fail('otx','0214-T4 system writer drift', v_msg); end if;
   exception when others then call _fail('otx','0214-T4 system writer drift', sqlerrm); end;
 

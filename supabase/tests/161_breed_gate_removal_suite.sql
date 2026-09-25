@@ -416,10 +416,18 @@ declare
   --    2bc92cc3…/6792 after the lock_timeout line the cold review asked for.
   --    Previous values, for the record: src 050c0b3ea18e5481db59fa28e90773c9 / 5335, comment
   --    12dda5539af7bbcc8b68b1641493df36 / 333.
-  c_gen_src_md5 constant text := '2bc92cc3ef2ff9aa47d1273a0475aef6';
-  c_gen_src_len constant int  := 6792;
-  c_gen_cmt_md5 constant text := '7de4ee29b01f78a8469bf650cd276985';
-  c_gen_cmt_len constant int  := 457;
+  -- ⚠ [0224] RE-READ FROM THE CATALOG on 2026-09-25 after 0224 applied, as the note above asks.
+  --    The body moved ON PURPOSE and in ONE place: the ⓓ pause-notice guard gained a durable twin
+  --    (at most once per 24 h per owner per episode — backend-logic-4, `v_notified` reset every
+  --    hourly tick so a blocked owner was re-told for up to 72 h). 0224 §H copied 0180's body BY
+  --    SCRIPT with that single anchored edit; everything else is 0180's byte-for-byte. The comment
+  --    moved with it (it still carries `[0111]`). 255 `0224-C1` owns the new behaviour.
+  --    Previous values: src 2bc92cc3ef2ff9aa47d1273a0475aef6 / 6792, comment
+  --    7de4ee29b01f78a8469bf650cd276985 / 457.
+  c_gen_src_md5 constant text := '664d37c9c420c39cfda089074cecb287';
+  c_gen_src_len constant int  := 7531;
+  c_gen_cmt_md5 constant text := '288f4ad1e693de55cb6ad0ff2b0d56e6';
+  c_gen_cmt_len constant int  := 492;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have

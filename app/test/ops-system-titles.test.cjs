@@ -51,7 +51,11 @@ const t = (name, cond, detail = '') => {
 
 const MIG = path.resolve(__dirname, '../../supabase/migrations');
 const OPS_TS = path.resolve(__dirname, '../../supabase/functions/_shared/ops.ts');
-const LEDGER_FILE = path.join(MIG, '0214_ops_titles_audit_and_oracles.sql');
+// [0224] The ledger and the classifier are read out of their LATEST declarations (③ below), not
+// out of 0214 by file name. A new `system` writer can only be ledgered by RE-DECLARING
+// `_noti_ops_titles()` in a new migration (a landed one is never edited), so a file-name read
+// would have reddened on every correct ledger change forever — or, worse, stayed green on a
+// superseded array. Latest-wins is the rule ② already applies to the writers.
 
 // ── ① the quote-aware comment stripper ────────────────────────────────────────────────────────
 // Walks the text tracking single-quote state (with SQL's `''` escape) and drops `--` to end of
@@ -162,20 +166,22 @@ const edgeTitles = [...opsSrc.matchAll(/title:\s*"([^"]+)"/g)].map((m) => m[1]);
 
 const derived = new Set([...sqlWriters.keys(), ...edgeTitles]);
 
-// ── ③ the ledger, read out of 0214 itself ─────────────────────────────────────────────────────
-const ledgerSrc = stripSqlComments(fs.readFileSync(LEDGER_FILE, 'utf8'));
-const fnAt = ledgerSrc.indexOf('function _noti_ops_titles()');
-const arrStart = ledgerSrc.indexOf('array[', fnAt);
-const arrEnd = ledgerSrc.indexOf(']::text[]', arrStart);
-const ledger = arrStart > 0 && arrEnd > arrStart ? sqlLiterals(ledgerSrc.slice(arrStart, arrEnd)) : [];
+// ── ③ the ledger, read out of its LATEST declaration (0214 §A, re-declared since by 0224 §G) ───
+const ledgerDecl = latest.get('_noti_ops_titles');
+const LEDGER_FILE = ledgerDecl ? ledgerDecl.file : null;
+const ledgerBody = ledgerDecl ? ledgerDecl.body : '';
+const arrStart = ledgerBody.indexOf('array[');
+const arrEnd = ledgerBody.indexOf(']::text[]', arrStart);
+const ledger = arrStart >= 0 && arrEnd > arrStart ? sqlLiterals(ledgerBody.slice(arrStart, arrEnd)) : [];
+console.log(`  (ledger read from ${LEDGER_FILE})`);
 
 // ═══ control ① — the derivation found something in every source ════════════════════════════════
 t('CONTROL: the migration sweep found SQL `system` writers at all (an extractor that stopped matching would agree with a ledger it never read)',
   sqlWriters.size > 0, 'sqlWriters=' + sqlWriters.size);
 t('CONTROL: `_shared/ops.ts` yielded titles (five of the eleven live there and NO SQL pin can see them)',
   edgeTitles.length > 0, 'edgeTitles=' + edgeTitles.length);
-t('CONTROL: 0214\'s `_noti_ops_titles()` array was parsed out of the migration',
-  ledger.length > 0, 'ledger=' + JSON.stringify(ledger));
+t('CONTROL: the latest `_noti_ops_titles()` array was parsed out of its migration',
+  ledger.length > 0, 'file=' + LEDGER_FILE + ' ledger=' + JSON.stringify(ledger));
 t('CONTROL: no title failed to resolve to a literal (a plpgsql constant this extractor cannot follow would be silent otherwise)',
   ![...derived].some((x) => x.startsWith('UNRESOLVED(')),
   [...derived].filter((x) => x.startsWith('UNRESOLVED(')).join(', '));
@@ -186,8 +192,9 @@ for (const title of derived) {
     ledger.includes(title),
     `written by ${sqlWriters.get(title) ? sqlWriters.get(title).join(' + ') : '_shared/ops.ts notifyOps'} `
     + 'but absent from _noti_ops_titles() — a system row with this title now classifies as `booking`, '
-    + 'so an operator who turned `booking` off would not be pushed. Add it to 0214 §A, to 245\'s '
-    + 'OPS_TITLES, and to SYSTEM_WRITERS if the writer is new.');
+    + 'so an operator who turned `booking` off would not be pushed. Add it to a new re-declaration of '
+    + '_noti_ops_titles() (latest now: ' + LEDGER_FILE + '), to 245\'s OPS_TITLES, and to SYSTEM_WRITERS '
+    + 'if the writer is new.');
 }
 for (const title of ledger) {
   t(`every LEDGERED title still has a writer: 「${title}」`,
@@ -240,8 +247,10 @@ t('the ledger holds no duplicates',
 {
   // Without this, every arm above could pass while `_noti_push_category` still keyed on the kind
   // alone — a ledger nothing consults, which is a list in a costume. Comments are stripped first:
-  // 0214's own header explains the arm at length.
-  const cls = ledgerSrc.slice(ledgerSrc.indexOf('function _noti_push_category'));
+  // 0214's own header explains the arm at length. [0224] Read from the classifier's LATEST
+  // declaration, for ③'s reason.
+  const clsDecl = latest.get('_noti_push_category');
+  const cls = clsDecl ? clsDecl.body : '';
   const body = cls.slice(0, cls.indexOf('$$;') + 3).replace(/\s+/g, ' ');
   // ⚠ The arms are PARSED rather than matched as one literal line, so writing the two conjuncts in
   // the other order — a legitimate, behaviour-identical respelling — does not redden this file. A
