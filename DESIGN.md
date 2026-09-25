@@ -211,10 +211,12 @@ Icon-only controls: 40×40 square, canvas, 1px coral.
 ⚠ **This table said `paper.ink` for Primary until 2026-09-25, six weeks after the ink primary was
 retired (2026-08-11, `paper-btn.tsx:1-9`).** The stale row was not harmless prose: hand-rolled
 buttons cited it by line number and shipped black primaries on a coral system. Measured on trunk
-`210901c` (2026-09-25): ink-filled hand-rolled primaries remain in `ops/_layout.tsx`,
-`ops/returns/[bid].tsx`, `ops/gear/[claim].tsx` and `ops/payout/[runner].tsx`;
-`runner/earnings.tsx` and `runner/bank-account.tsx` were converted to PaperBtn the same day. The
-shipped matrix is `PaperBtn`; use it rather than re-deriving a button from this table.
+`210901c` (2026-09-25): six ink-filled hand-rolled primaries in `ops/_layout.tsx`,
+`ops/returns/[bid].tsx`, `ops/gear/[claim].tsx` and `ops/payout/[runner].tsx`; `runner/earnings.tsx`
+and `runner/bank-account.tsx` were converted to PaperBtn the same day, and the six ops primaries on
+`ui/chrome-consistency-2` (`59c3fdc`, 2026-09-25), with `app/test/chrome-header.test.cjs` now failing
+on any ink fill reachable from a tappable's style in those files. The shipped matrix is `PaperBtn`;
+use it rather than re-deriving a button from this table.
 
 **PRESS BEHAVIOUR — two grammars, split by whether the button has a FILL** (Sean 2026-08-26:
 「all primary buttons should have a 3d kinda thing like you gave in the lab as well」):
@@ -261,9 +263,15 @@ lineHeight 28**, and a 40-wide trailing slot that keeps the title centred. The 3
 stays for tab and ceremony screens. Counted by the 2026-09-25 gap sweep (ui-consistency-1), before
 this existed: the 23/900 header was inlined on ~14 screens beside six competing back-button shapes
 and seven title sizes. First adopters: safety,
-settings, notification-settings, runner/bank-account, leaderboard. New sub-screens use the
-component instead of a copy of it; the remaining inline copies convert when their screen is next
-touched.
+settings, notification-settings, runner/bank-account, leaderboard; then sixteen more on
+`ui/chrome-consistency-2` (`59c3fdc`) — payments, compose, course/[id], incident/[bid], profile/edit,
+runner/rewards, owner/{addresses, address-pin, report, review}, ops/{_layout, handoffs, roster,
+returns/index, returns/[bid], gear/[claim], payout/[runner]} — pinned by `app/test/chrome-header.test.cjs`.
+Deliberately outside it: `chat.tsx` (its header is the counterpart: avatar, name, connection line)
+and `shot/[bid].tsx` (full-screen studio with ✕). New sub-screens use the component instead of a
+copy of it; the remaining inline copies (runner-profile, owner/{dog, matching, request, reschedule,
+card-link, course-map, pay}, runner/{apply, availability, base-pin, return-seal}, alerts, cards,
+club/*) convert when their screen is next touched.
 
 ### Status chip (확정됨 · 확인 대기 · LIVE …)
 16/800, radius 0, tinted fill + no border, and it sits on the **same baseline row
