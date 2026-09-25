@@ -230,4 +230,8 @@ club v2 ships in the pilot at all.
   verdicts passed in as settled) — resume one-shot at 07:12 (`Workflow` scriptPath + `resumeFromRunId: wf_ed4f322e-68e`; finders replay
   from cache). Sean 03:4x: *"credits full soon, continue at 7:11 am"* · *"continue the finish-line-gap-sweep flow"*. Also queued at
   07:31: the Codex re-review of 0216–0220 + the client half (`run-mig17.sh`, lock-idempotent).
+- 16:35 — the session slept from 03:4x to 16:35; the 07:12 / 07:31 one-shots never fired (deleted). Resumed the sweep live
+  (`wuu7mr216`, resume of `wf_ed4f322e-68e` with 20 kept / 2 refuted passed as settled) and launched the Codex re-review of
+  0216–0220 (srv2 export, base b46adb9) then the client half (cli2 export, base da47510). Sean 16:3x: *"continue the
+  finish-line-gap-sweep flow"*.
 
