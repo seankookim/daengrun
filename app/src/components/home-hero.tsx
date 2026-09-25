@@ -13,7 +13,7 @@
 //   none                → 두 옵션: 지금 찾기(코랄) + 예약하기(잉크)
 //   searching/directed  → 알림 줄(대기) + 예약하기 하나. 지금 찾기 없음 — 이미 찾는 중이다.
 //   confirmed           → 알림 줄(세이지, 러너 이름) + 예약하기 하나
-//   handoff             → 알림 줄(코랄 = 내 차례) — 버튼 없음. 지금 할 일은 인계 확인 하나뿐이다.
+//   handoff             → 알림 줄(세이지 = 인계 완료). 인계는 이미 끝났고 남은 건 기록 확인이다.
 //   active              → 라이브 위젯이 존 전체를 대체 — 버튼 없음. 개가 밖에 있다.
 //
 // ═══ 위계 ═══
@@ -32,6 +32,7 @@ import { draft } from '../store';
 import { layout, paper } from '../theme';
 import { sinceLabel, type Lateness } from '../lib/lateness';
 import { totalUnreadBadge, unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../lib/chat-read';
+import { heroDestination, type HeroState } from '../lib/home-hero-route';
 import { DrawButton } from './draw-button';
 
 // [0188] `returning` is the SEVENTH state, and it exists because `active` stopped being one thing.
@@ -39,11 +40,14 @@ import { DrawButton } from './draw-button';
 // widget was always true. The ceremony leaves the booking `active` through the whole two-stamp
 // return, so without a separate state the hero says 「N분째 달리는 중 — 지도 보기 ›」 about a dog
 // that is home, and offers a live map instead of the one action the owner actually owes.
-// ⚠ It is NOT folded into `handoff`: that state's copy is the PICKUP ("러너가 도착했어요 · 만나서
-// 인계해주세요", "아이를 넘기고 봉인해요") and routes to /owner/meetup, so reusing it would trade
-// one false sentence for another. Coral, because by the GO law coral is the user's turn and
-// confirming the return IS the owner's turn (DESIGN.md §GO).
-export type HomeGoState = 'none' | 'searching' | 'directed' | 'confirmed' | 'handoff' | 'returning' | 'active';
+// ⚠ It is NOT folded into `handoff`: that state is the moment AFTER the pickup was sealed (see
+// the `handoff` frame below), so reusing it would trade one false sentence for another. Coral,
+// because by the GO law coral is the user's turn and confirming the return IS the owner's turn
+// (DESIGN.md §GO).
+//
+// The union itself now lives in `../lib/home-hero-route`, which owns the destination rule written
+// in this vocabulary — one definition, so the rule and the renderer cannot drift.
+export type HomeGoState = HeroState;
 
 export interface HomeHeroNext {
   id: string;
@@ -177,23 +181,34 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   // 09:41에 늦어 있어도 하루가 넘어가기 전에는 false 였고, T6 문장이 통째로 꺼져 있었다.
   // 늦음의 근거는 시각이지 날짜 칸이 아니다 — 판정이 있으면 판정을 쓰고, 없을 때만 날짜로 떨어진다.
   const isLate = late?.late ?? nextIsPast;
+  // [A④ 2026-08-24 Sean] 러너가 문 앞에 섰다는 **서버가 기록한** 사실. 표시 어휘가 runner_enroute 와
+  // confirmed 를 한 낱말로 뭉개므로(api.ts STATUS_MAP) 판정은 rawStatus 로만 한다.
+  // ⚠ [2026-09-25 owner-journey-1] 이 선언은 :325 에서 여기로 **올라왔다**. openNext 가 이 값을
+  // 읽어야 하는데 거기서 선언하면 handoff·returning 분기가 그 전에 return 해서 TDZ 로 죽는다 —
+  // 바로 아래 isLate 주석이 기록한 것과 같은 크래시다.
+  const arrivedWaiting = next?.rawStatus === 'runner_enroute' && !!next.arrivedAt;
+  // 천장(3h) 밖이면 false. 판정 자체가 없으면 true — 판단이 없는 것이 '문을 닫아라'는 판단은 아니다.
+  const resumable = late?.resumable !== false;
+  // 「늦었다」와 「진행할 문이 없다」는 같은 사실이 아니다. 히어로는 16일간 둘을 한 낱말로 썼고,
+  // 그래서 문 앞에 러너가 서 있는 31분 지각 건에도 「일정에서 정리하기」를 그렸다. 문이 살아 있는
+  // 경우를 빼고 나면 남는 게 진짜로 닫힌 건이다 — 목적지 규칙(home-hero-route.ts ②)과 같은 술어.
+  const lateDoorClosed = !!isLate && !(arrivedWaiting && resumable);
   // ⚠ [워크플로 감사 2026-08-21] 이 선언은 openNext **위**에 있어야 한다. 아래에 두면 handoff
   // 분기(:186)가 그 전에 return 하므로, 그 분기의 코랄 버튼이 openNext 를 부르는 순간 isLate 가
   // TDZ 에 걸려 ReferenceError 로 죽는다 — 내가 isLate 를 도입하면서 만든 실제 크래시였다.
+  //
+  // ⚠ [codex 2026-08-21] 지각·천장 초과 건은 미트업으로 보내지 않는다. 두 가지가 동시에 틀렸다:
+  //   ① 버튼이 「일정에서 정리하기」라고 말하는데 미트업으로 갔다 — 목적지가 라벨과 다르면 거짓말.
+  //   ② 미트업은 runner_enroute 를 arrived 스테이지로 매핑하고 arrived_at 이 null 이어도 인계
+  //      CTA 를 연다. 즉 이 버튼이 **16일 된 예약을 되살리는 경로**였다 — 천장 규칙이 막으려던 바로 그것.
+  // [2026-09-25 owner-journey-1] That rule was RIGHT and too wide: it also shut the one door to
+  // the handoff seal for a runner who had actually ARRIVED and a booking still inside the
+  // ceiling. The arm order now lives in `home-hero-route.ts` — read its header for which arm
+  // answers which case, and `app/test/home-hero-route.test.cjs` for the pins that hold the order.
   const openNext = () => {
     if (!next) return;
     draft.bookingId = next.id;
-    // ⚠ [codex 2026-08-21] 지각·천장 초과 건은 미트업으로 보내지 않는다. 두 가지가 동시에 틀렸다:
-    //   ① 버튼이 「일정에서 정리하기」라고 말하는데 미트업으로 갔다 — 목적지가 라벨과 다르면 거짓말.
-    //   ② 미트업은 runner_enroute 를 arrived 스테이지로 매핑하고 arrived_at 이 null 이어도 인계
-    //      CTA 를 연다. 즉 이 버튼이 **16일 된 예약을 되살리는 경로**였다 — 천장 규칙이 막으려던 바로 그것.
-    if (isLate) { router.push('/owner/schedule'); return; }
-    if (state === 'active') router.push('/owner/live');
-    // [0188] the ⑫ gate lives on the report, and the report is bid-scoped — /owner/live would
-    // bounce straight back here now that it routes a returning run to the report itself.
-    else if (state === 'returning') router.push(next?.id ? { pathname: '/owner/report', params: { bid: next.id } } : '/owner/schedule');
-    else if (state === 'handoff' || state === 'confirmed') router.push('/owner/meetup');
-    else router.push('/owner/radar');
+    router.push(heroDestination({ state, isLate: !!isLate, arrivedWaiting, resumable, bid: next.id }));
   };
 
   // 상태별 문구·칩·버튼. 1행은 항상 짧게(마크 자리) — 이름·시각처럼 길이를 모르는 값은
@@ -211,8 +226,16 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           // handoff·returning 은 아래에서 일찍 빠져나가지만 칩·문구는 여기서 같이 산다 —
           // 두 자리에 같은 문자열을 적어 두면 VoiceOver 가 읽는 문장과 화면의 문장이 조용히
           // 갈라진다 (announce 가 이 값들을 그대로 읽는다).
-          : state === 'handoff' || state === 'returning' ? { c: paper.action, t: '내 차례' }
-            : { c: paper.dim, t: '비어 있음' };
+          //
+          // ⚠ [2026-09-25 owner-journey-2] 이 두 상태는 **같은 칩을 쓰면 안 된다**. 표시 상태
+          // 'handoff' 는 서버 원상태 picked_up 이고, picked_up 은 양측 인계 소인이 **둘 다** 찍힌
+          // 뒤에만 찍힌다 (transition-booking `confirm_handoff_tx`, 소인과 승격이 한 UPDATE).
+          // 즉 이 프레임은 인계 **직후**다 — 코랄 「내 차례」는 이미 끝난 일을 시키는 문장이었다.
+          // 세이지는 GO 법의 '준비됨'이고, 그게 지금 참인 사실이다. returning 만 코랄로 남는다:
+          // 거기서는 보호자의 확인이 아직 안 찍혔다.
+          : state === 'handoff' ? { c: GO_SAGE, t: '인계 완료' }
+            : state === 'returning' ? { c: paper.action, t: '내 차례' }
+              : { c: paper.dim, t: '비어 있음' };
   // ⚠ 「지난 예약이 하나 있어요」는 Sean이 "무슨 뜻이냐"고 물은 문장이었다 — 맞는 지적이었고,
   // 사실은 "예약 시각이 지났는데 아직 확정으로 남아 있다"이다. 그래서 문구가 그걸 그대로 말하고
   // 정확한 날짜·시각은 서브라인이 든다.
@@ -241,7 +264,9 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
       ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${name}가 달려요` })
       : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
         : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
-          : state === 'handoff' ? { top: '지금 만나요', bottom: `${name} 인계할 시간` }
+          // [2026-09-25 owner-journey-2] 「지금 만나요 / {name} 인계할 시간」 은퇴. picked_up 은
+          // 만남이 **끝난** 표시라서, 그 문장은 이미 넘긴 아이를 다시 넘기라고 말하고 있었다.
+          : state === 'handoff' ? { top: '인계 끝났어요', bottom: `${name} 곧 출발해요` }
             : state === 'returning' ? { top: '러닝이 끝났어요', bottom: `${name} 인계 확인` }
               : { top: '오늘은 아직', bottom: '비어 있어요' };
 
@@ -322,7 +347,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   const doorWait = next?.rawStatus === 'runner_enroute' && next.arrivedAt
     ? elapsedLabel(next.arrivedAt)
     : null;
-  const arrivedWaiting = next?.rawStatus === 'runner_enroute' && !!next.arrivedAt;
+  // ⚠ `arrivedWaiting` 은 여기 있었다. openNext 가 읽어야 해서 :180 부근으로 올라갔다 — 한 벌만 산다.
 
   const openChat = () => {
     haptic('light');
@@ -338,9 +363,17 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   const chatBadgeA11y = next ? unreadBadgeLabel(chatUnread, next.id) : null;
   const chatLabel = (sub: string) => (chatBadge ? `채팅 — ${chatBadgeA11y ?? `읽지 않은 메시지 ${chatBadge}`}` : `채팅 — ${sub}`);
 
-  // ── handoff: 내 차례 — 화면에서 유일하게 급한 순간이라 코랄 면을 쓴다 ─────
-  // 미리 예약은 여기서 **사라진다**. 러너가 문 앞에 서 있는데 다음 예약을 권하는 건
+  // ── handoff: 인계 완료 — 러너가 아이를 데리고 출발 준비 중이다 ─────
+  // 미리 예약은 여기서 **사라진다**. 아이가 막 넘어간 참에 다음 예약을 권하는 건
   // 선택지가 아니라 방해다.
+  //
+  // ⚠ [2026-09-25 owner-journey-2] 이 프레임은 코랄 「내 차례 · 인계하기 · 아이를 넘기고
+  // 봉인해요」였다. 근거를 따라가면 **정확히 거꾸로**였다: 표시 상태 'handoff' 는 api.ts 의
+  // STATUS_MAP 에서 picked_up 이고, picked_up 은 `confirm_handoff_tx` 가 양측 소인을 둘 다 본
+  // 뒤에만 찍는다. 즉 화면에서 가장 급한 코랄 면이 **이미 끝난 일**을 시키고 있었고, 정작 인계
+  // 순간(runner_enroute + arrived_at)에는 조용한 금색 「티켓 보기」가 떠 있었다. 급함은 사실을
+  // 따라간다 — 세이지 칩 + 금색 티켓이 지금 참인 프레임이다. 코랄을 어디로 옮길지(도착 프레임에
+  // 줄 것인가)는 Sean 의 재정이라 이 슬라이스는 **코랄을 더하지 않는다**.
   if (state === 'handoff') {
     return (
       <View style={s.wrapTight}>
@@ -351,26 +384,37 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
         </View>
         <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
-        <Text style={s.sub}>{runner}가 도착했어요 · 만나서 인계해주세요</Text>
+        <Text style={s.sub}>{runner}가 곧 러닝을 시작해요 · 시작하면 실시간 보기가 열려요</Text>
         <View style={s.opts}>
-          <DrawButton title="인계하기" sub="아이를 넘기고 봉인해요" ground="coral" art="leash"
-            dot onPress={openNext} accessibilityLabel="인계하기" />
-          <DrawButton title="채팅" sub="늦으면 알려주세요" meta={chatBadge} ground="lilac" art="chat"
-            small onPress={openChat} accessibilityLabel={chatLabel('늦으면 알려주세요')} />
+          {/* 금색 = 세리머니(여권·도장·영수증). 봉인된 인계 기록이 정확히 그것이고, 미트업의
+              SEALED 블록이 정직한 착지점이다. `dot` 과 `leash` 는 뺐다 — 맥박은 '지금 하라'는
+              주장이고, 목줄은 넘기는 동작의 그림이다. 둘 다 끝난 일에 대해서는 거짓말이다. */}
+          <DrawButton title="티켓 보기" sub="인계 기록을 확인해요" ground="gold" art="ticket"
+            onPress={openNext} accessibilityLabel="티켓 보기" />
+          <DrawButton title="채팅" sub="러너에게 물어보세요" meta={chatBadge} ground="lilac" art="chat"
+            small onPress={openChat} accessibilityLabel={chatLabel('러너에게 물어보세요')} />
         </View>
       </View>
     );
   }
 
   // ── [0188] returning: 내 차례 — the run is over and the dog is coming home ─────
-  // Same grammar as `handoff` (coral chip, one primary), different sentence: nothing has arrived,
-  // the run has ENDED, and what is owed is a confirmation rather than a meeting. No live widget
-  // and no elapsed clock: both would be claims about a run in progress.
+  // The coral chip and one primary, but nothing has arrived: the run has ENDED, and what is owed
+  // is a confirmation rather than a meeting. No live widget and no elapsed clock: both would be
+  // claims about a run in progress.
+  //
+  // ⚠ [2026-09-25 owner-journey-1] The late strip is GONE from this frame and this frame only.
+  // (Named in prose, not quoted as JSX — a comment carrying the removed token is a false green for
+  // every later grep that hunts it, which is the standing comment-quoting law in CLAUDE.md.)
+  // `lateness()` reads `started` off `rawStatus === 'active'`, and the run-end ceremony leaves the
+  // booking `active` through the whole two-stamp return — so an overrun return printed
+  // 「러닝이 예정보다 N분 길어지고 있어요」 directly above 「러닝이 끝났어요」, after the server had
+  // already written `run_ended_at`. One frame contradicting itself, and the strip was the half
+  // that was false. It stays in every other frame, where `active` still means running.
   if (state === 'returning') {
     return (
       <View style={s.wrapTight}>
         {errRow}
-        {lateStrip}
         <View style={s.chipRow}>
           <View style={[s.chipDot, { backgroundColor: chip.c }]} />
           <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
@@ -463,13 +507,19 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
               ⚠ 서브라인이 「정리할 수 있어요」에서 바뀐 것도 정직 문제다: 확정 건 취소는
               수수료 구간(<24h 10%, 절반은 러너 몫)이 있어 '정리'가 공짜라는 함의를 줄 수 없다.
             서버가 만료를 처리하기 전까지 홈은 사실만 말하고 목적지는 일정 화면이다. */}
+        {/* ⚠ [2026-09-25 owner-journey-1] 이 버튼은 `isLate` 가 아니라 `lateDoorClosed` 로
+            갈린다. 둘이 갈라지는 칸이 정확히 하나 있고 그 칸이 이 결함의 전부였다: 러너가
+            도착해 있고(arrived_at) 아직 천장(3h) 안인 지각 건. 거기서는 진행할 문이 **실제로
+            남아 있으므로** 「일정에서 정리하기」가 거짓 라벨이 된다 — openNext 도 같은 조건으로
+            미트업을 연다(home-hero-route.ts ②). 문이 닫힌 나머지 지각 건만 amber 로 남는다.
+            ⚠ 코랄은 여기 오지 않는다. 도착 프레임의 채도는 Sean 의 재정 대기다. */}
         {state === 'confirmed' && (
           <DrawButton
             // [T6] 「예약 확인 / 아직 정리되지 않았어요」는 사실이지만 막다른 골목이었다 — 16일간
             // 그 자리에 있던 문장이다. 목적지를 말하는 라벨로 바꾼다. 여전히 공짜라고는 하지 않는다.
-            title={isLate ? '일정에서 정리하기' : '티켓 보기'}
-            sub={isLate ? '취소 조건을 확인하고 닫아요' : '시간과 장소를 확인해요'}
-            ground={isLate ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
+            title={lateDoorClosed ? '일정에서 정리하기' : '티켓 보기'}
+            sub={lateDoorClosed ? '취소 조건을 확인하고 닫아요' : '시간과 장소를 확인해요'}
+            ground={lateDoorClosed ? 'amber' : 'gold'} art="ticket" onPress={openNext} />
         )}
         {state === 'confirmed' && (
           <DrawButton title="채팅" sub="러너에게 물어보세요" meta={chatBadge}
