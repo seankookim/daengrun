@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
-  fetchMyRunnerApplication, fetchMyRunnerCert, fetchMyRunnerStatus,
+  fetchMyDistrict, fetchMyRunnerApplication, fetchMyRunnerCert, fetchMyRunnerStatus,
   MyRunnerCert, RunnerApplication, runnerTierLabel, submitRunnerApplication, withdrawRunnerApplication,
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
@@ -143,6 +143,18 @@ export default function Apply() {
   // 존재하고(서버·라우트·스키마 변화 0), 접수는 여전히 열 칸을 한 번에 검증한다.
   const [page, setPage] = useState<1 | 2>(1);
   const [district, setDistrict] = useState('');
+  // 🔴 [onboarding-first-run-6] 러너가 같은 동네를 두 번 친다. `onboard/runner.tsx:117-131`이
+  // 「홈 베이스」를 물어 `profiles.district`에 저장하고(:66 updateMyProfile), 이 폼은 「활동 지역 ·
+  // 주로 뛰는 동네」라는 **같은 질문**을 빈칸으로 다시 묻는다. 0062:381-382는 지원서의 district를
+  // 프로필이 NULL일 때만 되쓰므로 두 값은 조용히 갈라지기도 한다.
+  // 미리 채우되 **잠그지 않는다**: 활동 지역과 사는 동네가 다른 러너가 실제로 있고, 여기서
+  // 고친 값이 지원서에 실린다. 읽기가 실패하면 칸은 빈 채로 두고 아무 말도 하지 않는다 —
+  // 못 읽은 값을 자리표시자로 만들지 않는다.
+  // ⚠ 손을 댄 순간 힌트는 사라진다: 러너가 고쳐 쓴 값에 대고 「홈 베이스에서 가져왔어요」라고
+  // 말하면 그건 이제 거짓이다. ref는 페치 콜백이 낡은 state를 읽지 않게 하는 쪽이고, state는
+  // 힌트를 다시 그리게 하는 쪽이다 — 두 값이 같은 사실의 두 소비자다.
+  const [districtPrefilled, setDistrictPrefilled] = useState(false);
+  const districtTouched = useRef(false);
   const [paceMin, setPaceMin] = useState('');
   const [paceSec, setPaceSec] = useState('');
   const [maxWeight, setMaxWeight] = useState('');
@@ -293,27 +305,43 @@ export default function Apply() {
     setFormErr(null);
     setPage(1);
     setFormOpen(true);
+    // [onboarding-first-run-6] 폼이 열리는 순간에만 읽는다. 마운트에서 읽으면 지원서를 낼 생각이
+    // 없는 러너(상태만 확인하러 온 사람)에게도 프로필 읽기가 한 번 나가고, 그 값을 쓸 화면이
+    // 열리지 않는다. 이미 친 글자는 절대 덮지 않는다 — 두 번째 지원에서도 마찬가지다.
+    if (districtTouched.current || district.trim() !== '') return;
+    fetchMyDistrict()
+      .then((d) => {
+        const v = (d ?? '').trim();
+        if (v === '' || districtTouched.current) return;
+        setDistrict(v);
+        setDistrictPrefilled(true);
+      })
+      .catch((e) => console.warn('[apply] district:', e?.message ?? e));
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top + 2, paddingBottom: 40 }}>
 
-        {/* ————— 마스트헤드 ————— */}
+        {/* ————— 마스트헤드 —————
+             [runner-journey-15 · DESIGN.md §3b] 'RUNNER · CERTIFICATION' 키커 은퇴. 바로 아래
+             30/900 제목이 「인증 센터」라고 말하고 있어 라틴 키커는 같은 말을 한 번 더, 12pt로 한
+             것이었다 — §3b는 라틴 키커를 앱 전체에서 은퇴시켰고(DESIGN.md:184-187) 이 화면은 그
+             스윕을 받지 못한 자리다. 룰 선도 함께 간다: 그 선의 일은 키커를 제목에서 떼어놓는
+             것이었고, 뗄 키커가 없으면 선은 장식이다. */}
         <Row style={{ gap: 10 }}>
           <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
             <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
           </Pressable>
-          <View style={s.rule} />
-          <Text style={[s.kick, nf]}>RUNNER · CERTIFICATION</Text>
         </Row>
         <Text style={[s.h1, df]}>인증 센터</Text>
-        <Text style={s.lede}>
-          검증된 러너만 아이들을 만나요{'\n'}여기서 지원하고, 심사가 어디까지 왔는지 확인할 수 있어요
-        </Text>
+        {/* [runner-journey-15] 두 줄짜리 lede의 둘째 줄(「여기서 지원하고, 심사가 어디까지 왔는지
+            확인할 수 있어요」)은 이 화면이 하는 일을 화면 자신에게 설명하던 문장이다 — §APPLICATION
+            섹션이 실제 상태로 같은 말을 하고 있다. 첫 줄은 남는다: 왜 심사가 있는지는 여기서만 말한다. */}
+        <Text style={s.lede}>검증된 러너만 아이들을 만나요</Text>
 
         {/* ————— ① 내 러너 레코드 — 서버 진실 ————— */}
-        <SecRule no="§" en="RECORD" ko="내 러너 레코드" />
+        <SecRule ko="내 러너 레코드" />
         {!certLoaded && (
           <View style={s.plain}><Text style={s.plainTxt}>러너 레코드를 불러오는 중이에요…</Text></View>
         )}
@@ -340,11 +368,10 @@ export default function Apply() {
         {certLoaded && certErr === null && cert !== null && (
           <View style={s.rec}>
             <View style={s.recInner}>
-              <Row style={s.recStrap}>
-                <Text style={[s.micro, nf]}>SERVER RECORD</Text>
-                <View style={s.srcTag}><Text style={[s.srcTagTxt, nf]}>RUNNERS</Text></View>
-              </Row>
-
+              {/* [runner-journey-15] 'SERVER RECORD' 키커 + 'RUNNERS' 출처 태그 은퇴. 둘 다 이
+                  섹션의 제목(「내 러너 레코드」)을 라틴으로 다시 쓴 것이고, 「이 값은 서버에서 온다」는
+                  주장은 이 화면의 독자(러너)가 행동을 바꾸는 데 쓰는 사실이 아니다 — 테이블 이름을
+                  읽는 사람은 우리다. */}
               <Text style={s.recK}>현재 등급</Text>
               <Text style={s.recTier}>{runnerTierLabel(cert.tier)}</Text>
               <Text style={s.recNote}>
@@ -377,17 +404,17 @@ export default function Apply() {
                     still uses it; the runner just no longer reads it here. */}
               </Row>
             </View>
-            <Text style={s.recFoot}>
-              {/* '세 값' → '두 값' — the grid now draws 완주 and 누적 거리 only (fee cell retired above) */}
-              두 값 모두 서버 러너 레코드에서 그대로 읽어요 — 완주와 거리는 정산이 올려요
-            </Text>
+            {/* [runner-journey-15] recFoot 은퇴 — 「두 값 모두 서버 러너 레코드에서 그대로 읽어요」는
+                우리의 정직 규율을 러너에게 낭독한 문장이었다. 값이 참인 것으로 충분하고, 그 값이
+                어디서 오는지는 러너가 여기서 할 일을 바꾸지 않는다. */}
           </View>
         )}
 
         {/* ————— ② 인증 절차의 구성 — 개인 체크마크 아님 ————— */}
-        <SecRule no="§" en="PROCESS" ko="인증 절차는 이렇게 구성돼요" />
+        <SecRule ko="인증 절차는 이렇게 구성돼요" />
         <View style={s.stepCard}>
-          <Text style={s.stepLede}>아래는 절차가 무엇인지에 대한 설명이에요 — 내가 어디까지 왔는지는 아래 §APPLICATION에서 볼 수 있어요</Text>
+          {/* [runner-journey-15] stepLede 은퇴 — 섹션 제목이 이미 「절차는 이렇게 구성돼요」이고,
+              그 문장의 뒷절은 없어진 §APPLICATION 키커를 가리키는 내부 참조였다. */}
           {STEPS.map((st, i) => (
             <View key={st.no} style={[s.step, i > 0 && s.stepDiv]}>
               <Text style={[s.stepNo, nf]}>{st.no}</Text>
@@ -397,11 +424,12 @@ export default function Apply() {
               </View>
             </View>
           ))}
-          <Text style={s.stepFoot}>파일럿 기간에는 운영자가 한 명씩 직접 확인해요 — 자동 심사는 없어요</Text>
+          {/* [runner-journey-15] stepFoot 은퇴 — 「운영자가 한 명씩 직접 확인해요」는 02 화상 확인
+              단계가 이미 말하는 사실(「운영자가 화상 통화로 …」)을 각주로 한 번 더 쓴 것이다. */}
         </View>
 
         {/* ————— ③ 내 지원 현황 — runner_my_application()에 바인딩 ————— */}
-        <SecRule no="§" en="APPLICATION" ko="내 지원 현황" />
+        <SecRule ko="내 지원 현황" />
 
         {/* not loaded — loading is not empty */}
         {!appLoaded && (
@@ -585,9 +613,17 @@ export default function Apply() {
             </Row>
 
             {page === 1 && (<View>
-            <Field label="활동 지역" hint="주로 뛰는 동네를 적어주세요 (예: 성수동)">
+            {/* [onboarding-first-run-6] 힌트는 **미리 채워졌을 때만** 그 사실을 말한다. 빈 칸에
+                「가져왔어요」라고 쓰면 없는 값을 있다고 하는 것이고, 러너가 고친 뒤에도 그렇게
+                말하면 그건 이제 그 사람의 글자다. 두 경우 모두 원래 안내문으로 돌아간다. */}
+            <Field
+              label="활동 지역"
+              hint={districtPrefilled ? '홈 베이스에서 가져왔어요 · 달라면 고쳐주세요' : '주로 뛰는 동네를 적어주세요 (예: 성수동)'}
+            >
               <TextInput
-                value={district} onChangeText={setDistrict} maxLength={40} autoCorrect={false}
+                value={district}
+                onChangeText={(t) => { districtTouched.current = true; setDistrictPrefilled(false); setDistrict(t); }}
+                maxLength={40} autoCorrect={false}
                 // AutoFill (HIG row E1) — a 동 is a sublocality; see onboard/runner.tsx.
                 textContentType="sublocality" autoComplete="postal-address-extended"
                 placeholder="성수동" placeholderTextColor={paper.faint} style={s.input}
@@ -765,9 +801,9 @@ export default function Apply() {
           </View>
         )}
 
-        <View style={s.colophon}>
-          <Text style={[s.colophonTxt, nf]}>DOGS HIGH · RUNNER CERTIFICATION</Text>
-        </View>
+        {/* [runner-journey-15] 콜로폰 은퇴 — 'DOGS HIGH · RUNNER CERTIFICATION'은 화면 제목과 앱
+            이름을 라틴으로 한 번 더 쓴 장식이었다. DESIGN.md §7a-bis의 말 예산은 이런 줄을 위한
+            것이다: 아무에게도 아무것도 말하지 않으면서 화면의 마지막 자리를 쓴다. */}
       </ScrollView>
       {/* 시스템 바 스트립 — 이 화면은 sticky 헤더가 없어 마스트헤드가 시계 뒤로 지나갔다 */}
       <StatusBarCover />
@@ -776,31 +812,29 @@ export default function Apply() {
 }
 
 // 섹션 룰 — §3b 앱 공통 문법: 풀블리드 코랄 헤어라인 + 20/800 잉크 한글 제목.
-// § 글리프(12pt 면제)와 라틴 키커는 이 화면의 목소리라 남는다 — 제목 오른쪽 장식 슬롯으로.
-function SecRule({ no, en, ko }: { no: string; en: string; ko: string }) {
-  const nf = useNumFont();
+// [runner-journey-15 · ui-consistency-4] § 글리프와 라틴 키커 슬롯이 둘 다 은퇴했다. §3b는 앱
+// 전체에서 하나의 섹션 그램마를 못박았고(DESIGN.md:184-198: 20/800 잉크, 라틴 키커 없음), 이
+// 화면만 「§ … RECORD」를 계속 출하하고 있었다 — 한 화면의 목소리라고 부르던 것이 실제로는 이
+// 화면이 그 스윕에서 빠진 자리였다. 제목은 그대로 20/800이다.
+function SecRule({ ko }: { ko: string }) {
   return (
     <View style={s.sec}>
       <View style={s.secRule} />
       <Row style={s.secRow}>
-        <Text style={s.secNo}>{no}</Text>
         <Text style={s.secKo}>{ko}</Text>
-        <View style={{ flex: 1 }} />
-        <Text style={[s.secT, nf]}>{en}</Text>
       </Row>
     </View>
   );
 }
 
 // State strap — a small tone-coded tag above the state headline.
+// [runner-journey-15] 'APPLICATION' 키커와 그 룰 선 은퇴: 이 스트랩은 §내 지원 현황 섹션 안에서만
+// 그려지므로 그 섹션의 제목을 라틴으로 한 번 더 쓴 것이었다. 남는 것은 상태 낱말과 그 색이다.
 function StateStrap({ tone, label }: { tone: string; label: string }) {
-  const nf = useNumFont();
   return (
     <Row style={{ alignItems: 'center', gap: 7, marginBottom: 8 }}>
       <View style={[s.strapDot, { backgroundColor: tone }]} />
       <Text style={[s.strapTxt, { color: tone }]}>{label}</Text>
-      <View style={s.rule} />
-      <Text style={[s.micro, nf]}>APPLICATION</Text>
     </Row>
   );
 }
@@ -907,9 +941,6 @@ const s = StyleSheet.create({
     width: 40, height: 40, backgroundColor: paper.canvas,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line,
   },
-  // 인라인 헤어라인 — 코랄 1px. 이 선이 곧 브랜드 (§2 종이 법)
-  rule: { flex: 1, height: 1, backgroundColor: paper.line },
-  kick: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커(플로어 면제) · Oswald 1.33×
   h1: { fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink, marginTop: 10 }, // §3c 화면 타이틀 (1.23× — BUG A)
   lede: { fontSize: 15, lineHeight: 21, color: paper.text, marginTop: 8 },
 
@@ -917,18 +948,11 @@ const s = StyleSheet.create({
   sec: { marginTop: 20, marginBottom: 10 },
   secRule: { marginHorizontal: -layout.gutter, height: 1, backgroundColor: paper.line, marginBottom: 10 },
   secRow: { alignItems: 'baseline', gap: 7 },
-  secNo: { fontSize: 12, lineHeight: 25, fontWeight: '800', color: paper.line }, // 글리프 전용(§) — 15pt 플로어 면제
   secKo: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },
-  secT: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커 · Oswald 1.33×
 
   // ── ① 러너 레코드 ── 중립 헤어라인 박스. 코랄은 섹션 룰이 이미 쓰고 있다
   rec: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
   recInner: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 1 },
-  recStrap: { justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  micro: { fontSize: 12, lineHeight: 16, letterSpacing: 1.6, color: paper.faint }, // 장식 키커 · Oswald 1.33×
-  // 출처 태그 — 워시 면, 샤프 코너. 이 값들이 서버에서 그대로 온다는 표시
-  srcTag: { backgroundColor: paper.wash, paddingVertical: 3, paddingHorizontal: 8 },
-  srcTagTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1, color: paper.actionInk }, // Oswald 1.33×
   recK: { fontSize: 15, lineHeight: 19, color: paper.dim },
   recTier: { fontSize: 28, lineHeight: 34, fontWeight: '900', color: paper.ink, marginTop: 3 },
   recNote: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 6 },
@@ -939,11 +963,6 @@ const s = StyleSheet.create({
   cellVal: { alignItems: 'baseline', gap: 3 },
   cellV: { fontSize: 22, lineHeight: 28, fontWeight: '900', color: paper.ink }, // Oswald 1.27× (BUG A)
   cellU: { fontSize: 15, lineHeight: 18, color: paper.dim },
-  recFoot: {
-    fontSize: 15, lineHeight: 20, color: paper.dim,
-    borderTopWidth: 1, borderTopColor: '#EEEEEE',
-    paddingHorizontal: 14, paddingTop: 11, paddingBottom: 12,
-  },
 
   // ── 로딩 · 빈 상태 ── 로딩은 0이 아니다: 중립 박스 안의 문장
   plain: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 16 },
@@ -964,16 +983,11 @@ const s = StyleSheet.create({
 
   // ── ② 절차 ── 개인 체크마크가 아니다: 번호는 구조(잉크)일 뿐 진행률이 아니다
   stepCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, paddingBottom: 4 },
-  stepLede: { fontSize: 15, lineHeight: 20, color: paper.dim, paddingTop: 13, paddingBottom: 3 },
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, paddingVertical: 12 },
   stepDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   stepNo: { fontSize: 15, lineHeight: 20, letterSpacing: 0.8, fontWeight: '800', color: paper.ink, width: 22 }, // Oswald 1.43×
   stepT: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
   stepD: { fontSize: 15, lineHeight: 20, color: paper.text, marginTop: 2 },
-  stepFoot: {
-    fontSize: 15, lineHeight: 20, color: paper.dim,
-    borderTopWidth: 1, borderTopColor: '#EEEEEE', paddingTop: 11, paddingBottom: 12,
-  },
 
   // ── ③ 지원 현황 ──
   stateCard: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 14 },
@@ -1070,11 +1084,4 @@ const s = StyleSheet.create({
   // only way out of the form — the owner/home rowAct case. Weight stays 700; the submit PaperBtn
   // above is a filled surface, so an ink label here cannot outrank it.
   formCancelTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.ink },
-
-  // ── 콜로폰 ──
-  colophon: {
-    marginTop: 22, marginHorizontal: -layout.gutter, paddingHorizontal: layout.gutter,
-    paddingTop: 12, borderTopWidth: 1, borderTopColor: paper.line, alignItems: 'center',
-  },
-  colophonTxt: { fontSize: 12, lineHeight: 16, letterSpacing: 1.8, color: paper.faint }, // 장식 키커 · Oswald 1.33×
 });

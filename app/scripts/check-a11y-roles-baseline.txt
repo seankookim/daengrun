@@ -67,7 +67,7 @@ app/runner-profile/[id].tsx 5
 app/runner/calendar.tsx 3
 app/runner/home.tsx 3
 app/runner/meetup.tsx 1
-app/runner/requests.tsx 6
+app/runner/requests.tsx 5
 app/runner/review.tsx 6
 app/runner/rewards.tsx 3
 app/runner/run.tsx 11
