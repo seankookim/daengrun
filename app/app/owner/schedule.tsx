@@ -1,9 +1,13 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
-import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchChatUnread, fetchInFlightOwnerBookings, fetchMyBookings, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
+import { bookingStateLabel } from '../../src/lib/booking-state-copy';
+import { traceToBox } from '../../src/lib/trace';
+import { HeatTrace } from '../../src/components/runcard';
+import { PaperBtn } from '../../src/components/paper-btn';
+import { BookingPaymentState, PaymentRecord, cancelBooking, fetchBookingPaymentState, fetchBookingPayments, fetchChatUnread, fetchInFlightOwnerBookings, fetchMyBookings, fetchRouteById, pauseRecurringSeries, shareRunToFeed } from '../../src/lib/api';
 import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
 import { PAYMENT_STATES_THAT_SPEAK, paymentFace, latestOnly, type LatestOnly } from '../../src/lib/payment-state';
 import { CancelQuote, quoteCancelFee } from '../../src/lib/api';
@@ -20,8 +24,13 @@ import { RecurringCta } from '../../src/components/recurring-cta';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Monogram, Row } from '../../src/components/ui';
-import { Booking, BookingStatus, cancelPolicy, draft } from '../../src/store';
+import { Booking, BookingStatus, cancelPolicy, draft, RouteInfo } from '../../src/store';
 import { CollarKey, collarColors, colors, paper } from '../../src/theme';
+
+// 시트 코스 카드의 실좌표 실루엣 폭 — HeatTrace 는 명시 width/height 를 요구한다 (auto layout 불가).
+// 시트 좌우 패딩 16 + 카드 안쪽 여백을 뺀 값.
+const SHEET_MAP_W = Dimensions.get('window').width - 64;
+const SHEET_MAP_H = 110;
 
 // 내 일정 — agenda view. Tapping a booking opens a management sheet
 // (route card + predictions + runner + reschedule/cancel actions).
@@ -67,21 +76,26 @@ const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: strin
   cancelled: { label: '취소됨', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' },
 };
 
-// 표시 어휘(6종)가 뭉갠 희귀 서버 상태의 정직한 배지 — no_show·incident_review는 STATUS_MAP 폴백으로
-// '러너 응답 대기'가 되어 거짓 배지 + 죽은 버튼을 만들었다 (0056 동반 클라 수리)
-const stFor = (b: Booking) =>
-  b.rawStatus === 'no_show' ? { label: '불발', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
-  : b.rawStatus === 'incident_review' ? { label: '확인 중', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }
-  // 🔴 [정직 2026-08-27] `expired` 는 STATUS_MAP 에서 'cancelled' 로 뭉개져 「취소됨」 배지가 됐다.
-  //    아무도 취소하지 않았다 — 시작 시간까지 러너를 못 찾은 것이고, 그건 플랫폼의 실패다.
-  //    알림 화면은 같은 예약을 이미 「매칭 만료 — 시작 시간까지 러너를 찾지 못했어요」라고
-  //    부른다. 두 화면이 같은 사건에 다른 낱말을 쓰면 보호자는 자기가 취소했는지 아닌지를
-  //    화면마다 다르게 배운다. 알림의 낱말을 정본으로 삼는다.
-  //    ⚠ STATUS_MAP 의 뭉개기 자체는 그대로 둔다 — 그건 표시 어휘 6종을 유지하려는 의도된
-  //      납작화이고, 이 파일이 이미 no_show·incident_review 에 쓰는 rawStatus 우회로가
-  //      「뭉갠 것 중 실제로 다른 사실」을 되살리는 자리다. 같은 문법, 세 번째 값.
-  : b.rawStatus === 'expired' ? { label: '매칭 만료', bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
-  : STATUS_STYLE[b.status];
+// 표시 어휘(6종)가 뭉갠 희귀 서버 상태의 정직한 **색** — no_show·incident_review는 STATUS_MAP 폴백으로
+// 'pending' 이 되어 확정 예약과 같은 앰버 레일을 달았다 (0056 동반 클라 수리).
+// 🔴 [정직 2026-08-27] `expired` 는 STATUS_MAP 에서 'cancelled' 로 뭉개진다 — 아무도 취소하지
+//    않았다. 시작 시간까지 러너를 못 찾은 것이고, 그건 플랫폼의 실패다. 알림 화면은 같은 예약을
+//    이미 「매칭 만료」라고 부른다. 두 화면이 같은 사건에 다른 낱말을 쓰면 보호자는 자기가
+//    취소했는지 아닌지를 화면마다 다르게 배운다.
+//    ⚠ STATUS_MAP 의 뭉개기 자체는 그대로 둔다 — 그건 표시 어휘 6종을 유지하려는 의도된
+//      납작화이고, rawStatus 우회로가 「뭉갠 것 중 실제로 다른 사실」을 되살리는 자리다.
+// 🔴 [contract-gaps-7 2026-09-25] 낱말은 더 이상 이 파일 것이 아니다. 같은 서버 상태에 대해
+//    owner/report.tsx 가 다른 표를 들고 있었고(`confirmed` 를 이 파일은 「예약 확정」, 그쪽은
+//    「러너 확정 — 러닝 전」), 어느 쪽도 정본이 아니었다. 이제 낱말은 src/lib/booking-state-copy.ts
+//    한 곳에서 오고 이 함수는 **색만** 고른다. 표가 모르는 상태에서는 표시 어휘의 낱말로 떨어진다.
+const stFor = (b: Booking): { label: string; bg: string; fg: string; rail: string } => {
+  const base = STATUS_STYLE[b.status];
+  const skin = b.rawStatus === 'no_show' ? { bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
+    : b.rawStatus === 'incident_review' ? { bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }
+    : b.rawStatus === 'expired' ? { bg: '#ececec', fg: '#8a8a8a', rail: '#c9c9c9' }
+    : { bg: base.bg, fg: base.fg, rail: base.rail };
+  return { label: bookingStateLabel(b.rawStatus) ?? base.label, ...skin };
+};
 
 const paceMin = (label: string) => (label.includes('8') ? 8 : label.includes('6') ? 6 : 7);
 
@@ -196,6 +210,31 @@ export default function Schedule() {
       });
     return () => { alive = false; };
   }, [selectedId, selectedClubId, quoteTry]);
+  // ── 시트 코스 카드의 실좌표 (owner-journey-7) ──────────────────────────────────────────────
+  // 여기엔 110pt 짜리 영구 플레이스홀더가 있었다. 같은 routeId 로 owner/request.tsx 는 이미 실선을
+  // 그린다(fetchRouteById → HeatTrace) — 즉 화면이 「없다」고 말한 것은 앱이 못 하는 일이 아니라
+  // 이 화면이 읽지 않은 값이었다. 예약 행은 좌표를 싣고 오지 않으므로(목업 썸네일 은퇴, :500 참조)
+  // 시트가 열릴 때 그 한 행만 읽는다.
+  // ⚠ 네 가지 사실을 네 가지로 그린다: 코스 없음(아무것도 아님) · 읽는 중 · 실패(다시 시도) ·
+  //   도착. 도착했는데 지오메트리가 없으면 **아무것도 그리지 않는다** — 지어낸 모양 금지가 이
+  //   파일의 기존 법이고(:500), 「준비 중」은 우리가 못 만든 것을 곧 만들 것처럼 말하는 문장이다.
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [routeState, setRouteState] = useState<'none' | 'loading' | 'ready' | 'err'>('none');
+  const [routeTry, setRouteTry] = useState(0);
+  const selectedRouteId = selected?.routeId ?? null;
+  useEffect(() => {
+    setRouteInfo(null);
+    if (!selectedRouteId) { setRouteState('none'); return; }
+    let alive = true;
+    setRouteState('loading');
+    fetchRouteById(selectedRouteId)
+      .then((r) => { if (alive) { setRouteInfo(r); setRouteState('ready'); } })
+      .catch((e) => {
+        console.warn('[schedule] route:', (e as Error)?.message ?? e);
+        if (alive) setRouteState('err');
+      });
+    return () => { alive = false; };
+  }, [selectedRouteId, routeTry]);
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   // [honesty 2026-08-11] warn-only catch + [] seed rendered "예정된 러닝이 없어요"
@@ -320,6 +359,40 @@ export default function Schedule() {
       }
     : undefined;
   const runMin = selected ? selected.km * paceMin(selected.paceLabel) : 0;
+
+  // ── ⟳ 이대로 다시 예약 — 한 벌 (owner-journey-6) ────────────────────────────────────────────
+  // 이 프리필은 완료 시트에만 있었고, 취소·만료·불발 시트는 「더 진행할 작업이 없어요」에서 끝났다.
+  // 그 문장은 **이 예약**에 대해서는 참이지만, 보호자가 그 자리에서 하고 싶은 일(같은 조건으로
+  // 다시 잡기)은 이 예약에 대한 동작이 아니라 새 예약이라 그 사실과 충돌하지 않는다. 리포트 화면은
+  // 멈춘 러닝에도 이미 같은 문을 준다 — 일정 시트만 못 받았다.
+  // ⚠ 한 벌로 뽑은 이유: 두 벌이 되는 순간 한쪽에만 프리필 수리가 붙고 두 문이 다른 예약을 만든다.
+  const rebook = () => {
+    if (!selected) return;
+    draft.km = selected.km;
+    draft.pace = selected.paceLabel;
+    draft.preferredRunnerId = selected.runnerProfileId ?? null;
+    draft.preferredRunnerName = selected.runnerProfileId ? selected.runnerName : null;
+    draft.scheduledAtIso = null;
+    draft.timeLabel = '시간을 선택해주세요';
+    close();
+    router.push('/owner/request');
+  };
+  // ⚠ 러너가 정해지기 전에 끝난 예약(만료·매칭 중 취소)은 지명할 사람이 없다 — 그때는 지명 절이
+  //   통째로 빠진다. `runnerProfileId` 가 그 유일한 근거이고, 프리필과 이 문장이 같은 값을 읽는다.
+  const rebookRow = selected ? (
+    <Pressable
+      style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+      onPress={rebook}
+      accessibilityRole="button"
+      accessibilityLabel="이대로 다시 예약"
+    >
+      <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>⟳ 이대로 다시 예약</Text>
+      <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>
+        같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요
+      </Text>
+    </Pressable>
+  ) : null;
+
   // [2026-08-25] cancelFeeRateFor is RETIRED — the number now comes from quote_cancel_fee
   // (see cancelQuote above). The tier sentence keys on the QUOTED status when the quote is in
   // (the server's answer includes the fault-waiver arm the client cannot see) and falls back
@@ -692,8 +765,11 @@ export default function Schedule() {
               {/* [B② 2026-08-24] 세 번째 갈래가 필요해졌다: 진행 중인 러닝 하나만 있는 계정은 그
                   행이 위 밴드로 올라가 목록이 비는데, 그때 「이 조건의 일정이 없어요」는 '전체' 칩을
                   스스로 반박한다 (화면에 러닝이 보이는데 없다고 말한다). */}
+              {/* [onboarding-first-run-12 2026-09-25] 두 번째 줄은 보호자를 홈으로 돌려보냈는데,
+                  이 화면의 헤더에 같은 문(＋)이 이미 있다 — 다른 화면으로 가라는 안내와 바로
+                  여기 있는 문이 한 화면에서 서로를 반박했다. 사실 하나만 남기고, 방향은 ＋ 가 쥔다. */}
               {liveBookings.length === 0
-                ? '예정된 러닝이 없어요\n홈의 지금 찾기 / 예약하기로 러너를 찾아보세요'
+                ? '예정된 러닝이 없어요'
                 : filterIdx === 0 && liveNow.length > 0
                   ? '지금 진행 중인 러닝 외에는 일정이 없어요'
                   : '이 조건의 일정이 없어요'}
@@ -710,10 +786,10 @@ export default function Schedule() {
           </View>
         )}
         {past.map((g) => renderGroup(g, 'p'))}
-
-        <Pressable style={s.emptyCta} onPress={() => router.push('/owner/request')}>
-          <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 새 러닝 예약하기</Text>
-        </Pressable>
+        {/* [less-is-more-18 2026-09-25] 목록 끝의 대시드 CTA 는 은퇴했다. 스타일 이름은
+            「추가 슬롯」 어포던스였지만 실제로는 **무조건** 그려져, 헤더의 ＋ 와 같은 화면에서 같은
+            곳(/owner/request)으로 가는 두 번째 문이 됐다 — 그리고 빈 상태에서는 「홈으로 가세요」
+            안내 바로 아래에 앉아 그 안내를 반박했다. 문은 헤더의 ＋ 하나로 족하다. */}
       </ScrollView>
       {/* 시스템 바 스트립 — 날짜 그룹 라벨과 카드 상단이 시계 뒤로 지나가던 것 (실측 2026-08-19).
           ScrollView '뒤'가 아니라 '위'에 있어야 콘텐츠가 그 아래로 흐른다. */}
@@ -798,10 +874,35 @@ export default function Schedule() {
                           15 is trunk's post-sweep size, not this commit's original 14. */}
                       <Text style={{ fontSize: 15, color: paper.dim, alignSelf: 'center' }}>{bookingKmLabel(selected.km)}</Text>
                     </Row>
-                    {/* 실좌표 없는 코스 지도 슬롯 — 토큰으로 작성 (후속 리페인트 생존) */}
-                    <View style={s.sheetMapPending}>
-                      <Text style={s.sheetMapPendingTxt}>코스 지도 준비 중</Text>
-                    </View>
+                    {/* 코스 실루엣 — 네 가지 사실을 네 가지로 (owner-journey-7, 위 effect 참조).
+                        코스가 없으면 아무것도 그리지 않는다: 이름 줄이 이미 「코스 미지정」이라고
+                        말했고, 같은 말을 두 번 하지 않는다. */}
+                    {routeState === 'loading' && (
+                      <View style={s.sheetMapBox} accessibilityLabel="코스 경로를 불러오는 중">
+                        <Text style={s.sheetMapTxt}>불러오는 중…</Text>
+                      </View>
+                    )}
+                    {routeState === 'err' && (
+                      <View style={[s.sheetMapBox, { borderColor: paper.critical }]}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>
+                          코스 경로를 불러오지 못했어요
+                        </Text>
+                        {/* payRetry 는 왼쪽 정렬이 기본이다 (결제 스트립은 좌측 정렬 블록) —
+                            가운데 정렬된 이 박스에서는 자기 정렬만 덮어쓴다. 44pt 타깃은 그대로. */}
+                        <Pressable onPress={() => setRouteTry((n) => n + 1)} style={[s.payRetry, { alignSelf: 'center' }]} accessibilityRole="button">
+                          <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
+                            다시 시도
+                          </Text>
+                        </Pressable>
+                      </View>
+                    )}
+                    {/* 다크 플레이트 유지 — HeatTrace 는 어두운 면 위에서 그리도록 만들어졌다
+                        (request.tsx·report.tsx 와 같은 문법). 점이 하나뿐인 행은 선이 아니다. */}
+                    {routeState === 'ready' && routeInfo && routeInfo.trace.length > 1 && (
+                      <View style={s.sheetMapPlate}>
+                        <HeatTrace points={traceToBox(routeInfo.trace)} width={SHEET_MAP_W} height={SHEET_MAP_H} />
+                      </View>
+                    )}
                   </View>
 
                   {/* predictions */}
@@ -1014,6 +1115,8 @@ export default function Schedule() {
                       <Pressable
                         style={({ pressed }) => [s.primaryAction, { backgroundColor: '#ffe9e2', borderWidth: 1, borderColor: '#ffc9b8', transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                         onPress={() => { draft.bookingId = selected.id; close(); router.push('/owner/live'); }}
+                        accessibilityRole="button"
+                        accessibilityLabel="실시간 보기"
                       >
                         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기</Text>
                         {/* [정직 배치 2.5 · Sean D3=B] 앱 전체에서 바디캠을 '앞으로'라고 말하는 자리는 여기 한 곳뿐 */}
@@ -1030,51 +1133,55 @@ export default function Schedule() {
                     </Text>
                   ) : selected.status === 'completed' ? (
                     <>
-                      <Pressable
-                        style={({ pressed }) => [s.primaryAction, pressed ? s.primaryDown : s.primaryLip]}
+                      {/* [ui-consistency-2] 손으로 만 코랄 립 → 버튼 매트릭스. 이 시트의 로컬 립
+                          스타일은 PaperBtn primary 와 **같은 산식**(면 paper.action, 쉼 4px ·
+                          눌림 translateY(3)+1px, 17/800 흰 라벨)을 한 벌 더 들고 있었을 뿐이다 —
+                          한 값에 주인이 둘이면 한쪽만 고쳐지는 날이 온다. 그 스타일들은 은퇴했다.
+                          [2026-08-10 density audit] 서브라인은 그때 잘렸다. */}
+                      <PaperBtn
+                        label="러닝 리포트 보기"
+                        style={{ marginTop: 16 }}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid } }); }}
-                      >
-                        <Text style={s.primaryActionTxt}>러닝 리포트 보기</Text>
-                        {/* [2026-08-10 density audit] sub-line cut — it narrated the button above it */}
-                      </Pressable>
+                      />
                       {/* 인증샷 바로가기 — 완료 러닝의 자랑 동선 한 탭 단축 (공유가 곧 마케팅) */}
                       <Pressable
                         style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                         onPress={() => { const bid = selected.id; close(); router.push({ pathname: '/owner/report', params: { bid, shot: '1' } }); }}
+                        accessibilityRole="button"
                       >
                         <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>인증샷 만들기</Text>
                       </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [s.ghostAction, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                        onPress={() => {
-                          draft.km = selected.km;
-                          draft.pace = selected.paceLabel;
-                          draft.preferredRunnerId = selected.runnerProfileId ?? null;
-                          draft.preferredRunnerName = selected.runnerProfileId ? selected.runnerName : null;
-                          draft.scheduledAtIso = null;
-                          draft.timeLabel = '시간을 선택해주세요';
-                          close();
-                          router.push('/owner/request');
-                        }}
-                      >
-                        <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>⟳ 이대로 다시 예약</Text>
-                        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>같은 거리·페이스{selected.runnerProfileId ? ` · ${selected.runnerName} 러너 지명` : ''} — 시간만 골라요</Text>
-                      </Pressable>
+                      {rebookRow}
                     </>
                   ) : selected.status === 'cancelled' ? (
-                    // 취소된 일정 — 관리 액션 없음. 변경 요청은 서버가 확정 전용(409)이라 죽은 버튼이 되고,
-                    // 취소하기는 재취소가 된다. 상태를 그대로 말하고 끝낸다.
-                    <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
-                      취소된 일정이에요 — 더 진행할 작업이 없어요
-                    </Text>
+                    // 취소·만료·환불 진행 — 이 예약에 대한 관리 액션은 없다. 변경 요청은 서버가 확정
+                    // 전용(409)이라 죽은 버튼이 되고, 취소하기는 재취소가 된다.
+                    // ⚠ [owner-journey-6] 문장은 남기되 막다른 골목은 아니다: 다시 예약은 **이 예약에
+                    //   대한 동작이 아니라 새 예약**이므로 위 문장과 모순되지 않는다. 표시 어휘가
+                    //   뭉갠 네 상태(cancelled_owner · cancelled_runner · expired · refund_pending)가
+                    //   모두 이 갈래로 오고, 그중 만료는 우리가 러너를 못 찾은 건이라 이 문이 가장
+                    //   필요한 자리다 — 배지는 이미 「매칭 만료」라고 말하고 있다.
+                    <>
+                      <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
+                        {selected.rawStatus === 'expired'
+                          ? '시작 시간까지 러너를 찾지 못했어요 — 이 예약은 더 진행되지 않아요'
+                          : '취소된 일정이에요 — 이 예약으로 더 진행할 작업은 없어요'}
+                      </Text>
+                      {rebookRow}
+                    </>
                   ) : (selected.rawStatus === 'no_show' || selected.rawStatus === 'incident_review') ? (
-                    // 불발·확인 중 — 서버 전이상 취소도 변경도 불가(refund_pending만 합법) → 액션 없음이 정직.
-                    // 이전엔 STATUS_MAP 폴백 'pending'으로 이 시트가 죽은 취소 버튼을 그렸다.
-                    <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
-                      {selected.rawStatus === 'no_show'
-                        ? '불발로 처리된 일정이에요 — 더 진행할 작업이 없어요'
-                        : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
-                    </Text>
+                    // 불발·확인 중 — 서버 전이상 취소도 변경도 불가(refund_pending만 합법) → 이 예약에
+                    // 대한 액션 없음이 정직. 이전엔 STATUS_MAP 폴백 'pending'으로 죽은 취소 버튼을 그렸다.
+                    // ⚠ 다시 예약 문은 **불발에만** 붙는다. 확인 중은 아직 끝나지 않은 사건이고,
+                    //   그 위에 「다시 예약」을 얹으면 판정 전에 사건이 끝났다고 말하는 것이 된다.
+                    <>
+                      <Text style={{ fontSize: 15, color: paper.ink, textAlign: 'center', paddingVertical: 10 }}>
+                        {selected.rawStatus === 'no_show'
+                          ? '불발로 처리된 일정이에요 — 이 예약으로 더 진행할 작업은 없어요'
+                          : '확인이 진행 중인 일정이에요 — 처리되면 알림으로 알려드릴게요'}
+                      </Text>
+                      {selected.rawStatus === 'no_show' ? rebookRow : null}
+                    </>
                   ) : (
                     <>
                       {/* 러너가 픽업 이동 중(runner_enroute) — 표시 어휘는 '확정'으로 뭉개지지만 서버는
@@ -1090,18 +1197,26 @@ export default function Schedule() {
                           같은 문장. 표시 상태가 아니라 서버 원상태(rawStatus)로 게이트한다 — 표시 어휘는
                           runner_enroute를 '확정'으로 뭉개므로 그걸 믿으면 이동 중 죽은 버튼이 생긴다. */}
                       {selected.rawStatus === 'confirmed' && (
-                        <Pressable
-                          style={({ pressed }) => [s.primaryAction, pressed ? s.primaryDown : s.primaryLip]}
-                          onPress={() => {
-                            // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
-                            const bid = selected.id;
-                            close();
-                            router.push({ pathname: '/owner/reschedule', params: { bid } });
-                          }}
-                        >
-                          <Text style={s.primaryActionTxt}>일정 변경 요청</Text>
-                          <Text style={{ fontSize: 15, color: paper.text, marginTop: 2 }}>{runner.name} 러너의 가능 시간에서 새 시간을 제안해요</Text>
-                        </Pressable>
+                        <>
+                          {/* [ui-consistency-2] 손으로 만 코랄 립 → 버튼 매트릭스 (위 리포트 버튼과 같은 이유).
+                              ⚠ 서브라인은 면 **밖으로** 나왔다. 코랄 면 위의 paper.text 는 실측 1.88:1 로
+                                AA 근처에도 가지 못했다 — 같은 파일의 다른 코랄 서브라인들이 밝은
+                                paper.wash 를 쓰는 이유가 그것이고, 이 줄만 어두운 본문색이었다.
+                                캔버스 위로 내리면 문장은 그대로 남고 읽히기까지 한다. */}
+                          <PaperBtn
+                            label="일정 변경 요청"
+                            style={{ marginTop: 16 }}
+                            onPress={() => {
+                              // 제안 화면 직행 (0016) — 취소·재예약이 아니라 러너 동의 기반 시간 변경
+                              const bid = selected.id;
+                              close();
+                              router.push({ pathname: '/owner/reschedule', params: { bid } });
+                            }}
+                          />
+                          <Text style={{ fontSize: 15, color: paper.text, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
+                            {runner.name} 러너의 가능 시간에서 새 시간을 제안해요
+                          </Text>
+                        </>
                       )}
                       {/* 러너 변경 = 재지명 (이 예약 그대로). 확정 전에만 — 확정은 계약이고,
                           서버도 matching/runner_pending에서만 request_runner를 받는다.
@@ -1392,11 +1507,6 @@ const s = StyleSheet.create({
   seal: { width: 84, height: 84, borderRadius: 42, borderWidth: 2.5, borderColor: '#6E9BC5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 6, transform: [{ rotate: '8deg' }], opacity: 0.88 },
   sealRing: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 37, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(110,155,197,.55)' },
   sealNick: { position: 'absolute', backgroundColor: '#fff', borderRadius: 3 },
-  // 새 예약 CTA — 대시드 '추가 슬롯' 어포던스는 남고, 코랄 1px + 잉크 라벨로 이관
-  emptyCta: {
-    marginTop: 20, marginHorizontal: 12, borderWidth: 1, borderColor: paper.line, borderStyle: 'dashed',
-    alignItems: 'center', paddingVertical: 14, backgroundColor: paper.canvas,
-  },
   // sheet — 순백·샤프. 카드 수프 → 코랄 1px 풀블리드 섹션 분리 (meetup 섹션 문법)
   // [HIG N8] 배경 딤과 드래그는 이제 pageSheet 가 시스템으로 그린다 — 손으로 그린 두 스타일
   // (딤 면 · 44×5 바)은 은퇴했다. 그 바는 이 시트가 할 수 없는 드래그를 약속하고 있었다.
@@ -1404,12 +1514,14 @@ const s = StyleSheet.create({
   sheetCard: { marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 15, borderTopWidth: 1, borderTopColor: paper.line, marginTop: 14 },
   // 취소 수수료 카드 — 크리티컬 문법 (canvas 면 + 1px critical, line과 절대 공유 금지)
   feeCard: { backgroundColor: paper.canvas, padding: 15, borderWidth: 1, borderColor: paper.critical, marginTop: 14 },
-  // sheetMap(목업 트레이스)·featChip(목업 특징칩) 퇴역 — item 6. 실좌표가 오면 지도가 돌아온다.
-  sheetMapPending: {
-    marginTop: 10, height: 110, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+  // 코스 실루엣 — 읽는 중·실패는 캔버스 박스, 도착한 실좌표는 다크 플레이트 (HeatTrace 는 어두운
+  // 면 위에서 그리도록 만들어졌다). 목업 트레이스·featChip 퇴역은 그대로 (item 6).
+  sheetMapBox: {
+    marginTop: 10, minHeight: SHEET_MAP_H, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 12,
   },
-  sheetMapPendingTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
+  sheetMapTxt: { fontSize: 15, fontWeight: '700', color: paper.dim },
+  sheetMapPlate: { marginTop: 10, backgroundColor: '#0e150f', alignItems: 'center', paddingVertical: 12 },
   vDiv: { width: 1, backgroundColor: '#EEE' },
   // 결제 내역 실패 스트립의 재시도 — schedule의 밑줄 텍스트 문법 (박스 없음, ≥44pt 타깃)
   payRetry: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
@@ -1428,18 +1540,12 @@ const s = StyleSheet.create({
   // [Sean 2026-08-11] 볼트 그린 은퇴 — §3b 프라이머리는 잉크 면 + 화이트 17/800이다.
   // 볼트는 버튼 매트릭스에 아예 없는 색이었다 (그린은 이제 '준비됨' 상태 시맨틱에만 남는다).
   // '실시간 보기'만 예외로 자기 색을 유지한다 — 라이브는 상태색이지 버튼 스타일이 아니다.
+  // [ui-consistency-2 2026-09-25] 이 이름은 이제 **하나의 호출자**만 갖는다: 창백한 #ffe9e2 면의
+  // '실시간 보기'. 코랄 면 두 벌(쉼 4px 립 · 눌림 translateY(3)+1px · 17/800 흰 라벨)은 버튼
+  // 매트릭스(PaperBtn primary)와 같은 산식이라 매트릭스로 접었고, 그 로컬 립 스타일은 은퇴했다.
+  // 라이브 면만 남는 이유는 Sean 2026-08-26 의 기록 그대로다 — 라이브는 상태색이지 버튼
+  // 스타일이 아니고, 창백한 워시 아래 코랄 립은 다른 버튼이 된다.
   primaryAction: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 16, marginTop: 16 },
-  // [Sean 2026-08-26 press behaviour] the two ACTION-filled uses of primaryAction press as a
-  // physical key: 4px lip at rest, translateY(3) + 1px pressed, and the scale(0.96) they used to
-  // carry is gone (§3b — depth and scale together read as mush). The pair is NOT folded into
-  // primaryAction itself because '실시간 보기' reuses that base with a pale #ffe9e2 face, and a
-  // coral lip under a pale wash would be a different button.
-  primaryLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
-  primaryDown: {
-    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
-    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
-  },
-  primaryActionTxt: { fontSize: 17, fontWeight: '800', color: '#fff' },
   ghostAction: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE', alignItems: 'center', paddingVertical: 13, marginTop: 8 },
   cancelLink: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   cancelConfirm: { backgroundColor: paper.critical, alignItems: 'center', paddingVertical: 15, marginTop: 16 }, // 크리티컬 잉크 — 구 #e8492a는 line과 근친이라 분리 법 위반
