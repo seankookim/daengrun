@@ -19,6 +19,12 @@
 // The mutations that redden it: resolve a failed read to 'live' (or back to a boolean false) ·
 // let startRunInner proceed on 'failed' · drop the failed strip or its 다시 시도 · draw the CTA while
 // the check is failed · stop routing an 'ended' retry to the return-seal screen.
+// Added after the executing review (APPROVE-WITH-FIXES), each one a plant that stayed green before:
+// drop the verdict's mirror into render state (A5 — the strip never appears, the CTA is a dead
+// button) · drop `setEndedRetrying(false)` from the retry's finally (A6 — the strip sticks on
+// 확인 중… forever) · defang the strip's onAction (A7) · read a not-yet-started check as permission
+// while the booking id is still resolving (the review's third finding) · count a FAILED booking
+// resolution as 「no booking」 · make the retry return early when no id was resolved.
 //
 // Every pin fails LOUDLY when its anchor is absent (a renamed function reads as NO-SOURCE, red),
 // so an extractor that matched nothing cannot make an arm vacuous.
@@ -81,8 +87,8 @@ try {
 if (SRC !== null) {
   t('run.tsx parsed and is not trivially small', SRC.length > 20000, String(SRC.length));
 
-  t('🔴 [c3] the ended-check answers THREE ways — unknown has its own value',
-    /type EndedVerdict = 'ended' \| 'live' \| 'failed';/.test(SRC)
+  t('🔴 [c3] the ended-check answers with separate values — unknown has its own, apart from 「no booking」',
+    /type EndedVerdict = 'ended' \| 'live' \| 'failed' \| 'none';/.test(SRC)
     && SRC.includes('useRef<Promise<EndedVerdict> | null>(null)'));
 
   const check = bodyOf(SRC, 'const runEndedCheck = useCallback(');
@@ -93,26 +99,58 @@ if (SRC !== null) {
     JSON.stringify(catchArm));
   t('[c3] only a returned run_ended_at reads as ended; a returned row without one is live',
     check !== null && check.includes("r?.runEndedAt ? 'ended' : 'live'"));
-  t('[c3] the check is cached where startRun reads it, and mirrored into render state',
-    check !== null && check.includes('endedCheck.current = check') && check.includes('setEndedState('));
+  // [review A5] The pin used to accept any `setEndedState(` — which `setEndedState('checking')` at
+  // the top of the same function satisfies, so deleting the MIRROR (the only line that ever puts
+  // 'failed' on screen) stayed green. Pinned now as the exact statement.
+  t('🔴 [c3] the check is cached where startRun reads it, and its ANSWER is mirrored into render state',
+    check !== null && check.includes('endedCheck.current = check;')
+    && /void check\.then\(\(v\) => \{ if \(endedCheck\.current === check\) setEndedState\(v\); \}\);/.test(check),
+    JSON.stringify(check && check.slice(-260)));
+  // [review · null-check race] The booking id is resolved INSIDE the check, and a failed resolution
+  // is unknown ('failed'), never 「no booking」 ('none').
+  const resolveArm = check ? check.slice(check.indexOf('if (!runnerJob.bookingId)'), check.indexOf('const bid = runnerJob.bookingId;')) : '';
+  t('🔴 [c3] the check resolves the booking itself, and a FAILED resolution is \'failed\'',
+    check !== null && resolveArm.includes('await fetchCurrentRunnerJobId()')
+    && /catch \(e\) \{[^}]*return 'failed';\s*\}/.test(resolveArm)
+    && !/return 'none'|return 'live'/.test(resolveArm)
+    && /if \(!bid\) return 'none';/.test(check),
+    JSON.stringify(resolveArm));
+  t('[c3] the booking is resolved in ONE place — the check (no second, unchecked resolution)',
+    (SRC.match(/fetchCurrentRunnerJobId\(/g) || []).length === 1);
+  const hydrate = (() => {
+    const i = SRC.indexOf('resetTrace();');
+    const j = SRC.indexOf('await hydrateBooking(bid);', i);
+    return i > 0 && j > i ? SRC.slice(i, j + 30) : null;
+  })();
+  t('NO-SOURCE(hydrate effect)', typeof hydrate === 'string');
+  t('🔴 [c3] the hydrate starts the check SYNCHRONOUSLY — before its first await, so no tap sees 「no check」',
+    hydrate !== null && hydrate.indexOf('const check = runEndedCheck();') >= 0
+    && hydrate.indexOf('const check = runEndedCheck();') < hydrate.indexOf('await'),
+    JSON.stringify(hydrate && hydrate.slice(0, 300)));
 
   const inner = bodyOf(SRC, 'const startRunInner = async () =>');
   t('NO-SOURCE(startRunInner)', typeof inner === 'string');
-  const gate = inner ? inner.indexOf("if (verdict !== null && verdict !== 'live')") : -1;
+  const gate = inner ? inner.indexOf("if (verdict !== 'live' && verdict !== 'none')") : -1;
   const track = inner ? inner.indexOf('startTracking(') : -1;
   const server = inner ? inner.indexOf('startRunServer(') : -1;
-  t('🔴 [c3] a start goes through ONLY on a \'live\' answer, and the gate precedes both tracking and the server start',
-    gate >= 0 && track > gate && server > gate
-    && inner.includes('const verdict = endedCheck.current ? await endedCheck.current : null;'),
+  t('🔴 [c3] a start goes through ONLY on an ANSWER (\'live\' / \'none\'), and the gate precedes both tracking and the server start',
+    gate >= 0 && track > gate && server > gate,
     `gate=${gate} track=${track} server=${server}`);
+  // [review · null-check race] A missing check is NOT permission: the old `endedCheck.current ? … :
+  // null` let a tap during the booking's resolution through with no verdict at all.
+  t('🔴 [c3] startRunInner always awaits a real verdict — a check not yet started is started, never read as 「go」',
+    inner !== null && inner.includes('const verdict = await (endedCheck.current ?? runEndedCheck());')
+    && !/endedCheck\.current \? await endedCheck\.current : null/.test(inner));
   t('[c3] the retired boolean gate is gone (a truthy-only test lets 「failed」 and 「live」 both through)',
     inner !== null && !inner.includes('await endedCheck.current) return'));
 
   const strip = bodyOf(SRC, 'const blockStrip = ()', '| null => {');
   t('NO-SOURCE(blockStrip)', typeof strip === 'string' && strip.length > 200);
   const failedArm = strip ? strip.slice(strip.indexOf("endedState === 'failed'"), strip.indexOf('if (trackMode == null')) : '';
+  // [review A7] `includes('retryEndedCheck()')` was satisfied by `void 0 && retryEndedCheck()`.
   t('🔴 [c3] a failed check puts a failure strip on screen with 다시 시도, which re-reads',
-    strip !== null && failedArm.includes("'다시 시도'") && failedArm.includes('retryEndedCheck()')
+    strip !== null && failedArm.includes("'다시 시도'")
+    && failedArm.includes('onAction: () => { if (!endedRetrying) void retryEndedCheck(); },')
     && failedArm.includes('러닝 상태를 확인하지 못했어요'),
     JSON.stringify(failedArm.slice(0, 300)));
   t('[c3] busy is a LABEL SWAP on the same strip, with the busy state — not a strip that vanishes',
@@ -127,14 +165,28 @@ if (SRC !== null) {
 
   const retry = bodyOf(SRC, 'const retryEndedCheck = useCallback(');
   t('🔴 [c3] a retry that finds the run ENDED routes to the return-seal screen',
-    retry !== null && retry.includes('await runEndedCheck(bid)')
-    && /if \(v === 'ended'\) router\.replace\(\{ pathname: '\/runner\/return-seal'/.test(retry));
+    retry !== null && retry.includes('const v = await runEndedCheck();')
+    && /if \(v === 'ended' && bid\) router\.replace\(\{ pathname: '\/runner\/return-seal'/.test(retry));
+  // [review A6] Without the reset in `finally` the strip sticks on 확인 중… and the CTA stays hidden
+  // even after a 'live' answer — permanently.
+  t('🔴 [c3] the retry\'s busy state is set before the read and cleared in a FINALLY',
+    retry !== null
+    && /setEndedRetrying\(true\);\s*try \{/.test(retry)
+    && /\} finally \{\s*setEndedRetrying\(false\);\s*\}/.test(retry),
+    JSON.stringify(retry));
+  t('[c3] the retry re-runs the whole check (resolution included) — no early return on a missing id, which would make 다시 시도 dead',
+    // Property: every tap reaches the check — NO return of any shape precedes the call. (The first
+    // draft matched only `if (!bid) return` and stayed green on `if (!runnerJob.bookingId) return;`,
+    // measured in this slice's battery as R4; restated as the property, not the plant.)
+    retry !== null && retry.indexOf('runEndedCheck()') > 0
+    && !/\breturn\b/.test(retry.slice(0, retry.indexOf('runEndedCheck()')))
+    && retry.indexOf('setEndedRetrying(true)') < retry.indexOf('runEndedCheck()'));
   t('[c3] a retry that fails again is SAID — the runner just tapped',
     retry !== null && /else if \(v === 'failed'\) announce\(/.test(retry));
 
-  t('🔴 [c3] the hydrate routes an ended run to the seal screen FIRST, through the same three-way check',
-    /if \(await runEndedCheck\(bid\) === 'ended'\) \{\s*router\.replace\(\{ pathname: '\/runner\/return-seal', params: \{ bid \} \}\);\s*return;/.test(SRC)
-    && SRC.indexOf('await runEndedCheck(bid)') < SRC.indexOf('loadInfo(bid);'));
+  t('🔴 [c3] the hydrate routes an ended run to the seal screen FIRST, through the same check',
+    hydrate !== null
+    && /const verdict = await check;[\s\S]*if \(verdict === 'ended'\) \{\s*router\.replace\(\{ pathname: '\/runner\/return-seal', params: \{ bid \} \}\);\s*return;\s*\}\s*await hydrateBooking\(bid\);/.test(hydrate));
   t('[c3] there is ONE place that reads fetchReturnSeal for this check (no second, two-valued copy)',
     (SRC.match(/fetchReturnSeal\(/g) || []).length === 1);
 }

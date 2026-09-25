@@ -56,8 +56,9 @@ const MAP_MIN_H = Math.round(WIN_H * 0.26);
 
 type CamMode = 'approach' | 'fit' | 'follow' | 'free';
 /** The ended-check's answer ([codex wave 4 · c3]): the run was stopped · it was not · the read
- *  FAILED and nobody knows. Three values so 「unknown」 can never be read as 「not ended」. */
-type EndedVerdict = 'ended' | 'live' | 'failed';
+ *  FAILED and nobody knows · the server says this runner has no booking to have ended. Separate
+ *  values so 「unknown」 can never be read as 「not ended」. */
+type EndedVerdict = 'ended' | 'live' | 'failed' | 'none';
 type LatLng = { latitude: number; longitude: number };
 /** getNaverMap()이 동적 require라 컴포넌트가 any다 — ref로 쓰는 표면만 여기 좁게 적는다. */
 interface NaverMapHandle {
@@ -316,49 +317,95 @@ export default function ActiveRun() {
   //   active booking authorised every later start: tracking re-armed, the run re-recorded, and the
   //   owner got another 「러닝 시작」. Unknown is not 「not ended」. 'failed' blocks start and resume
   //   and puts a 다시 시도 on screen (`blockStrip`), which re-reads; only 'live' lets a start through.
-  const endedCheck = useRef<Promise<EndedVerdict> | null>(null); // null = no check started (no bid yet)
-  // The render-visible twin of the ref above — the strip and the CTA read it. 'idle' = no bid yet.
+  // 🔴 [codex wave 4 review] The check covers RESOLVING the booking too. It used to start only after
+  //   the hydrate had awaited `fetchCurrentRunnerJobId`, so during that await the ref was null — and
+  //   startRunInner read a null ref as 「no booking, nothing to have ended」, went on to
+  //   `startTracking`, and then read `runnerJob.bookingId` AGAIN, by which time the hydrate could
+  //   have set it: a start on a booking whose end nobody checked (the Live Activity and calendar
+  //   doors mount without an in-memory id). Now the hydrate sets the ref SYNCHRONOUSLY to one promise
+  //   that resolves the id and then reads the end state, a FAILED resolution is 'failed', and only a
+  //   resolution that answered 「no booking」 is 'none'.
+  const endedCheck = useRef<Promise<EndedVerdict> | null>(null); // set by the hydrate before any await
+  // The render-visible twin of the ref above — the strip and the CTA read it. 'idle' = not started.
   const [endedState, setEndedState] = useState<EndedVerdict | 'checking' | 'idle'>('idle');
-  const runEndedCheck = useCallback((bid: string): Promise<EndedVerdict> => {
+  const runEndedCheck = useCallback((): Promise<EndedVerdict> => {
     setEndedState('checking');
-    const check = fetchReturnSeal(bid)
-      // `null` is zero rows — a real answer (foreign or deleted booking), which the server's own
-      // start refusal then speaks for. Only a THROWN read is unknown.
-      .then((r): EndedVerdict => (r?.runEndedAt ? 'ended' : 'live'))
-      .catch((e): EndedVerdict => { console.warn('[run] ended check:', (e as Error)?.message); return 'failed'; });
+    const check = (async (): Promise<EndedVerdict> => {
+      if (!runnerJob.bookingId) {
+        try {
+          const id = await fetchCurrentRunnerJobId();
+          if (id) runnerJob.bookingId = id;
+        } catch (e) {
+          // Unknown whether there is a booking at all — and so whether its run has ended.
+          console.warn('[run] resolve:', (e as Error)?.message);
+          return 'failed';
+        }
+      }
+      const bid = runnerJob.bookingId;
+      if (!bid) return 'none';
+      return fetchReturnSeal(bid)
+        // `null` is zero rows — a real answer (foreign or deleted booking), which the server's own
+        // start refusal then speaks for. Only a THROWN read is unknown.
+        .then((r): EndedVerdict => (r?.runEndedAt ? 'ended' : 'live'))
+        .catch((e): EndedVerdict => { console.warn('[run] ended check:', (e as Error)?.message); return 'failed'; });
+    })();
     endedCheck.current = check;
     void check.then((v) => { if (endedCheck.current === check) setEndedState(v); });
     return check;
   }, []);
+  // The booking's context: info, started-at, coefficients and the saved trace. Once per booking id —
+  // the hydrate runs it when the check lets the screen stay, and a retry that RESOLVED the booking
+  // for the first time (the hydrate had nothing to load) runs it then.
+  const hydratedBid = useRef<string | null>(null);
+  const hydrateBooking = useCallback(async (bid: string) => {
+    if (hydratedBid.current === bid) return;
+    hydratedBid.current = bid;
+    loadInfo(bid);
+    refreshStartedAt();
+    fetchRunNetCoeffs(bid).then((c) => { if (c) setCoeffs({ netBase: c.netBase, netPerKm: c.netPerKm }); });
+    try {
+      const saved = await fetchRunTrace(bid);
+      if (saved.length > 1) {
+        // 서버는 t를 초로 저장한다 (club_save_run_trace와 동일 규약) — 밀리초로 되돌린다.
+        const snap = seedTrace(saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t > 1e11 ? p.t : p.t * 1000 })));
+        if (snap) {
+          trace.current = snap.trace;
+          setGpsKm(snap.km);
+          setLastPos(snap.last);
+          lastMilestone.current = Math.floor(snap.km);
+        }
+      }
+    } catch (e) { console.warn('[run] hydrate:', (e as Error)?.message); }
+  }, [loadInfo, refreshStartedAt]);
   // 다시 시도 on the failed check: read again; an ended run goes to the seal screen, a live one is
   // startable, and another failure stays a failure (and is said aloud — the runner just tapped).
   // `endedRetrying` keeps the strip on screen through the re-read with its action swapped to the
   // busy word — busy is a LABEL SWAP, never a strip that vanishes and comes back.
   const [endedRetrying, setEndedRetrying] = useState(false);
+  // The retry re-runs the WHOLE check, resolution included — a check that failed at resolving the
+  // booking has no id to re-read, and returning early there would make 다시 시도 a dead button.
   const retryEndedCheck = useCallback(async () => {
-    const bid = runnerJob.bookingId;
-    if (!bid) return;
     setEndedRetrying(true);
     try {
-      const v = await runEndedCheck(bid);
-      if (v === 'ended') router.replace({ pathname: '/runner/return-seal', params: { bid } });
+      const v = await runEndedCheck();
+      const bid = runnerJob.bookingId;
+      if (v === 'ended' && bid) router.replace({ pathname: '/runner/return-seal', params: { bid } });
       else if (v === 'failed') announce('러닝 상태를 확인하지 못했어요');
+      if (v !== 'ended' && bid) void hydrateBooking(bid);
     } finally {
       setEndedRetrying(false);
     }
-  }, [runEndedCheck]);
+  }, [runEndedCheck, hydrateBooking]);
 
   // + 트레이스 시드 (2026-08-08): 재진입 시 km이 0부터 다시 시작해 서버 트레이스를 덮어쓰던 구멍.
   useEffect(() => {
     // 공용 버퍼는 앱 전역 싱글턴이다 — 이전 러닝(클럽 포함)의 점을 물려받지 않게 먼저 비운다
     resetTrace();
+    // Synchronous: the check (booking resolution included) exists before the first await, so a
+    // tap that lands while the id is still resolving awaits a real verdict.
+    const check = runEndedCheck();
     (async () => {
-      if (!runnerJob.bookingId) {
-        try {
-          const id = await fetchCurrentRunnerJobId();
-          if (id) runnerJob.bookingId = id;
-        } catch (e) { console.warn('[run] resolve:', (e as Error)?.message); }
-      }
+      const verdict = await check;
       const bid = runnerJob.bookingId;
       if (!bid) return;
       // [runner-journey-2] A run that has already been STOPPED is not this screen's to show. Since
@@ -368,26 +415,11 @@ export default function ActiveRun() {
       // [codex wave 4 · c3] A FAILED read no longer falls through as 「not ended」: the booking's
       // context still loads below (the chat pin, the incident door and the map stay reachable),
       // but start and resume are blocked behind the 다시 시도 strip until a read answers.
-      if (await runEndedCheck(bid) === 'ended') {
+      if (verdict === 'ended') {
         router.replace({ pathname: '/runner/return-seal', params: { bid } });
         return;
       }
-      loadInfo(bid);
-      refreshStartedAt();
-      fetchRunNetCoeffs(bid).then((c) => { if (c) setCoeffs({ netBase: c.netBase, netPerKm: c.netPerKm }); });
-      try {
-        const saved = await fetchRunTrace(bid);
-        if (saved.length > 1) {
-          // 서버는 t를 초로 저장한다 (club_save_run_trace와 동일 규약) — 밀리초로 되돌린다.
-          const snap = seedTrace(saved.map((p) => ({ lat: p.lat, lng: p.lng, t: p.t > 1e11 ? p.t : p.t * 1000 })));
-          if (snap) {
-            trace.current = snap.trace;
-            setGpsKm(snap.km);
-            setLastPos(snap.last);
-            lastMilestone.current = Math.floor(snap.km);
-          }
-        }
-      } catch (e) { console.warn('[run] hydrate:', (e as Error)?.message); }
+      await hydrateBooking(bid);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1183,12 +1215,14 @@ export default function ActiveRun() {
   };
   const startRunInner = async () => {
     setRationale(false);
-    // [codex wave 4 · c3] Only a check that ANSWERED 「live」 lets a start through. 'ended': the
-    // hydrate (or the retry) is already replacing this screen. 'failed': unknown is not 「not
-    // ended」 — the strip carries the 다시 시도, and tracking stays off. A null check means no
-    // booking was resolved, so there is no run to have ended (unchanged).
-    const verdict = endedCheck.current ? await endedCheck.current : null;
-    if (verdict !== null && verdict !== 'live') {
+    // [codex wave 4 · c3] Only a check that ANSWERED lets a start through: 'live', or 'none' (the
+    // server said this runner has no booking, so there is no run to have ended — unchanged).
+    // 'ended': the hydrate (or the retry) is already replacing this screen. 'failed': unknown is
+    // not 「not ended」 — the strip carries the 다시 시도, and tracking stays off. The hydrate sets
+    // the check before its first await; should a tap ever beat the mount effect, it starts one
+    // here rather than read 「no check」 as permission.
+    const verdict = await (endedCheck.current ?? runEndedCheck());
+    if (verdict !== 'live' && verdict !== 'none') {
       if (verdict === 'failed') announce('러닝 상태를 확인하지 못했어요');
       return;
     }
