@@ -18,16 +18,28 @@
 // choice lives: **only a read that ANSWERED and said 「not gated」 opens the door.** Loading,
 // failed, and a read that answered with no gate object at all (`null` — `fetchRunnerWorkGate`
 // returns it only when there is no signed-in user) all keep every accept door shut.
-// (Runner HOME still keeps its door live on a failed read and says so in the door's own subline —
-// a different screen, not changed by this slice.)
+// (Runner HOME used to keep its door live on a failed read and say so in the door's own subline.
+// Since fix/custody-strand-client it reads THIS module too — the parity 요청 already had — so a
+// failed or unanswered read shuts the front ticket's 수락 door on both screens alike.)
 //
 // ═══ THE PROPERTY, stated without reference to any mutation ═══
 // `acceptOpen` is true for exactly one input shape: a gate object whose `gated` is `false`. Every
 // other input — including every failure — returns `acceptOpen: false` AND a non-null reason, so a
 // shut door is never shut silently.
+//
+// ⚠ [0224 · Codex s2, fix/custody-strand-client] A GATED door's reason is no longer one constant.
+// It said 「반환 확인이 끝나야 수락할 수 있어요」 for every gated answer — true for the three return
+// words and FALSE for the two 0224 added (`start_run` / `end_run`: a dog in custody whose run never
+// started or never stopped) and for an open incident whose run never ended. The reason now comes
+// from `workGateStrip()` (work-gate-strip.ts), the same reading that draws the strip, so the door's
+// VoiceOver reason and the strip's sentence cannot name two different causes. The DECISION —
+// `acceptOpen` — is unchanged and still reads `gated` alone.
 
-/** The one field of `RunnerWorkGate` (api.ts) this decision reads. */
-export interface WorkGateFacts { gated: boolean }
+import { workGateStrip, RETURN_DOOR_BLOCKED_KO, type WorkGateStripFacts } from './work-gate-strip';
+
+/** The fields of `RunnerWorkGate` (api.ts) this decision reads: `gated` decides the door; the rest
+ *  only choose the shut door's reason (and are optional so a bare `{ gated }` still type-checks). */
+export type WorkGateFacts = WorkGateStripFacts;
 
 /**
  * Four inputs, not two — the same idiom as `ApplicationRead`:
@@ -60,7 +72,10 @@ export interface WorkGateDoor {
 export const GATE_CHECKING_KO = '수락 가능 여부를 확인하는 중이에요';
 export const GATE_FAILED_KO = '수락 가능 여부를 확인하지 못했어요';
 export const GATE_RETRY_KO = '다시 시도';
-export const GATE_SHUT_REASON_KO = '반환 확인이 끝나야 수락할 수 있어요';
+/** The return reading's shut-door sentence — the same words the 요청 strip and home's blocked door
+ *  already print for it (one wording per state; it read 「…끝나야 수락할 수 있어요」 until 0224's slice
+ *  moved every gated reason onto the strip's reading). */
+export const GATE_SHUT_REASON_KO = RETURN_DOOR_BLOCKED_KO;
 
 export function workGateDoor(read: WorkGateRead): WorkGateDoor {
   if (read === 'loading') {
@@ -74,7 +89,10 @@ export function workGateDoor(read: WorkGateRead): WorkGateDoor {
       return { acceptOpen: true, notice: 'none', lead: null, retry: null, doorReason: null };
     }
     if (read.gated === true) {
-      return { acceptOpen: false, notice: 'gated', lead: null, retry: null, doorReason: GATE_SHUT_REASON_KO };
+      // The reason is the strip's own reading of this answer — a return, a stranded start or end,
+      // an open incident, or the neutral fail-closed face for a word this build cannot read.
+      const reason = workGateStrip(read)?.doorBlocked ?? GATE_SHUT_REASON_KO;
+      return { acceptOpen: false, notice: 'gated', lead: null, retry: null, doorReason: reason };
     }
   }
   // A failed read, a read that answered with nothing, and an unreadable answer are the same fact

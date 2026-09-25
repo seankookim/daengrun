@@ -28,6 +28,10 @@ const path = require('node:path');
 const {
   workGateDoor, GATE_CHECKING_KO, GATE_FAILED_KO, GATE_RETRY_KO, GATE_SHUT_REASON_KO,
 } = require('./work-gate-door.build.cjs');
+// [0224 · fix/custody-strand-client] The gated reason now comes from `workGateStrip()`'s reading, so
+// the strip module is bundled INTO this build (work-gate-door imports it) — these constants are
+// read back through the strip's own exports via a second build of the same source.
+const WGS = require('./work-gate-door.strip.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -37,7 +41,13 @@ const t = (name, cond, detail = '') => {
 const J = (x) => JSON.stringify(x);
 
 const OPEN = { gated: false, bookingId: null, rawStatus: null, waitingOn: null };
-const SHUT = { gated: true, bookingId: 'bk-1', rawStatus: 'completed', waitingOn: 'runner' };
+// [0224] SHUT is now a shape the server actually returns (an `active` run with a stamped end whose
+// runner stamp is owed — exit `runner_confirm_return`). It used to be `rawStatus: 'completed'` with no
+// exit, which no gate arm produces; since the shut reason became the strip's reading, a fixture the
+// server cannot produce reads as the neutral fail-closed face — correctly — and would have measured
+// that face instead of the return reason this pin is about.
+const SHUT = { gated: true, bookingId: 'bk-1', rawStatus: 'active', runEndedAt: '2026-09-25T09:00:00Z',
+  waitingOn: 'runner', exit: 'runner_confirm_return' };
 
 // ── ① the four inputs, each on its own ──────────────────────────────────────────────────────────
 {
@@ -49,6 +59,31 @@ const SHUT = { gated: true, bookingId: 'bk-1', rawStatus: 'completed', waitingOn
   const d = workGateDoor(SHUT);
   t('known GATED → door shut, the strip draws the reason, and the door says why to VoiceOver',
     d.acceptOpen === false && d.notice === 'gated' && d.doorReason === GATE_SHUT_REASON_KO && d.retry === null, J(d));
+}
+// ── ①-bis [0224 · Codex s2] the SHUT reason names the real cause, per reading ───────────────────
+// It was one constant — 「반환 확인이 끝나야 수락할 수 있어요」 — for every gated answer, which is
+// false for a stranded START or END and for an open incident whose run never ended.
+{
+  const start = workGateDoor({ gated: true, bookingId: 'bk-2', rawStatus: 'picked_up', runEndedAt: null,
+    waitingOn: 'start_run', exit: 'runner_start_run' });
+  const end = workGateDoor({ gated: true, bookingId: 'bk-3', rawStatus: 'active', runEndedAt: null,
+    waitingOn: 'end_run', exit: 'runner_end_run' });
+  const future = workGateDoor({ gated: true, bookingId: 'bk-4', rawStatus: 'active', runEndedAt: null,
+    waitingOn: 'unknown', exit: 'unknown' });
+  const incident = workGateDoor({ gated: true, bookingId: 'bk-5', rawStatus: 'incident_review', runEndedAt: null,
+    waitingOn: 'both', exit: 'both_confirm_return' });
+  t('🔴 0224 · a stranded START shuts the door with the START reason, never the return one',
+    start.acceptOpen === false && start.notice === 'gated' && start.doorReason === WGS.START_DOOR_BLOCKED_KO, J(start));
+  t('🔴 0224 · a stranded END shuts the door with the END reason',
+    end.acceptOpen === false && end.doorReason === WGS.END_DOOR_BLOCKED_KO, J(end));
+  t('🔴 0224 · a word this build cannot read shuts the door with the NEUTRAL reason (fail closed)',
+    future.acceptOpen === false && future.doorReason === WGS.UNKNOWN_DOOR_BLOCKED_KO, J(future));
+  t('an open incident whose run never ended says the operator is checking — not 「반환 확인이 끝나면」',
+    incident.acceptOpen === false && incident.doorReason === WGS.INCIDENT_DOOR_BLOCKED_KO, J(incident));
+  t('the return reason is the strip\'s own return sentence (one wording per state)',
+    GATE_SHUT_REASON_KO === WGS.RETURN_DOOR_BLOCKED_KO);
+  t('no gated reason mentions 반환 unless the reading IS a return',
+    [start, end, future, incident].every((x) => !/반환/.test(x.doorReason)));
 }
 {
   const d = workGateDoor('error');
@@ -171,8 +206,10 @@ t('c2 · the paint follows the same flag (inert and coral both read door.acceptO
 t('🔴 c2 · the failed line is drawn, and its 다시 시도 re-runs the read (onPress={load})',
   /door\.notice === 'failed'[\s\S]{0,400}onPress=\{load\}[\s\S]{0,300}\{door\.retry\}/.test(code),
   'a failed read shuts the doors with no reason and no way out');
+// [0224] the strip is keyed on the helper's `gated` notice AND drawn from `workGateStrip()`'s reading
+// (it was `gate !== null` + a hand-written return strip; work-gate-strip.test.cjs P4 owns the rest).
 t('c2 · the gate strip is keyed on the helper\'s `gated` notice, not on a separate flag',
-  /door\.notice === 'gated' && gate !== null/.test(code));
+  /door\.notice === 'gated' && gateStrip !== null/.test(code) && code.includes('const gateStrip = workGateStrip(gate);'));
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

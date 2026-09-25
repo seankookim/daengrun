@@ -9,6 +9,7 @@ import { Avatar, Row } from '../../src/components/ui';
 import { acceptBooking, acceptReschedule, AvailRule, declineBooking, declineReschedule, fetchMyAvailability, fetchMyRunnerApplication, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, fetchRunnerWorkGate, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerApplication, RunnerJob, RunnerWorkGate } from '../../src/lib/api';
 import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
 import { workGateDoor, type WorkGateRead } from '../../src/lib/work-gate-door';
+import { workGateStrip } from '../../src/lib/work-gate-strip';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -409,6 +410,8 @@ export default function Requests() {
   // `gate` is the answered gate object, or null in every other state; only the strip reads it.
   const door = workGateDoor(gateRead);
   const gate = gateRead !== null && typeof gateRead === 'object' ? gateRead : null;
+  // [0224 · Codex s2] the strip's reading of the answered gate — shared with home.
+  const gateStrip = workGateStrip(gate);
   // [runner-journey-4] 지금 동작 중인 문 = 예약 × 액션. 나머지 문은 눌러도 아무 일이 없으므로
   // disabledFill로 내려간다 (theme.ts 매트릭스: 명시 fill, 불투명도 트릭 금지).
   const busyAny = accepting ?? declining;
@@ -928,40 +931,45 @@ export default function Requests() {
             </Pressable>
           </View>
         )}
-        {door.notice === 'gated' && gate !== null && (
-          <Pressable
-            onPress={() => {
-              if (gate.waitingOn === 'owner' || !gate.bookingId) return;
-              router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
-            }}
-            disabled={gate.waitingOn === 'owner' || !gate.bookingId}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: gate.waitingOn === 'owner' || !gate.bookingId }}
-            accessibilityLabel={gate.waitingOn === 'owner'
-              ? '보호자 확인 대기 중이라 지금은 수락할 수 없어요'
-              : '반환 봉인 화면으로 이동'}
-            style={({ pressed }) => [
-              s.gateStrip,
-              pressed && gate.waitingOn !== 'owner' && !!gate.bookingId && { backgroundColor: paper.wash },
-            ]}
-          >
+        {/* ⚠ [0224 · Codex s2 — 「both runner strips」] This strip drew 「반환 봉인 찍기 ›」 →
+            /runner/return-seal for every gated answer that was not `owner`. 0224 added two answers
+            that are not about a return — `start_run` / `end_run`, a dog in custody whose run never
+            started or never stopped — and return-seal refuses both (`if (!s.runEndedAt)`), as does
+            `confirm_return_tx` (`run_not_ended`). The strip now draws `workGateStrip()`'s reading
+            (src/lib/work-gate-strip.ts, the same one home draws): each word its own sentence and its
+            own exit, and an answer this build cannot read falls CLOSED to a neutral sentence with
+            no exit. The return words keep this screen's shipped copy. A strip with no exit is a
+            SENTENCE, not a disabled button. */}
+        {door.notice === 'gated' && gateStrip !== null && (() => {
+          const g = gateStrip;
+          const lines = (
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={s.gateWhy}>
-                {gate.rawStatus === 'incident_review'
-                  ? '담당자가 확인하는 동안에는 수락할 수 없어요'
-                  : '반환 확인이 끝나면 여기서 수락할 수 있어요'}
-              </Text>
-              <Text style={s.gateSub}>
-                {gate.waitingOn === 'owner'
-                  ? '내 봉인은 끝났어요 — 보호자가 찍으면 열려요 · 시작 시각 전까지 요청은 남아 있어요'
-                  : '시작 시각 전까지 요청은 남아 있어요'}
-              </Text>
+              <Text style={s.gateWhy}>{g.requestsWhy}</Text>
+              <Text style={s.gateSub}>{g.requestsSub}</Text>
             </View>
-            {gate.waitingOn !== 'owner' && !!gate.bookingId && (
-              <Text style={s.gateExit}>반환 봉인 찍기 ›</Text>
-            )}
-          </Pressable>
-        )}
+          );
+          const x = g.exit;
+          return x ? (
+            <Pressable
+              onPress={() => {
+                // /runner/meetup and /runner/run take no param and read the store — write it first,
+                // exactly as home's openJob does before it pushes any of these three.
+                runnerJob.bookingId = x.bookingId;
+                router.push(x.href);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${g.requestsWhy} — ${x.a11y}`}
+              style={({ pressed }) => [s.gateStrip, pressed && { backgroundColor: paper.wash }]}
+            >
+              {lines}
+              <Text style={s.gateExit}>{x.label}</Text>
+            </Pressable>
+          ) : (
+            <View style={s.gateStrip} accessible accessibilityLabel={`${g.requestsWhy} — ${g.requestsSub}`}>
+              {lines}
+            </View>
+          );
+        })()}
 
         {/* ---------- 실시간 요청 (Supabase) — 지명 먼저, 근처는 그 아래 ---------- */}
         {directed.map(renderRequest)}
