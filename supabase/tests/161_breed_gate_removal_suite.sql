@@ -433,10 +433,21 @@ declare
   --    with it (still carries `[0111]`). 257 `0226-C2`/`C3`/`C4` own the new behaviour.
   --    Previous values: src 664d37c9c420c39cfda089074cecb287 / 7531, comment
   --    288f4ad1e693de55cb6ad0ff2b0d56e6 / 492.
-  c_gen_src_md5 constant text := 'da4bb3cd510442ab24657eff0e314d14';
-  c_gen_src_len constant int  := 8231;
-  c_gen_cmt_md5 constant text := 'ec485f1cac0f9fb241919427ce950e8b';
-  c_gen_cmt_len constant int  := 522;
+  -- ⚠ [0227] RE-READ FROM THE CATALOG on 2026-09-25 after 0227 applied, as the note above asks.
+  --    The body moved ON PURPOSE and ONLY by containment: each series' work now runs in its own
+  --    `begin … exception when others` block (the Codex s1 shape 0226 §0d named here — one faulting
+  --    series aborted the whole hourly tick), whose handler raises a WARNING and records the series in
+  --    `recurring_generation_failures` inside a nested block; two `declare` lines carry the SQLSTATE
+  --    and message. 0227 §B built the body BY SCRIPT from 0226's and asserted that removing those
+  --    insertions and dedenting the loop body by two spaces gives 0226's text byte for byte — so every
+  --    line this arm froze before is still there, one indent deeper. The comment gained one `[0227]`
+  --    stanza (still carries `[0111]`). 258 `0227-R1`/`R2`/`R3`/`V1`/`G1` own the new behaviour.
+  --    Previous values: src da4bb3cd510442ab24657eff0e314d14 / 8231, comment
+  --    ec485f1cac0f9fb241919427ce950e8b / 522.
+  c_gen_src_md5 constant text := '6dacd315c158269553b56dc8befc0495';
+  c_gen_src_len constant int  := 10920;
+  c_gen_cmt_md5 constant text := '5a249225fd11f029cca76670681af673';
+  c_gen_cmt_len constant int  := 792;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have
@@ -883,7 +894,7 @@ begin
     end if;
 
     if v_bad = ''
-      then call _pass('mgn-off','P4 크론이 0111로 되돌아왔다 — 본문이 0111 복원본과 **바이트 단위로 동일**하고(prosrc md5 고정), 0119의 벨트 문자열이 하나도 없으며, 0111 ⓔ 소유권 벨트와 0080 결제 게이트는 그대로고, 카탈로그 형상도 plpgsql/definer/volatile/returns int이며, 소유자는 손대지 않은 definer 동료와 같고, public·anon·authenticated 누구도 실행할 수 없으며, search_path는 본문에 있고 주석도 0111의 것과 정확히 같다. ⚠ 이 핀이 없던 동안에는 리터럴 몇 개만 언급하는 빈 스텁도 통과했다 — 「게이트가 사라졌다」와 「기능이 죽었다」를 가르는 게 이 핀의 존재 이유다. ⚠ 복원은 0111의 무-행별-격리 의미까지 되돌린다 — 의도된 결정이며 0127 헤더가 그렇게 말한다');
+      then call _pass('mgn-off','P4 크론이 0111로 되돌아왔다 — 본문이 0111 복원본과 **바이트 단위로 동일**하고(prosrc md5 고정), 0119의 벨트 문자열이 하나도 없으며, 0111 ⓔ 소유권 벨트와 0080 결제 게이트는 그대로고, 카탈로그 형상도 plpgsql/definer/volatile/returns int이며, 소유자는 손대지 않은 definer 동료와 같고, public·anon·authenticated 누구도 실행할 수 없으며, search_path는 본문에 있고 주석도 0111의 것과 정확히 같다. ⚠ 이 핀이 없던 동안에는 리터럴 몇 개만 언급하는 빈 스텁도 통과했다 — 「게이트가 사라졌다」와 「기능이 죽었다」를 가르는 게 이 핀의 존재 이유다. ⚠ [0227] 0127 restored 0111''s NO-per-row-isolation semantics on purpose (its header says so); 0227 added per-series isolation, and that behaviour is 258 0227-R1…G1''s');
     else v_msg := v_bad; call _fail('mgn-off','P4 크론 복원', v_msg); end if;
   exception when others then v_msg := sqlerrm; call _fail('mgn-off','P4 크론 복원', v_msg);
   end;
