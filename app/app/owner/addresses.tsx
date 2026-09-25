@@ -308,9 +308,7 @@ export default function Addresses() {
             </Row>
           </View>
         ) : (
-          <Pressable style={s.addBtn} onPress={() => setAdding(true)} accessibilityRole="button" accessibilityLabel="주소 추가">
-            <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>＋ 주소 추가</Text>
-          </Pressable>
+          <PaperBtn label="＋ 주소 추가" variant="secondary" onPress={() => setAdding(true)} />
         )}
       </View>
 
@@ -368,8 +366,4 @@ const s = StyleSheet.create({
   // 아니라 안내다 — criticalWash는 쓰지 않는다)
   verifyHit: { backgroundColor: paper.paceGoodWash, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8 },
   verifyMiss: { backgroundColor: paper.wash, paddingVertical: 10, paddingHorizontal: 12, marginTop: 8 },
-  addBtn: {
-    borderWidth: 1, borderColor: paper.line, alignItems: 'center', paddingVertical: 14,
-    backgroundColor: paper.canvas,
-  },
 });

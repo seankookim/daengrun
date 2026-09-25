@@ -305,7 +305,7 @@ const s = StyleSheet.create({
     width: 40, height: 40, backgroundColor: paper.canvas, alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: paper.line,
   },
-  title: { fontSize: 24, fontWeight: '900', color: paper.ink, paddingHorizontal: PAD, marginTop: 12 },
+  title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, paddingHorizontal: PAD, marginTop: 12 },
   banner: {
     paddingHorizontal: PAD, paddingTop: 8, paddingBottom: 12,
     borderBottomWidth: 1, borderBottomColor: paper.line,

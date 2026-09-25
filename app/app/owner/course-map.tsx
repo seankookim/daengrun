@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { fetchAddresses, fetchRoutes } from '../../src/lib/api';
 import { CourseDetailBody, traceKind, TRACE_NOTE } from '../../src/components/course-detail';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { emptyChipCopy, matchesChips, RouteChipRow, useRouteChips } from '../../src/components/route-chips';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { useNumFont } from '../../src/lib/fonts';
@@ -397,7 +398,7 @@ export default function CourseMap() {
             <View style={s.infoCard}>
               <Text style={s.infoTitle}>아직 실측된 코스가 없어요</Text>
               <Text style={s.infoBody}>
-                {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만듭니다.
+                {routes.length}개 코스의 만남 장소는 정해져 있고, 첫 반려견 동반 러닝이 그 코스의 지도를 만들어요.
               </Text>
             </View>
           </View>
@@ -416,7 +417,7 @@ export default function CourseMap() {
           <View style={s.infoWrap}>
             <View style={[s.infoCard, { borderColor: paper.critical }]}>
               <Text style={[s.infoTitle, { color: paper.critical }]}>코스를 불러오지 못했어요</Text>
-              <Pressable onPress={load} style={s.retry} accessibilityRole="button"><Text style={s.retryTxt}>다시 시도</Text></Pressable>
+              <PaperBtn label="다시 시도" variant="secondary" onPress={load} style={{ marginTop: 10 }} />
             </View>
           </View>
         )}
@@ -449,17 +450,12 @@ export default function CourseMap() {
 
         {detent === 'peek' && (
           <View style={{ paddingHorizontal: 14 }}>
-            <Pressable
+            <PaperBtn
+              label={!sel ? '코스를 선택해주세요' : isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
               onPress={book}
               disabled={!sel}
-              accessibilityRole="button"
-              style={({ pressed }) => [s.cta, isCand && { backgroundColor: paper.pending },
-                !sel && { backgroundColor: paper.disabledFill }, pressed && { opacity: 0.92 }]}
-            >
-              <Text style={[s.ctaTxt, !sel && { color: paper.dim }]}>
-                {!sel ? '코스를 선택해주세요' : isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
-              </Text>
-            </Pressable>
+              style={{ marginTop: 12 }}
+            />
           </View>
         )}
 
@@ -469,9 +465,7 @@ export default function CourseMap() {
             {shown.length === 0 ? (
               <View style={{ paddingTop: 8 }}>
                 <Text style={s.emptyTxt}>{emptyChipCopy(chips)}</Text>
-                <Pressable onPress={clearChips} style={s.clearBtn} accessibilityRole="button">
-                  <Text style={s.clearTxt}>필터 해제</Text>
-                </Pressable>
+                <PaperBtn label="필터 해제" variant="quiet" onPress={clearChips} style={{ marginTop: 10 }} />
               </View>
             ) : shown.map((r) => {
               const on = r.id === selId;
@@ -519,9 +513,7 @@ export default function CourseMap() {
               <Text style={s.detailHint}>지도의 앵커를 탭하거나 목록에서 고르면 여기에 상세가 열려요</Text>
             )}
             {state === 'error' && (
-              <Pressable onPress={load} style={s.clearBtn} accessibilityRole="button">
-                <Text style={s.clearTxt}>다시 시도</Text>
-              </Pressable>
+              <PaperBtn label="다시 시도" variant="secondary" onPress={load} style={{ marginTop: 10 }} />
             )}
           </View>
         )}
@@ -531,10 +523,12 @@ export default function CourseMap() {
             {/* 본문은 `course/[id]`와 **같은 컴포넌트**다 — 두 화면이 같은 코스에 대해 다른
                 말을 하지 않도록. 지도는 위에 남아 맥락을 잃지 않는다 */}
             <CourseDetailBody route={sel} />
-            <Pressable onPress={book} accessibilityRole="button"
-              style={({ pressed }) => [s.cta, isCand && { backgroundColor: paper.pending }, pressed && { opacity: 0.92 }]}>
-              <Text style={s.ctaTxt}>{isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}</Text>
-            </Pressable>
+            <PaperBtn
+              label={!sel ? '코스를 선택해주세요' : isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
+              onPress={book}
+              disabled={!sel}
+              style={{ marginTop: 12 }}
+            />
           </ScrollView>
         )}
       </Animated.View>
@@ -566,8 +560,6 @@ const s = StyleSheet.create({
   },
   infoTitle: { fontSize: 16, fontWeight: '800', color: paper.ink },
   infoBody: { fontSize: 15, color: paper.dim, marginTop: 5, lineHeight: 20 },
-  retry: { marginTop: 10, borderWidth: 1.5, borderColor: paper.ink, paddingVertical: 10, alignItems: 'center', minHeight: 44, justifyContent: 'center' },
-  retryTxt: { fontSize: 15, fontWeight: '800', color: paper.ink },
 
   sheet: {
     position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: paper.canvas,
@@ -584,9 +576,6 @@ const s = StyleSheet.create({
   km: { fontSize: 26, lineHeight: 32, fontWeight: '800', color: paper.ink, marginLeft: 10 },
   kmUnit: { fontSize: 15, color: paper.faint, fontWeight: '700' },
 
-  cta: { backgroundColor: paper.action, paddingVertical: 15, alignItems: 'center', marginTop: 12, minHeight: 44, justifyContent: 'center' },
-  ctaTxt: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
-
   li: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F0EEE9', minHeight: 44 },
   liOn: { backgroundColor: paper.wash, borderLeftWidth: 3, borderLeftColor: paper.line, marginHorizontal: -14, paddingHorizontal: 14 },
   liName: { fontSize: 16, fontWeight: '800', color: paper.ink, flexShrink: 1 },
@@ -598,7 +587,5 @@ const s = StyleSheet.create({
 
   emptyTxt: { fontSize: 15, color: paper.text, fontWeight: '700' },
   detailHint: { fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 20 },
-  clearBtn: { marginTop: 10, borderWidth: 1.5, borderColor: paper.line, paddingVertical: 10, paddingHorizontal: 14, alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center' },
-  clearTxt: { fontSize: 15, fontWeight: '800', color: paper.ink },
 
 });

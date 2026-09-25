@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Own Bubble Lab</title>
+<style>
+  :root{ --ink:#111111; --text:#333333; --dim:#666666; --faint:#999999; --canvas:#FFFFFF;
+    --action:#C6472C; --actionPressed:#A83315; --actionInk:#A83315; --line:#E8552F; --wash:#FFF6F4;
+    --hair:#EEEEEE; --volt:#C6F542; --violet:#6C5CE7;
+    --page:#F3F2EF; --panel:#FFFFFF; --panelHair:#DEDCD6; --pageInk:#111111; --pageDim:#666666; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+    --page:#151513; --panel:#1D1D1A; --panelHair:#33332E; --pageInk:#F2F1EC; --pageDim:#9C9A92; } }
+  :root[data-theme="dark"]{ --page:#151513; --panel:#1D1D1A; --panelHair:#33332E; --pageInk:#F2F1EC; --pageDim:#9C9A92; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--pageInk);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1100px;margin:0 auto;padding:30px 16px 70px}
+  header.top{border-bottom:2.5px solid var(--pageInk);padding-bottom:13px}
+  h1{font-size:25px;line-height:1.15;margin:0 0 5px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--pageDim);font-size:14.5px;margin:0}
+  .note{background:var(--panel);border:1px solid var(--panelHair);padding:13px 16px;margin:16px 0 4px;font-size:13.5px;line-height:1.6}
+  .note h4{margin:0 0 7px;font-size:12.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--pageDim)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-top:20px}
+  .card{background:var(--panel);border:1px solid var(--panelHair);display:flex;flex-direction:column;min-width:0}
+  .card.ref{opacity:1;border-style:dashed}
+  .cardhd{padding:13px 15px;border-bottom:1px solid var(--panelHair)}
+  .num{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--violet)}
+  .cardhd h3{margin:3px 0 3px;font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .cardhd p{margin:0;font-size:12.5px;color:var(--pageDim);line-height:1.45}
+  /* the phone is always the product's light paper world, whatever the page theme is */
+  .phone{margin:15px;border:1.5px solid #111;background:var(--canvas);color:var(--ink);overflow:hidden}
+  .hd{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--hair)}
+  .back{width:40px;height:40px;border-radius:20px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;font-size:20px}
+  .mono{width:40px;height:40px;border-radius:20px;background:#c9a86e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .peer{font-size:17px;font-weight:900}
+  .live{font-size:15px;color:var(--dim)}
+  .strip{background:var(--wash);padding:8px 15px;font-size:15px;font-weight:700;color:var(--text)}
+  .thread{padding:15px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;align-items:flex-end;gap:6px}
+  .row.mine{justify-content:flex-end}
+  .t{font-size:15px;color:var(--dim);margin-bottom:3px}
+  .b{max-width:76%;border-radius:18px;padding:10px 14px;font-size:15.5px;line-height:22px}
+  .b.peer{background:#fff;border:1px solid var(--hair);border-bottom-left-radius:6px;color:#2c332c}
+  .rc{font-size:15px;color:var(--dim);align-self:flex-end;margin-right:2px}
+  .bar{display:flex;align-items:center;gap:8px;padding:14px 14px 22px;border-top:1px solid var(--hair)}
+  .att{width:38px;height:38px;border-radius:19px;border:1px solid var(--hair);display:flex;align-items:center;justify-content:center;font-size:17px}
+  .inp{flex:1;border:1px solid var(--hair);border-radius:22px;padding:11px 16px;font-size:16px;color:#a9a795}
+  .send{width:42px;height:42px;border-radius:21px;background:var(--action);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900}
+  /* own-bubble variants */
+  .b.mine{border-bottom-right-radius:6px}
+  .v0 .b.mine{background:var(--volt);color:var(--ink)}
+  .v1 .b.mine{background:var(--ink);color:#fff}
+  .v2 .b.mine{background:var(--wash);border:1px solid var(--line);color:var(--ink)}
+  .verdict{padding:11px 15px;border-top:1px solid var(--panelHair);font-size:12.5px;line-height:1.5}
+  .pro{color:#0E7F49;font-weight:800}.con{color:var(--action);font-weight:800}
+  footer{margin-top:32px;border-top:2.5px solid var(--pageInk);padding-top:14px;font-size:13.5px;line-height:1.65}
+</style>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>Chat — the own-message bubble, two variants</h1>
+  <p class="sub">ui/paper-polish moved chat.tsx onto paper (white header and input bar, #EEEEEE hairlines, coral send key, wash context strip). It deliberately did <b>not</b> recolour <code>bubbleMine</code>, which is still the retired volt. Pick ① or ②, or keep ⓪.</p>
+</header>
+
+<div class="note">
+  <h4>What is fixed in every card</h4>
+  Everything except the right-hand bubble is what the slice shipped: peer bubble white with a #EEEEEE border, 「읽음」 receipt under the last read message, send key <code>paper.action</code> with a white ↑. Copy in the phones is sample text for the lab only — the app binds real messages.
+</div>
+
+<div class="grid">
+
+  <section class="card ref v0">
+    <div class="cardhd">
+      <div class="num">⓪ · CURRENT (REFERENCE)</div>
+      <h3>Volt fill, ink text</h3>
+      <p><code>colors.volt</code> #C6F542 · <code>paper.ink</code> label. The last volt surface on the screen after this slice.</p>
+    </div>
+    <div class="phone">
+      <div class="hd"><div class="back">‹</div><div class="mono">김</div><div><div class="peer">김러너</div><div class="live">● 실시간 연결됨</div></div></div>
+      <div class="strip">9월 27일 (토) 18:00 · 반포 한강 3km</div>
+      <div class="thread">
+        <div class="row"><div class="b peer">안녕하세요! 10분 전에 도착할게요</div><div class="t">17:42</div></div>
+        <div class="row mine"><div class="t">17:43</div><div class="b mine">네 1층 로비에서 만나요</div></div>
+        <div class="rc">읽음</div>
+      </div>
+      <div class="bar"><div class="att">▣</div><div class="inp">메시지 보내기</div><div class="send">↑</div></div>
+    </div>
+    <div class="verdict"><span class="con">Con</span> the only retired-palette colour left on a paper screen; it no longer belongs to any role in <code>theme.ts</code>.</div>
+  </section>
+
+  <section class="card v1">
+    <div class="cardhd">
+      <div class="num">①</div>
+      <h3>Ink fill, white text</h3>
+      <p><code>paper.ink</code> #111111 · white label (18.9:1).</p>
+    </div>
+    <div class="phone">
+      <div class="hd"><div class="back">‹</div><div class="mono">김</div><div><div class="peer">김러너</div><div class="live">● 실시간 연결됨</div></div></div>
+      <div class="strip">9월 27일 (토) 18:00 · 반포 한강 3km</div>
+      <div class="thread">
+        <div class="row"><div class="b peer">안녕하세요! 10분 전에 도착할게요</div><div class="t">17:42</div></div>
+        <div class="row mine"><div class="t">17:43</div><div class="b mine">네 1층 로비에서 만나요</div></div>
+        <div class="rc">읽음</div>
+      </div>
+      <div class="bar"><div class="att">▣</div><div class="inp">메시지 보내기</div><div class="send">↑</div></div>
+    </div>
+    <div class="verdict"><span class="pro">Pro</span> ink is the matrix's STATE colour ("mine" is a state, not an action), highest contrast, strongest left/right read. <span class="con">Con</span> a thread of your own messages becomes a column of black plates — the 「black is boring」 note from 2026-08-11 was about buttons, but the weight is the same.</div>
+  </section>
+
+  <section class="card v2">
+    <div class="cardhd">
+      <div class="num">②</div>
+      <h3>Coral wash, coral hairline, ink text</h3>
+      <p><code>paper.wash</code> #FFF6F4 · 1px <code>paper.line</code> · <code>paper.ink</code> label.</p>
+    </div>
+    <div class="phone">
+      <div class="hd"><div class="back">‹</div><div class="mono">김</div><div><div class="peer">김러너</div><div class="live">● 실시간 연결됨</div></div></div>
+      <div class="strip">9월 27일 (토) 18:00 · 반포 한강 3km</div>
+      <div class="thread">
+        <div class="row"><div class="b peer">안녕하세요! 10분 전에 도착할게요</div><div class="t">17:42</div></div>
+        <div class="row mine"><div class="t">17:43</div><div class="b mine">네 1층 로비에서 만나요</div></div>
+        <div class="rc">읽음</div>
+      </div>
+      <div class="bar"><div class="att">▣</div><div class="inp">메시지 보내기</div><div class="send">↑</div></div>
+    </div>
+    <div class="verdict"><span class="pro">Pro</span> light, stays in the brand family, no new colour. <span class="con">Con</span> the context strip above is also wash, so the strip and your own bubbles share one ground; and the coral line spends accent budget on every message you send.</div>
+  </section>
+
+</div>
+
+<footer>
+  <b>How to answer:</b> reply with ⓪, ① or ②. The change is one style line in <code>app/app/chat.tsx</code> (<code>bubbleMine</code>) plus the label colour at the three <code>m.mine ? … : '#2c332c'</code> sites; nothing else on the screen moves.
+</footer>
+</div>
+</body>
+</html>

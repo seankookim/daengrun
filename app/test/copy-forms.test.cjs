@@ -26,8 +26,8 @@
 // The mutations that redden it: put an ASCII `...` back into any Korean label in a screen ·
 // retype the map-failure sentence at one of the four call sites instead of importing the
 // constant · change MAP_LOAD_FAIL_KO to the retired 「-을 수 없어요」 construction · label a slot
-// chip with a bare 「재시도」 · delete `app/chat.tsx` from the KNOWN ledger while it still has
-// hits, or leave it there after it is clean · [2026-09-25, fix/alert-fold-copy] end a Korean
+// chip with a bare 「재시도」 · leave a KNOWN_ASCII_ELLIPSIS entry in place after its file is clean
+// (the ledger is empty today — chat.tsx's entry was paid by ui/paper-polish) · [2026-09-25, fix/alert-fold-copy] end a Korean
 // sentence in 「…니다」 (④) or spell 「해 주세요」 with a space (⑤) in any file outside those two
 // ledgers, or leave either ledger's line at a count its file no longer has.
 const fs = require('fs');
@@ -53,13 +53,14 @@ const CODEX_BATCH = [
 ];
 
 // ── the shrinking ledger ───────────────────────────────────────────────────────────────────────
-// `app/chat.tsx` was held by `be/0212-chat-read-state` while this slice ran, so its four
-// 「연결 중...」 were left alone rather than edited under another branch's hands. This is a DEBT
-// entry, not an exemption: the count may not grow, and the entry itself fails once the file is
-// clean, so the ledger can only shrink. ⚠ Honest about what it does NOT do — a baselined file's
-// existing hits are not individually pinned, so a swap of one site for another inside chat.tsx
-// would pass. Delete this entry rather than widen it.
-const KNOWN_ASCII_ELLIPSIS = { 'app/chat.tsx': 4 };
+// EMPTY since ui/paper-polish (2026-09-26): its one debt entry, `app/chat.tsx` (four 「연결 중」
+// spelled with an ASCII ellipsis, left alone while be/0212 held the file), was paid — all four
+// sites now spell `…`, so every file in the tree is judged by arm ① with no allowance. The
+// mechanism stays so a future hold can be recorded honestly: an entry is DEBT, not an exemption —
+// its count may not grow, and it fails once its file is clean, so the ledger can only shrink.
+// ⚠ A baselined file's existing hits are not individually pinned (a swap of one site for another
+// inside it would pass), so prefer fixing the file over adding a line.
+const KNOWN_ASCII_ELLIPSIS = {};
 
 function walk(dir, out = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -222,8 +223,8 @@ const KNOWN_HAMNIDA = {
   // DELIBERATE, and it stays: the live-run km caption is a sports-caster parody (「꼬리 텐션
   // 최상입니다」) — the formal register IS the joke. Two template variants, one caption.
   'app/runner/run.tsx': 2,
-  // not held by any builder, and outside this slice's file list — for the orchestrator
-  'app/owner/course-map.tsx': 1,
+  // not held by any builder, and outside this slice's file list — for the orchestrator.
+  // (app/owner/course-map.tsx's line was paid by ui/paper-polish: 「…지도를 만들어요」.)
   'src/lib/ops-console.ts': 1,
 };
 const hamnidaIn = (stripped) => {

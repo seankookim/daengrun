@@ -3,10 +3,10 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Row, ScreenHead } from '../src/components/ui';
-import { boardKmLabel, BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
-import { colors, layout, paper } from '../src/theme';
+import { boardKmLabel, BoardRow, fetchLeaderboards } from '../src/lib/api';
+import { layout, paper } from '../src/theme';
 
-// 주간 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
+// 주간 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수).
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
 
 // [2026-08-12 · Sean "remove forest"] 이 파일의 로컬 상수 FOREST = '#0F1D13' 은퇴. 은퇴된 스왈프/포레스트 팔레트의
@@ -19,22 +19,17 @@ export default function Leaderboard() {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'dogs' | 'runners'>('dogs');
   const [boards, setBoards] = useState<{ dogs: BoardRow[]; runners: BoardRow[] }>({ dogs: [], runners: [] });
-  const [miles, setMiles] = useState<MilesInfo | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // [honesty 2026-08-11] silent board catch + no loading state rendered "지금이
   // 기회!" (fake fresh-week empty) while loading AND on failure. Three states now.
-  // fetchMiles stays soft — the hero already renders '—' for missing balance.
   const [loaded, setLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState(false);
   const load = () => {
     setLoadErr(false);
-    return Promise.all([
-      fetchLeaderboards()
-        .then((b) => { setBoards(b); setLoaded(true); })
-        .catch((e) => { console.warn('[board]:', e?.message ?? e); setLoadErr(true); }),
-      fetchMiles().then(setMiles).catch(() => {}),
-    ]);
+    return fetchLeaderboards()
+      .then((b) => { setBoards(b); setLoaded(true); })
+      .catch((e) => { console.warn('[board]:', e?.message ?? e); setLoadErr(true); });
   };
   useFocusEffect(useCallback(() => { load(); }, []));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
@@ -54,33 +49,6 @@ export default function Leaderboard() {
         <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
           이번 주 · 월요일마다 새로 시작해요
         </Text>
-
-        {/* 내 하이 포인트 */}
-        <View style={s.milesCard}>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <View>
-              <Text style={{ fontSize: 15, color: '#b8c4ae', letterSpacing: 1.5 }}>내 하이 포인트</Text>
-              <Text style={{ fontSize: 37, fontWeight: '900', color: colors.volt, marginTop: 4 }}>
-                {miles?.balance?.toLocaleString() ?? '—'}<Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
-              </Text>
-            </View>
-            <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 15, color: '#b8c4ae', lineHeight: 18.5, textAlign: 'right' }}>
-                러닝 완주 +50{'\n'}응가 도장 +30
-              </Text>
-            </View>
-          </Row>
-          {/* 부호는 실델타에서 나온다 — shop_spend(음수)가 붙는 날 '+-500'이 되지 않게 */}
-          {miles && miles.recent.length > 0 && (
-            <Row style={{ gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
-              {miles.recent.slice(0, 3).map((m, i) => (
-                <Text key={i} style={{ fontSize: 15, color: '#8fa093' }}>
-                  {m.reason} {m.delta > 0 ? '+' : ''}{m.delta}
-                </Text>
-              ))}
-            </Row>
-          )}
-        </View>
 
         {/* tabs */}
         <View style={s.tabWrap}>
@@ -180,12 +148,12 @@ export default function Leaderboard() {
   );
 }
 
-// Paper grammar (DESIGN.md §2 · §3b): radius 0, neutral #EEE for rows and boxes. The miles card
-// stays an INK plate (a dark artifact on a paper screen), so its dim-on-dark greys are correct and
-// stay; only its corners squared. The podium bibs keep their art — medal bands, punch holes, gold
-// edge on 1st — with square corners like every other card.
+// Paper grammar (DESIGN.md §2 · §3b): radius 0, neutral #EEE for rows and boxes. The podium bibs
+// keep their art — medal bands, punch holes, gold edge on 1st — with square corners like every
+// other card. (The 하이 포인트 card that opened this screen was removed by ui/paper-polish,
+// less-is-more-4: its balance and earn rates repeated 샵 and home, above the ranking the screen is
+// named for.)
 const s = StyleSheet.create({
-  milesCard: { backgroundColor: paper.ink, padding: 18, marginTop: 16 },
   tabWrap: { flexDirection: 'row', backgroundColor: paper.canvas, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#EEEEEE' },
   // selected tab = ink fill: ink is STATE (a selected chip), never an action (paper-btn.tsx)
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10 },
