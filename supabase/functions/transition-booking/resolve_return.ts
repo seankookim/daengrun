@@ -43,7 +43,7 @@
 // earlier refusal that replaced the real one would be the same mistake wearing a fix's costume.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HttpError } from "../_shared/ctx.ts";
-import { quoteFor } from "./confirm_return.ts";
+import { quoteFor, RETURN_SEALED_TITLE } from "./confirm_return.ts";
 import { collectAfterSettle } from "../_shared/charge.ts";
 
 /** `ops_resolve_return_tx`'s raises, each with its own status and its own sentence. `not_ops` is a
@@ -70,6 +70,8 @@ function mapResolveError(msg: string): HttpError {
   return new HttpError(409, msg);
 }
 
+type Notify =(profileId: string, title: string, body: string) => PromiseLike<{ message: string } | null>;
+
 export interface ResolveReturnResult {
   resolved: boolean;
   settled: boolean;
@@ -82,9 +84,15 @@ export interface ResolveReturnResult {
 
 export async function resolveReturn(
   db: SupabaseClient,
-  args: { bookingId: string; uid: string; bk: Record<string, unknown>; meta: Record<string, unknown> | null | undefined },
+  args: {
+    bookingId: string;
+    uid: string;
+    bk: Record<string, unknown>;
+    meta: Record<string, unknown> | null | undefined;
+    notify: Notify;
+  },
 ): Promise<ResolveReturnResult> {
-  const { bookingId, uid, bk, meta } = args;
+  const { bookingId, uid, bk, meta, notify } = args;
   const memo = typeof meta?.memo === "string" ? meta.memo : "";
   // Refused HERE as well as in SQL, and the two are not redundant: this one gives the operator a
   // sentence before a round trip, and the SQL one is the rule. Neither is the other's evidence.
@@ -126,6 +134,26 @@ export async function resolveReturn(
           (e instanceof Error ? e.message : String(e)),
       );
     }
+  }
+  // ── TELL THE RUNNER (ops-notifications-3) ──────────────────────────────────────────────────
+  // A stranded return blocks the runner's NEW work (`_runner_work_gate_blocking`, 0092) and the
+  // sweep told them 「…확인되면 정산이…」 (0226 c_ret_body_wait) — and then nothing told them it
+  // was over. The only notification this path produced was settle_run_tx's 「러닝 완료」 to the
+  // OWNER (0169). The runner is told once, only on a resolution that actually happened
+  // (`resolved && !unchanged` — a re-call on a completed booking answers resolved:false and must
+  // not push again), with the same title the party path uses for a sealed pair
+  // (`RETURN_SEALED_TITLE`, routed to /runner/return-seal) and a body that names who decided.
+  // The owner is not added here: 0169's 「러닝 완료」 already reaches them on the settled branch.
+  // `notify` is index.ts's helper: it never throws and logs a lost row with its title.
+  const runnerId = (bk.runner_id as string | null | undefined) ?? null;
+  if (res.resolved && !res.unchanged && runnerId) {
+    await notify(
+      runnerId,
+      RETURN_SEALED_TITLE,
+      res.settled
+        ? "담당자가 반환을 확인했어요 — 러닝이 마무리됐어요"
+        : "담당자가 반환을 확인했어요 — 정산은 담당자 확인 뒤에 진행돼요",
+    );
   }
   console.log(
     `[transition-booking] resolve_return booking=${bookingId} by=${uid} from=${res.from_status} ` +

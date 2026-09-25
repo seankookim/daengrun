@@ -72,7 +72,11 @@ export const PREF_ROWS: PrefRow[] = [
   {
     key: 'booking',
     label: '예약·러닝',
-    desc: '요청 수락과 거절, 인계 확인 요청, 러닝 시작과 종료, 결제 안내',
+    // [ops-notifications-4] The club 위탁 pushes that reach a PARTY — the runner's 배정 제안 and
+    // the owner's 자리 확정 — are written kind='booking' (0047/0048, 0081 §B), so THIS switch
+    // silences them; the sentence used to name only 1:1 events. The community row's 위탁 stays:
+    // the host-side 위탁 events really are kind='community'.
+    desc: '요청 수락과 거절, 인계 확인 요청, 러닝 시작과 종료, 결제 안내, 클럽 위탁 배정 제안과 자리 확정',
   },
   {
     key: 'chat',

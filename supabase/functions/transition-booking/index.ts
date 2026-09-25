@@ -537,7 +537,7 @@ Deno.serve(handle(async (req) => {
     // No `isOwner`/`isRunner` branch, for the reason above the switch: the gate is the ops roster
     // in SQL, taken on the id this function VERIFIED, never on anything in `meta`.
     case "resolve_return":
-      return await resolveReturn(db, { bookingId: booking_id, uid, bk, meta });
+      return await resolveReturn(db, { bookingId: booking_id, uid, bk, meta, notify });
 
     // 0066's fee ladder + the charge slice's collection half (§0-ter #5) — see cancel_owner.ts.
     // This one case lives in its own file because `Deno.serve` at this module's top level makes

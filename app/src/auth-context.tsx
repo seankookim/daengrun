@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { releasePushToken, resetPushRegistration } from './lib/push';
 import { supabase } from './lib/supabase';
 import { session as appSession } from './store';
 
@@ -45,6 +46,27 @@ async function hydrateRole(uid: string): Promise<void> {
   }
 }
 
+// [ops-notifications-2] Sign-out releases this device's push token FIRST. Until 2026-09-25 this was
+// the session end and nothing else, so the signed-out account's `push_tokens` row kept pointing at
+// this phone (its chat, request and money pushes kept arriving here, possibly under someone else's
+// login) and push.ts's per-process `_registered` flag stayed true, so the next account on this
+// device never registered at all. Order is load-bearing and pinned by
+// `test/push-token-signout.test.cjs`: the delete needs the outgoing session (RLS `push self all`
+// admits only the row's own profile), so it precedes the session end; the registration reset
+// precedes it too, so no home mount in between can re-register the outgoing account.
+// Best-effort, bounded inside `releasePushToken`: a failure is a warning, never a blocked sign-out.
+async function signOutReleasingPush(): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id ?? null;
+    if (uid) await releasePushToken(uid);
+  } catch (e) {
+    console.warn('[auth] push token release:', (e as Error)?.message ?? e);
+  }
+  resetPushRegistration();
+  await supabase.auth.signOut();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ session, loading, signOut: async () => { await supabase.auth.signOut(); } }}>
+    <AuthCtx.Provider value={{ session, loading, signOut: signOutReleasingPush }}>
       {children}
     </AuthCtx.Provider>
   );

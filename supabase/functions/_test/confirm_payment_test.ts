@@ -602,6 +602,9 @@ Deno.test("postConfirm recurring failure is NON-FATAL — the payment still succ
   const udb = userScene();
   udb.rpcs["create_recurring_series"] = () => ({ error: { message: "series exploded" } });
   const net = tossOk();
+  const logs: string[] = [];
+  const original = console.error;
+  console.error = (...a: unknown[]) => void logs.push(a.map(String).join(" "));
   try {
     const out = await confirmPayment(
       req({ order_id: ORDER, payment_key: KEY, meta: { recurring: "1" } }, "owner_jwt"),
@@ -615,8 +618,14 @@ Deno.test("postConfirm recurring failure is NON-FATAL — the payment still succ
     const notes = db.rows("notifications");
     assertEquals(notes.length, 1);
     assertEquals(notes[0].profile_id, OWNER); // the owner CAN act on this one
-    assertStringIncludes(notes[0].body, "series exploded");
+    // [contract-gaps-3 (b)] REVERSED, deliberately: this pin used to assert the body CARRIED
+    // "series exploded" — i.e. it pinned the raw server message onto a lock screen. The body is
+    // now the Korean sentence alone, and the reason lives in the log where a human can use it.
+    assertEquals(notes[0].body, "이번 예약은 확정됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요");
+    assert(!String(notes[0].body).includes("series exploded"), `raw error on the lock screen: ${notes[0].body}`);
+    assert(logs.some((l) => l.includes("recurring") && l.includes("series exploded")), `the reason was not logged: ${logs.join(" | ")}`);
   } finally {
+    console.error = original;
     net.restore();
   }
 });
@@ -638,6 +647,38 @@ Deno.test("postConfirm nomination failure is NON-FATAL and is not swallowed sile
     assertStringIncludes(notes[0].body, "다른 일정이 있는 러너");
   } finally {
     net.restore();
+  }
+});
+
+Deno.test("[contract-gaps-3 (b)] a NON-Korean nomination failure reaches the lock screen with no parenthetical — the token is logged", async () => {
+  // The Korean case above keeps its reason (「그 시간에 다른 일정이 있는 러너예요」 is copy the owner
+  // can act on). A bare token or an English transport message is not copy: it is omitted from the
+  // push body and written to the log instead.
+  for (const raw of ["runner_busy", "transition 502"]) {
+    const db = scene();
+    const net = raw === "transition 502"
+      ? tossOk({ transition: () => FetchMock.json({}, 502) })
+      : tossOk({ transition: () => FetchMock.json({ error: raw }, 409) });
+    const logs: string[] = [];
+    const original = console.error;
+    console.error = (...a: unknown[]) => void logs.push(a.map(String).join(" "));
+    try {
+      const out = await confirmPayment(
+        req({ order_id: ORDER, payment_key: KEY, meta: { preferred_runner_id: RUNNER } }, "owner_jwt"),
+        db as never,
+      ) as Row;
+      assertEquals(out.ok, true);
+      assertEquals((out.post as Row).nomination, "failed");
+      const notes = db.rows("notifications");
+      assertEquals(notes.length, 1);
+      assertEquals(notes[0].title, "지명 요청 실패");
+      assertEquals(notes[0].body, "우선 요청을 보내지 못했어요 — 매칭 화면에서 다시 골라주세요");
+      assert(!String(notes[0].body).includes("("), `a parenthetical reached the lock screen: ${notes[0].body}`);
+      assert(logs.some((l) => l.includes("nomination") && l.includes(raw)), `${raw} was not logged: ${logs.join(" | ")}`);
+    } finally {
+      console.error = original;
+      net.restore();
+    }
   }
 });
 

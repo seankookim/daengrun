@@ -32,6 +32,7 @@ import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
 import { CHAT_PAGE_SIZE, toDisplayOrder } from './chat-window';
 import { MessageCursor, olderThanCursorFilter } from './chat-messages';
+import { withParticle } from './particle';
 // Star arithmetic — pure, pinned by `test/rating.test.cjs`. It lives outside this file because the
 // average it computes is printed beside a count computed here, and the two must not drift again;
 // see the [reviews-surfaced] block at the end of this file for what drifting cost.
@@ -3183,10 +3184,12 @@ export async function uploadRunPhoto(bookingId: string, base64: string): Promise
 // ---------- 러닝 이벤트 (응가 도장 등) — 러너 원탭 → 기록 + 보호자 즉시 알림 ----------
 export type RunEventKind = 'poop' | 'snack' | 'water' | 'photo';
 
+// [copy-hierarchy-1] The subject particle follows the name's last syllable (콩이 · 초코가, and the
+// '반려견' fallback reads 반려견이) — a hard-coded 가 rendered 콩가 and 반려견가 on the lock screen.
 const EVENT_NOTI: Record<RunEventKind, (dog: string) => [string, string]> = {
   poop: (d) => ['응가 완료', `${d} 응가 성공! 러너가 응가 도장을 찍었어요`],
-  snack: (d) => ['간식 타임', `${d}가 간식을 맛있게 먹었어요`],
-  water: (d) => ['수분 보충', `${d}가 물을 마시고 있어요`],
+  snack: (d) => ['간식 타임', `${withParticle(d, '가/이')} 간식을 맛있게 먹었어요`],
+  water: (d) => ['수분 보충', `${withParticle(d, '가/이')} 물을 마시고 있어요`],
   photo: (d) => ['새 사진 도착', `${d}의 러닝 사진이 추가됐어요 — 리포트에서 확인하세요`],
 };
 
@@ -3210,6 +3213,10 @@ export async function notifyKmMilestone(bookingId: string, km: number): Promise<
   const { data: bk } = await supabase.from('bookings').select('owner_id, dogs(name)').eq('id', bookingId).single();
   if (!bk) return;
   const dog = (bk as any).dogs?.name ?? '반려견';
+  // ⚠ [copy-hierarchy-1] The body below still hard-codes its subject particle (반려견가 · 콩가).
+  // Left for the owner of app/test/notification-route.test.cjs (fix/owner-inflight-truth): its on3
+  // pin reads this body's literal template, so converting it here would redden a file this slice
+  // may not edit. The fix is one withParticle call, as in EVENT_NOTI above, once that pin allows it.
   await supabase.from('notifications').insert({
     profile_id: (bk as any).owner_id, kind: 'booking',
     title: `${km}km 돌파`, body: `${dog}가 ${km}km를 달렸어요 — 실시간 지도에서 확인하세요`,
@@ -6574,6 +6581,25 @@ export async function markNotificationsRead(ids: readonly string[]): Promise<voi
     .update({ read_at: new Date().toISOString() })
     .in('id', [...ids])
     .is('read_at', null);
+  if (error) throw error;
+}
+
+// [contract-gaps-2] An OS push TAP marks the rows it stands for read — the inbox twin above only
+// ever ran for in-app taps, so both home bells (fetchUnreadCount) kept counting pushes the person
+// had already opened. The push payload (notify_push, 0210 §C) carries `{kind, ref_id}` and the
+// title and NO notification id, so the rows are matched on what the payload does carry: this
+// person's unread rows with that exact title and that ref (or no ref, for a ref-less title such
+// as 「반복 예약 일시 중지」). RLS `noti self update` (0002:139) scopes the write to the caller.
+// ⚠ Zero rows is an ordinary answer, not an error: the row may already be read (the inbox got
+// there first), or a cold-start tap may resolve before the session that owns the row is loaded.
+export async function markNotificationsReadByTap(refId: string | null | undefined, title: string): Promise<void> {
+  if (!title) return;
+  const base = supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('title', title)
+    .is('read_at', null);
+  const { error } = await (refId ? base.eq('ref_id', refId) : base.is('ref_id', null));
   if (error) throw error;
 }
 
