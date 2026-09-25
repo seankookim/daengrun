@@ -224,10 +224,21 @@ export async function cancelOwner(
     // Same honesty gate as the en-route arm: the amount is spoken only when the ledger row
     // exists (lateShare > 0 means written-or-already-there). If the write failed, ops has been
     // told and the runner still hears the true generic sentence.
+    // [runner-journey-4] THE EN-ROUTE ARM TAKES THE SAME TITLE when its record exists. It used to
+    // fall to 「예약 취소됨」 while its body said the 50% was recorded as compensation — so the
+    // lock screen read as a plain cancellation and the tap landed on the calendar
+    // (notification-route.ts RUNNER_ROUTES), which shows neither the booking nor the money. 0117's
+    // re-mount sweep already writes this en-route record under the compensation title; this is
+    // the live path agreeing with it. Gated on `enrouteComp`, never on the marker alone: a failed
+    // or zero-fee comp write keeps 「예약 취소됨」, because the title is itself a receipt.
+    // ⚠ app/test/notification-route.test.cjs (routing sweep ① / cg2) reads the late-tier ternary
+    // on the line below by its exact spelling — keep its `lateShare` condition and both string
+    // literals adjacent when editing it.
+    const enrouteComp = storedReason === "owner_cancel_enroute" && compRecorded;
     await notify(
       bk.runner_id,
-      lateShare > 0 ? "시간을 비워둔 보상이 기록됐어요" : "예약 취소됨",
-      storedReason === "owner_cancel_enroute" && compRecorded
+      enrouteComp || lateShare > 0 ? "시간을 비워둔 보상이 기록됐어요" : "예약 취소됨",
+      enrouteComp
         ? "보호자가 이동 중에 예약을 취소했어요 — 취소 수수료(결제 금액의 50%)가 러너 보상으로 기록됐어요"
         : lateShare > 0
         ? `보호자가 예약을 취소했어요. 비워두신 시간에 대해 취소 수수료의 절반인 ${lateShare.toLocaleString("ko-KR")}원이 보상으로 기록됐어요`

@@ -360,7 +360,7 @@ async function postConfirm(
     } catch (e) {
       out.recurring = "failed";
       await notifyOwner(db, p.ownerId, p.bookingId, "반복 설정 실패",
-        `이번 예약은 확정됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요 (${msgOf(e)})`);
+        `이번 예약은 확정됐지만 매주 반복 설정에 실패했어요 — 다음 예약 때 다시 켜주세요${reasonSuffix(e, "recurring")}`);
     }
   }
 
@@ -377,7 +377,7 @@ async function postConfirm(
       // 조용한 삼킴 금지 (웨이브 2 C3) — 지명이 실패했다는 사실을 알아야 다음 선택을 한다.
       // 매칭 화면(matching.tsx:191)이 같은 지명을 한 번 더 시도하므로 이건 막다른 길이 아니다.
       await notifyOwner(db, p.ownerId, p.bookingId, "지명 요청 실패",
-        `우선 요청을 보내지 못했어요 — 매칭 화면에서 다시 골라주세요 (${msgOf(e)})`);
+        `우선 요청을 보내지 못했어요 — 매칭 화면에서 다시 골라주세요${reasonSuffix(e, "nomination")}`);
     }
   }
 
@@ -415,4 +415,19 @@ function notifyOwner(db: SupabaseClient, ownerId: string, bookingId: string, tit
 
 function msgOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+/**
+ * [contract-gaps-3 (b)] The parenthetical reason on the two post-confirm failure pushes. These
+ * bodies go VERBATIM to a lock screen (notify_push), and the error they used to append was often
+ * a raw server token or English — `series exploded`, `transition 409`, a PostgREST message. The
+ * suffix is kept only when the reason is a Korean sentence (transition-booking's HttpError copy,
+ * e.g. 「그 시간에 다른 일정이 있는 러너예요」 — the one reason an owner can act on); anything else
+ * is omitted from the push and logged here, where a human reading the logs can use it.
+ */
+function reasonSuffix(e: unknown, site: string): string {
+  const msg = msgOf(e).trim();
+  if (/[가-힣]/.test(msg)) return ` (${msg})`;
+  console.error(`[confirm-payment] postConfirm ${site} failed: ${msg}`);
+  return "";
 }

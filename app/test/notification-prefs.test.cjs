@@ -113,6 +113,27 @@ for (const r of PREF_ROWS) {
     LIES.every((bad) => !r.desc.includes(bad)), r.desc);
 }
 
+// ── [ops-notifications-4] the 예약·러닝 sentence names the club 위탁 events its switch silences ──
+// `notify_push` files every kind='booking' row under the `booking` column (0210 §B ⑤), and the club
+// writers address the runner's 배정 제안 and the owner's 자리 확정 as kind='booking' — so those
+// pushes stop with THIS switch, while its sentence named only 1:1 events. Both halves are read:
+// the copy names them, and the migrations (comments stripped) really do file them as booking.
+// ⚠ Deliberately NOT asserted: that the community sentence lacks 위탁 — the host-side 위탁 events
+// are kind='community', so deleting it there would make that switch's sentence false.
+{
+  const bookingRow = PREF_ROWS.find((r) => r.key === 'booking');
+  t('the 예약·러닝 description names the club 위탁 배정 제안 and 자리 확정 its switch silences',
+    !!bookingRow && bookingRow.desc.includes('위탁 배정') && bookingRow.desc.includes('자리 확정'),
+    bookingRow && bookingRow.desc);
+  const migDir = path.resolve(__dirname, '../../supabase/migrations');
+  const sql = fs.readdirSync(migDir).filter((f) => f.endsWith('.sql'))
+    .map((f) => fs.readFileSync(path.join(migDir, f), 'utf8').replace(/--[^\n]*/g, '')).join('\n');
+  t("…and the claim is true: a migration writes the runner's 위탁 배정 제안 as kind 'booking'",
+    /\(\s*p_runner,\s*'booking',\s*'위탁 배정 제안'/.test(sql));
+  t("…and the owner's 자리 확정 as kind 'booking'",
+    /\(\s*sd\.owner_profile_id,\s*'booking',\s*'자리 확정'/.test(sql));
+}
+
 // ── every row is renderable ────────────────────────────────────────────────────────────────────
 for (const r of PREF_ROWS) {
   t(`「${r.label}」 has a label and a description`,

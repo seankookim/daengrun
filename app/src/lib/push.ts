@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { draft, session } from '../store';
-import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE, SOS_TITLE } from './api';
+import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE, markNotificationsReadByTap, SOS_TITLE } from './api';
 import {
   CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, destinationForRefLessBookingTitle,
   destinationForSystemRef, isOwnerLiveRunTitle, needsClubProbe, needsCommunityClubProbe,
@@ -13,6 +13,9 @@ import { supabase } from './supabase';
 // 푸시는 부가 채널, 실패가 앱을 막지 않는다.
 
 let _registered = false;
+// The token THIS PROCESS upserted, so sign-out can delete exactly this device's row (see
+// `releasePushToken`). null until a registration succeeds, and again after `resetPushRegistration`.
+let _registeredToken: string | null = null;
 let _armed = false;
 const _handledTaps = new Set<string>();
 
@@ -234,7 +237,15 @@ function handleTap(Notifications: any, response: any): void {
   if (id) _handledTaps.add(id);
   const content = req.content ?? {};
   const data = content.data ?? {};
-  routeForNotification(data.kind, data.ref_id, content.title ?? '');
+  const title: string = content.title ?? '';
+  routeForNotification(data.kind, data.ref_id, title);
+  // [contract-gaps-2] The tap is a read. Before this, only the in-app inbox wrote `read_at`
+  // (alerts.tsx → markNotificationsRead), so both home bells kept counting pushes the person had
+  // already opened. AFTER routing and never awaited: the person asked to go somewhere, and the
+  // read mark is bookkeeping that must not delay or alter where they land. A failure is logged,
+  // never swallowed; zero matched rows is an ordinary answer (see markNotificationsReadByTap).
+  markNotificationsReadByTap(data.ref_id ?? null, title)
+    .catch((e) => console.warn('[push] tap mark read:', (e as Error)?.message ?? e));
 }
 
 // 딥링크 무장: 탭 리스너 + 콜드스타트(종료 상태에서 알림 탭으로 실행된 경우).
@@ -327,10 +338,82 @@ export async function registerPushToken(): Promise<void> {
       { profile_id: user.user.id, token, updated_at: new Date().toISOString() },
       { onConflict: 'profile_id' },
     );
-    if (!error) _registered = true;
+    if (!error) { _registered = true; _registeredToken = token; }
     else console.warn('[push] token save:', error.message);
   } catch (e) {
     console.warn('[push] register:', (e as Error)?.message);
+  }
+}
+
+// ── Sign-out (ops-notifications-2) ─────────────────────────────────────────────────────────────
+// Before this, 로그아웃 ended the auth session and did nothing else: the signed-out account's
+// `push_tokens` row kept pointing at this device (so its pushes — chat, requests, money — kept
+// arriving on a phone someone else may now be signed in on), and `_registered` stayed true for the
+// life of the process, so the NEXT account's home mount returned before its upsert and that person
+// never received a push at all. `auth-context.tsx`'s signOut calls these two, in order, BEFORE the
+// session ends (`test/push-token-signout.test.cjs` pins the order in its executable source).
+
+/**
+ * Delete THIS DEVICE's token row for `uid`. Must run while the session is still `uid`'s: RLS
+ * `push self all` (0024) admits the delete only for the row's own profile.
+ * Scoped by TOKEN as well as profile: `push_tokens` holds ONE row per profile — the last device to
+ * register — so an unscoped delete from a second phone would silence the phone the person is
+ * actually carrying. The token is the one this process upserted; when it registered nothing (an
+ * earlier registration failed, or this launch never reached a home screen) the device's token is
+ * read without prompting. No token obtainable ⇒ nothing is deleted: in every such case but a
+ * failed token fetch, this device cannot be receiving pushes at all.
+ * Bounded (`timeoutMs`) and throwing: the caller logs and signs out regardless.
+ */
+export async function releasePushToken(uid: string, timeoutMs = 4000): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('push token release timed out')), timeoutMs);
+  });
+  const work = (async () => {
+    const token = _registeredToken ?? (await readDeviceToken());
+    if (!token) return;
+    const { error } = await supabase.from('push_tokens').delete()
+      .eq('profile_id', uid)
+      .eq('token', token);
+    if (error) throw error;
+  })();
+  // If the deadline wins, `work` may still reject later; that late rejection has already been
+  // reported as the timeout and must not surface again as an unhandled rejection.
+  work.catch(() => {});
+  try {
+    await Promise.race([work, deadline]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Forget this process's registration, so the next account to sign in on this device registers. */
+export function resetPushRegistration(): void {
+  _registered = false;
+  _registeredToken = null;
+}
+
+// This device's Expo token, read without prompting. null = none obtainable: an old build without
+// the module, permission not granted, no EAS projectId, or the token fetch failed.
+async function readDeviceToken(): Promise<string | null> {
+  let Notifications: any;
+  let Constants: any;
+  try {
+    Notifications = require('expo-notifications');
+    Constants = require('expo-constants').default;
+  } catch {
+    return null;
+  }
+  try {
+    const current = await Notifications.getPermissionsAsync();
+    if (current?.status !== 'granted') return null;
+    const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
+    if (!projectId) return null;
+    const tokenRes = await Notifications.getExpoPushTokenAsync({ projectId });
+    return tokenRes?.data ?? null;
+  } catch (e) {
+    console.warn('[push] token read:', (e as Error)?.message);
+    return null;
   }
 }
 
