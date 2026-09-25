@@ -23,6 +23,7 @@ const {
   payoutStatusLabel, payoutStatusWithMethod, payoutPeriodLabel, sortPayoutsNewestFirst,
   payoutStuckDays, payoutStuckLine, PAYOUT_STUCK_DAYS,
   payoutNoAccountLine, payoutHomeStrip, PAYOUT_NO_ACCOUNT_KO,
+  bankAccountFlag,
 } = require('./payout-status.build.cjs');
 const fs = require('fs');
 const path = require('path');
@@ -322,6 +323,45 @@ t('an empty list sorts to an empty list', sortPayoutsNewestFirst([]).length === 
   t('PNA-9 nothing to say → null (unread state, fine account, nothing owed)',
     payoutHomeStrip(null, NOW) === null && payoutHomeStrip(acct(50000, true, NOW - 1 * DAY), NOW) === null
     && payoutHomeStrip(acct(0, false, null), NOW) === null);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [owner-return-frame · R1 c4] THE MAPPER MUST NOT FOLD 「unknown」 INTO 「no account」
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// PNA-5 above proves payoutNoAccountLine refuses a null. It could never SEE one: api.ts mapped
+// `has_bank_account === true`, so a missing or non-boolean key arrived as `false` — the one value
+// the strictly-false guard exists to refuse. `bankAccountFlag` is that mapper, pure, so the rule is
+// pinned end to end from the raw column value to the strip. Unreachable while 0213 always emits
+// the column; these pins keep it safe if it ever does not.
+{
+  const DAY = 86400000;
+  const NOW = Date.parse('2026-09-21T03:00:00Z');
+  t('orf-c4-1 bankAccountFlag: a boolean passes through; anything else is null (never false)',
+    bankAccountFlag(true) === true && bankAccountFlag(false) === false
+    && bankAccountFlag(undefined) === null && bankAccountFlag(null) === null
+    && bankAccountFlag('false') === null && bankAccountFlag(0) === null && bankAccountFlag('true') === null);
+  // The finding's case, end to end: unpaid_won > 0 and has_bank_account ABSENT from the row.
+  const row = { unpaid_won: 50000 };
+  const state = { unpaidWon: Number(row.unpaid_won), hasBankAccount: bankAccountFlag(row.has_bank_account), oldestAwaitingMs: null };
+  t('🔴 orf-c4-2 unpaid_won > 0 and has_bank_account ABSENT → no strip (never 「register an account」)',
+    payoutHomeStrip(state, NOW) === null && payoutNoAccountLine(state) === null, JSON.stringify(payoutHomeStrip(state, NOW)));
+  const aged = { ...state, oldestAwaitingMs: NOW - 9 * DAY };
+  t('orf-c4-3 …and when the money is also 9 days stuck, the strip is the WAIT line, not the account line',
+    payoutHomeStrip(aged, NOW)?.href === '/runner/earnings', JSON.stringify(payoutHomeStrip(aged, NOW)));
+  // CONTROL — the same row with the key present and false still produces the account line, so the
+  // pins above are not green because the strip stopped drawing altogether.
+  const noAcct = { ...state, hasBankAccount: bankAccountFlag(false) };
+  t('orf-c4-4 CONTROL · has_bank_account = false → the account line and its door',
+    payoutHomeStrip(noAcct, NOW)?.href === '/runner/bank-account', JSON.stringify(payoutHomeStrip(noAcct, NOW)));
+  // SOURCE — api.ts is a network module the suite cannot import, so its mapper line is read as
+  // text, comment-stripped (this slice's own comment QUOTES the retired `=== true` fold).
+  const apiRaw = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'api.ts'), 'utf8');
+  const api = apiRaw.replace(/\/\*[\s\S]*?\*\//g, ' ').split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+  t('orf-c4-5 source · api.ts is readable and non-empty (absence must fail LOUDLY)', apiRaw.length > 0);
+  t('orf-c4-6 source · fetchLedgerStuckState maps has_bank_account through bankAccountFlag, and the fold is gone',
+    /hasBankAccount: bankAccountFlag\(row\?\.has_bank_account\),/.test(api)
+    && !/has_bank_account\s*===\s*true/.test(api)
+    && /import \{ bankAccountFlag \} from '\.\/payout-status';/.test(api));
 }
 
 console.log(`\n${pass} pass / ${fail} fail`);

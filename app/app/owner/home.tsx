@@ -20,7 +20,7 @@ import { type ChatUnreadState } from '../../src/lib/chat-read';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
-import { heroPick, heroState, returnOwed, scheduleDoor } from '../../src/lib/home-hero-route';
+import { heroPick, heroState, ownerReturnWaitLine, returnOwed, scheduleDoor } from '../../src/lib/home-hero-route';
 import { kstCal } from '../../src/lib/kst';
 import { lateness } from '../../src/lib/lateness';
 import { withParticle } from '../../src/lib/particle';
@@ -187,8 +187,10 @@ export default function OwnerHome() {
   // 메모리에 들고 있으면서 하나만 쓰고 나머지를 버렸다 — 새 읽기 0개, 새 필드 0개.
   // 빈 배열이면 레일 자체가 렌더되지 않는다: 예약이 하나뿐인 계정에서 레일은 히어로를 되풀이할 뿐이다.
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
-  // [owner-journey-1] An `incident_review` booking with nothing for the owner to stamp. Only the
-  // empty hero reads it, to stop saying 「비어 있어요」 while a case is open (heroPick().review).
+  // [owner-journey-1] An `incident_review` booking with nothing for the owner to stamp. The empty
+  // hero reads it, to stop saying 「비어 있어요」 while a case is open (heroPick().review).
+  // [owner-return-frame fix] It can also be an `active` return the owner stamped that is not the
+  // hero; every other frame then draws its waiting line (`reviewWait` below).
   const [reviewRow, setReviewRow] = useState<Booking | null>(null);
   // [honesty 2026-08-11] fitErr와 같은 모델 — 예약 로드 실패가 "예정된 러닝이 없어요"로
   // 분장하던 것 교정. 로딩/실패/실빈을 히어로가 구분해 말한다.
@@ -567,6 +569,9 @@ export default function OwnerHome() {
               // '도착해서 기다리는 중'이 구분되지 않는다 — 둘 다 실려야 문장 하나가 성립한다.
               rawStatus: liveNext.rawStatus ?? null,
               arrivedAt: liveNext.arrivedAt ?? null,
+              // [owner-return-frame, R1 c1] Non-null once the owner has stamped their half of the
+              // return: the returning frame then waits instead of asking for the tap again.
+              returnWait: ownerReturnWaitLine(liveNext),
             } : null}
             dogName={dogName}
             dialKm={draft.km}
@@ -580,6 +585,9 @@ export default function OwnerHome() {
             chatUnread={chatUnread}
             // [owner-journey-1] Read by the empty frame only — see the prop's note in home-hero.tsx.
             onOpenReview={reviewRow ? () => openSchedule(reviewRow.id) : null}
+            // [owner-return-frame, R1 c1] The review row's waiting sentence when it is a return the
+            // owner already stamped — the case heroRank no longer lets hold the hero.
+            reviewWait={reviewRow ? ownerReturnWaitLine(reviewRow) : null}
             loadState={bookingsErr ? 'error' : bookingsLoaded ? 'ready' : 'loading'}
             onRetry={loadBookings}
             relLabel={relLabel}

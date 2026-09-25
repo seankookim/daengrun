@@ -269,7 +269,17 @@ export function payoutStuckLine(days: number | null): string | null {
  *  `LedgerStuckFields`, so the pin needs no network module. */
 export interface LedgerAccountFields {
   unpaidWon: number;
-  hasBankAccount: boolean;
+  /** null = unknown. Only a literal `false` is 「no account」. */
+  hasBankAccount: boolean | null;
+}
+
+/** [R1 c4] `my_ledger_stuck_state().has_bank_account` as the client may carry it: the boolean when
+ *  the server sent one, null otherwise. The mapper this replaced was `=== true`, which folded a
+ *  missing key into `false` — and `false` is the one value that makes the strip below tell a
+ *  runner to register an account they may already have. Unreachable while 0213's `returns table`
+ *  always emits the column; this makes it stay safe if it ever does not. */
+export function bankAccountFlag(v: unknown): boolean | null {
+  return typeof v === 'boolean' ? v : null;
 }
 
 export const PAYOUT_NO_ACCOUNT_KO = '정산 계좌를 등록해야 지급돼요';
