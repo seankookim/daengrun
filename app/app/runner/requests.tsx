@@ -6,7 +6,8 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
-import { acceptBooking, acceptReschedule, AvailRule, declineReschedule, fetchMyAvailability, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerJob } from '../../src/lib/api';
+import { acceptBooking, acceptReschedule, AvailRule, declineBooking, declineReschedule, fetchMyAvailability, fetchMyRunnerApplication, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, fetchRunnerWorkGate, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerApplication, RunnerJob, RunnerWorkGate } from '../../src/lib/api';
+import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
@@ -281,6 +282,15 @@ export default function Requests() {
   const nf = useNumFont();     // Oswald — request times, payouts
   const [live, setLive] = useState<OpenRequest[]>([]);
   const [accepting, setAccepting] = useState<string | null>(null);
+  // 🔴 [runner-journey-4] 지명 요청의 거절 문이 이 화면에 **없었다**. 홈의 맨 앞 티켓
+  // (home.tsx:1304-1315)에만 거절이 있었고, 스텁 행의 「보기 ›」는 러너를 여기로 보냈는데 —
+  // 여기 온 그 카드에는 수락하기 하나뿐이었다. 그러니까 두 번째 지명부터는 거절할 방법이 아예
+  // 없었고, 러너가 할 수 있는 일은 만료될 때까지 두는 것뿐이었다 (보호자는 그동안 재탐색
+  // 알림을 못 받는다 — 0056이 runner_decline을 그 알림의 트리거로 쓴다).
+  // 동작 중인 문은 **예약 × 액션**으로 특정된다: bookingId 하나로는 한 카드의 두 문을 가를 수
+  // 없고, 그러면 '동작 중이 아닌 문'을 정확히 비활성으로 그릴 수 없다 (reschedAct의 선례).
+  const [declining, setDeclining] = useState<string | null>(null);
+  const [declineAsking, setDeclineAsking] = useState(false);
   // 일정 변경 요청 (0016) — 확정 예약의 새 시간 제안, 수락해야만 시간이 바뀐다
   const [resched, setResched] = useState<RescheduleRequest[]>([]);
   const [reschedBusy, setReschedBusy] = useState<string | null>(null);
@@ -317,6 +327,19 @@ export default function Requests() {
   // 다리 사망), 그중 하나에만 문이 있다. 「거리가 안 보이네 → 설정하라고 하자」는 다리가 죽었을 때
   // 러너를 이미 설정한 화면으로 보내는 거짓 안내가 된다.
   const [baseUnset, setBaseUnset] = useState<boolean | null>(null);
+  // 🔴 [runner-journey-6] 작업 게이트 — 홈은 2026-08-13 R1c에서 이미 읽고 있었고 이 화면만 몰랐다.
+  // 서버는 반환 봉인이 안 끝난 러너의 수락을 `transition-booking`의 work-gate 팔에서 409로 거절한다.
+  // 이 화면은 그 사실을 모른 채 살아 있는 코랄 수락 문을 그리고, 확인창까지 띄우고, 탭 **뒤에**
+  // 실패했다 — 죽은 버튼 금지법이 이름을 붙여 둔 바로 그 경우다.
+  // ⚠ `null`은 「막히지 않음」이 아니라 「모름」이다. 모를 때는 문을 살려 둔다(모르는 값이 살아 있는
+  // 행동을 숨기면 안 되고, 서버가 진짜 판단자다) — 홈이 gateKnown으로 가르는 것과 같은 규칙.
+  const [gate, setGate] = useState<RunnerWorkGate | null>(null);
+  const [gateKnown, setGateKnown] = useState(false);
+  // [onboarding-first-run-2] 내 지원서 — preCert 빈 인박스가 지금까지 모두에게 「지원하기」라고
+  // 말하던 자리. 홈과 **같은 헬퍼**를 쓴다 (runner-application-copy.ts).
+  const [rApp, setRApp] = useState<RunnerApplication | null>(null);
+  const [rAppLoaded, setRAppLoaded] = useState(false);
+  const [rAppErr, setRAppErr] = useState(false);
 
   // 요약 두 줄도 매 로드마다 다시 읽는다 — '시간 조정 ›'으로 나갔다 돌아온 러너에게 옛 요약을 보여주지
   // 않으려면 포커스 리로드가 이 둘도 함께 끌어와야 한다 (빈 상태에서만 그려지지만, 빈 상태야말로 그
@@ -344,6 +367,17 @@ export default function Requests() {
     fetchMyRunnerBase()
       .then((b) => setBaseUnset(b != null && b.lat == null))
       .catch((e) => { console.warn('[requests] runner base:', e?.message ?? e); setBaseUnset(null); });
+    // [runner-journey-6] 게이트도 독립 로드다 (home.tsx:532-537과 같은 모양). 실패는 gateKnown을
+    // 내려 「못 읽었다」로 남긴다 — `false`(막히지 않음)로 접으면 실패가 안심으로 위장한다.
+    fetchRunnerWorkGate()
+      .then((g) => { setGate(g); setGateKnown(true); })
+      .catch((e) => { console.warn('[requests] work gate:', e?.message ?? e); setGate(null); setGateKnown(false); });
+    // [onboarding-first-run-2] 지원서도 독립 로드다. 실패는 **지원하기로 떨어지지 않는다** —
+    // 헬퍼의 'error' 입력이 중립 재시도 줄을 돌려준다.
+    setRAppErr(false);
+    fetchMyRunnerApplication()
+      .then((a) => { setRApp(a); setRAppLoaded(true); })
+      .catch((e) => { console.warn('[requests] application:', e?.message ?? e); setRAppErr(true); });
     return Promise.all([
       fetchRunnerInbox().then(setLive),
       fetchRescheduleRequests().then(setResched),
@@ -363,12 +397,28 @@ export default function Requests() {
   const conflictOf = (req: OpenRequest): Conflict | null =>
     (overlapKnown && myJobs !== null ? findConflict(req, myJobs) : null);
 
+  // [runner-journey-6] 막혔다고 **말할 수 있는** 상태는 하나뿐이다: 읽었고, 답이 왔고, 답이 막힘이다.
+  // 이 셋 중 하나라도 빠지면 문은 살아 있고 판단은 서버가 한다.
+  const gated = gateKnown && gate !== null && gate.gated;
+  // [runner-journey-4] 지금 동작 중인 문 = 예약 × 액션. 나머지 문은 눌러도 아무 일이 없으므로
+  // disabledFill로 내려간다 (theme.ts 매트릭스: 명시 fill, 불투명도 트릭 금지).
+  const busyAny = accepting ?? declining;
+  const acting: 'accept' | 'decline' | null = accepting !== null ? 'accept' : declining !== null ? 'decline' : null;
+  // [onboarding-first-run-2] 홈과 같은 세 상태 입력. 로딩을 null로 접으면 「지원하기」가 로딩 중에
+  // 떠버린다 (loading ≠ empty).
+  const appRead: ApplicationRead = rAppErr ? 'error' : !rAppLoaded ? 'loading' : rApp;
+  const appLine = applicationLine(appRead, rs?.tier ?? null);
+
   // [2026-08-11] 여기는 한 번의 탭이 곧 커밋이었다. 수락은 **현실 세계의 약속**이다 — 그 시간에
   // 남의 개를 데리러 가겠다는 것이고, 동시에 다른 일에 쓸 수 있는 자리를 없앤다. 잘못 눌린 수락은
   // 보호자를 길에 세우거나 노쇼가 된다. 러너 홈의 티켓(home.tsx:182)은 이미 개·시각·실수령을
   // 보여주고 확인을 받는데, 정작 요청이 잔뜩 쌓이는 이 화면만 즉시 커밋이었다. 같은 계약으로 맞춘다.
   const accept = (req: OpenRequest) => {
-    if (accepting || asking) return;
+    if (accepting || declining || asking) return;
+    // [runner-journey-6] 게이트가 닫혀 있으면 확인창 자체를 열지 않는다. 문은 이미 disabledFill로
+    // 그려져 있고, 이 줄은 그 그림이 **행동과 같은 규칙**을 쓰게 하는 자리다 — 그림만 비활성이고
+    // 핸들러가 살아 있으면 접근성 포커스나 더블탭 경합이 409로 떨어진다.
+    if (gated) return;
     setAsking(true);
     const dur = totalTimeLabel(req.km);
     // [lab B③] 겹침은 **결정하는 자리에서도** 말한다. 카드의 경고를 스쳐 지나간 러너에게 마지막 기회이고,
@@ -406,6 +456,36 @@ export default function Requests() {
     }
   };
 
+  // [runner-journey-4] 지명 거절 — 홈 티켓(home.tsx:476-498)과 **같은 확인창 문법, 같은 RPC,
+  // 같은 결과**. 오픈 브로드캐스트에는 거절이라는 개념이 없다 (안 받으면 그만이고, 서버의
+  // runner_decline은 `runner_pending → matching` 전이라 지명 레그에만 뜻이 있다) — 그래서 이 문은
+  // `req.directed`일 때만 그려진다. 코랄은 절대 아니다: 거절은 이 화면의 클라이맥스가 아니고,
+  // 코랄 예산은 수락 사다리(변경 요청 > 지명)가 이미 갖고 있다.
+  // ⚠ 홈의 `declinedIds` 낙관 레이어는 여기 가져오지 않는다. 그건 홈이 인박스를 **다시 읽기 전**
+  // 깜빡임을 막으려고 드는 모듈 레벨 Set이고, 이 화면은 거절 직후 load()로 서버를 다시 읽는다 —
+  // 두 번째 낙관 캐시를 세우면 두 화면이 같은 요청에 대해 다른 목록을 들게 된다.
+  const decline = (req: OpenRequest) => {
+    if (accepting || declining || declineAsking) return;
+    setDeclineAsking(true);
+    Alert.alert('지명 거절', '이 요청을 다른 러너에게 넘길까요?\n보호자에게는 재탐색 알림이 가요.', [
+      { text: '유지', style: 'cancel', onPress: () => setDeclineAsking(false) },
+      { text: '거절', style: 'destructive', onPress: () => { setDeclineAsking(false); void commitDecline(req); } },
+    ]);
+  };
+  const commitDecline = async (req: OpenRequest) => {
+    setDeclining(req.bookingId);
+    try {
+      await declineBooking(req.bookingId);
+      haptic('light');
+      load();
+    } catch (e) {
+      Alert.alert('거절 실패', (e as Error).message);
+      load();
+    } finally {
+      setDeclining(null);
+    }
+  };
+
   // 지명 먼저 — fetchRunnerInbox가 이미 directed를 앞에 붙여 오지만, 코랄 예산을 계산하려면
   // 두 레그를 이름으로 갈라놔야 한다 (섞인 배열의 '첫 항목'은 예산의 근거가 못 된다).
   // [lab B② 2026-08-25] 각 레그 **안에서** 마감 오름차순 = 먼저 사라질 것이 위로. filter가 새 배열을
@@ -426,10 +506,17 @@ export default function Requests() {
 
   const renderRequest = (req: OpenRequest) => {
     const [wd, wt] = splitWhen(req.when);
-    const coral = req.bookingId === coralDirected;
+    const coral = req.bookingId === coralDirected && !gated;
     // 다른 문이 동작 중이라 이 문은 눌러도 아무 일이 없다 — 그렇게 **보이게** 그린다
     // (theme.ts:206 매트릭스: disabled = disabledFill + faint, 불투명도 트릭 금지).
-    const inert = accepting !== null && accepting !== req.bookingId;
+    // [runner-journey-4] 이제 한 카드에 문이 둘일 수 있어(지명), 동작 중인 문은 예약 × 액션으로
+    // 특정한다 — 수락 중인 카드의 **거절** 문도 비활성이어야 하고 그 반대도 마찬가지다.
+    const acceptActing = busyAny === req.bookingId && acting === 'accept';
+    const declineActing = busyAny === req.bookingId && acting === 'decline';
+    // [runner-journey-6] 게이트가 닫혀 있으면 수락 문은 **모든 카드에서** 비활성이다 — 서버가
+    // 그 수락을 거절하므로, 누를 수 있게 그리면 탭 뒤에 실패하는 문이 된다.
+    const inert = (busyAny !== null && !acceptActing) || gated;
+    const declineInert = busyAny !== null && !declineActing;
     // [0114 residual · docs/contracts/party-membership-status-filter-contract.md §C.6]
     // `directed`는 곧 서버 상태 'runner_pending'이다 (api.ts fetchRunnerInbox의 지명 레그는
     // .eq('status','runner_pending')로만 읽는다). 수락 **전**의 지명 카드에는 보호자가 작성한
@@ -587,6 +674,27 @@ export default function Requests() {
           )}
         </View>
         <View style={s.doorRow}>
+          {/* [runner-journey-4] 지명 카드에만 거절 문. 잉크 아웃라인 고스트이고 코랄이 아니다 —
+              그리고 수락 문 **왼쪽**이다: 변경 요청 카드(위)가 이미 거절을 왼쪽에 두고, 한 화면에서
+              같은 뜻의 문이 카드마다 자리를 바꾸면 손가락이 기억할 것이 없다. */}
+          {req.directed && (
+            <Pressable
+              style={({ pressed }) => [
+                s.doorGhost,
+                declineInert && s.doorOff,
+                !declineInert && pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] },
+              ]}
+              disabled={busyAny !== null}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busyAny !== null, busy: declineActing }}
+              accessibilityLabel={`${req.dogName} 지명 요청 거절`}
+              onPress={() => decline(req)}
+            >
+              <Text style={{ fontSize: 17, fontWeight: '800', color: declineInert ? paper.faint : paper.ink }}>
+                {declineActing ? '거절 중…' : '거절'}
+              </Text>
+            </Pressable>
+          )}
           <Pressable
             style={({ pressed }) => [
               coral ? s.doorPrimary : s.doorGhost,
@@ -601,12 +709,16 @@ export default function Requests() {
                 : { borderBottomWidth: 4, borderBottomColor: CORAL_INK_DEEP }),
               !inert && !coral && pressed && { transform: [{ scale: 0.97 }] },
             ]}
-            disabled={accepting !== null}
-            accessibilityState={{ disabled: accepting !== null }}
+            disabled={busyAny !== null || gated}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: busyAny !== null || gated, busy: acceptActing }}
+            accessibilityLabel={gated
+              ? `${req.dogName} 요청 수락 — 반환 확인이 끝나야 수락할 수 있어요`
+              : `${req.dogName} 요청 수락하기`}
             onPress={() => accept(req)}
           >
             <Text style={{ fontSize: 17, fontWeight: '800', color: inert ? paper.faint : coral ? '#FFFFFF' : paper.ink }}>
-              {accepting === req.bookingId ? '수락 중…' : '수락하기 ›'}
+              {acceptActing ? '수락 중…' : '수락하기 ›'}
             </Text>
           </Pressable>
         </View>
@@ -777,6 +889,49 @@ export default function Requests() {
           );
         })}
 
+        {/* 🔴 [runner-journey-6] 막힌 이유 한 줄 + 그 출구 — 홈의 R1c 스트립과 같은 일을 하는
+            이 화면의 자리. 카드마다 반복하지 않는다: 게이트는 러너 한 명의 상태이지 요청의
+            속성이 아니고, 다섯 장에 같은 문장을 다섯 번 찍으면 그건 이유가 아니라 소음이다.
+            ⚠ 「응답 기한」이라고 쓰지 않는다 — 이 앱에 그런 개념이 없다는 것은 이 파일이 자기
+              푸터(:907-910)에서 이미 측정해 둔 사실이고, 만료는 오직 `scheduled_at < now()`다
+              (0080 ⓐ). 홈의 같은 자리는 아직 옛 낱말을 쓰고 있었고 이번에 같이 고쳤다.
+            ⚠ waitingOn === 'owner'면 출구가 없다. 러너는 이미 찍었고, 거기서 「반환 봉인 찍기」를
+              그리면 자기 행동에 대한 거짓말이 된다 (0092 §6이 waiting_on을 나눠 주는 이유). */}
+        {gated && gate !== null && (
+          <Pressable
+            onPress={() => {
+              if (gate.waitingOn === 'owner' || !gate.bookingId) return;
+              router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
+            }}
+            disabled={gate.waitingOn === 'owner' || !gate.bookingId}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: gate.waitingOn === 'owner' || !gate.bookingId }}
+            accessibilityLabel={gate.waitingOn === 'owner'
+              ? '보호자 확인 대기 중이라 지금은 수락할 수 없어요'
+              : '반환 봉인 화면으로 이동'}
+            style={({ pressed }) => [
+              s.gateStrip,
+              pressed && gate.waitingOn !== 'owner' && !!gate.bookingId && { backgroundColor: paper.wash },
+            ]}
+          >
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.gateWhy}>
+                {gate.rawStatus === 'incident_review'
+                  ? '담당자가 확인하는 동안에는 수락할 수 없어요'
+                  : '반환 확인이 끝나면 여기서 수락할 수 있어요'}
+              </Text>
+              <Text style={s.gateSub}>
+                {gate.waitingOn === 'owner'
+                  ? '내 봉인은 끝났어요 — 보호자가 찍으면 열려요 · 시작 시각 전까지 요청은 남아 있어요'
+                  : '시작 시각 전까지 요청은 남아 있어요'}
+              </Text>
+            </View>
+            {gate.waitingOn !== 'owner' && !!gate.bookingId && (
+              <Text style={s.gateExit}>반환 봉인 찍기 ›</Text>
+            )}
+          </Pressable>
+        )}
+
         {/* ---------- 실시간 요청 (Supabase) — 지명 먼저, 근처는 그 아래 ---------- */}
         {directed.map(renderRequest)}
         {nearby.map(renderRequest)}
@@ -803,22 +958,38 @@ export default function Requests() {
             미인증 러너에게 토글은 아무것도 바꾸지 못하고, 두 번째 헛다리가 된다. ---------- */}
         {loaded && !loadErr && live.length === 0 && resched.length === 0 && preCert && (
           <>
+            {/* 🔴 [onboarding-first-run-2] 이 두 줄과 그 아래 문은 **상수**였다 —
+                「인증 전에는 요청이 오지 않아요 / 지원은 몇 분이면 끝나요 / 인증 센터에서
+                지원하기 ›」 — 그래서 이미 지원서를 낸 러너, 즉 운영자 대기열에서 기다리는 바로 그
+                사람에게 「지원하세요」라고 말했다. 서버는 그 두 번째 지원서를 `already_applied`로
+                거절하므로 문은 **폼 하나 길이만큼 긴 죽은 버튼**이기도 했다.
+                이제 내 지원서의 상태가 문장을 고른다 (홈과 같은 헬퍼). 상수는 `null` 팔로 살아
+                있고, 그게 그 문장이 참이었던 유일한 경우다. */}
             <View style={s.stateBlock}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink, textAlign: 'center' }}>인증 전에는 요청이 오지 않아요</Text>
+              <Text style={[{ fontSize: 16, fontWeight: '800', textAlign: 'center' },
+                appLine.action === 'retry' ? { color: paper.critical } : { color: paper.ink }]}>
+                {appLine.lead}
+              </Text>
               <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 4, lineHeight: 20 }}>
-                인증된 러너에게만 요청이 열려요{'\n'}지원은 몇 분이면 끝나요
+                인증된 러너에게만 요청이 열려요
               </Text>
             </View>
-            {/* 실문 — /runner/apply는 존재하고 홈이 이미 같은 곳으로 보낸다. 고스트 문법(잉크 윤곽):
-                이 화면의 코랄 예산은 수락 문의 것이고, 빈 인박스에는 수락할 것이 없다. */}
-            <Pressable
-              onPress={() => router.push('/runner/apply')}
-              style={({ pressed }) => [s.applyDoor, pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] }]}
-              accessibilityRole="button"
-              accessibilityLabel="인증 센터로 이동해 러너 지원하기"
-            >
-              <Text style={{ fontSize: 17, fontWeight: '800', color: paper.ink }}>인증 센터에서 지원하기 ›</Text>
-            </Pressable>
+            {/* 실문 — 'center'면 /runner/apply(존재하는 화면, 홈도 같은 곳으로 보낸다), 'retry'면
+                이 화면의 로더. 고스트 문법(잉크 윤곽): 이 화면의 코랄 예산은 수락 문의 것이고,
+                빈 인박스에는 수락할 것이 없다. 'none'(로딩)에는 문을 그리지 않는다 — 읽는 중인
+                값에 붙은 문은 아무 데도 가지 않는다. */}
+            {appLine.action !== 'none' && (
+              <Pressable
+                onPress={appLine.action === 'retry' ? load : () => router.push('/runner/apply')}
+                style={({ pressed }) => [s.applyDoor, pressed && { backgroundColor: paper.wash, transform: [{ scale: 0.97 }] }]}
+                accessibilityRole="button"
+                accessibilityLabel={appLine.action === 'retry' ? '인증 상태 다시 불러오기' : '인증 센터로 이동'}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '800', color: appLine.action === 'retry' ? paper.critical : paper.ink }}>
+                  {appLine.link}
+                </Text>
+              </Pressable>
+            )}
             {/* 러닝 가능 시간은 남는다 — 인증 전에 설정해두는 것이 실제로 쓸모 있고, 편집기는 지금 열린다. */}
             <View style={s.sumGroup}>
               {avail !== null && (
@@ -959,6 +1130,16 @@ const s = StyleSheet.create({
   // 비활성 문 — theme.ts:206 매트릭스의 disabled 항 (disabledFill + faint 라벨, 알파 금지).
   // 코랄 문에도 그대로 얹힌다: 동작 중이 아닌 문은 그 프레임의 코랄 예산도 쓰지 않는다.
   doorOff: { backgroundColor: paper.disabledFill, borderColor: '#EEEEEE' },
+  // [runner-journey-6] 게이트 스트립 — 홈의 gateStrip과 같은 문법(중립 면 + 헤어라인 + 잉크
+  // 제목 + 딤 부제 + actionInk 출구). 요청 카드보다 위에 서고, 자기 44pt 타깃을 진다.
+  gateStrip: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14, minHeight: 48,
+    backgroundColor: paper.canvasSoft, borderWidth: 1, borderColor: '#EEEEEE',
+    paddingVertical: 12, paddingHorizontal: 12,
+  },
+  gateWhy: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  gateSub: { fontSize: 15, lineHeight: 20, color: paper.dim, marginTop: 3 },
+  gateExit: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk, marginLeft: 8 },
   // 로딩·빈 상태 — 상자 없이 활자만 (빈 인박스에 테두리를 그리면 없는 내용에 무게가 생긴다)
   stateBlock: { marginTop: 40, paddingHorizontal: 10, alignItems: 'center' },
   // [lab B①] 인증 문 — doorGhost와 같은 문법(캔버스 + 잉크 1.5px), 카드 밖이라 자기 여백을 갖는다.

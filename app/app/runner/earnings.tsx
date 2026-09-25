@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../../src/components/bottomnav';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { Row } from '../../src/components/ui';
@@ -325,14 +326,14 @@ export default function Earnings() {
             </Pressable>
           </Row>
         )}
+        {/* 🔴 [ui-consistency-2] 잉크 면 프라이머리 은퇴 → PaperBtn. paper-btn.tsx:1-9가 기록한
+            2026-08-11 Sean의 재정은 「검정 버튼이 싫다 … 액션 버튼은 동기를 일으켜야 한다」이고,
+            이 버튼은 이 화면에서 러너가 할 수 있는 가장 중요한 한 가지다 — 돈 받을 곳을 등록하는
+            문. 손으로 만 잉크 면 + 4px 립은 그 매트릭스를 화면 하나가 다시 구현한 것이었고,
+            DESIGN.md:203의 「primary = ink face」 줄은 그 재정보다 **먼저** 쓰인 낡은 표다.
+            치수·립·눌림 산식은 이제 매트릭스가 갖고, 여기 남는 것은 자리(marginTop)뿐이다. */}
         {bankPhase === 'ready' && bankAcct === null && (
-          <Pressable
-            onPress={() => router.push('/runner/bank-account')}
-            style={({ pressed }) => [s.bankRegister, pressed && s.bankRegisterPressed]}
-            accessibilityRole="button"
-          >
-            <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFFFFF' }}>정산 계좌 등록하기</Text>
-          </Pressable>
+          <PaperBtn label="정산 계좌 등록하기" onPress={() => router.push('/runner/bank-account')} style={s.bankRegister} />
         )}
 
         {/* ---------- [0209] 월별 수익 — my_ledger_month_totals, 최근 6개 KST 달 ---------- */}
@@ -598,8 +599,12 @@ export default function Earnings() {
               [0192] 「기록된 금액이에요 — 지급 일정은 결제 연동 후 안내드려요」였다. 앞 절은 이제
               위의 「지급 완료」 행들과 **모순된다**(기록만 된 게 아니라 실제로 옮겨진 돈이 있다).
               뒤 절은 여전히 참이라 그대로 두고, 앞 절을 지급이 남는 곳을 가리키는 문장으로 바꾼다.
-              일정을 약속하지 않는다는 원래의 법은 그대로다. */}
-          지급 일정은 아직 정해지지 않았어요 — 지급되면 위 지급 내역에 남아요
+              일정을 약속하지 않는다는 원래의 법은 그대로다.
+              🔴 [less-is-more-19 2026-09-25] 앞 절 「지급 일정은 아직 정해지지 않았어요」도 나간다:
+              합계 줄의 sumNote(:280)가 이미 「지급 일정 미정」이라고 말한다. 한 화면이 같은 미정을
+              두 번 말하면 두 번째는 정보가 아니라 걱정을 한 번 더 시키는 일이다. 새 사실을 들고
+              있는 절 — 지급이 **어디에** 남는지 — 만 남긴다. 일정을 약속하지 않는 법은 그대로다. */}
+          지급되면 위 지급 내역에 남아요
         </Text>
       </ScrollView>
       {/* 시스템 바 스트립 — 정산 티켓과 주간 표가 시계 뒤로 지나가던 것 */}
@@ -658,8 +663,8 @@ const s = StyleSheet.create({
   // 빠뜨려 wash 만 떠 있었다), 「등록하기」는 아직 받을 곳이 없는 사람의 Primary(ink 면 + 4px 립,
   // radius 0) — 러너가 이 화면에서 할 수 있는 가장 중요한 한 가지다.
   bankChange: { paddingHorizontal: 14, minHeight: 44, justifyContent: 'center', borderRadius: 0, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line },
-  bankRegister: { marginTop: 9, minHeight: 52, borderRadius: 0, backgroundColor: paper.ink, borderBottomWidth: 4, borderBottomColor: paper.inkPressed, alignItems: 'center', justifyContent: 'center' },
-  bankRegisterPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
+  // [ui-consistency-2] 면·립·눌림 산식은 PaperBtn(매트릭스)이 갖는다 — 여기는 자리뿐이다.
+  bankRegister: { marginTop: 9 },
   // §3b 섹션 헤더는 앱 전체에서 하나의 문법: 20/800 잉크 (s.rule이 그 위의 코랄 선을 긋는다).
   // 정산 계좌도 이제 같은 헤더다 — 종전 15.5/800 카드 제목은 이 화면만의 크기였다.
   secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink },

@@ -13,9 +13,10 @@ import { CourseStrip } from '../../src/components/CourseStrip';
 import { RunnerClubCard } from '../../src/components/clubcard';
 import { Icon, Row } from '../../src/components/ui';
 import {
-  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedgerStuckState, fetchMyAvailability, fetchMyName, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
-  fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
+  acceptBooking, AvailRule, CoursePatch, declineBooking, fetchBookingAddress, fetchChatUnread, fetchCoursePatches, fetchLedgerStuckState, fetchMyAvailability, fetchMyName, fetchMyRunnerApplication, fetchMyRunnerStatus, fetchInFlightRunnerJobs, fetchRunnerInbox, fetchRunnerJobs,
+  fetchRunnerWeekStats, fetchRunnerWorkGate, fetchUnreadCount, MyRunnerStatus, OpenRequest, PickupAddress, RunnerApplication, RunnerJob, RunnerWeekStats, RunnerWorkGate, saveMyAvailability, setRunnerOnline,
 } from '../../src/lib/api';
+import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
 import { payoutStuckDays, payoutStuckLine } from '../../src/lib/payout-status';
 import { unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../../src/lib/chat-read';
 import { PatchBadge } from '../../src/components/patch';
@@ -149,6 +150,10 @@ function stageSub(rawStatus: string, dogName: string): string {
     case 'runner_enroute': return `${dogName}를 넘겨받을 시간이에요`;
     case 'picked_up': return '보호자와 인계를 마쳤어요 — 시작해요';
     case 'active': return '러닝 기록이 쌓이는 중이에요';
+    // [runner-journey-8] `incident_review` is a booking the runner may still be HOLDING THE DOG
+    // in — 0092:116 gates it regardless of `run_ended_at`. The subline says who is acting, which
+    // is neither the runner nor the owner, so it promises the runner nothing they must do.
+    case 'incident_review': return '담당자가 확인하는 동안 기다려주세요';
     default: return '이어서 진행해요';
   }
 }
@@ -186,6 +191,13 @@ const STAGE: Record<string, { label: string; action: string; color: string }> = 
   // the runner back to a run screen that has nothing left to do. Keyed separately rather than by
   // rawStatus, because rawStatus cannot tell them apart (`stageFor` below does the pick).
   returning: { label: '반환 확인 중', action: '반환 봉인 화면으로 ›', color: CORAL_INK },
+  // [runner-journey-8] A booking in `incident_review` USED TO VANISH from this screen — `current`
+  // listed four statuses and this was not one of them — while the dog may still be with the
+  // runner (0092:116 holds the booking in that state whether or not `run_ended_at` is stamped).
+  // A ticket that disappears is the honesty law's worst case: the runner is holding a dog and the
+  // app says they have nothing on. Amber, not coral: the next move is the operator's, and a coral
+  // stage word would claim it is the runner's turn.
+  incident_review: { label: '담당자 확인 중', action: '진행 화면으로 ›', color: lilac.amber },
 };
 
 /** The stage a job is really in. `rawStatus` alone stopped being enough the day the stop stopped
@@ -357,7 +369,7 @@ function ReceivedReviews() {
 const rv = StyleSheet.create({
   row: {
     backgroundColor: paper.canvas, marginHorizontal: layout.gutter, paddingVertical: 12,
-    borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE',
+    borderTopWidth: 1, borderBottomWidth: 1, borderColor: lilac.hair,
   },
   pressed: { opacity: 0.96 },
   count: { fontSize: 17, fontWeight: '800', color: paper.ink },
@@ -398,11 +410,20 @@ export default function RunnerHome() {
   const [stuckDays, setStuckDays] = useState<number | null>(null);
   const [unread, setUnread] = useState(0); // 미읽음 알림 실카운트 — 벨 도트의 유일한 근거
   const [jobs, setJobs] = useState<RunnerJob[]>([]);
+  // 🔴 [runner-journey-1] THE READ THAT HAD NO FAILURE STATE. `loadJobs` below caught into a bare
+  // `console.warn`, `jobs` stays seeded `[]`, and every jobs-derived surface on this screen is
+  // presence-gated (진행 중 · 오늘 · 오늘의 루트 · 최근 완료) — so a runner WHO IS HOLDING A DOG
+  // saw a quiet day and no way back. That is the silent-catch → happy-UI shape at its most
+  // expensive, because the one thing this screen exists to show is the job in flight.
+  // `false` is 「no failure to report」, never 「there is nothing on」: the strip below draws only
+  // when the read failed AND the list is empty, so a partial recovery never shouts over real work.
+  const [jobsErr, setJobsErr] = useState(false);
   // [B9 · codex 2026-08-21] fetchRunnerJobs 도 scheduled_at DESC + limit 20 이다 — 보호자 홈에서
   // 고친 것과 **같은 결함이 러너 홈에 남아 있었다**. 진행 중인 일은 지금(= 그 20건보다 과거)이라
   // 미래 일정이 20건을 넘으면 창 밖으로 밀려나고, 개를 데리고 있는데 '진행 중'이 사라진다.
   // 캡 없는 진행 중 읽기를 합쳐 그 행이 **목록에 있게**만 한다 — current 의 선택 규칙은 그대로다.
   const loadJobs = useCallback(() => {
+    setJobsErr(false);
     Promise.all([fetchRunnerJobs(), fetchInFlightRunnerJobs()])
       .then(([js, inFlight]) => {
         const seen = new Set(js.map((j) => j.bookingId));
@@ -410,8 +431,9 @@ export default function RunnerHome() {
         setJobs(inFlight.length
           ? [...js.map((j) => liveById.get(j.bookingId) ?? j), ...inFlight.filter((j) => !seen.has(j.bookingId))]
           : js);
+        setJobsErr(false);
       })
-      .catch((e) => console.warn('[rhome] jobs:', e?.message ?? e));
+      .catch((e) => { console.warn('[rhome] jobs:', e?.message ?? e); setJobsErr(true); });
   }, []);
   const [patchMap, setPatchMap] = useState<Record<string, CoursePatch>>({}); // 완료 카드 미니 패치
   // [honesty repair 2026-08-08 / plan §6.1-2, §6.3] The seed used to be tier: 'certified' — the same
@@ -438,6 +460,26 @@ export default function RunnerHome() {
       .catch((e) => { console.warn('[rhome] status:', e?.message ?? e); setRsErr(true); })
       .finally(() => setRsLoaded(true));
   }, []);
+
+  // 🔴 [onboarding-first-run-2] MY OWN APPLICATION, which this screen never read. `preCert` is a
+  // TIER fact — it says a request cannot reach this runner — and the screen was answering the
+  // runner's actual question (「so what happens now?」) with 「인증 센터에서 지원할 수 있어요 ›」 to
+  // everyone, including the runner whose application had been sitting in the operator's queue for
+  // three days. Two reads, one sentence: `runner-application-copy.ts` owns the mapping so this
+  // screen, the tier ladder below it and 요청함 cannot say three different things.
+  // ⚠ The FAILED read is its own input and must never fall through to 지원하기 — a runner with a
+  // live application told to go apply would file a second one (the server refuses it by name:
+  // `already_applied`). `appRead` is that three-state value and nothing else reads these flags.
+  const [rApp, setRApp] = useState<RunnerApplication | null>(null);
+  const [rAppLoaded, setRAppLoaded] = useState(false);
+  const [rAppErr, setRAppErr] = useState(false);
+  const reloadApplication = useCallback(() => {
+    setRAppErr(false);
+    fetchMyRunnerApplication()
+      .then((a) => { setRApp(a); setRAppLoaded(true); })
+      .catch((e) => { console.warn('[rhome] application:', e?.message ?? e); setRAppErr(true); });
+  }, []);
+  const appRead: ApplicationRead = rAppErr ? 'error' : !rAppLoaded ? 'loading' : rApp;
 
   // [Sean] 거절한 요청은 다시 안 본다 — 서버 정본은 0056 booking_declines(뷰 제외). 이 Set은 거절 POST와
   // 다음 fetch 사이 깜빡임을 막는 낙관 레이어 + 로그 기록 실패(엣지 fn fail-open)의 폴백.
@@ -565,7 +607,8 @@ export default function RunnerHome() {
       .then(({ earned }) => setPatchMap(Object.fromEntries(earned.map((pt) => [pt.routeId, pt]))))
       .catch(() => {});
     reloadStatus();
-  }, [loadAvail, loadInbox, loadJobs, loadGate, loadChatUnread, reloadStatus]));
+    reloadApplication();
+  }, [loadAvail, loadInbox, loadJobs, loadGate, loadChatUnread, reloadStatus, reloadApplication]));
 
   // ── 알림 프라이머 (HIG S1/O3, 2026-09-22) ─────────────────────────────────────────────────────
   // registerPushToken() USED TO SIT IN THIS useFocusEffect, so the system alert could fire on any
@@ -623,7 +666,13 @@ export default function RunnerHome() {
     });
   };
 
-  const current = jobs.find((j) => ['runner_enroute', 'picked_up', 'active'].includes(j.rawStatus))
+  // [runner-journey-8] `incident_review` joins the in-flight list, ahead of the 확정 fallback. The
+  // dog may still be with the runner, so this booking outranks a confirmed one that has not
+  // started. ⚠ Written defensively on purpose: `fetchRunnerJobs`/`fetchInFlightRunnerJobs` do not
+  // return the status yet (that half is the api.ts slice's), so today this arm simply never
+  // matches — and the day those filters widen, this screen is already correct instead of needing
+  // a second edit nobody would remember to make.
+  const current = jobs.find((j) => ['runner_enroute', 'picked_up', 'active', 'incident_review'].includes(j.rawStatus))
     ?? jobs.find((j) => j.rawStatus === 'confirmed');
   const upcoming = jobs.filter((j) => j.status === 'confirmed' && j.bookingId !== current?.bookingId).slice(0, 3);
   const past = jobs.filter((j) => j.status === 'completed').slice(0, 3);
@@ -670,6 +719,17 @@ export default function RunnerHome() {
     // [0188] three destinations, not two. A job whose run has ENDED belongs on the return-seal
     // screen — sending it to /runner/run offers a stop button for a run that already stopped.
     const st = stageFor(j);
+    // [runner-journey-8] `incident_review` routes by the FACT, not by the status word: a run whose
+    // `run_ended_at` is stamped is over, so the two-stamp return screen is where the runner's own
+    // remaining action lives; an unstamped one is still a run in progress. Same split `returning`
+    // makes one line above, and for the same reason — sending a finished run to /runner/run offers
+    // a stop button for a run that already stopped.
+    if (st === 'incident_review') {
+      router.push(j.runEndedAt
+        ? { pathname: '/runner/return-seal', params: { bid: j.bookingId } }
+        : '/runner/run');
+      return;
+    }
     router.push(
       st === 'returning'
         ? { pathname: '/runner/return-seal', params: { bid: j.bookingId } }
@@ -689,6 +749,11 @@ export default function RunnerHome() {
   // An applicant (and anyone without a runners row) cannot receive a request at all — the inbox and
   // the tier ladder both say so instead of pretending it is a quiet day / a rung away.
   const preCert = rsLoaded && !rsErr && (rs.tier === null || rs.tier === 'applicant');
+  // [onboarding-first-run-2] The one sentence about this runner's own application, computed once
+  // and spent in three slots (the 온라인 row, the empty inbox, the tier ladder). One call, so the
+  // three cannot disagree; the helper is pure and every state of it is pinned in
+  // app/test/runner-application-copy.test.cjs.
+  const appLine = applicationLine(appRead, rs.tier);
   // [v4] 회당 평균·오늘 확보 합·이번 달/누적은 히어로와 함께 은퇴했다 (돈은 한 줄). 파생값도 같이 간다 —
   // 계산만 남아 아무도 읽지 않는 상태가 다음 세션에게는 "여기 있었는데 왜 안 그리지?"가 된다.
   // 화면의 유일한 코랄 소유권: LIVE(active) 러닝이 있으면 그 카드가 가져가고, 수락 문은 고스트로 내려간다.
@@ -827,6 +892,35 @@ export default function RunnerHome() {
             {rsErr && (
               <Pressable onPress={reloadStatus} hitSlop={8} style={styles.togRetry} accessibilityRole="button" accessibilityLabel="온라인 상태 다시 불러오기">
                 <Text style={styles.togRetryTxt}>다시 시도</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : preCert ? (
+          /* 🔴 [onboarding-first-run-3] AN APPLICANT'S SWITCH CONTROLS NOTHING, and it worked.
+             `fetchCertifiedRunners` applies `.neq('tier','applicant')` BEFORE `.eq('online',true)`
+             (api.ts:1404-1408) and 0054 `runners_available_for` is gated the same way, so the two
+             surfaces `online` actually feeds cannot contain an applicant at any switch position.
+             `ensureRunner` mints `online: true` (api.ts:1186-1193), so a first-run runner met a lit
+             switch and a sentence — 「보호자의 러너 목록과 추천에 보여요」 — that was false for them
+             specifically. requests.tsx:801-803 had already reached this conclusion and omits the row
+             for exactly this reason; this screen was the surface still drawing it.
+             The mint default is NOT touched (that is Sean's) — only what this screen draws.
+             What takes the slot is the fact the runner is actually waiting on, and the same
+             `applicationLine` the empty inbox and the ladder below use, so one screen cannot say
+             three things about one application. */
+          <View style={styles.tog}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[styles.appLead, appLine.action === 'retry' && styles.appLeadFail]}>{appLine.lead}</Text>
+            </View>
+            {appLine.action !== 'none' && (
+              <Pressable
+                onPress={appLine.action === 'retry' ? reloadApplication : () => router.push('/runner/apply')}
+                hitSlop={8}
+                style={styles.togRetry}
+                accessibilityRole="button"
+                accessibilityLabel={appLine.action === 'retry' ? '인증 상태 다시 불러오기' : '인증 센터로 이동'}
+              >
+                <Text style={[styles.appLink, appLine.action === 'retry' && styles.appLinkFail]}>{appLine.link}</Text>
               </Pressable>
             )}
           </View>
@@ -1065,9 +1159,16 @@ export default function RunnerHome() {
                   nobody has accepted. So it takes the coral, and the 수락 door drops to a ghost
                   (see `liveOwnsCoral`, extended below to every in-flight stage rather than `active`
                   alone). Label is STAGE[rawStatus].action, so it stays the stage's own next step. */}
+              {/* [ui-consistency-16 (b) · ui-consistency-2] This filled button carried BOTH
+                  depth grammars at once: a 4px lip AND `pressed96`. DESIGN.md:216 splits them —
+                  a surface with a fill is a physical key (translateY(3) + a 1px edge, so the
+                  bottom edge stays put and the key sinks), and scale belongs to paper faces with
+                  no depth. Doubling them makes the press read as soft, which is exactly what
+                  paper-btn.tsx:78-82 and requests.tsx:595-602 already say in comments. Same
+                  arithmetic as PaperBtn's primary, so a runner meets one language. */}
               <Pressable
                 onPress={() => openJob(current)}
-                style={({ pressed }) => [styles.jobCta, pressed && styles.pressed96]}
+                style={({ pressed }) => [styles.jobCta, pressed && styles.jobCtaPressed]}
                 accessibilityRole="button"
                 accessibilityLabel={st?.action ?? '이어서 진행'}
               >
@@ -1101,6 +1202,30 @@ export default function RunnerHome() {
           );
         })()}
 
+        {/* 🔴 [runner-journey-1] THE JOBS READ, SAID OUT LOUD WHEN IT FAILS. One strip, in the
+            진행 중 slot, and it is gated on `jobs.length === 0` as well as on the failure: if the
+            merged read gave us anything at all, the ticket above is real and a critical strip over
+            real work is the crying-gate failure. Empty + failed is the only state where this
+            screen currently says nothing — and it is exactly the state where a runner may be
+            standing on a doorstep with someone's dog. 다시 시도 calls the same loader the focus
+            effect does, so the door is real in every state it is drawn in. */}
+        {jobsErr && jobs.length === 0 && (
+          <View style={styles.jobsFail}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.jobsFailTxt}>진행 중인 일을 불러오지 못했어요</Text>
+            </View>
+            <Pressable
+              onPress={loadJobs}
+              hitSlop={8}
+              style={styles.jobsFailBtn}
+              accessibilityRole="button"
+              accessibilityLabel="진행 중인 일 다시 불러오기"
+            >
+              <Text style={styles.jobsFailLink}>다시 시도</Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* ————— QUEUE: 오늘 맨 앞 = 보딩패스 티켓 · 나머지 = 스텁 행. 수락/거절 = 소스 요청함 핸들러 ————— */}
         {/* [honesty 2026-08-19 · runner review #4] 'N건'은 로드가 성공한 뒤에만. 종전엔 로딩 중과
             인박스 실패 후에 '요청함 · 0건 ›'을 인쇄했는데, 같은 프레임 아래 박스는 '요청을 불러오지
@@ -1121,6 +1246,8 @@ export default function RunnerHome() {
               router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
             }}
             disabled={gate.waitingOn === 'owner' || !gate.bookingId}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: gate.waitingOn === 'owner' || !gate.bookingId }}
             style={({ pressed }) => [
               styles.gateStrip,
               pressed && gate.waitingOn !== 'owner' && styles.pressed96,
@@ -1129,8 +1256,15 @@ export default function RunnerHome() {
             <View style={[styles.gateDot, { backgroundColor: gate.waitingOn === 'owner' ? lilac.accent : paper.pending }]} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.gateWhy}>
+                {/* [runner-journey-8] 「지난 러닝」 was keyed on `rawStatus` ALONE, and 0092:116
+                    holds a booking in `incident_review` whether or not the run has ended — so a
+                    runner whose CURRENT run was escalated mid-walk was told the run was past.
+                    `run_ended_at` is the fact that decides it (RunnerWorkGate carries it,
+                    api.ts:1868), exactly as `stageFor` keys the ticket's own word on it. */}
                 {gate.rawStatus === 'incident_review'
-                  ? '지난 러닝이 담당자 확인 중이에요'
+                  ? gate.runEndedAt
+                    ? '지난 러닝이 담당자 확인 중이에요'
+                    : '진행 중인 러닝을 담당자가 확인하고 있어요'
                   : gate.waitingOn === 'owner'
                     ? '보호자 확인 대기 중이에요'
                     : '지난 러닝의 반환 확인이 아직이에요'}
@@ -1265,7 +1399,13 @@ export default function RunnerHome() {
                       <Text style={styles.doorBlockedTxt}>
                         반환 확인이 끝나면 여기서 수락할 수 있어요
                       </Text>
-                      <Text style={styles.doorBlockedSub}>응답 기한 전까지 요청은 남아 있어요</Text>
+                      {/* ⚠ [2026-09-25] 「응답 기한 전까지」였다. 이 앱에 응답 기한이라는 개념은
+                          없다 — 기한 컬럼도 정책 숫자도 없고, expire_unmatched_bookings(0080 ⓐ)가
+                          `scheduled_at < now()`로만 만료시킨다. requests.tsx:907-910이 그 사실을
+                          이미 측정해 자기 푸터를 고쳐 놓았는데 이 문장만 옛 개념을 계속 출하했다.
+                          같은 티켓이 바로 위에서 「시작 시각이 지나면 자동 만료돼요」라고 말하고
+                          있으므로, 이 줄도 그 시각을 가리킨다. */}
+                      <Text style={styles.doorBlockedSub}>시작 시각 전까지 요청은 남아 있어요</Text>
                     </View>
                   ) : !gateKnown ? (
                     // 🔴 [cold review #9] THE GATE READ FAILED, and silence here is the
@@ -1376,14 +1516,27 @@ export default function RunnerHome() {
             ) : rsErr ? (
               <Text style={[styles.emptyInboxTxt, styles.emptyInboxFail]}>내 러너 상태를 불러오지 못했어요</Text>
             ) : preCert ? (
-              <Pressable
-                onPress={() => router.push('/runner/apply')}
-                accessibilityRole="button"
-                accessibilityLabel="인증 센터로 이동해 러너 지원하기"
-              >
-                <Text style={[styles.emptyInboxTxt, styles.emptyInboxLead]}>인증 전에는 요청이 오지 않아요</Text>
-                <Text style={styles.emptyInboxLink}>인증 센터에서 지원할 수 있어요 ›</Text>
-              </Pressable>
+              /* [onboarding-first-run-2] The lead used to be a CONSTANT — 「인증 전에는 요청이 오지
+                 않아요 / 인증 센터에서 지원할 수 있어요 ›」 — printed to every pre-certification
+                 runner including the one whose application was already in the queue. It is now the
+                 application's own state (and the constant survives as the `null` arm of
+                 `applicationLine`, which is the one case where it was true). A failed read draws
+                 the neutral retry line here too: it must never say 지원하기 on an answer we do not
+                 have. */
+              appLine.action === 'none' ? (
+                <Text style={styles.emptyInboxTxt}>{appLine.lead}</Text>
+              ) : (
+                <Pressable
+                  onPress={appLine.action === 'retry' ? reloadApplication : () => router.push('/runner/apply')}
+                  accessibilityRole="button"
+                  accessibilityLabel={appLine.action === 'retry' ? '인증 상태 다시 불러오기' : '인증 센터로 이동'}
+                >
+                  <Text style={[styles.emptyInboxTxt, appLine.action === 'retry' ? styles.emptyInboxFail : styles.emptyInboxLead]}>
+                    {appLine.lead}
+                  </Text>
+                  <Text style={[styles.emptyInboxLink, appLine.action === 'retry' && styles.appLinkFail]}>{appLine.link}</Text>
+                </Pressable>
+              )
             ) : inboxErr ? (
               // [honesty 2026-08-11] a failed inbox fetch is not a quiet day — say so, offer retry
               <Pressable onPress={loadInbox} accessibilityRole="button" accessibilityLabel="요청 인박스 다시 불러오기">
@@ -1462,7 +1615,7 @@ export default function RunnerHome() {
                     <Pressable
                       key={st.job.bookingId}
                       onPress={() => openJob(st.job)}
-                      style={[styles.stop, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}
+                      style={[styles.stop, i > 0 && { borderTopWidth: 1, borderTopColor: lilac.hair }]}
                     >
                       {/* [v4] '지금' 표식은 잉크 — 코랄은 화면당 하나이고 그 하나는 수락 문이다.
                           이 점이 말하려던 사실은 바로 옆 'stopTmSub'가 이미 '지금'이라고 글자로 말한다. */}
@@ -1524,7 +1677,22 @@ export default function RunnerHome() {
               return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical }}>등급을 불러오지 못했어요</Text>;
             }
             if (preCert) {
-              return <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head }}>인증 러너가 되면 등급이 시작돼요</Text>;
+              // [onboarding-first-run-2] 「인증 러너가 되면 등급이 시작돼요」 was true and answered a
+              // question nobody asked — the ladder's own rule — while saying nothing about WHERE
+              // this runner is. The application's state is the same sentence the two slots above
+              // print, so the screen says one thing three times rather than three things once.
+              // No door: this card is already a Pressable to /runner/rewards, and a nested door
+              // inside a tapped card is two targets in one frame.
+              return (
+                <>
+                  <Text style={{ fontSize: 15, lineHeight: 20, fontWeight: '700', color: appLine.action === 'retry' ? paper.critical : lilac.head }}>
+                    {appLine.lead}
+                  </Text>
+                  <Text style={{ fontSize: 15, lineHeight: 20, color: lilac.text, marginTop: 4 }}>
+                    인증 러너가 되면 등급이 시작돼요
+                  </Text>
+                </>
+              );
             }
             // v1 승급 기준: 베테랑 30회, 마스터 100회 — 심사 도입 전 잠정.
             // 수수료는 일괄 33%(0059) — 티어 연동 요율 없음. 요율 인하 약속 금지(정산은 33%를 뗀다).
@@ -1578,7 +1746,7 @@ export default function RunnerHome() {
               찍혔다 — 100회 뛴 러너에게 0회라고 말하는 화면. 위 사다리는 이미 로딩/실패를
               자기 문장으로 말하므로, 아래는 모르는 동안 아무것도 그리지 않는다 (구분선 포함). */}
           {rsLoaded && !rsErr && (<>
-          <View style={{ height: 1, backgroundColor: '#EEEEEE', marginTop: 11, marginBottom: 10 }} />
+          <View style={{ height: 1, backgroundColor: lilac.hair, marginTop: 11, marginBottom: 10 }} />
 
           {/* 보급 드랍 트레일 — 지그재그 체크포인트 (i<cycle5 지남=accent, i===cycle5 다음=accent 링, 끝=보급 상자) */}
           <Row style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1624,7 +1792,7 @@ export default function RunnerHome() {
                 ? '보급 드랍 도착! 리워드 센터에서 열어보세요'
                 : `${remaining5}번 더 달리면 보급 드랍!`}
           </Text>
-          <Row style={{ alignItems: 'center', gap: 7, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
+          <Row style={{ alignItems: 'center', gap: 7, marginTop: 9, paddingTop: 9, borderTopWidth: 1, borderTopColor: lilac.hair }}>
             <Text style={styles.flagLb}>픽 드랍</Text>
             <View style={styles.flagTrack}>
               <View style={[styles.flagFill, { width: `${(cycle10 / 10) * 100}%` }]} />
@@ -1700,7 +1868,7 @@ export default function RunnerHome() {
               </Pressable>
 
               {availOpen && (
-                <View style={{ marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' }}>
+                <View style={{ marginTop: 11, paddingTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair }}>
                   <Row style={{ gap: 4 }}>
                     {DAY_ORDER.map((wd) => {
                       const rule = avail.find((r) => r.weekday === wd);
@@ -1732,7 +1900,7 @@ export default function RunnerHome() {
             <SectionHead title="최근 완료" link="수익 상세 ›" onPress={() => router.push('/runner/earnings')} />
             <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
               {past.map((j, i) => (
-                <Row key={j.bookingId} style={[styles.drow, i > 0 && { borderTopWidth: 1, borderTopColor: '#EEEEEE' }]}>
+                <Row key={j.bookingId} style={[styles.drow, i > 0 && { borderTopWidth: 1, borderTopColor: lilac.hair }]}>
                   <View style={{ alignSelf: 'center' }}>
                     {j.routeId && patchMap[j.routeId] ? (
                       <Pressable onPress={() => router.push('/cards')} accessibilityRole="button" accessibilityLabel="컬렉션 열기">
@@ -1902,7 +2070,7 @@ const styles = StyleSheet.create({
 
   // 공통 카드 + 룰 — [페이퍼 크롬] 샤프 코너 · 뉴트럴 #EEE 1px · 소프트 섀도 은퇴
   card: {
-    backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: lilac.card, borderRadius: 0, borderWidth: 1, borderColor: lilac.hair,
     paddingVertical: 12, paddingHorizontal: 13, marginTop: 10,
   },
   // 피드 직행 버튼 — 최근 완료 카드 직하 · [§3b] 세컨더리 킨드: 캔버스 필 + 코랄 라인 보더 + 잉크 16/800
@@ -1940,7 +2108,7 @@ const styles = StyleSheet.create({
   tog: {
     flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60,
     paddingTop: 14, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+    borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
   togLbl: { fontSize: 17, lineHeight: 22, fontWeight: '800' }, // 색은 상태에 따라 인라인 (잉크/딤/크리티컬)
   // [dim-text judgment 2026-08-28] lilac.dim -> lilac.text. This is not the toggle's decoration —
@@ -1955,6 +2123,21 @@ const styles = StyleSheet.create({
   // 상태 로드 실패의 재시도 — 아래 recFail과 같은 문법 (크리티컬 잉크 + 밑줄, ≥44pt 타깃)
   togRetry: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
   togRetryTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // [onboarding-first-run-2] 인증 상태 한 줄 — 온라인 스위치가 빠진 자리. 빈 인박스의
+  // emptyInboxLead와 같은 16/800 잉크: 같은 문장이 두 자리에서 다른 무게로 읽히면 안 된다.
+  appLead: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.ink },
+  appLeadFail: { color: paper.critical, fontWeight: '700' },
+  appLink: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.actionInk },
+  appLinkFail: { color: paper.critical, textDecorationLine: 'underline' },
+  // [runner-journey-1] 진행 중 읽기 실패 — 앱 공통 라우드-페일 문법(criticalWash 면 + critical
+  // 잉크 + 밑줄 다시 시도). 티켓 자리에 서므로 거터를 넘지 않고, 재시도는 44pt 타깃을 진다.
+  jobsFail: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10,
+    backgroundColor: paper.criticalWash, paddingVertical: 12, paddingHorizontal: 12,
+  },
+  jobsFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
+  jobsFailBtn: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
+  jobsFailLink: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // 스위치 — 랩 치수 56×32. ON = 잉크(상태), OFF = 인셋. 코랄 없음: 코랄은 '누를 곳'이지 '켜진 상태'가 아니다.
   swTrack: { width: 56, height: 32, borderRadius: 16, padding: 3, flexDirection: 'row', borderWidth: 1, flexShrink: 0 },
   swTrackOn: { backgroundColor: lilac.head, borderColor: lilac.head, justifyContent: 'flex-end' },
@@ -1969,7 +2152,7 @@ const styles = StyleSheet.create({
   // ③ 이번 주 한 줄 — [v4] 머니 히어로(₩50pt·점선 리더 3행·월/누적 창·오늘 합)를 대체한다.
   // 숫자만 Oswald, lineHeight 19 = 1.27× (BUG A 법). 320dp에서 값이 두 줄로 접히면 접힌다 —
   // flex:1 + textAlign right라 오른쪽 정렬을 유지한 채로 흐른다.
-  week: { alignItems: 'baseline', gap: 8, paddingTop: 11, paddingBottom: 11, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  week: { alignItems: 'baseline', gap: 8, paddingTop: 11, paddingBottom: 11, borderBottomWidth: 1, borderBottomColor: lilac.hair },
   weekK: { fontSize: 15, lineHeight: 20, color: lilac.dim, fontWeight: '600', flexShrink: 0 },
   weekV: { flex: 1, textAlign: 'right', fontSize: 15, lineHeight: 20, color: lilac.head, fontWeight: '600' },
   weekNum: { fontSize: 15, lineHeight: 19, color: lilac.head },
@@ -1977,7 +2160,7 @@ const styles = StyleSheet.create({
   // critical 계열: 이건 「네 차례」가 아니라 「뭔가 잘못됐다」이고, 러너 홈의 코랄 하나는 수락 문이
   // 이미 가져갔다. 탭 타깃 44pt 는 paddingVertical 12 + 두 줄로 확보된다.
   stuckStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                gap: 10, minHeight: 44, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+                gap: 10, minHeight: 44, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: lilac.hair },
   stuckText: { flex: 1, fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
   stuckLink: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
 
@@ -2031,8 +2214,15 @@ const styles = StyleSheet.create({
   // ① the coral action. 4px depth edge = the same drawn-button grammar the owner home uses, so a
   // dual-role user meets one language. Solid coral: title white is 4.84:1 on paper.action (the
   // ground's ceiling), sub is paper.wash at 4.55:1 — both measured, both above the 4.5 floor.
+  // [ui-consistency-16 (b)] The lip was a local hex one step off the token — paper.actionPressed
+  // is #A83315 and this said #A63A20, a separation of ~1.1 that nobody can see and that made this
+  // one button's depth edge a colour the system does not own. The token was always the intent
+  // (draw-button.tsx and paper-btn.tsx both measure their lip against paper.action with it).
   jobCta: { marginTop: 10, backgroundColor: paper.action, paddingHorizontal: 14, paddingVertical: 13,
-    borderBottomWidth: 4, borderBottomColor: '#A63A20' },
+    borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
+  // PaperBtn's own press arithmetic (paper-btn.tsx:84-86): the 3px the edge gives up is taken by
+  // the translate, so the bottom edge stays where it was and the key sinks into it.
+  jobCtaPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1, borderBottomColor: paper.actionPressed },
   jobCtaT: { fontSize: 18, lineHeight: 23, fontWeight: '800', color: '#FFFFFF' },
   jobCtaS: { marginTop: 2, fontSize: 15, lineHeight: 20, color: paper.wash },
   // chat — ink outline, deliberately not a second coral (see the JSX note).
@@ -2055,18 +2245,18 @@ const styles = StyleSheet.create({
   // [v4] LIVE 러닝이 코랄을 쥐고 있을 때의 수락 문 — 잉크 아웃라인 고스트 (랩 .doorB). 여전히 프라이머리
   // 치수(pv 15 · 라벨 17/800)라 '내려간 것은 색이지 문이 아니다'가 읽힌다.
   doorGhost: { backgroundColor: lilac.card, borderWidth: 1.5, borderColor: lilac.head },
-  doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE' },
+  doorQuiet: { backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair },
   // ⑫ [0188] the shut gate's door position — a SENTENCE, not a disabled button. Explicit fill,
   // never an opacity trick on the coral one (the button-matrix law): a greyed coral still reads as
   // "press me", and this one is not pressable because the server will refuse it.
-  doorBlocked: { backgroundColor: paper.disabledFill, borderWidth: 1, borderColor: '#EEEEEE', justifyContent: 'center' },
+  doorBlocked: { backgroundColor: paper.disabledFill, borderWidth: 1, borderColor: lilac.hair, justifyContent: 'center' },
   doorBlockedTxt: { fontSize: 15, fontWeight: '700', color: paper.text, lineHeight: 20 },
   doorBlockedSub: { fontSize: 15, color: paper.dim, marginTop: 3, lineHeight: 20 },
   // ⑫ [0188] R1c strip — the WHY row. Amber = a state the runner must clear (paper.pending is the
   // semantic 대기 token); lilac when the wait is the OWNER's, because that is not the runner's turn.
   gateStrip: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 14,
-    backgroundColor: paper.canvasSoft, borderWidth: 1, borderColor: '#EEEEEE',
+    backgroundColor: paper.canvasSoft, borderWidth: 1, borderColor: lilac.hair,
     paddingVertical: 12, paddingHorizontal: 12,
   },
   gateDot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
@@ -2078,7 +2268,7 @@ const styles = StyleSheet.create({
   doorSubNum: { fontSize: 15, lineHeight: 20 },
 
   // 스텁 행 — 목업 .s-act width 92 → 96 (FIX3: 11.5pt 캡션 한 줄 여유 확보, 구조는 동일)
-  stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE', borderRadius: 0, overflow: 'hidden' }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
+  stub: { flexDirection: 'row', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair, borderRadius: 0, overflow: 'hidden' }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   stubNm: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: lilac.head },
   stubKm: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
   stubKmUnit: { fontSize: 15, color: lilac.dim, fontWeight: '600' }, // [v4] 코랄 단위 은퇴 — 단위는 강조가 아니다
@@ -2092,7 +2282,7 @@ const styles = StyleSheet.create({
   // 최장 소자는 이제 요금 숫자('999,999' 7글리프 × ~8.5 ≈ 60px)와 '보기 ›' 라벨(2×16 + 12 ≈ 44px) —
   // 60 + 패딩 16 = 76 < 112 (기기 폰트 스케일 여유 36px).
   stubAct: { width: 112, borderLeftWidth: 1.4, borderStyle: 'dashed', borderLeftColor: '#DCD7F0', paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', gap: 7 },
-  stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', zIndex: 3 },
+  stubNotch: { position: 'absolute', left: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: paper.canvas, borderWidth: 1, borderColor: lilac.hair, zIndex: 3 },
   // BUG A: 스텁 요금 17pt → lineHeight 22 (1.29×), includeFontPadding 제거
   stubFare: { fontSize: 17, lineHeight: 22, color: lilac.head },
   stubFareCap: { fontSize: 15, lineHeight: 20, letterSpacing: 0.5, color: lilac.dim, fontWeight: '500', marginTop: 2 }, // [§3b] 한글 캡션 — 라틴 자간 1 → 0.5
@@ -2100,7 +2290,7 @@ const styles = StyleSheet.create({
   // 문이었다 — 라벨과 킨드를 정직하게)
   stubView: { width: '100%', borderRadius: 0, paddingVertical: 15, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: paper.line },
   stubViewTxt: { fontSize: 16, lineHeight: 20, fontWeight: '800', color: lilac.head },
-  emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: '#EEEEEE' }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
+  emptyInbox: { marginTop: 9, backgroundColor: lilac.inset, borderRadius: 0, padding: 16, borderWidth: 1, borderColor: lilac.hair }, // [페이퍼 크롬] 샤프 (인셋 필 생존)
   emptyInboxTxt: { fontSize: 15, lineHeight: 20, color: lilac.dim, textAlign: 'center' },
   // emptyInboxTxt는 로딩·실패·게이트 문장 세 가지를 한 레시피로 그린다. 로딩이 조용한 것은 옳지만
   // (「불러오는 중」은 건너뛰어도 되는 말이다) 나머지 둘은 아니었다. 토큰을 건드리지 않고 자리마다
@@ -2119,11 +2309,11 @@ const styles = StyleSheet.create({
   // 문은 행 끝. 이 상태의 코랄 수는 **0개**이고 그건 합법이다 (requests.tsx R2c 선례) — 누를 것이
   // 없는 화면에 클라이맥스를 만들면 그 코랄이 가리키는 행동이 없다.
   emptyInboxHead: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head, textAlign: 'center' },
-  emptySum: { marginTop: 11, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  emptySum: { marginTop: 11, borderTopWidth: 1, borderTopColor: lilac.hair },
   // min-height 52 + 15/20 두 소자 = 랩 치수(2026-08-25 플로어 상향분 반영). 문(시간 조정)은
   // 자기 44pt 타깃을 따로 진다.
   sumRow: { alignItems: 'center', gap: 10, minHeight: 52, paddingVertical: 12 },
-  sumRowDiv: { borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  sumRowDiv: { borderTopWidth: 1, borderTopColor: lilac.hair },
   sumLbl: { width: 96, flexShrink: 0, fontSize: 15, lineHeight: 20, color: lilac.dim },
   sumVal: { flex: 1, minWidth: 0, textAlign: 'right', fontSize: 15, lineHeight: 20, fontWeight: '800', color: lilac.head },
   sumAct: { minHeight: 44, justifyContent: 'center', flexShrink: 0 },
@@ -2152,13 +2342,13 @@ const styles = StyleSheet.create({
 
   // ③ 리워드
   fee: { fontSize: 15, lineHeight: 20, letterSpacing: 0.5, color: lilac.head, fontWeight: '600' },
-  rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' },
+  rung: { flex: 1, height: 6, backgroundColor: lilac.inset, borderWidth: 1, borderColor: lilac.hair, overflow: 'hidden' },
   rungL: { borderTopLeftRadius: 99, borderBottomLeftRadius: 99 },
   rungR: { borderTopRightRadius: 99, borderBottomRightRadius: 99 },
   rungFill: { height: '100%', backgroundColor: lilac.accent },
   trailCnt: { fontSize: 15, lineHeight: 20, letterSpacing: 1, color: lilac.accent, fontWeight: '500' },
   flagLb: { fontSize: 15, lineHeight: 20, letterSpacing: 1.2, color: lilac.dim, fontWeight: '600' },
-  flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: '#EEEEEE' },
+  flagTrack: { flex: 1, height: 5, borderRadius: 99, backgroundColor: lilac.inset, overflow: 'hidden', borderWidth: 1, borderColor: lilac.hair },
   flagFill: { height: '100%', borderRadius: 99, backgroundColor: lilac.accent },
   flagCnt: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
 
@@ -2191,15 +2381,17 @@ const styles = StyleSheet.create({
   // [2026-08-25] 15/20 으로 올라가도 20 < 26 이라 칸 높이는 그대로다.
   sq: {
     flex: 1, height: 26, borderRadius: 0, alignItems: 'center', justifyContent: 'center',
-    // [2026-08-25 pale retirement] hardcoded #E6E2F4 (lilac.hair's OLD value) → the token, which
-    // now carries the neutral #EEEEEE. The literal was a copy of the token and drifted out of the
-    // sweep's reach; binding it back is what keeps the next ruling from missing this cell.
+    // [2026-08-25 pale retirement] a hardcoded copy of lilac.hair's OLD value stood here → the
+    // token, which now carries the neutral hairline grey. The literal was a copy of the token and
+    // drifted out of the sweep's reach; binding it back is what keeps the next ruling from missing
+    // this cell. [ui-consistency-7 2026-09-25] The other 23 copies of the token's CURRENT value in
+    // this file are now bound the same way — theme.ts:76 is the only place that hex is written.
     backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair,
   },
   sqOn: { backgroundColor: lilac.accent, borderColor: lilac.accent },
   sqTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800' },
 
-  day: { flex: 1, borderRadius: 0, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: '#EEEEEE' },
+  day: { flex: 1, borderRadius: 0, paddingVertical: 8, alignItems: 'center', backgroundColor: lilac.card, borderWidth: 1, borderColor: lilac.hair },
   dayOn: { backgroundColor: '#F4F1FE', borderColor: '#DCD6F8' },
   dayD: { fontSize: 15, fontWeight: '700', lineHeight: 20 },
   dayH: { fontSize: 15, lineHeight: 20, letterSpacing: 0.4, fontWeight: '500', marginTop: 4 },
@@ -2211,11 +2403,11 @@ const styles = StyleSheet.create({
   drowB: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.head },
   drowS: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 3 },
   drowPay: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.text },
-  shot: { borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 6 }, // [페이퍼 크롬]
+  shot: { borderWidth: 1, borderColor: lilac.hair, backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 4, paddingHorizontal: 6 }, // [페이퍼 크롬]
   shotTxt: { fontSize: 15, fontWeight: '600', color: lilac.head },
 
   // 퀵 링크 — 목업 .qlink padding 10 11 (푸터 스타일은 Ⓑ① 재인쇄 은퇴와 함께 삭제)
-  qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderStyle: 'dashed', borderColor: '#EEEEEE', borderRadius: 0, paddingVertical: 10, paddingHorizontal: 11 }, // [페이퍼 크롬] 글래스 은퇴
+  qlink: { flexBasis: '48%', flexGrow: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 6, backgroundColor: paper.canvas, borderWidth: 1, borderStyle: 'dashed', borderColor: lilac.hair, borderRadius: 0, paddingVertical: 10, paddingHorizontal: 11 }, // [페이퍼 크롬] 글래스 은퇴
   qlinkB: { fontSize: 15, fontWeight: '600', color: lilac.head },
   qlinkChev: { fontSize: 12, color: lilac.dim }, // 글리프 전용(›) 셰브런 — 플로어 면제
 });

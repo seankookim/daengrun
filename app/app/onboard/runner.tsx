@@ -94,10 +94,10 @@ export default function OnboardRunner() {
             <Text style={s.backTxt}>‹ 역할 다시 고르기</Text>
           </Pressable>
         )}
-        {/* The counter is DATA in a kicker slot, so it takes the 14pt detail floor — the
-            exemption covers letterspaced Latin kickers (labels), not the step number itself
-            (DESIGN.md §3, 15pt floor). */}
-        <Text style={s.step} accessibilityLabel="1단계, 총 1단계">1 / 1</Text>
+        {/* [runner-journey-15] 「1 / 1」 스텝 카운터 은퇴. 카운터가 하는 일은 「몇 개 더 남았나」에
+            답하는 것인데 이 흐름은 한 장이고, 「1 / 1」의 답은 「없다」다 — 즉 아무도 하지 않은
+            질문에 대한 답이 화면의 첫 줄을 쓰고 있었다. (이 자리의 옛 주석은 그 숫자의 **폰트
+            플로어**만 따졌지 그것이 무엇을 위해 있는지는 묻지 않았다.) 두 장이 되는 날 돌아온다. */}
         <Text style={[s.title, df]}>이름과{'\n'}홈 베이스</Text>
 
         <TextInput
@@ -198,7 +198,6 @@ const s = StyleSheet.create({
   body: { paddingHorizontal: layout.gutter, paddingBottom: 140 },
   back: { minHeight: 44, justifyContent: 'center', marginBottom: 2 },
   backTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
-  step: { fontSize: 15, lineHeight: 18, letterSpacing: 2, fontWeight: '700', color: paper.dim },
   title: { fontSize: 24, lineHeight: 30, fontWeight: '900', color: paper.ink, marginTop: 12 },
   fieldName: {
     marginTop: 20, paddingTop: 10, paddingBottom: 8, minHeight: 44,
