@@ -229,7 +229,7 @@ export default function Matching() {
       })
       .finally(() => setRosterLoading(false));
   };
-  useEffect(loadRoster, [live]);
+  useEffect(loadRoster, [live, pickMode]);
 
   // 현재 지명된 러너 — 이 화면이 이미 가진 데이터엔 없어서 예약 1행만 얇게 조회한다.
   // (보호자는 예약 당사자라 RLS 통과. 실패해도 목록은 그대로 뜨고 태그만 안 붙는다)
@@ -290,7 +290,7 @@ export default function Matching() {
       if (i > 0) arr.unshift(arr.splice(i, 1)[0]);
     }
     return arr;
-  }, [liveRunners, gearMap, targetPaceSec]);
+  }, [liveRunners, gearMap, targetPaceSec, rebook]);
   const top = scored[0];
   const topIsPreferred = !rebook && !!top && top.r.profileId === draft.preferredRunnerId;
   // 시트는 절대 비지 않는다 — 선택이 없거나 사라졌으면 추천 1순위로 폴백

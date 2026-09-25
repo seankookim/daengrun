@@ -103,14 +103,14 @@ export default function RunnerCalendar() {
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [reviewedRead, setReviewedRead] = useState<ReviewedRead>('loading');
 
-  const loadReviewed = (list: RunnerJob[]) => {
+  const loadReviewed = useCallback((list: RunnerJob[]) => {
     const done = list.filter((j) => j.rawStatus === 'completed').map((j) => j.bookingId);
     if (done.length === 0) { setReviewed(new Set()); setReviewedRead('ready'); return; }
     setReviewedRead('loading');
     return fetchMyReviewedBookingIds(done)
       .then((ids) => { setReviewed(ids); setReviewedRead('ready'); })
       .catch((e) => { console.warn('[calendar] reviews:', e?.message ?? e); setReviewedRead('err'); });
-  };
+  }, []);
 
   // [onboarding-first-run-8] The empty state below told EVERY zero-job runner 「요청 탭에서 새 요청을
   // 수락해보세요」 — and for an applicant the 요청 tab then says 「인증 전에는 요청이 오지 않아요」 and
@@ -119,21 +119,22 @@ export default function RunnerCalendar() {
   // only when the tier READ SUCCEEDED and says pre-certification; unknown or failed keeps today's
   // copy, because a guessed tier would tell a certified runner to go and apply.
   const [tier, setTier] = useState<{ s: 'loading' } | { s: 'ok'; tier: string | null } | { s: 'err' }>({ s: 'loading' });
-  const loadTier = () => {
+  const loadTier = useCallback(() => {
     fetchMyRunnerStatus()
       .then((v) => setTier({ s: 'ok', tier: v.tier }))
       .catch((e) => { console.warn('[calendar] status:', e?.message ?? e); setTier({ s: 'err' }); });
-  };
+  }, []);
   const preCert = tier.s === 'ok' && (tier.tier === null || tier.tier === 'applicant');
 
-  const load = () => {
+  // useCallback'd down the chain (setters only, so stable) so the focus effect lists its real dependency.
+  const load = useCallback(() => {
     setLoadErr(false);
     loadTier();
     return fetchRunnerJobs()
       .then((j) => { setJobs(j); setLoaded(true); return loadReviewed(j); })
       .catch((e) => { console.warn('[calendar] jobs:', e?.message ?? e); setLoadErr(true); });
-  };
-  useFocusEffect(useCallback(() => { load(); }, []));
+  }, [loadTier, loadReviewed]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 

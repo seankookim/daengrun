@@ -186,8 +186,7 @@ export default function RunDone() {
     fetchMyReturnResolution(bookingId)
       .then(setResolution)
       .catch((e) => console.warn('[done] resolution:', (e as Error)?.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bookingId]); // same key as the trace and photo reads below, so all three follow one booking
 
   // [0193] …and the NAME is part of the same defect. `runResult.dogName` belongs to whatever run
   // ended last in this process, so on a receipt opened for a DIFFERENT booking it is another dog's
@@ -217,7 +216,7 @@ export default function RunDone() {
       .then(setTrace)
       .catch((e) => { setTraceErr(true); console.warn('[done] trace:', (e as Error)?.message); })
       .finally(() => setTraceLoading(false));
-  }, []);
+  }, [bookingId]);
   const traceBox = trace ? traceToBox(trace) : [];
 
   // 실드랍 — settle-run이 굴린 결과를 DB에서 읽는다 (목업 215회 은퇴, fake-inventory)
@@ -238,7 +237,7 @@ export default function RunDone() {
     fetchRunPhotos(bookingId)
       .then((p) => { setPhotos(p); setPhotoState('ready'); })
       .catch((e) => { console.warn('[done] photos:', (e as Error)?.message); setPhotoState('err'); });
-  }, []);
+  }, [bookingId]);
   useEffect(() => { loadPhotos(); }, [loadPhotos]);
   const [uploading, setUploading] = useState(false);
 
