@@ -167,7 +167,7 @@ export default function CourseMap() {
   // 카탈로그를 다른 순서로 보여주면 사용자는 어느 쪽을 믿어야 할지 알 수 없다.
   const shown = useMemo(
     () => orderByProximity(routes.filter((r) => matchesChips(r, chips)), pickup),
-    [routes, chips, pickup?.lat, pickup?.lng],
+    [routes, chips, pickup],
   );
   const sel = useMemo(() => routes.find((r) => r.id === selId) ?? null, [routes, selId]);
 

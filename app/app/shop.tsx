@@ -59,7 +59,7 @@ export default function Shop() {
   const [claimsErr, setClaimsErr] = useState(false);
   const [dropsErr, setDropsErr] = useState(false);
   const [boostErr, setBoostErr] = useState(false);
-  const load = () => {
+  const load = useCallback(() => {
     setMilesErr(false); setClaimsErr(false); setDropsErr(false); setBoostErr(false);
     return Promise.all([
       fetchMiles().then(setMiles)
@@ -75,8 +75,10 @@ export default function Shop() {
             .catch((e) => { console.warn('[shop] boost:', (e as Error)?.message ?? e); setBoostErr(true); })
         : Promise.resolve(),
     ]);
-  };
-  useFocusEffect(useCallback(() => { load(); }, []));
+  }, [isRunner]);
+  // [lint F0] `isRunner` was captured from the FIRST render by the old `[]` focus callback; the
+  // focus reload now reads the latest render's role like 당겨서 새로고침 and the retry strips do.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   const unopened = drops.filter((d) => !d.openedAt);

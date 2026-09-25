@@ -217,7 +217,7 @@ export default function RunDone() {
       .then(setTrace)
       .catch((e) => { setTraceErr(true); console.warn('[done] trace:', (e as Error)?.message); })
       .finally(() => setTraceLoading(false));
-  }, []);
+  }, [bookingId]);
   const traceBox = trace ? traceToBox(trace) : [];
 
   // 실드랍 — settle-run이 굴린 결과를 DB에서 읽는다 (목업 215회 은퇴, fake-inventory)
@@ -238,7 +238,7 @@ export default function RunDone() {
     fetchRunPhotos(bookingId)
       .then((p) => { setPhotos(p); setPhotoState('ready'); })
       .catch((e) => { console.warn('[done] photos:', (e as Error)?.message); setPhotoState('err'); });
-  }, []);
+  }, [bookingId]);
   useEffect(() => { loadPhotos(); }, [loadPhotos]);
   const [uploading, setUploading] = useState(false);
 

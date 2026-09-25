@@ -122,7 +122,7 @@ export default function Earnings() {
   const [months, setMonths] = useState<MonthTotal[]>([]);
   const [moLoaded, setMoLoaded] = useState(false);
   const [moErr, setMoErr] = useState(false);
-  const loadMonths = () => {
+  const loadMonths = useCallback(() => {
     setMoErr(false);
     return fetchLedgerMonthTotals(MONTHS_WINDOW)
       .then((rows) => { setMonths(sortMonthsNewestFirst(rows)); setMoLoaded(true); })
@@ -134,9 +134,9 @@ export default function Earnings() {
         setMonths([]);
         setMoErr(true);
       });
-  };
+  }, []);
 
-  const loadLedger = () => {
+  const loadLedger = useCallback(() => {
     setLoadErr(false);
     return Promise.all([
       fetchLedger().then(setLedger),
@@ -151,8 +151,8 @@ export default function Earnings() {
         setLedger([]);
         setLoadErr(true);
       });
-  };
-  const loadPayouts = () => {
+  }, []);
+  const loadPayouts = useCallback(() => {
     setPoErr(false);
     return fetchMyPayouts()
       .then((rows) => {
@@ -176,9 +176,10 @@ export default function Earnings() {
         setMethodLabels(new Map());
         setPoErr(true);
       });
-  };
-  const load = () => Promise.all([loadLedger(), loadPayouts(), loadMonths()]);
-  useFocusEffect(useCallback(() => { load(); }, []));
+  }, []);
+  // useCallback'd (setters only, so stable) so the focus effect lists its real dependency.
+  const load = useCallback(() => Promise.all([loadLedger(), loadPayouts(), loadMonths()]), [loadLedger, loadPayouts, loadMonths]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
