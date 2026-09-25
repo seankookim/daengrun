@@ -655,6 +655,10 @@ export default function RunnerProfileScreen() {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                       {daySlots.map((sl) => {
                         const ok = slotOk[sl.key];
+                        // An unseeded key (undefined) is as unknown as a seeded null: the seeding effect
+                        // runs after paint, so a new day's chips render one frame before it. Both read
+                        // as 확인 중 — an unknown slot is never painted 가능.
+                        const checking = ok === null || ok === undefined;
                         const sel = selected?.key === sl.key;
                         return (
                           <Pressable
@@ -669,17 +673,17 @@ export default function RunnerProfileScreen() {
                             accessibilityState={{ selected: sel, disabled: ok === false }}
                             // [ui/paper-polish] State is explicit paint, never an alpha trick (theme.ts button
                             // matrix): closed = the disabled face (disabledFill) with faint words;
-                            // checking = a dim label on the normal face. The words and the other
-                            // states' tints are unchanged.
+                            // checking (null OR not-yet-seeded undefined) = a dim label on the
+                            // normal face. The other states' words and tints are unchanged.
                             style={[
                               s.slotChip,
                               ok === false && s.slotChipClosed,
                               sel && { backgroundColor: paper.ink, borderColor: paper.ink },
                             ]}
                           >
-                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : ok === false ? paper.faint : ok === null ? paper.dim : paper.ink }}>{sl.label}</Text>
-                            <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? paper.faint : ok === 'error' ? paper.critical : ok === null ? paper.dim : '#5a7a3c' }}>
-                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === null ? '확인 중' : '가능'}
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : ok === false ? paper.faint : checking ? paper.dim : paper.ink }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? paper.faint : ok === 'error' ? paper.critical : checking ? paper.dim : '#5a7a3c' }}>
+                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : checking ? '확인 중' : '가능'}
                             </Text>
                             {/* [0215→0221] 추가 근무 칩 — 서버가 준 **segments** 에 묶는다,
                                 추측하지 않는다. 주간 그리드(합친 것)가 슬롯 전체를 덮지 않을 때만
@@ -950,8 +954,10 @@ const s = StyleSheet.create({
   // DESIGN.md §3b — the one section-title grammar (theme.secTitle), not a local 15.5/900.
   sectionTitle: { ...secTitle, marginBottom: 8 },
   statDiv: { width: 1, alignSelf: 'stretch', backgroundColor: paper.line },
-  // Chips and wells below: paper grammar — radius 0, neutral #EEEEEE borders, canvas faces,
-  // disabledFill for empty wells (the beige/green fills are retired).
+  // specChip, gearSlot/gearSlotEmpty, gearPhoto/gearPhotoEmpty, dayChip and slotChip moved to paper
+  // grammar in ui/paper-polish: radius 0, neutral #EEEEEE borders, canvas faces, disabledFill for
+  // empty wells. NOT converted, still open for Sean: gearBadge (#DDF0A6 green pill, radius 99) and
+  // the forest-green #3d5a2b of specChipTxt and gearBadgeText.
   specChip: { backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 4, paddingHorizontal: 10 },
   specChipTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: '#3d5a2b' },
   // 장비 로드아웃 슬롯 (0019)

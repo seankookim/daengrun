@@ -523,10 +523,10 @@ export default function CourseMap() {
             {/* 본문은 `course/[id]`와 **같은 컴포넌트**다 — 두 화면이 같은 코스에 대해 다른
                 말을 하지 않도록. 지도는 위에 남아 맥락을 잃지 않는다 */}
             <CourseDetailBody route={sel} />
+            {/* `sel` is guaranteed by this branch's guard, so no unselected arm here (the peek CTA keeps its). */}
             <PaperBtn
-              label={!sel ? '코스를 선택해주세요' : isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
+              label={isCand ? '점검 전 코스로 예약' : '이 코스로 예약하기'}
               onPress={book}
-              disabled={!sel}
               style={{ marginTop: 12 }}
             />
           </ScrollView>
