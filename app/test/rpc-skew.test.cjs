@@ -102,8 +102,8 @@ t('⚠ the PENDING_DEPLOY list is pinned — it must SHRINK, and a change must b
   // 배포 전까지 PGRST202가 뜨는 창이 실재한다). 배포되면 두 곳을 함께 지운다.
   // 2026-09-23: runner_offered_slots 추가 (0215 §A 후보 슬롯 달력 리더, 같은 커밋에서 작성).
   // 2026-09-25: chat_mark_read_to added (0223 §A read-cursor writer, written in the same commit).
-  //   In the skew window markChatRead falls back to 0212's chat_mark_read only after a successful
-  //   refresh with no open hole (api.ts). Delete with the rpc-skew.ts line once deployed.
+  //   In the skew window markChatRead records nothing (the 0212 now() fallback was retired by
+  //   fix/client-review-4 c2). Delete with the rpc-skew.ts line once deployed.
   // 2026-09-25: ops_stranded_custody + ops_sealed_unsettled added (0224 §F console lists, written
   //   in the same slice as their wrappers; production is at 0202). Delete with rpc-skew.ts's lines.
   // 배포되면 rpc-skew.ts의 줄과 이 배열을 함께 지워 다시 [] 로 돌린다.

@@ -429,12 +429,63 @@ const absorbs = CHAT.split('absorbSnapshot(').length - 1;
 const reads = CHAT.split('fetchMessages(').length - 1;
 t('🔴 [c3] every newest-page read but the first goes through the gap-aware merge',
   absorbs > 0 && absorbs === reads - 1, `${absorbs} absorb / ${reads} fetchMessages`);
-t('[c3] the screen detects the hole where it is observable — at the snapshot merge, which is the '
-  + 'only moment it exists',
-  CHAT.includes('snapshotGap('));
-t('🔴 [c3] the door is RECORDED before the fill is attempted, so a fill cut short by a thread '
+// [codex wave 4 · c1] These two pins MOVED with the fix. They used to assert `snapshotGap(` at the
+// merge and a `setGapDoor({ afterId: hole.afterId, cursor })` before the fill — the detector that
+// anchored on ANY held message, realtime-only ones included, which is the defect c1 measured. The
+// properties are unchanged and re-stated against the coverage mechanism: every snapshot's stretch
+// joins the fetched coverage at the merge, and the door is derived from coverage BEFORE the fill
+// runs. The behaviour (the reviewer's reconnect sequence) is pinned by chat-coverage.test.cjs.
+const absorbBody = bodyOf(CHAT, 'const absorbSnapshot = useCallback(');
+t('[c3 → c1] the screen reads the hole off FETCHED COVERAGE at the snapshot merge — not off what it holds',
+  typeof absorbBody === 'string'
+  && absorbBody.includes('noteCoverage(windowSpan(snapshot,')
+  && !CHAT.includes('snapshotGap(') && CHAT.includes('coverageHole(coverage.current)'),
+  String(absorbBody));
+t('🔴 [c3 → c1] the door is DERIVED before the fill is attempted, so a fill cut short by a thread '
   + 'change cannot lose the only record of the hole',
-  /setGapDoor\(\{ afterId: hole\.afterId, cursor \}\);\s*gapFilling\.current = true;/.test(CHAT));
+  typeof absorbBody === 'string'
+  && absorbBody.indexOf('noteCoverage(') >= 0
+  && absorbBody.indexOf('noteCoverage(') < absorbBody.indexOf('runFill(opCtx)')
+  && /setGapDoor\(\(cur\) => \{\s*if \(hole === null\) return null;/.test(CHAT));
+t('🔴 [c1] the realtime handler touches neither coverage nor the ids a fetch vouched for',
+  (() => {
+    const i = CHAT.indexOf('unsub = subscribeMessages(');
+    const j = CHAT.indexOf('}, (s) => {', i);
+    const h = i > 0 && j > i ? CHAT.slice(i, j) : null;
+    return h !== null && !h.includes('noteCoverage(') && !h.includes('coverage.current') && !h.includes('noteFetched(');
+  })());
+t('[c1] every successful older read — the fill AND the older door — joins the coverage',
+  (() => {
+    const fill = bodyOf(CHAT, 'const fillGap = useCallback(');
+    const older = bodyOf(CHAT, 'const loadOlder = async () =>');
+    return typeof fill === 'string' && typeof older === 'string'
+      && fill.includes('noteCoverage(olderPageSpan(page, hole.cursor,')
+      && older.includes('noteCoverage(olderPageSpan(older, cursor,');
+  })());
+t('[c1] coverage is reset with the thread — in BOTH reset lists (the load effect and retryLoad)',
+  (CHAT.match(/coverage\.current = \[\];/g) || []).length === 2);
+// [codex wave 4 review · A3] The OPEN path seeds the coverage. Without it the first stretch is
+// missing, every later snapshot is the LOWEST stretch, and a poll that jumped past the window
+// (open on 51–150, poll returns 400–499) has no hole and a ceiling of 499 — the c1 defect back,
+// with 151–399 never fetched. chat-coverage's driver seeds in its own `open`, so only this pin can
+// see the line in chat.tsx. Anchored between the first read and the first merge of that read.
+t('🔴 [c1] the open path seeds coverage from the FIRST window, before that window is drawn',
+  (() => {
+    const read = CHAT.indexOf('const history = await fetchMessages(c.threadId);');
+    const seed = CHAT.indexOf('coverage.current = addCoverage([], windowSpan(history, pageIsLast(history.length, CHAT_PAGE_SIZE)));');
+    const draw = CHAT.indexOf('setMsgs((current) => mergeMessageSnapshot(current, history));');
+    return read > 0 && seed > read && draw > seed;
+  })());
+// [codex wave 4 review · low] The automatic fill is bounded per HOLE, not per poll: absorbSnapshot
+// asks `autoFillDecision` (chat-coverage.test.cjs ④ executes it) and starts a fill ONLY on its
+// answer. An unconditional `runFill(opCtx)` there re-arms the fill every tick.
+t('🔴 [gap] the snapshot starts the automatic fill only on autoFillDecision\'s answer — never unconditionally',
+  typeof absorbBody === 'string'
+  && /const auto = autoFillDecision\(coverageHole\(coverage\.current\), autoFilledAfter\.current\);\s*autoFilledAfter\.current = auto\.remember;\s*if \(auto\.fill\) runFill\(opCtx\);/.test(absorbBody)
+  && (absorbBody.match(/runFill\(/g) || []).length === 1,
+  String(absorbBody));
+t('[gap] the auto-fill memory is a thread fact — reset in BOTH reset lists',
+  (CHAT.match(/autoFilledAfter\.current = null;/g) || []).length === 2);
 t('[c3] the mid-thread door carries a role and the shared busy word (busy is a LABEL SWAP)',
   /accessibilityLabel=\{gapBusy \? OLDER_DOOR_BUSY_LABEL : GAP_DOOR_LABEL\}/.test(CHAT)
   && /accessibilityState=\{\{ busy: gapBusy \}\}/.test(CHAT));
@@ -483,10 +534,16 @@ t('🔴 [#1] the refresh itself records nothing — the record happens in the ef
   !refreshBody.includes('recordRead(') && !refreshBody.includes('markChatRead(') && !refreshBody.includes('shouldMarkRead('));
 t('[#1] exactly one record in the file, inside the acknowledgement effect, and it names a message',
   (CHAT.match(/recordRead\(/g) || []).length === 1 && (CHAT.match(/markChatRead\(/g) || []).length === 1
-  && ackBody.includes('recordRead(ctx.threadId, target,'));
-t('🔴 [#1] the target is the newest peer message a FETCH returned, under the gap ceiling',
-  /newestPeerMessageId\(msgs, \{ ceilingId, fetchedIds: fetchedIds\.current \}\)/.test(ackBody)
-  && ackBody.includes('const ceilingId = gapDoor === null ? null : gapDoor.afterId;'));
+  && ackBody.includes('recordRead(ctx.threadId, target);'));
+// [codex wave 4 · c1] MOVED: the ceiling used to be `gapDoor.afterId`, i.e. only as good as the
+// detector that opened the door — and that detector anchored on realtime-only messages. The target
+// is now bounded by the top of VERIFIED FETCHED COVERAGE, and with nothing vouched for there is no
+// target at all.
+t('🔴 [#1 → c1] the target is the newest peer message a FETCH returned, under the top of fetched COVERAGE',
+  /newestPeerMessageId\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(ackBody)
+  && ackBody.includes('const ceiling = coverageCeiling(coverage.current);')
+  && /const target = ceiling === null\s*\?\s*null/.test(ackBody)
+  && !ackBody.includes('gapDoor.afterId'));
 t('🔴 [#1] ids become acknowledgeable only through a fetch: the snapshot merge notes them, the realtime handler does not',
   bodyOf(CHAT, 'const absorbSnapshot = useCallback(') !== null
   && bodyOf(CHAT, 'const absorbSnapshot = useCallback(').includes('noteFetched(snapshot)')
@@ -495,9 +552,14 @@ t('🔴 [#1] ids become acknowledgeable only through a fetch: the snapshot merge
     const j = CHAT.indexOf('}, (s) => {', i);
     return i > 0 && j > i && !CHAT.slice(i, j).includes('noteFetched(') && !CHAT.slice(i, j).includes('setAckTick(');
   })());
-t('[#1] the skew-window fallback to now() is asked for only with no hole open and the target the newest peer message held',
-  ackBody.includes('recordRead(ctx.threadId, target, ceilingId === null && newestHeld === target)')
-  && ackBody.includes('const newestHeld = newestPeerMessageId(msgs);'));
+// [codex wave 4 · c2] REVERSED. This pin asserted the skew-window fallback to 0212's now()-writer
+// was ASKED FOR under two conditions; the fallback itself is gone (a delayed skew error let it write
+// an unbounded now(), measured by the reviewer), so there is nothing left to ask for. The property
+// now is that the screen hands the writer a MESSAGE and nothing else; chat-mark-read.test.cjs
+// executes the wrapper and pins that the cursor-less writer is never called.
+t('🔴 [c2] the screen asks for no now()-fallback — the record takes the message and nothing else',
+  !CHAT.includes('legacyFallback') && !ackBody.includes('newestHeld')
+  && /markChatRead\(threadId, upToMessageId\)/.test(CHAT));
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import {
-  GAP_DOOR_LABEL, gapClosedBy, mergeMessageSnapshot, MessageCursor, snapshotGap,
+  addCoverage, autoFillDecision, Coverage, CoverageSpan, coverageCeiling, coverageHole, GAP_DOOR_LABEL,
+  mergeMessageSnapshot, MessageCursor, olderPageSpan, windowSpan,
 } from '../src/lib/chat-messages';
 import {
   MarkReadReason, newestPeerMessageId, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
@@ -40,6 +41,10 @@ const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디�
 // and hands the rest to a door. Bounded on purpose: a thread that moved on by thousands of
 // messages must not turn one poll tick into an unbounded backfill, and a door the reader taps is
 // honest about there being more, where a spinner that never ends is not.
+// ⚠ The bound is per HOLE, not per poll tick (`autoFillDecision`): the automatic fill runs once for
+//   each lowest hole the screen meets, and a hole still open after it belongs to the door. Asking
+//   「is a hole open?」 on every snapshot re-armed the fill each tick, which is the same unbounded
+//   backfill spread over time (codex wave 4 review, measured on the helpers).
 const GAP_FILL_MAX_PAGES = 3;
 
 export default function Chat() {
@@ -108,6 +113,12 @@ export default function Chat() {
   // whole table, so a stale id from another thread can never match; the set is still reset with
   // the thread, for hygiene.
   const fetchedIds = useRef<Set<number>>(new Set());
+  // [codex wave 4 · c1] The stretches of the thread successful fetches returned IN FULL
+  // (chat-messages.ts `Coverage`). `fetchedIds` says WHICH messages a fetch returned; this says
+  // what lies BETWEEN them — and only this can tell a snapshot anchored on our own fetched history
+  // from one anchored on a realtime-only message with a dropped burst beneath it. The read ceiling
+  // and the gap door are both derived from it. Reset with the thread, like every fact above.
+  const coverage = useRef<Coverage>([]);
   // Bumped when a fetch vouches for ids the screen already held (merge returns the same array, so
   // `msgs` alone would not re-run the acknowledgement), and after every successful return-refresh.
   const [ackTick, setAckTick] = useState(0);
@@ -137,20 +148,26 @@ export default function Chat() {
     return () => { mounted.current = false; };
   }, []);
 
-  // ── [2026-09-25 · codex c3] 재연결 구멍 ──────────────────────────────────────────────────────
-  // 스냅샷은 **가장 최신 100개**다. 자리를 비운 사이 100개가 넘게 쌓였다면 그 페이지는 화면이 들고
-  // 있던 기록에 닿지 못하고, 합집합 머지는 그 둘을 **아무 말 없이** 이어 붙인다 — 가운데가 통째로
-  // 빠진 대화가 끊긴 적 없는 대화처럼 보인다. 위의 「이전 메시지 더 보기」는 가장 오래된 메시지에서
-  // 뒤로 가므로 구멍 아래를 판다: 그 문은 이 구멍을 절대 메우지 못한다.
-  // 순서는 (a) 스스로 메우기, 막히면 (b) 구멍 자리에 문. 지어내지 않고, 들고 있던 메시지도 버리지
-  // 않는다.
-  const msgsRef = useRef<ChatMsg[]>(msgs);
-  useEffect(() => { msgsRef.current = msgs; }, [msgs]);
-  /** 한 번에 하나의 메우기만 — 폴 간격(5~15초)은 한 번의 백필보다 짧을 수 있다. */
+  // ── [2026-09-25 · codex c3] the reconnect HOLE ─────────────────────────────────────────────
+  // A snapshot is the NEWEST 100. If more than a window piled up while the screen was away, that
+  // page does not reach the history the screen holds, and the union merge joins the two with no
+  // word — a conversation missing its middle looks like one that never stopped. 「이전 메시지 더
+  // 보기」 pages back from the OLDEST held message, below the hole, so that door can never fill it.
+  // Order: (a) fill it ourselves; when that is cut short, (b) a door where the hole is. Nothing is
+  // invented and no held message is dropped.
+  // [codex wave 4 · c1] The hole is now read off FETCHED COVERAGE (`coverageHole`), not off what
+  // the screen holds: a held message that arrived by realtime alone is not an anchor, because the
+  // burst the channel dropped sits below it. The door is DERIVED — whenever coverage changes, the
+  // door becomes the lowest open hole, or disappears.
+  /** One fill at a time — the poll interval (5–15 s) can be shorter than one backfill. */
   const gapFilling = useRef(false);
-  /** 스스로 메우지 못한 구멍. `afterId` 아래에 문이 그려지고, `cursor` 가 다음 페이지의 기준이다. */
+  /** The lowest open hole: the door is drawn under `afterId`, and `cursor` is where the next page
+   *  reads backward from. Always `coverageHole(coverage.current)` — set only by `noteCoverage`. */
   const [gapDoor, setGapDoor] = useState<{ afterId: number; cursor: MessageCursor } | null>(null);
   const [gapBusy, setGapBusy] = useState(false);
+  /** The `afterId` of the hole the automatic fill last ran for (`autoFillDecision`), or null once no
+   *  hole is open. A thread fact — reset in both reset lists. */
+  const autoFilledAfter = useRef<number | null>(null);
 
   /** Record that a fetch returned these messages. True when it vouched for an id not seen before. */
   const noteFetched = useCallback((page: readonly ChatMsg[]): boolean => {
@@ -161,86 +178,81 @@ export default function Chat() {
     return grew;
   }, []);
 
-  /** 구멍 위에서 아래로 최대 `GAP_FILL_MAX_PAGES` 페이지를 당겨 온다. 닫혔는지와 다음 커서를
-   *  돌려주고, 쓰기는 전부 스레드 정체(ctxRef)로 게이트한다 — send/deliverPhoto 와 같은 관용구. */
-  const fillGap = useCallback(async (opCtx: ChatContext, afterId: number, fromCursor: MessageCursor) => {
-    let cursor = fromCursor;
+  /** Record what a SUCCESSFUL fetch vouched for, and re-derive the two things that rest on it: the
+   *  door (the lowest open hole) and — through `ackTick` — the acknowledgement, when its ceiling
+   *  moved. Called in the same synchronous block as the merge it belongs to, so the commit that
+   *  renders a hole also renders its door and the acknowledgement effect reads the coverage that
+   *  commit drew. */
+  const noteCoverage = useCallback((span: CoverageSpan | null) => {
+    const before = coverageCeiling(coverage.current);
+    coverage.current = addCoverage(coverage.current, span);
+    const after = coverageCeiling(coverage.current);
+    const hole = coverageHole(coverage.current);
+    setGapDoor((cur) => {
+      if (hole === null) return null;
+      if (cur !== null && cur.afterId === hole.afterId && cur.cursor.id === hole.cursor.id
+        && cur.cursor.createdAt === hole.cursor.createdAt) return cur;
+      return hole;
+    });
+    if (before?.id !== after?.id || before?.createdAt !== after?.createdAt) setAckTick((n) => n + 1);
+  }, []);
+
+  /** Reads backward from the lowest open hole, at most `GAP_FILL_MAX_PAGES` pages, re-reading the
+   *  hole from coverage before every page — so a hole found while this runs is filled from the same
+   *  budget rather than dropped. Every write is gated on thread identity (ctxRef), the same idiom
+   *  as send/deliverPhoto. A failure throws to the caller; the door stays (coverage did not move)
+   *  and a tap retries from the same place. */
+  const fillGap = useCallback(async (opCtx: ChatContext) => {
     for (let i = 0; i < GAP_FILL_MAX_PAGES; i += 1) {
+      const hole = coverageHole(coverage.current);
+      if (hole === null) return;
       // eslint-disable-next-line no-await-in-loop
-      const page = await fetchOlderMessages(opCtx.threadId, cursor);
-      if (!mounted.current || ctxRef.current !== opCtx) return { closed: false, cursor };
+      const page = await fetchOlderMessages(opCtx.threadId, hole.cursor);
+      if (!mounted.current || ctxRef.current !== opCtx) return;
       noteFetched(page);
-      // 읽는 사람 위로 자라는 것이므로 loadOlder 와 같은 스크롤 억제를 쓴다.
+      // It grows ABOVE the reader, so it takes the same scroll hold as loadOlder.
       holdScroll.current = true;
       setMsgs((current) => mergeMessageSnapshot(current, page));
-      if (gapClosedBy(afterId, page)) return { closed: true, cursor };
-      // 서버가 커서보다 오래된 걸 한 창보다 적게 줬다 = 더 줄 게 없다. 구멍은 비어 있었다.
-      if (pageIsLast(page.length, CHAT_PAGE_SIZE)) return { closed: true, cursor };
-      const next = olderCursor(page);
-      if (next === null) return { closed: true, cursor };
-      cursor = next;
+      // A short (or empty) page is the server saying nothing older exists below the cursor.
+      noteCoverage(olderPageSpan(page, hole.cursor, pageIsLast(page.length, CHAT_PAGE_SIZE)));
     }
-    return { closed: false, cursor };
-  }, [noteFetched]);
+  }, [noteFetched, noteCoverage]);
 
-  /** 최신 스냅샷을 화면에 들인다 — 머지 + 구멍 탐지 + (a) 자동 메우기.
-   *  ⚠ 구멍은 **이 순간에만** 관측된다: 머지가 끝나면 held 가 스냅샷을 포함하므로 다음 틱의
-   *    `snapshotGap` 은 영원히 null 이다. 그래서 메우기를 시도하기 **전에** 문을 먼저 기록한다.
-   *  [0223] Every caller holds a SUCCESSFUL fetch, so this is also where ids become acknowledgeable
-   *  (`noteFetched`). The door below is set in the same synchronous block as the merge, so the
-   *  commit that renders a hole also renders its door — the acknowledgement effect never sees one
-   *  without the other. */
-  const absorbSnapshot = useCallback((opCtx: ChatContext, snapshot: ChatMsg[]) => {
-    const held = msgsRef.current;
-    if (noteFetched(snapshot)) setAckTick((n) => n + 1);
-    setMsgs((current) => mergeMessageSnapshot(current, snapshot));
-    const hole = snapshotGap(held, snapshot);
-    const cursor = olderCursor(snapshot);
-    // ⚠ NAMED LIMITATION, not an oversight: while a fill is in flight a SECOND hole is dropped.
-    //   The screen holds one door, and the door it already holds sits BELOW any newer hole, so
-    //   keeping it is the conservative half. Reaching this needs the thread to jump a full window
-    //   TWICE inside one bounded backfill (≈3 requests); the honest cost is that the newer hole
-    //   stays unmarked until a later snapshot opens one again. Written down rather than pinned —
-    //   a pin for a state this harness cannot reach would be green by construction.
-    if (hole === null || cursor === null || gapFilling.current) return;
-    setGapDoor({ afterId: hole.afterId, cursor });
+  /** Start a fill unless one is running or no hole is open. Shared by the automatic fill and the door. */
+  const runFill = useCallback((opCtx: ChatContext) => {
+    if (gapFilling.current || coverageHole(coverage.current) === null) return;
     gapFilling.current = true;
     setGapBusy(true);
-    fillGap(opCtx, hole.afterId, cursor)
-      .then((out) => {
-        if (!mounted.current || ctxRef.current !== opCtx) return;
-        if (out.closed) setGapDoor(null);
-        else setGapDoor({ afterId: hole.afterId, cursor: out.cursor });
-      })
-      .catch((e) => {
-        // 실패는 실패로 남는다 — 문이 그대로 있고, 탭하면 같은 지점에서 다시 시도한다.
-        console.warn('[chat] gap fill:', (e as Error)?.message ?? e);
-      })
-      .finally(() => {
-        gapFilling.current = false;
-        if (mounted.current && ctxRef.current === opCtx) setGapBusy(false);
-      });
-  }, [fillGap, noteFetched]);
-
-  /** (b) 문. 자동 메우기가 한도에 걸렸거나 실패했을 때만 존재한다. */
-  const loadGap = useCallback(() => {
-    const opCtx = ctxRef.current;
-    const door = gapDoor;
-    if (!opCtx || door === null || gapFilling.current) return;
-    gapFilling.current = true;
-    setGapBusy(true);
-    fillGap(opCtx, door.afterId, door.cursor)
-      .then((out) => {
-        if (!mounted.current || ctxRef.current !== opCtx) return;
-        if (out.closed) setGapDoor(null);
-        else setGapDoor({ afterId: door.afterId, cursor: out.cursor });
-      })
+    fillGap(opCtx)
+      // A failure stays a failure — the door is still there and a tap retries from the same place.
       .catch((e) => console.warn('[chat] gap fill:', (e as Error)?.message ?? e))
       .finally(() => {
         gapFilling.current = false;
         if (mounted.current && ctxRef.current === opCtx) setGapBusy(false);
       });
-  }, [gapDoor, fillGap]);
+  }, [fillGap]);
+
+  /** Take a newest snapshot onto the screen — merge + coverage + (a) the automatic fill.
+   *  [0223] Every caller holds a SUCCESSFUL fetch, so this is also where ids become acknowledgeable
+   *  (`noteFetched`) and where the window's stretch joins the coverage (`noteCoverage`). The door is
+   *  derived from coverage BEFORE the fill starts, so a fill cut short by a thread change cannot
+   *  lose the only record of the hole. */
+  const absorbSnapshot = useCallback((opCtx: ChatContext, snapshot: ChatMsg[]) => {
+    if (noteFetched(snapshot)) setAckTick((n) => n + 1);
+    setMsgs((current) => mergeMessageSnapshot(current, snapshot));
+    noteCoverage(windowSpan(snapshot, pageIsLast(snapshot.length, CHAT_PAGE_SIZE)));
+    // (a) once per lowest hole — a hole still open after that is the door's (GAP_FILL_MAX_PAGES).
+    const auto = autoFillDecision(coverageHole(coverage.current), autoFilledAfter.current);
+    autoFilledAfter.current = auto.remember;
+    if (auto.fill) runFill(opCtx);
+  }, [noteFetched, noteCoverage, runFill]);
+
+  /** (b) the door. It exists while a hole is open; a tap reads the next pages of the fill. */
+  const loadGap = useCallback(() => {
+    const opCtx = ctxRef.current;
+    if (!opCtx || gapDoor === null) return;
+    runFill(opCtx);
+  }, [gapDoor, runFill]);
 
   // 스레드 준비: bid 없으면 진행 중 예약을 서버에서 해석
   useEffect(() => {
@@ -250,8 +262,8 @@ export default function Chat() {
     // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
     setOlderBusy(false); setOlderExhausted(false); setPeerReadAt(null);
-    setGapDoor(null); setGapBusy(false); gapFilling.current = false;
-    fetchedIds.current = new Set(); focusAckDue.current = false;
+    setGapDoor(null); setGapBusy(false); gapFilling.current = false; autoFilledAfter.current = null;
+    fetchedIds.current = new Set(); coverage.current = []; focusAckDue.current = false;
     (async () => {
       try {
         const bookingId = bid ?? (isRunner ? await fetchCurrentRunnerJobId() : await fetchCurrentOwnerBookingId());
@@ -263,9 +275,12 @@ export default function Chat() {
         if (!alive) return;
         setCtx(c);
         noteFetched(history);
-        // ⚠ 여기만 `absorbSnapshot` 을 쓰지 않는다: 위에서 msgs 를 비웠고 msgsRef 는 아직 **이전
-        //   스레드**의 배열을 들고 있어(렌더 뒤에 갱신된다) 구멍 탐지가 남의 대화를 기준으로 돈다.
-        //   첫 페이지는 창 그 자체이므로 구멍이 있을 수 없고, 그 아래는 olderExhausted 가 맡는다.
+        // ⚠ The one read that does not go through `absorbSnapshot`: the first page IS the window, so
+        //   it cannot hold a hole, and what lies below it belongs to olderExhausted's door. It still
+        //   becomes the FIRST stretch of coverage — the one every later snapshot must overlap before
+        //   a read can pass it ([codex wave 4 · c1]). Written directly, not through `noteCoverage`,
+        //   because coverage was emptied above and there is no door to derive yet.
+        coverage.current = addCoverage([], windowSpan(history, pageIsLast(history.length, CHAT_PAGE_SIZE)));
         setMsgs((current) => mergeMessageSnapshot(current, history));
         // The first page IS the newest window, so its own length settles whether anything older
         // exists. A short page = the whole thread is on screen and the door never appears.
@@ -390,8 +405,13 @@ export default function Chat() {
   //   (b) the record happens in this effect, i.e. on the COMMIT that renders the refreshed snapshot;
   //   (c) it names the newest peer message a SUCCESSFUL fetch returned, below any open hole
   //       (`newestPeerMessageId`), and the server writes that message's created_at (0223).
-  const recordRead = useCallback((threadId: string, upToMessageId: number, legacyFallback: boolean) => {
-    markChatRead(threadId, upToMessageId, { legacyFallback })
+  //   (d) [codex wave 4 · c1] that message lies at or below the top of VERIFIED FETCHED COVERAGE
+  //       (`coverageCeiling`) — the lowest stretch fetches returned in full. With nothing vouched
+  //       for, nothing is recorded.
+  //   (e) [codex wave 4 · c2] a server without the cursor writer records NOTHING (api.ts
+  //       markChatRead) — the now()-based writer is never called from here.
+  const recordRead = useCallback((threadId: string, upToMessageId: number) => {
+    markChatRead(threadId, upToMessageId)
       .catch((e) => console.warn('[chat] mark read:', (e as Error)?.message ?? e));
   }, []);
 
@@ -399,8 +419,10 @@ export default function Chat() {
     if (!ctx || state !== 'ready') return;
     const focusDue = focusAckDue.current;
     focusAckDue.current = false;
-    const ceilingId = gapDoor === null ? null : gapDoor.afterId;
-    const target = newestPeerMessageId(msgs, { ceilingId, fetchedIds: fetchedIds.current });
+    const ceiling = coverageCeiling(coverage.current);
+    const target = ceiling === null
+      ? null
+      : newestPeerMessageId(msgs, { ceiling, fetchedIds: fetchedIds.current });
     const reason: MarkReadReason = focusDue ? 'focus' : markedOpen.current ? 'message' : 'open';
     if (!shouldMarkRead({
       reason,
@@ -417,11 +439,7 @@ export default function Chat() {
     if (target === null) return;
     markedOpen.current = true;
     lastMarkedPeer.current = target;
-    // The skew-window fallback to 0212's now() (api.ts markChatRead) is allowed only when that
-    // now() cannot read past what is on screen by more than the round trip: no hole open, and the
-    // target IS the newest peer message the screen holds (no realtime-only message above it).
-    const newestHeld = newestPeerMessageId(msgs);
-    recordRead(ctx.threadId, target, ceilingId === null && newestHeld === target);
+    recordRead(ctx.threadId, target);
   }, [ctx, state, msgs, gapDoor, ackTick, recordRead]);
 
   /** Coming back to the screen: REFRESH, and only a successful refresh asks for an
@@ -582,7 +600,9 @@ export default function Chat() {
     setGapDoor(null);
     setGapBusy(false);
     gapFilling.current = false;
+    autoFilledAfter.current = null;
     fetchedIds.current = new Set();
+    coverage.current = [];
     focusAckDue.current = false;
     setLoadAttempt((attempt) => attempt + 1);
   };
@@ -607,6 +627,10 @@ export default function Chat() {
       // an older page merges below the window exactly as a newer snapshot merges above it, and a
       // message already held wins its own id either way.
       setMsgs((current) => mergeMessageSnapshot(current, older));
+      // [codex wave 4 · c1] The page vouches for everything between its oldest and the cursor. If
+      // the cursor was not already covered, this becomes a new LOWEST stretch — the read ceiling
+      // drops to it and a door opens above it, which is the honest answer, not a regression.
+      noteCoverage(olderPageSpan(older, cursor, pageIsLast(older.length, CHAT_PAGE_SIZE)));
       setOlderExhausted(pageIsLast(older.length, CHAT_PAGE_SIZE));
     } catch (e) {
       console.warn('[chat] older:', (e as Error)?.message ?? e);
