@@ -32,8 +32,13 @@ import { draft } from '../store';
 import { layout, paper } from '../theme';
 import { sinceLabel, type Lateness } from '../lib/lateness';
 import { totalUnreadBadge, unreadBadge, unreadBadgeLabel, type ChatUnreadState } from '../lib/chat-read';
-import { heroDestination, type HeroState } from '../lib/home-hero-route';
+import { elapsedLabel, heroDestination, returnSentence, type HeroState } from '../lib/home-hero-route';
+import { withParticle } from '../lib/particle';
 import { DrawButton } from './draw-button';
+
+// [fix/owner-inflight-truth] `elapsedLabel` moved to `../lib/home-hero-route` (one copy, pinnable,
+// shared with 내 일정's band); re-exported here so `owner/home.tsx`'s import is unchanged.
+export { elapsedLabel };
 
 // [0188] `returning` is the SEVENTH state, and it exists because `active` stopped being one thing.
 // Before the run-end ceremony the stop settled, so `active` meant 「running」 and the hero's live
@@ -63,24 +68,9 @@ export interface HomeHeroNext {
   arrivedAt?: string | null;
 }
 
-/** 경과 라벨 — '이 시각으로부터 지금까지'를 사람 말로. 값이 없거나, 파싱이 안 되거나, 1분 미만이면
- *  **null** 이고 호출부는 그때 절을 통째로 뺀다. 「0분째」는 측정이 아니라 반올림이 만든 문장이고,
- *  미래 소인(음수 경과)은 시계가 어긋났다는 뜻이지 사실이 아니다.
- *
- *  ⚠ 시계를 함수 안에 둔 이유는 lateness() 와 같다 — 화면이 렌더 중에 Date.now() 를 부르면
- *  react-hooks/purity 가 잡고, 피하려고 상태로 올리면 컴파일러가 다른 데서 체한다
- *  (lateness.ts:126, 실측 2026-08-21). 테스트는 계속 명시적으로 주입한다.
- *
- *  ⚠ 초 단위 루프는 없다. §6 이 유휴 모션을 금지하고, 이 값은 1분에 한 번만 바뀐다 — 홈이 이미
- *  도는 세 경로(포커스 · 앱 복귀 · `bk-<id>` 실시간)가 재계산 시점이다. */
-export function elapsedLabel(iso: string | null | undefined, now: number = Date.now()): string | null {
-  if (!iso) return null;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  const ms = now - t;
-  if (ms < 60_000) return null;
-  return sinceLabel(ms);
-}
+// ⚠ There is no per-second loop behind `elapsedLabel`. §6 forbids idle motion and the value only
+// changes once a minute — home's three refresh paths (focus · app resume · `bk-<id>` realtime) are
+// when it is recomputed.
 
 interface Props {
   state: HomeGoState;
@@ -115,6 +105,12 @@ interface Props {
    *  전부 다른 사실이고 셋 다 배지를 그리지 않아야 하는데, 숫자 하나로 접으면 그 구분이 호출부에서
    *  사라지고 0이 배지가 될 길이 생긴다. 판정은 chat-read.ts 가 소유한다. */
   chatUnread?: ChatUnreadState;
+  /** [fix/owner-inflight-truth · owner-journey-1] An `incident_review` booking with nothing for the
+   *  owner to stamp exists (`heroPick().review`). Only the EMPTY frame reads it: there, 「비어
+   *  있음 · 오늘은 아직 / 비어 있어요」 would be false while a case is open, so the chip and the
+   *  headline give way to one quiet line that opens that booking on 내 일정. This is not a new
+   *  frame — the none frame's options and invitation stay exactly as they were. */
+  onOpenReview?: (() => void) | null;
 }
 
 const GO_SAGE = '#119B58';   // home.tsx와 같은 값 — 확정·준비됨
@@ -162,7 +158,7 @@ function Phrase({ top, bottom, df, topNum }: { top: string; bottom: string; df: 
   );
 }
 
-export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null, chatUnread = { status: 'loading' } }: Props) {
+export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, relLabel, nextIsPast, late, liveWidget, onlineRunners = null, chatUnread = { status: 'loading' }, onOpenReview = null }: Props) {
   // 이 예약의 아이가 먼저다. dogName prop은 fetchFitness의 `.order('created_at').limit(1)` —
   // 즉 **첫 등록 아이**다. 다견 가구에서 몽이 예약 위에 "초코를 인계하고 확인해주세요"라고 쓰던
   // 것이 그 차이였다 (review P1-6).
@@ -261,14 +257,21 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
       // ⚠ [codex 2026-08-21] 헤드라인만 nextIsPast 로 남아 있었다 — 칩·서브라인·버튼은 isLate 로
       // 옮겼는데 여기를 빠뜨렸다. 그 결과 10:00 예약을 10:31 에 보면 칩은 「지난 예약」, 서브라인은
       // 「러너가 도착하지 않았어요」, 헤드라인은 「오늘 초코가 달려요」였다. 한 화면이 자기를 반박했다.
-      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${name}가 달려요` })
+      ? (isLate ? { top: '예약 시간이', bottom: '지났어요' } : { top: topLine, bottom: `${withParticle(name, '가/이')} 달려요` })
       : state === 'directed' ? { top: '응답을', bottom: '기다려요' }
         : state === 'searching' ? { top: '러너를', bottom: '찾고 있어요' }
           // [2026-09-25 owner-journey-2] 「지금 만나요 / {name} 인계할 시간」 은퇴. picked_up 은
           // 만남이 **끝난** 표시라서, 그 문장은 이미 넘긴 아이를 다시 넘기라고 말하고 있었다.
           : state === 'handoff' ? { top: '인계 끝났어요', bottom: `${name} 곧 출발해요` }
-            : state === 'returning' ? { top: '러닝이 끝났어요', bottom: `${name} 인계 확인` }
+            // [fix/owner-inflight-truth · copy-hierarchy-8] 반환, not 인계: the push (「반환 확인
+            // 요청」) and the report's gate (「반환 확인 · n/2」) both call this act 반환 확인, and 인계
+            // is the PICKUP handoff — the one frame on this screen that already happened.
+            : state === 'returning' ? { top: '러닝이 끝났어요', bottom: `${name} 반환 확인` }
               : { top: '오늘은 아직', bottom: '비어 있어요' };
+  // [owner-journey-1] The empty frame with an open case: the chip and the headline are the two
+  // 「empty」 claims, and both are false while an `incident_review` booking exists. One quiet line
+  // replaces them (see `onOpenReview`); the invitation and the two options below are unchanged.
+  const reviewLine = state === 'none' && !!onOpenReview ? '확인이 진행 중인 일정이 있어요' : null;
 
   // ── HIG A3/A6 — the hero, out loud ───────────────────────────────────────────────────────────
   // This block moved ABOVE the early returns for one reason: the announcement must read the exact
@@ -285,7 +288,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
   // component does not draw.
   const heroSentence = loadState !== 'ready' || state === 'active'
     ? null
-    : `${chip.t} · ${phrase.top} ${phrase.bottom}`;
+    : reviewLine ?? `${chip.t} · ${phrase.top} ${phrase.bottom}`;
   useAnnounceOnChange(heroSentence);
 
   // ── 로딩·실패: 결정을 얹지 않는다 ─────────────────────────────────────────
@@ -425,10 +428,12 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
         </View>
         <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
-        <Text style={s.sub}>{runner}가 {name}를 돌려주고 있어요 · 받으셨으면 확인해주세요</Text>
+        <Text style={s.sub}>{returnSentence(runner, name)} · 받으셨으면 확인해주세요</Text>
         <View style={s.opts}>
-          <DrawButton title="인계 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
-            dot onPress={openNext} accessibilityLabel="인계 확인하기" />
+          {/* [copy-hierarchy-8] 반환 확인하기 — the push and the report's gate name this act 반환 확인;
+              the retired label borrowed the PICKUP's word for the return. */}
+          <DrawButton title="반환 확인하기" sub="둘 다 확인해야 마무리돼요" ground="coral" art="leash"
+            dot onPress={openNext} accessibilityLabel="반환 확인하기" />
           <DrawButton title="채팅" sub="만나는 곳을 정해요" meta={chatBadge} ground="lilac" art="chat"
             small onPress={openChat} accessibilityLabel={chatLabel('만나는 곳을 정해요')} />
         </View>
@@ -461,7 +466,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           : `${when ? when + ' · ' : ''}${runner} 확정`)
       : state === 'directed' ? `${runner}에게 지명 요청을 보냈어요`
         : state === 'searching' ? '보통 몇 분 안에 응답이 와요'
-          : `${name}와 달릴 시간을 잡아보세요`;
+          : `${withParticle(name, '와/과')} 달릴 시간을 잡아보세요`;
   // Basis for the live dot. Zero means no dot and a sentence that says so.
   // ⚠ `null` = we have not successfully read the count. A failed or pending read must NOT become
   // 「지금은 대기 중인 러너가 없어요」 — that is an affirmative claim about the world printed on
@@ -484,11 +489,24 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
           above. polite, and on the CHIP rather than the headline: the chip is the one word that
           changes when the booking moves, and a live region on the two-line headline would re-read
           the dog's name every time. */}
-      <View style={s.chipRow}>
-        <View style={[s.chipDot, { backgroundColor: chip.c }]} />
-        <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
-      </View>
-      <Phrase top={phrase.top} bottom={phrase.bottom} df={df} topNum={topIsNum} />
+      {reviewLine && onOpenReview ? (
+        // [owner-journey-1] One quiet line in place of the chip and the headline — the alert-row
+        // grammar this file already uses for its failure line (dot · bold line · action), in the
+        // pending colour rather than critical: a case is open, nothing has failed.
+        <Pressable onPress={onOpenReview} style={s.alertRow} accessibilityRole="button"
+          accessibilityLabel={`${reviewLine} — 내 일정에서 보기`}>
+          <View style={[s.dot, { backgroundColor: paper.pending }]} />
+          <Text accessibilityLiveRegion="polite" style={[s.alertMain, { flex: 1 }]}>{reviewLine} ›</Text>
+        </Pressable>
+      ) : (
+        <>
+          <View style={s.chipRow}>
+            <View style={[s.chipDot, { backgroundColor: chip.c }]} />
+            <Text accessibilityLiveRegion="polite" style={[s.chipTx, { color: chip.c }]}>{chip.t}</Text>
+          </View>
+          <Phrase top={phrase.top} bottom={phrase.bottom} df={df} topNum={topIsNum} />
+        </>
+      )}
       <Text style={s.sub}>{subline}</Text>
 
       <View style={s.opts}>

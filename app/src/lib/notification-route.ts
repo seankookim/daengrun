@@ -246,6 +246,10 @@ export const CANCEL_COMP_TITLE = '시간을 비워둔 보상이 기록됐어요'
 //     than an `if`: a future ref-less title gets a destination by being added here or gets an
 //     honest inbox LINE, never a tap that goes nowhere.
 export const RECURRING_CREATED_TITLE = '반복 러닝 예약 생성';
+/** confirm-payment's `postConfirm` nomination-failure title (`supabase/functions/confirm-payment/
+ *  handler.ts`, `notifyOwner(…, "지명 요청 실패", …)`) — kind booking, ref = the booking, owner only.
+ *  `test/notification-route.test.cjs` reads it out of that writer (comments stripped). */
+export const NOMINATION_FAILED_TITLE = '지명 요청 실패';
 export const RECURRING_PAUSED_TITLE = '반복 예약 일시 중지';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════
@@ -290,8 +294,12 @@ export function destinationForRefLessBookingTitle(title: string | null | undefin
 // 응답해 주세요」); `_resolve_checkin` then tells both how it ended — `확인이 필요해요` (kind `safety`,
 // the `incident_review` terminal) or `지연 예약이 정리됐어요` (kind `booking`, `no_show`).
 // [ops-notifications-2] The question's `<CheckinAnswer>` is mounted on `runner/home.tsx` (the
-// runner's current job) and on `/owner/schedule` (inside the selected booking's sheet — schedule
-// takes no bid, so the owner still taps the row; one tap, not a wrong screen).
+// runner's current job) and on `/owner/schedule` (inside the selected booking's sheet).
+// [fix/owner-inflight-truth · owner-journey-5] The owner's tap now CARRIES the booking: 내 일정
+// reads `bid` and opens that booking's sheet once (`home-hero-route.ts` `deepLinkStep`), so the
+// question's answer surface is on screen when the tap lands. The note that stood here — 「schedule
+// takes no bid, so the owner still taps the row; one tap, not a wrong screen」 — was a deferral,
+// and a time-boxed question is the worst place to spend the extra tap.
 export const CHECKIN_TITLE = '예약 시간이 지났어요';
 export const CHECKIN_CASE_TITLE = '확인이 필요해요';
 export const CHECKIN_CLOSED_TITLE = '지연 예약이 정리됐어요';
@@ -370,6 +378,12 @@ export const RUNNER_ROUTES: Record<string, string> = {
   // [contract-gaps-2] The non-compensated half of `cancel_owner.ts`'s title choice. Listed so the
   // calendar is a DECISION for it rather than the default it happened to fall into: the booking
   // is cancelled and the schedule is what changed.
+  // ⚠ [fix/owner-inflight-truth · runner-journey-4] 「non-compensated」 is the INTENT, and on trunk
+  // da6653d it is not yet the whole truth: `cancel_owner.ts` picks CANCEL_COMP_TITLE only when
+  // `lateShare > 0`, so the EN-ROUTE cancel whose 50% compensation WAS recorded is also titled
+  // 「예약 취소됨」 and lands here, on a calendar that shows neither the booking nor the money.
+  // Slice fix/notification-truth moves that arm onto CANCEL_COMP_TITLE (→ /runner/earnings above);
+  // once it lands, only the cancel that recorded no compensation reaches this entry.
   '예약 취소됨': '/runner/calendar',
   // [0224] the custody-strand pair — home, where the ⑫ strip and the ticket name THIS booking's
   // exit without the store. See CUSTODY_STRAND_TITLES above for why not meetup/run directly.
@@ -393,7 +407,10 @@ export const RUNNER_BID_TITLES = [...RETURN_TITLES, CHECKIN_CASE_TITLE, CHECKIN_
 
 // [ops-notifications-4] PRE-run owner titles. `/owner/radar` takes `bid` (radar.tsx:100) and holds
 // the nominate list, which is the one useful action on a booking that is back to `matching`.
-// Everything else lands on the schedule, which badges each row by `rawStatus`.
+// Everything else lands on the schedule, which badges each row by `rawStatus` — and, since
+// fix/owner-inflight-truth (owner-journey-5), carries the `bid` too: 내 일정 opens that booking's
+// sheet once, so 「매칭 만료」 lands on the expired booking's 이대로 다시 예약 and 「일정 변경 거절」 on
+// the booking whose time did not move, instead of on a list the owner must search.
 // ⚠ 「매칭 만료」 is deliberately NOT radar: radar's `expired` arm alerts and immediately exits to
 //   the schedule — an alert-then-bounce for a push whose whole content is that the booking expired.
 // ⚠ 「일정 변경 요청 만료」 is also written to the RUNNER (0021:23). This map is consulted after the
@@ -602,13 +619,13 @@ export function destinationForBookingRef(
     // no bid, and handing them one would be a param nothing reads.
     return RUNNER_BID_TITLES.includes(title) ? { pathname, params: { bid: refId } } : pathname;
   }
-  // [ops-notifications-2] the check-in question — its answer lives on the schedule's booking sheet.
-  if (title === CHECKIN_TITLE) return '/owner/schedule';
-  // [ops-notifications-4] pre-run titles: radar (with the bid it reads) for 「러너 재탐색 중」, the
-  // schedule for the rest. Never the post-run report.
+  // [ops-notifications-2] the check-in question — its answer lives on the schedule's booking sheet,
+  // which the `bid` now opens (fix/owner-inflight-truth · owner-journey-5).
+  if (title === CHECKIN_TITLE) return { pathname: '/owner/schedule', params: { bid: refId } };
+  // [ops-notifications-4] pre-run titles: radar for 「러너 재탐색 중」, the schedule for the rest —
+  // BOTH with the bid their screen reads. Never the post-run report.
   const prerun = OWNER_PRERUN_ROUTES[title];
-  if (prerun === '/owner/radar') return { pathname: prerun, params: { bid: refId } };
-  if (prerun === '/owner/schedule') return prerun;
+  if (prerun) return { pathname: prerun, params: { bid: refId } };
   // [ops-notifications-12] the money gate — the screen the body names, with the way back.
   if (OWNER_PAYMENT_TITLES.includes(title)) {
     return {
@@ -630,6 +647,15 @@ export function destinationForBookingRef(
   // report screen for a run that has not happened. Owner-only by position: the row is written to
   // `s.owner_id` (`0180:208`) and a runner reading their own inbox can never hold one.
   if (title === RECURRING_CREATED_TITLE) {
+    return { pathname: '/owner/radar', params: { bid: refId } };
+  }
+  // [fix/owner-inflight-truth · contract-gaps-3] 「지명 요청 실패」 — confirm-payment's nomination
+  // rung failed AFTER the capture, and the booking stays `matching` (confirm_payment_test asserts
+  // it). Its body sends the owner to 「매칭 화면에서 다시 골라주세요」; `/owner/radar?bid=` is that
+  // screen (the nominate list, and it reads `bid`). It fell to the post-run report before. Its own
+  // arm rather than an OWNER_PRERUN_ROUTES key: that table is pinned to EXACTLY the six titles the
+  // edge and two sweeps write, and this title's writer is a different function.
+  if (title === NOMINATION_FAILED_TITLE) {
     return { pathname: '/owner/radar', params: { bid: refId } };
   }
   if (OWNER_MEETUP_TITLES.includes(title)) {

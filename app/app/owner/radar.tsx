@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
-import { Avatar } from '../../src/components/ui';
+import { Avatar, ScreenHead } from '../../src/components/ui';
 import {
   cancelBooking, fetchAvailableRunnersFor, fetchBookingBrief, fetchBookingCard,
   LiveRunner, requestRunner, subscribeBooking,
@@ -11,6 +11,7 @@ import {
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { scheduleDoor } from '../../src/lib/home-hero-route';
 import { draft } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
 
@@ -94,6 +95,14 @@ function Ripple({ delay }: { delay: number }) {
 
 type Card = Awaited<ReturnType<typeof fetchBookingCard>>;
 
+// [owner-journey-5] 내 일정 addressed to this booking, as the string `exitTo` carries. The object
+// form comes from the one shared helper (home-hero-route.ts `scheduleDoor`) so the two cannot
+// disagree on what a missing id means (the bare list).
+function scheduleHref(bid: string | null | undefined): string {
+  const d = scheduleDoor(bid);
+  return typeof d === 'string' ? d : `${d.pathname}?bid=${encodeURIComponent(d.params.bid)}`;
+}
+
 export default function Radar() {
   // The booking comes from the draft (home hero / request, which sets it right after the hold), or from a `bid` param so a push
   // notification or deep link can land here directly. The param wins when present.
@@ -163,6 +172,11 @@ export default function Radar() {
   }, []));
 
   // 이 화면이 만드는 이동은 전부 이 문을 지난다.
+  // [fix/owner-inflight-truth · owner-journey-5] Every exit to 내 일정 carries this booking
+  // (`scheduleHref`, above): the screen reads `bid` and opens that booking's sheet once, so a match, an
+  // expiry or a terminal status lands ON the booking whose story the alert just began, instead of
+  // on a list the owner has to search. A string path with a query is what `router.replace` and the
+  // deferred-exit ref both already hold.
   const exitTo = useCallback((path: string, delayMs = 0) => {
     if (!aliveRef.current) return;
     if (!focusedRef.current) { pendingExitRef.current = path; return; }
@@ -225,7 +239,7 @@ export default function Radar() {
           matchedRef.current = true;
           if (focusedRef.current) haptic('success'); // 보고 있지 않은 화면은 진동하지 않는다
           setMatchedName(b.runnerName ?? '러너');
-          exitTo('/owner/schedule', 1800);
+          exitTo(scheduleHref(bookingId), 1800);
         } else if (b.status.startsWith('cancelled')) {
           matchedRef.current = true;
           exitTo('/owner/home');
@@ -236,7 +250,7 @@ export default function Radar() {
           // 경로라 'invalid booking transition: expired -> cancelled_owner'를 날것으로 뱉었다.
           matchedRef.current = true;
           if (focusedRef.current) Alert.alert('시간이 지났어요', '예약 시간까지 러너를 찾지 못해 요청이 만료됐어요 — 새로 예약해주세요');
-          exitTo('/owner/schedule');
+          exitTo(scheduleHref(bookingId));
         } else if (TERMINAL_ON_RADAR[b.status]) {
           // Same shape as the `expired` arm above, for the three statuses that were never given
           // one. Without these the screen sits on a spinning ring saying 러너 찾는 중 forever —
@@ -248,7 +262,7 @@ export default function Radar() {
           matchedRef.current = true;
           const t = TERMINAL_ON_RADAR[b.status];
           if (focusedRef.current) Alert.alert(t.title, t.body);
-          exitTo('/owner/schedule');
+          exitTo(scheduleHref(bookingId));
         }
       } catch {
         // 일시 네트워크 오류 — 다음 틱에 재시도. 조용히 삼키지는 않는다: 계속 실패하면
@@ -352,16 +366,12 @@ export default function Radar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      {/* ── 고정 헤더 ── */}
+      {/* ── 고정 헤더 ── [fix/owner-inflight-truth · ui-consistency-9] ScreenHead (DESIGN.md §3b
+          chrome header), not a hand-rolled borderless 32pt ‹ and a 16.5 title. The back action is
+          unchanged — `replace('/owner/home')`, because radar is reached by a replace from request
+          and by a bid-carrying push, and neither leaves a stack worth popping to. */}
       <View style={[s.topBar, { paddingTop: insets.top + 8 }]}>
-        <View style={s.topRow}>
-          <Pressable onPress={() => router.replace('/owner/home')} hitSlop={10} style={s.back}
-            accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 22, lineHeight: 26, color: paper.ink }}>‹</Text>
-          </Pressable>
-          <Text style={s.topTitle} numberOfLines={1}>{title}</Text>
-          <View style={{ width: 32 }} />
-        </View>
+        <ScreenHead title={title} onBack={() => router.replace('/owner/home')} />
       </View>
 
       <ScrollView contentContainerStyle={scrollPad}>
@@ -517,9 +527,6 @@ export default function Radar() {
 const s = StyleSheet.create({
   // ── 고정 헤더 — 랩 §C의 `.top`. paddingTop은 JSX가 세이프에어리어로 주입한다 ──
   topBar: { backgroundColor: paper.canvas, paddingHorizontal: layout.gutter, paddingBottom: 10 },
-  topRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
-  back: { width: 32, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
-  topTitle: { flex: 1, fontSize: 16.5, fontWeight: '800', color: paper.ink, textAlign: 'center' },
   // ── 알림 줄 — home-hero의 문법 그대로 (점 · 굵은 줄 · 얇은 줄 · 우측 행동) ──
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, minHeight: 44 },
   dot: { width: 8, height: 8, borderRadius: 4 },

@@ -23,6 +23,7 @@ const {
   OWNER_LIVE_RUN_TITLES, KM_MILESTONE_TITLE, isOwnerLiveRunTitle,
   CUSTODY_START_STRAND_TITLE, CUSTODY_END_STRAND_TITLE, CUSTODY_STRAND_TITLES,
   OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE,
+  NOMINATION_FAILED_TITLE,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -44,6 +45,9 @@ const dest = (f) => destinationForBookingRef({ refId: BID, ...f }, { incident: I
 const show = (d) => JSON.stringify(d);
 const isReport = (d) => d && d.pathname === '/owner/report' && d.params && d.params.bid === BID;
 const isChat = (d) => d && d.pathname === '/chat' && d.params && d.params.bid === BID;
+// [fix/owner-inflight-truth · owner-journey-5] 내 일정 reads `bid` now, so every owner door into it
+// carries the booking. A bare '/owner/schedule' for a titled booking tap is the defect.
+const isSchedule = (d) => !!d && d.pathname === '/owner/schedule' && !!d.params && d.params.bid === BID;
 
 // ── the club branch: the handoff family lands on the club session screen, for BOTH roles ──
 for (const title of HANDOFF_TITLES) {
@@ -782,9 +786,12 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     routedKinds.push([CHECKIN_TITLE, 'booking']);
     t('on2 · runner → /runner/home (its CheckinAnswer; the calendar has none)',
       dest({ title: CHECKIN_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/home');
-    t('on2 · owner → /owner/schedule, even when it IS the current booking (not the report, not meetup)',
-      dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/schedule'
-      && dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/owner/schedule');
+    // [fix/owner-inflight-truth · owner-journey-5] was `=== '/owner/schedule'` (bare) — the pin held
+    // the deferral 「schedule takes no bid」. The question is time-boxed; the tap now opens its sheet.
+    t('on2 · owner → /owner/schedule WITH the bid, even when it IS the current booking (not the report, not meetup)',
+      isSchedule(dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }))
+      && isSchedule(dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null })),
+      show(dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null })));
     const screens = ['app/app/runner/home.tsx', 'app/app/owner/schedule.tsx'].map((f) => [f, readTs(f)]);
     for (const [f, src] of screens) {
       t(`on2 · ${f} still mounts <CheckinAnswer (the reason it is the destination)`, /<CheckinAnswer\b/.test(src));
@@ -815,14 +822,54 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
       t('on4 · 러너 재탐색 중 → /owner/radar carrying the bid (the nominate list is the useful action)',
         !!d && d.pathname === '/owner/radar' && d.params && d.params.bid === BID, show(d));
     }
+    // [fix/owner-inflight-truth · owner-journey-5] This arm read 「bare — schedule reads no param」,
+    // which stopped being true in the same slice: 내 일정 reads `bid` and opens that sheet once.
     for (const x of written.filter((y) => y !== '러너 재탐색 중')) {
-      t(`on4 · ${x} → /owner/schedule (bare — schedule reads no param)`,
-        dest({ title: x, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/schedule');
+      t(`on4 · ${x} → /owner/schedule carrying the bid (the sheet of THIS booking, not the list)`,
+        isSchedule(dest({ title: x, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true })),
+        show(dest({ title: x, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true })));
     }
     t('on4 · 매칭 만료 is NOT radar (radar alerts and bounces on `expired`)',
-      dest({ title: '매칭 만료', role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/owner/schedule');
+      isSchedule(dest({ title: '매칭 만료', role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null })));
     t('on4 · the shared 일정 변경 요청 만료 keeps the RUNNER on the calendar (the owner map sits after the runner branch)',
       !!mResR && dest({ title: mResR[1], role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/calendar');
+  }
+
+  // ── contract-gaps-3 · 「지명 요청 실패」 → the matching screen its body names ──────────────────
+  // [fix/owner-inflight-truth] confirm-payment's `postConfirm` nominates AFTER the capture; when that
+  // rung fails the booking stays `matching` (confirm_payment_test asserts it) and the owner is told
+  // 「매칭 화면에서 다시 골라주세요」. The title was in no owner table, so it fell to the post-run
+  // report — a record card for a run that has not happened, with no nominate list on it.
+  // The WRITER is read, never the router (a pin that reads its expected string out of the file it
+  // tests can only agree with it). ⚠ This file never EDITS handler.ts — fix/notification-truth owns
+  // it; a rename there reddens the scan below, which is the point.
+  {
+    const cp = readTs('supabase/functions/confirm-payment/handler.ts');
+    const OWNER_NOTE = /notifyOwner\(\s*db,\s*p\.ownerId,\s*p\.bookingId,\s*"([^"]+)"/;
+    const titles = [...cp.matchAll(new RegExp(OWNER_NOTE.source, 'g'))].map((m) => m[1]);
+    t('cg3 · confirm-payment postConfirm still tells the owner (an absent writer must fail LOUDLY, not read as 「nothing to compare」)',
+      titles.length > 0, 'no notifyOwner(db, p.ownerId, p.bookingId, "…") in confirm-payment/handler.ts');
+    // The NOMINATION rung specifically — the first owner note after the request_runner call —
+    // not merely 「the string occurs somewhere in the file」.
+    const nomAt = cp.indexOf('action: "request_runner"');
+    const nom = nomAt >= 0 ? (cp.slice(nomAt).match(OWNER_NOTE) || [])[1] : undefined;
+    t('cg3 · the nomination rung writes exactly NOMINATION_FAILED_TITLE (writer and table spell it the same)',
+      nom === NOMINATION_FAILED_TITLE, `writer: ${nom} · table: ${NOMINATION_FAILED_TITLE}`);
+    t('cg3 · …as kind booking with the BOOKING as ref (so it is a bid tap)',
+      /\.insert\(\{ profile_id: ownerId, kind: "booking", title, body, ref_id: bookingId \}\)/.test(cp));
+    routedKinds.push([NOMINATION_FAILED_TITLE, 'booking']);
+    for (const cur of [true, false, null]) {
+      const d = dest({ title: NOMINATION_FAILED_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: cur });
+      t(`cg3 · 지명 요청 실패 · owner (current=${cur}) → /owner/radar carrying the bid, never the post-run report`,
+        !!d && d.pathname === '/owner/radar' && !!d.params && d.params.bid === BID && !isReport(d), show(d));
+    }
+    t('cg3 · 지명 요청 실패 needs no club probe and no current-booking probe (marketplace confirm; radar takes the bid)',
+      !needsClubProbe(NOMINATION_FAILED_TITLE, 'owner') && !needsCurrentBookingProbe('owner', NOMINATION_FAILED_TITLE));
+    t('cg3 · …and is NOT an OWNER_PRERUN_ROUTES key (that table is pinned to exactly six writer titles)',
+      OWNER_PRERUN_ROUTES[NOMINATION_FAILED_TITLE] === undefined);
+    const radar = readTs('app/app/owner/radar.tsx');
+    t('cg3 · radar.tsx still reads `bid` (the reason the destination carries it)',
+      /useLocalSearchParams<\{ bid\?: string \}>\(\)/.test(radar));
   }
 
   // ── contract-gaps-2 · six runner titles that fell to the calendar ───────────────────────────
@@ -923,6 +970,7 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     const sets = {
       prerun: Object.keys(OWNER_PRERUN_ROUTES), payment: OWNER_PAYMENT_TITLES, live: OWNER_LIVE_RUN_TITLES,
       checkin: [CHECKIN_TITLE], meetup: OWNER_MEETUP_TITLES, recurring: [RECURRING_CREATED_TITLE],
+      nomination: [NOMINATION_FAILED_TITLE],
       fixed: [CHAT_TITLE, SOS, INCIDENT, RUN_STOP_TITLE],
     };
     const names = Object.keys(sets);
@@ -938,7 +986,8 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
       clashes.length === 0, JSON.stringify(clashes));
     t('none of the newly routed titles is on the club session-ref list (every one of their writers emits a booking id)',
       ![...Object.keys(OWNER_PRERUN_ROUTES), ...OWNER_PAYMENT_TITLES, ...OWNER_LIVE_RUN_TITLES, CHECKIN_TITLE,
-        CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE, '정산을 확인하고 있어요', '케이스 정산 결정', RETURN_DONE_TITLE, SOS]
+        CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE, '정산을 확인하고 있어요', '케이스 정산 결정', RETURN_DONE_TITLE, SOS,
+        NOMINATION_FAILED_TITLE]
         .some(refMayBeClubSession));
   }
 

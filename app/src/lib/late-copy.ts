@@ -9,6 +9,7 @@
 // .cjs 스위트가 실제 소스를 번들할 수 없어 이 인계선을 테스트로 핀 박을 수 없다. 판정은
 // lateness.ts, 문장은 이 파일, 렌더링은 late-notice.tsx 가 맡는다.
 import { sinceLabel, type Lateness } from './lateness';
+import { withParticle } from './particle';
 
 export type LateSide = 'owner' | 'runner';
 
@@ -22,6 +23,9 @@ export function copyFor(
 ): LateCopy {
   const dog = names.dog ?? '반려견';
   const runner = names.runner ?? '러너';
+  // [fix/owner-inflight-truth · copy-hierarchy-1] Every particle after `dog` agrees with it
+  // (particle.ts). Hard-coded 가/와 printed 콩가 · 밤와 — and, on the fallback above, 「반려견가」.
+  // `runner` needs none: its one particle below is 님이, which follows 님 regardless of the name.
   const since = sinceLabel(late.sinceMs);
 
   // ── 인계 후: 개가 러너에게 있다. '불발'이라는 낱말은 여기서 금지어다. 확인과 도움만 말한다.
@@ -44,12 +48,12 @@ export function copyFor(
     // 「자동으로 …되지 않아요」를 걷어낸 이유다. 남는 건 읽는 사람이 실제로 할 수 있는 행동뿐이다.
     if (late.custody === 'post' && !late.started) {
       return side === 'owner'
-        ? { kick: '직접 확인해주세요', head: `${dog}와의 러닝이\n아직 시작되지 않았어요`, tone: 'warn',
+        ? { kick: '직접 확인해주세요', head: `${withParticle(dog, '와/과')}의 러닝이\n아직 시작되지 않았어요`, tone: 'warn',
             strip: '러너에게 직접 연락해주세요.' }
         : { kick: `${since} 지남`, head: '아직 러닝을\n시작하지 않았어요', tone: 'warn' };
     }
     return side === 'owner'
-      ? { kick: '직접 확인해주세요', head: `${dog}가 아직\n돌아오지 않았어요`, tone: 'critical',
+      ? { kick: '직접 확인해주세요', head: `${withParticle(dog, '가/이')} 아직\n돌아오지 않았어요`, tone: 'critical',
           strip: '러너에게 연락하거나 긴급 도움을 요청하세요.' }
       // [랩 교정 ⑥] 목업은 「아직 달리는 중인가요?」라는 질문이었다. stage 1 은 답을 받을 수
       // 없으므로 질문형은 작은 거짓말이다 (물어놓고 답 칸이 없다). 서술형으로 바꾼다.
@@ -100,5 +104,5 @@ export function copyFor(
   // ── 인계 전, 러너를 기다리는 중
   return side === 'owner'
     ? { kick: '예약 시각이 지났어요', head: '러너가 아직\n도착하지 않았어요', tone: 'warn' }
-    : { kick: `${since} 늦음`, head: `${dog}가\n기다리고 있어요`, tone: 'critical' };
+    : { kick: `${since} 늦음`, head: `${withParticle(dog, '가/이')}\n기다리고 있어요`, tone: 'critical' };
 }
