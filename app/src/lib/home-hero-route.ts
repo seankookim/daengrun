@@ -22,6 +22,16 @@
 //   ① `returning` FIRST, above lateness. The run is OVER; what is owed is the return
 //      confirmation, and the ⑫ gate for it lives on the bid-scoped report (0188). A late return
 //      is still a return — sending it to 내 일정 loses the only screen that can close it.
+//   ①′ `handoff` (server `picked_up` — both handoff stamps sealed) → the meetup, ALSO above
+//      lateness [fix/client-review-3, Codex 2026-09-25 c4]. The hero's only button in that frame
+//      reads 「티켓 보기 · 인계 기록을 확인해요」, and the meetup's `picked_up` branch is exactly that
+//      record (the SEALED block, no CTA — `owner/meetup.tsx` sets stage 'confirmed' and draws no
+//      handoff dock). Below lateness, a sealed pickup more than 30 minutes past its slot went to
+//      내 일정, whose handoff branch shows a waiting line and no record door: the label lied on
+//      exactly the late case. There is nothing to resurrect here — the handoff is already sealed
+//      and the meetup offers no action on it — so no `resumable` conjunct is owed. Lateness stays
+//      VISIBLE in the handoff frame's own late strip (`home-hero.tsx`), it just no longer moves the
+//      door.
 //   ② `confirmed` + the runner has ARRIVED + still inside the 3h ceiling → the meetup. This is
 //      the narrow case the sweep confirmed: `arrived_at` is a fact the server recorded, and
 //      `resumable` is `lateness()`'s own ceiling verdict, so the door opens only while the
@@ -72,14 +82,17 @@ export function heroDestination({
   if (state === 'returning') {
     return bid ? { pathname: '/owner/report', params: { bid } } : '/owner/schedule';
   }
+  // ①′ the sealed handoff's record outranks lateness — see the header (c4). The button in that
+  //    frame promises 「인계 기록」, and only the meetup has it.
+  if (state === 'handoff') return '/owner/meetup';
   // ② the arrived-and-still-resumable door. Both conjuncts are load-bearing and each has its own
   //    pin: drop `arrivedWaiting` and a runner who never showed gets a handoff screen; drop
   //    `resumable` and the two taps that resurrect a 16-day-old booking are back.
   if (state === 'confirmed' && arrivedWaiting && resumable) return '/owner/meetup';
   // ③ everything else that is late still goes to the screen that can close it.
   if (isLate) return '/owner/schedule';
-  // ④ the pre-existing switch, unchanged.
+  // ④ the pre-existing switch (`handoff` left it for ①′ — it can no longer reach here).
   if (state === 'active') return '/owner/live';
-  if (state === 'handoff' || state === 'confirmed') return '/owner/meetup';
+  if (state === 'confirmed') return '/owner/meetup';
   return '/owner/radar';
 }

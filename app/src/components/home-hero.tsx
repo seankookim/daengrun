@@ -388,7 +388,12 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         <View style={s.opts}>
           {/* 금색 = 세리머니(여권·도장·영수증). 봉인된 인계 기록이 정확히 그것이고, 미트업의
               SEALED 블록이 정직한 착지점이다. `dot` 과 `leash` 는 뺐다 — 맥박은 '지금 하라'는
-              주장이고, 목줄은 넘기는 동작의 그림이다. 둘 다 끝난 일에 대해서는 거짓말이다. */}
+              주장이고, 목줄은 넘기는 동작의 그림이다. 둘 다 끝난 일에 대해서는 거짓말이다.
+              [fix/client-review-3 · Codex 2026-09-25 c4] openNext used to send a LATE sealed
+              handoff to 내 일정, which has no record door — this label was false on exactly that
+              case. `home-hero-route.ts` ①′ now routes `handoff` to the meetup above the lateness
+              arm, so 「인계 기록을 확인해요」 is true in every lateness state; the late fact stays
+              on screen in `lateStrip` above. */}
           <DrawButton title="티켓 보기" sub="인계 기록을 확인해요" ground="gold" art="ticket"
             onPress={openNext} accessibilityLabel="티켓 보기" />
           <DrawButton title="채팅" sub="러너에게 물어보세요" meta={chatBadge} ground="lilac" art="chat"

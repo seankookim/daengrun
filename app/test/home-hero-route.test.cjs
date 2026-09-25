@@ -22,6 +22,8 @@
 //     re-enters the meetup flow.
 //   · the four unchanged arms — they are copied verbatim from the code this replaced, so a case
 //     each, or nothing notices when a refactor quietly drops one.
+//   · handoff ABOVE lateness [c4] — move the `handoff` arm back below `isLate` and a sealed pickup
+//     that went late opens 내 일정 under a button that promises 「인계 기록」 (section ⑤).
 //
 // ⚠ These are ORDERING pins. Every case below fixes MORE than one input at a time on purpose:
 // an ordering bug is only visible where two arms both match, so a case whose inputs satisfy
@@ -104,19 +106,33 @@ t('directed → the radar', D({ state: 'directed' }) === '/owner/radar');
 t('none → the radar (the fall-through)', D({ state: 'none' }) === '/owner/radar');
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// ⑤ the ONE case this slice deliberately did not change, pinned so it is a decision and not
-//    an accident
+// ⑤ the sealed handoff's record outranks lateness — the call case ⑤ left open, now made
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// 🔴 `handoff` (= server `picked_up`, both handoff stamps landed) that has gone late routes to
-// 내 일정, because arm ③ sits above the `handoff` arm. That is the PRE-EXISTING behaviour, carried
-// over unchanged: the sweep's verifier confirmed exactly one of the three arms owner-journey-1
-// named, and this was not it. It is pinned rather than left silent because the hero's handoff
-// button now reads 「티켓 보기 · 인계 기록을 확인해요」, and on this one input its destination is
-// 내 일정 rather than the record — a label/destination gap that is a product call (whether a
-// sealed handoff can still be 「late」 at all is upstream of the router). Moving the `handoff` arm
-// above arm ③ reddens this case, which is the point: the next session changes it on purpose.
-t('handoff + isLate → 내 일정 (pre-existing, see the comment above — NOT a new rule)',
-  D({ state: 'handoff', isLate: true }) === '/owner/schedule');
+// 🔴 [fix/client-review-3 · Codex 2026-09-25 c4] This case used to pin `handoff + isLate → 내 일정`
+// as the PRE-EXISTING behaviour, with a note that changing it was a deliberate call for the next
+// session. Codex MEASURED the gap that note described: the hero's handoff button reads
+// 「티켓 보기 · 인계 기록을 확인해요」, and on this input it opened 내 일정, whose handoff branch
+// (`owner/schedule.tsx` ~1130) shows a waiting line and no record door. The call is made: the
+// sealed record is the meetup (`picked_up` → the SEALED block, no action), so `handoff` routes
+// there ABOVE the lateness arm and the label is true in every lateness state. Moving the `handoff`
+// arm back below `isLate` reddens the ⚔ cases here.
+// ⚔ ORDERING: both the `handoff` arm and the `isLate` arm match.
+t('🔴 c4 · handoff + isLate → /owner/meetup, the sealed record the button promises (NOT 내 일정)',
+  D({ state: 'handoff', isLate: true }) === '/owner/meetup',
+  JSON.stringify(D({ state: 'handoff', isLate: true })));
+// ⚔ ORDERING + the ceiling: `resumable` is a statement about resuming a RUN that has not started
+// its handoff. The handoff is already sealed and the meetup offers nothing to do on it, so past
+// the ceiling the record is still the honest destination — same reasoning as `returning` in ①.
+t('🔴 c4 · handoff + isLate + past the 3h ceiling → still the record',
+  D({ state: 'handoff', isLate: true, resumable: false }) === '/owner/meetup');
+t('c4 · handoff is label-true in EVERY lateness × ceiling × arrival combination',
+  [true, false].every((isLate) => [true, false].every((resumable) => [true, false].every((arrivedWaiting) =>
+    D({ state: 'handoff', isLate, resumable, arrivedWaiting }) === '/owner/meetup'))));
+// ⚠ And the arm is scoped to `handoff`: lateness still closes `confirmed`, which is the case the
+// 2026-08-21 redirect exists for (a 16-day-old booking must not re-enter the meetup's handoff CTA).
+// A `handoff` arm widened to every state would silently delete ③; this case notices.
+t('c4 · the new arm did not swallow ③ — a plain late `confirmed` still goes to 내 일정',
+  D({ state: 'confirmed', isLate: true }) === '/owner/schedule');
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // ⑥ the shape of what comes back — the caller hands this straight to `router.push`
