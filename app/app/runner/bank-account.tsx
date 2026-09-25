@@ -3,17 +3,17 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
-import { Row } from '../../src/components/ui';
+import { ScreenHead } from '../../src/components/ui';
 import { deleteMyBankAccount, fetchMyBankAccount, MyBankAccount, setMyBankAccount } from '../../src/lib/api';
 import {
   ACCOUNT_UNREADABLE_KO, BANKS, BANK_ERROR_KO, BANK_NOTE, validateBankAccount,
 } from '../../src/lib/bank-account';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
 // RAW server text for the log; `e.message` is the mapped Korean the form renders.
 import { rpcRaw } from '../../src/lib/rpc-error';
-import { colors, paper } from '../../src/theme';
+import { layout, paper } from '../../src/theme';
 
 // 정산 계좌 — 0194. `earnings.tsx:158` 이 「계좌 등록은 오픈뱅킹 연동과 함께 제공돼요」라고 적어 둔
 // 자리가 실화면이 된다. 그 문장은 사실이었다: `bank_accounts` 는 0001 부터 있었지만 행을 만들 방법이
@@ -116,24 +116,16 @@ export default function BankAccountScreen() {
     <>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          style={{ flex: 1, backgroundColor: colors.cream }}
-          contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
+          style={{ flex: 1, backgroundColor: paper.canvas }}
+          contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: insets.bottom + 40 }}
           keyboardShouldPersistTaps="handled"
         >
-          <Row style={{ justifyContent: 'space-between' }}>
-            <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-              <Text style={{ fontSize: 20.5 }}>‹</Text>
-            </Pressable>
-            <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>정산 계좌</Text>
-            <View style={{ width: 40 }} />
-          </Row>
+          <ScreenHead title="정산 계좌" />
 
           <Text style={s.note}>{BANK_NOTE}</Text>
 
           {phase === 'loading' && (
-            <View style={[s.card, { marginTop: 10 }]}>
-              <Text style={s.loading}>계좌 정보를 불러오는 중이에요…</Text>
-            </View>
+            <Text style={s.loading}>계좌 정보를 불러오는 중이에요…</Text>
           )}
 
           {phase === 'error' && (
@@ -147,9 +139,13 @@ export default function BankAccountScreen() {
 
           {phase === 'ready' && (
             <>
+              {/* Paper grammar (DESIGN.md §2 · §3b): the registered account is a SECTION under a
+                  full-bleed coral rule, not a card — its label moved up from a dim 15/700 kicker
+                  to the one section-title voice (20/800 ink). Same words. */}
               {current !== null && (
-                <View style={[s.card, { marginTop: 10, paddingVertical: 15 }]}>
-                  <Text style={s.kicker}>등록된 계좌</Text>
+                <>
+                  <View style={s.rule} />
+                  <Text style={s.secTitle}>등록된 계좌</Text>
                   <Text style={s.currentBank}>{current.bankLabel ?? current.bank}</Text>
                   {/* 마스크는 서버가 만든다. null 이면 그 행을 복호화하지 못한다는 뜻이고,
                       그건 조용히 넘길 일이 아니라 다시 등록해야 한다는 뜻이다. */}
@@ -158,7 +154,7 @@ export default function BankAccountScreen() {
                   ) : (
                     <Text style={s.currentBroken}>{ACCOUNT_UNREADABLE_KO}</Text>
                   )}
-                </View>
+                </>
               )}
 
               {formErr !== null && (
@@ -167,6 +163,7 @@ export default function BankAccountScreen() {
                 </View>
               )}
 
+              <View style={s.rule} />
               <Text style={s.secTitle}>{current === null ? '계좌 등록' : '계좌 변경'}</Text>
               {current !== null && (
                 <Text style={s.subNote}>
@@ -224,37 +221,36 @@ export default function BankAccountScreen() {
                 accessibilityLabel="예금주"
               />
 
-              {/* ⚠ 「Disabled stays flat」 (DESIGN.md:218) — a dead key has no travel, so the lip
-                  and the press transform are both dropped while busy rather than dimmed. */}
-              <Pressable
+              {/* The house matrix (paper-btn.tsx), not a hand-rolled copy of it. The earlier hand-roll
+                  followed a DESIGN.md button table that still said ink after the 2026-08-11 ink
+                  retirement — so this screen's primary was the one black key on a coral system.
+                  busy = label swap on the action face; the OTHER button is disabled (flat, no
+                  travel) while either write is in flight, exactly as before. */}
+              <PaperBtn
+                label="계좌 저장"
+                busyLabel="저장 중…"
+                busy={saving}
+                disabled={deleting}
                 onPress={save}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: busy, busy: saving }}
-                style={({ pressed }) => [
-                  s.primary,
-                  busy ? s.flatDisabled : (pressed && s.primaryPressed),
-                ]}
-              >
-                <Text style={[s.primaryLabel, busy && s.flatDisabledLabel]}>{saving ? '저장 중…' : '계좌 저장'}</Text>
-              </Pressable>
+                style={{ marginTop: 24 }}
+              />
 
               {current !== null && (
-                <Pressable
+                <PaperBtn
+                  label="계좌 삭제"
+                  busyLabel="삭제 중…"
+                  variant="destructive"
+                  busy={deleting}
+                  disabled={saving}
                   onPress={confirmDelete}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: busy, busy: deleting }}
-                  style={({ pressed }) => [s.destructive, !busy && pressed && s.destructivePressed]}
-                >
-                  <Text style={s.destructiveLabel}>{deleting ? '삭제 중…' : '계좌 삭제'}</Text>
-                </Pressable>
+                  style={{ marginTop: 12 }}
+                />
               )}
             </>
           )}
         </ScrollView>
       </KeyboardAvoidingView>
-      <StatusBarCover color={colors.cream} />
+      <StatusBarCover color={paper.canvas} />
     </>
   );
 }
@@ -262,54 +258,28 @@ export default function BankAccountScreen() {
 // 15pt 플로어 (DESIGN.md:145) — 한국어는 kicker 면제를 타지 않으므로 여기 어떤 한글도 15 밑으로
 // 내려가지 않는다. 라틴 대문자 키커만 면제이고 이 화면에는 그런 것이 없다.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.line },
   note: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 14, marginBottom: 2 },
   subNote: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 4 },
-  card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: colors.line },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 16 },
-  kicker: { fontSize: 15, fontWeight: '700', color: paper.dim },
-  currentBank: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 4 },
+  // full-bleed: the rule escapes the scroll gutter so it runs edge to edge (DESIGN.md §2)
+  rule: { height: 1, backgroundColor: paper.line, marginHorizontal: -layout.gutter, marginTop: 22 },
+  currentBank: { fontSize: 19, fontWeight: '800', color: paper.ink, marginTop: 8 },
   currentAccount: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: paper.ink, marginTop: 3 },
   currentBroken: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 3 },
-  secTitle: { fontSize: 20, fontWeight: '800', color: paper.ink, marginTop: 22 },
+  secTitle: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink, marginTop: 14 }, // → theme.secTitle
   fieldLabel: { fontSize: 15, fontWeight: '700', color: paper.ink, marginTop: 16, marginBottom: 6 },
   bankWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  bankChip: { paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.line },
+  bankChip: { paddingHorizontal: 13, minHeight: 44, justifyContent: 'center', backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE' },
   bankChipOn: { backgroundColor: paper.action, borderColor: paper.action },
   bankChipLabel: { fontSize: 15, fontWeight: '700', color: paper.ink },
   bankChipLabelOn: { color: '#FFFFFF' },
   // the same explicit-token rule as the buttons, not an alpha (theme.ts:204)
   chipDisabled: { backgroundColor: paper.disabledFill, borderColor: paper.disabledFill },
-  input: { fontSize: 17, color: paper.ink, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 14, minHeight: 52 },
-  // DESIGN.md:203-206 button matrix, followed to the row rather than invented. The first draft
-  // used a coral fill with radius 16 for Primary and `criticalWash` as the RESTING ground for
-  // Destructive — which made 계좌 삭제 the same face as the failure strip below it (same wash, same
-  // radius, same critical ink), so an ACTION and a FAILURE shared one grammar on a money screen.
-  //   Primary     = paper.ink fill, no border, white 17/800, radius 0
-  //   Destructive = canvas, 1px critical, critical 16/800, radius 0 (criticalWash is PRESSED only)
-  // ⚠ The 3D lip (`borderBottomWidth: 4`, DESIGN.md:211-216) belongs to FILLED buttons, so Primary
-  //   carries it and Destructive does not — 「Paper has no depth」 is that section's own sentence,
-  //   and a lip plus a border would be two depth languages on one control.
-  primary: {
-    marginTop: 24, minHeight: 56, borderRadius: 0, backgroundColor: paper.ink,
-    borderBottomWidth: 4, borderBottomColor: paper.inkPressed,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  primaryPressed: { transform: [{ translateY: 3 }], borderBottomWidth: 1 },
-  primaryLabel: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
-  destructive: {
-    marginTop: 12, minHeight: 52, borderRadius: 0, backgroundColor: colors.cream,
-    borderWidth: 1, borderColor: paper.critical, alignItems: 'center', justifyContent: 'center',
-  },
-  destructivePressed: { backgroundColor: paper.criticalWash, transform: [{ scale: 0.96 }] },
-  destructiveLabel: { fontSize: 16, fontWeight: '800', color: paper.critical },
-  // DESIGN.md:218 — a disabled key has no travel, so the lip goes flat. And the colour is the
-  // EXPLICIT disabled pair (`disabledFill` + `faint`), never an alpha: `theme.ts:204` calls that
-  // token 「불투명도 트릭 금지 법의 물화」 — the no-opacity law made into a value. My first draft
-  // wrote `opacity: 0.6` here, in a comment that forbade opacity tricks.
-  flatDisabled: { borderBottomWidth: 1, backgroundColor: paper.disabledFill },
-  flatDisabledLabel: { color: paper.faint },
-  failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13, marginTop: 10 },
+  input: { fontSize: 17, color: paper.ink, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', paddingHorizontal: 14, minHeight: 52 },
+  // Primary and destructive are PaperBtn now (see the render). ⚠ Keep the lesson the hand-roll
+  // recorded: 계좌 삭제 rests on CANVAS with a critical border (criticalWash is its PRESSED face
+  // only), so an ACTION never wears the same face as the failure strip beside it.
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 10 },
   failText: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
   retryLabel: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },

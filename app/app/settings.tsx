@@ -5,12 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth-context';
 import { DeleteAccountSheet } from '../src/components/delete-account-sheet';
 import { PhoneRow } from '../src/components/phone-row';
-import { Row } from '../src/components/ui';
+import { Row, ScreenHead } from '../src/components/ui';
 import { fetchMyProfile, fetchMyRunnerBase, MyProfile, opsMe } from '../src/lib/api';
 import { kstCal, kstMonthDay } from '../src/lib/kst';
-import { goBackOrHome } from '../src/lib/nav';
 import { session } from '../src/store';
-import { colors, paper } from '../src/theme';
+import { layout, paper } from '../src/theme';
 
 // 설정 — 실화면. 가짜 하위메뉴 없음: 실계정 정보 + 실동작만, 나머지는 정직 라벨.
 
@@ -112,24 +111,20 @@ export default function Settings() {
   );
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.cream }} contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: 40 }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-        <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>설정</Text>
-        <View style={{ width: 40 }} />
-      </Row>
+    <ScrollView style={{ flex: 1, backgroundColor: paper.canvas }} contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 40 }}>
+      <ScreenHead title="설정" />
 
-      {/* 계정 (실정보) */}
+      {/* 계정 (실정보) — paper grammar: a full-bleed coral rule and a 20/800 title divide the
+          sections; rows inside separate with neutral #EEE (DESIGN.md §2 · §3b). No cards. */}
+      <View style={s.rule} />
       <Text style={s.section}>계정</Text>
-      <View style={s.card}>
-        <InfoRow label="이메일" value={auth?.user.email ?? '—'} />
-        <View style={s.div} />
-        <InfoRow label="이름" value={profile?.name ?? '—'} />
-        <View style={s.div} />
-        <InfoRow label="현재 모드" value={session.role === 'runner' ? '러너' : '보호자'} />
-      </View>
+      <InfoRow label="이메일" value={auth?.user.email ?? '—'} />
+      <View style={s.div} />
+      <InfoRow label="이름" value={profile?.name ?? '—'} />
+      <View style={s.div} />
+      <InfoRow label="현재 모드" value={session.role === 'runner' ? '러너' : '보호자'} />
 
-      {/* 이메일·현재 모드는 로컬에서 오고 이름만 서버에서 온다 — 그래서 실패는 카드 밖 한 줄이다. */}
+      {/* 이메일·현재 모드는 로컬에서 오고 이름만 서버에서 온다 — 그래서 실패는 행 아래 한 줄이다. */}
       {profileErr && (
         <View style={s.failStrip}>
           <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical }}>
@@ -143,18 +138,19 @@ export default function Settings() {
         </View>
       )}
 
-      {/* 실동작 */}
-      <View style={[s.card, { marginTop: 10 }]}>
-        <Pressable onPress={() => router.dismissTo('/')} style={s.actionRow}>
+      {/* 실동작 — an untitled section: the rule alone separates it from 계정 */}
+      <View style={s.rule} />
+      <View>
+        <Pressable onPress={() => router.dismissTo('/')} style={s.actionRow} accessibilityRole="button">
           <Text style={s.actionText}>역할 전환 (보호자 ↔ 러너)</Text>
-          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          <Text style={s.chev}>›</Text>
         </Pressable>
         <View style={s.div} />
         {/* [charge slice 2026-08-13] 준비 중 카드의 '결제 수단 — PG 연동 후' InfoRow가 여기로 승격.
             실화면이 생겼다: 등록된 카드·청구 내역·실패한 청구의 재시도가 전부 서버 진실이다. */}
-        <Pressable onPress={() => router.push('/payments')} style={s.actionRow}>
+        <Pressable onPress={() => router.push('/payments')} style={s.actionRow} accessibilityRole="button">
           <Text style={s.actionText}>결제 관리</Text>
-          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          <Text style={s.chev}>›</Text>
         </Pressable>
         <View style={s.div} />
         {/* [0187] 준비 중 카드의 '알림 설정 — 푸시 도입 후' InfoRow가 여기로 승격.
@@ -162,33 +158,37 @@ export default function Settings() {
             (push_tokens + notifications_push 트리거 → Expo), 없던 것은 끄는 문 하나뿐이었다.
             이제 카테고리별 스위치가 서버의 notification_prefs를 쓰고, 그 값이 발송 경로
             (notify_push)를 실제로 가른다 — 화면만 있는 설정이 아니다. */}
-        <Pressable onPress={() => router.push('/notification-settings')} style={s.actionRow}>
+        <Pressable onPress={() => router.push('/notification-settings')} style={s.actionRow} accessibilityRole="button">
           <Text style={s.actionText}>알림 설정</Text>
-          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          <Text style={s.chev}>›</Text>
         </Pressable>
         <View style={s.div} />
         <Pressable
           onPress={() => Linking.openURL('mailto:seankookim@uchicago.edu?subject=도그스하이 문의')}
           style={s.actionRow}
+          accessibilityRole="button"
         >
           <Text style={s.actionText}>문의하기</Text>
-          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          <Text style={s.chev}>›</Text>
         </Pressable>
         <View style={s.div} />
         <Pressable
           onPress={async () => { await signOut(); router.dismissTo('/login'); }}
           style={s.actionRow}
+          accessibilityRole="button"
         >
-          <Text style={[s.actionText, { color: '#d84a2f' }]}>로그아웃</Text>
+          <Text style={[s.actionText, s.endSession]}>로그아웃</Text>
         </Pressable>
         <View style={s.div} />
         {/* [O-6 2026-08-20] 계정 삭제는 '준비 중 · 문의로 처리' InfoRow에서 여기로 승격.
             App Store 5.1.1(v)는 인앱 개시를 요구한다 — 문의 메일은 개시가 아니고,
             비활성 카드 안의 회색 라벨은 '찾을 수 있는' 위치도 아니다 (계약 §C.2 1).
-            로그아웃과 같은 코랄 잉크: 둘 다 세션을 끝내는 행이고, 무게 차이는 시트가 진다. */}
+            로그아웃과 같은 잉크: 둘 다 세션을 끝내는 행이고, 무게 차이는 시트가 진다.
+            (2026-09-25: the untokenized coral hex became paper.critical — the destructive label
+            ink of the button matrix.) */}
         <Pressable onPress={() => setDeleteOpen(true)} style={s.actionRow} accessibilityRole="button">
-          <Text style={[s.actionText, { color: '#d84a2f' }]}>계정 삭제</Text>
-          <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+          <Text style={[s.actionText, s.endSession]}>계정 삭제</Text>
+          <Text style={s.chev}>›</Text>
         </Pressable>
       </View>
 
@@ -196,8 +196,9 @@ export default function Settings() {
           (위의 isOps 주석에 그 둘을 같게 처리하는 이유가 적혀 있다). */}
       {isOps && (
         <>
+          <View style={s.rule} />
           <Text style={s.section}>운영</Text>
-          <View style={s.card}>
+          <View>
             <Pressable
               onPress={() => router.push('/ops')}
               style={s.actionRow}
@@ -206,9 +207,12 @@ export default function Settings() {
             >
               <View style={{ flex: 1, paddingRight: 10 }}>
                 <Text style={s.actionText}>운영 콘솔</Text>
-                <Text style={s.actionHint}>지급 대기 러너와 배송 대기 굿즈를 여기서 처리해요</Text>
+                {/* The console draws five desks (지급 대기 · 배송 대기 · 반환 좌초 · 인계 멈춤 ·
+                    운영자 명단) and the old hint named two, so it read as the whole of it. This
+                    sentence names the two KINDS of work instead of a partial list. */}
+                <Text style={s.actionHint}>운영 대기열과 담당자 알림을 여기서 처리해요</Text>
               </View>
-              <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+              <Text style={s.chev}>›</Text>
             </Pressable>
           </View>
         </>
@@ -221,8 +225,9 @@ export default function Settings() {
           알고 들어와서 상태를 읽는 편이 낫다. 값 자리에는 「확인 중…」이 서고 0도 「미설정」도 아니다. */}
       {(base === 'set' || base === 'unset' || base === 'loading') && (
         <>
+          <View style={s.rule} />
           <Text style={s.section}>러너 활동</Text>
-          <View style={s.card}>
+          <View>
             <Pressable
               onPress={() => router.push('/runner/base-pin')}
               style={s.actionRow}
@@ -244,7 +249,7 @@ export default function Settings() {
               <Text style={s.baseValue}>
                 {base === 'set' ? '지정됨' : base === 'unset' ? '설정 안 됨' : '확인 중…'}
               </Text>
-              <Text style={{ fontSize: 16, color: colors.dim, marginLeft: 6 }}>›</Text>
+              <Text style={[s.chev, { marginLeft: 6 }]}>›</Text>
             </Pressable>
           </View>
         </>
@@ -261,10 +266,10 @@ export default function Settings() {
 
       {/* DEV 전용 — 프로덕션 빌드에선 렌더되지 않음 (__DEV__ 게이트, 화면 자체도 이중 게이트) */}
       {__DEV__ && (
-        <View style={[s.card, { marginTop: 10, borderColor: '#7B6CDF' }]}>
-          <Pressable onPress={() => router.push('/dev/club-lab')} style={s.actionRow}>
+        <View style={s.devCard}>
+          <Pressable onPress={() => router.push('/dev/club-lab')} style={s.actionRow} accessibilityRole="button">
             <Text style={[s.actionText, { color: '#4A3DA8' }]}>R2 커스터디 랩 (DEV)</Text>
-            <Text style={{ fontSize: 16, color: colors.dim }}>›</Text>
+            <Text style={s.chev}>›</Text>
           </Pressable>
         </View>
       )}
@@ -274,7 +279,7 @@ export default function Settings() {
           빈 준비 중 카드는 아무것도 말하지 않으면서 자리를 차지한다 — 섹션째 뺀다.
           다시 준비 중인 것이 생기면 s.cardPending 과 InfoRow 의 muted 가 그대로 기다리고 있다
           (두 스타일은 다음 승격 대기열의 문법이므로 남겨둔다). */}
-      <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 18 }}>
+      <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 18 }}>
         도그스하이 {APP_VERSION} · 반려견 피트니스
       </Text>
 
@@ -288,24 +293,28 @@ export default function Settings() {
 function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <Row style={{ justifyContent: 'space-between', paddingVertical: 12 }}>
-      <Text style={{ fontSize: 15.5, color: muted ? paper.dim : '#3d453d' }}>{label}</Text>
+      <Text style={{ fontSize: 15.5, color: muted ? paper.dim : paper.text }}>{label}</Text>
       <Text style={{ fontSize: 15.5, fontWeight: '700', color: muted ? paper.dim : paper.ink }} numberOfLines={1}>{value}</Text>
     </Row>
   );
 }
 
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  section: { fontSize: 17, fontWeight: '900', color: paper.ink, marginTop: 20, marginBottom: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
+  // full-bleed: the rule escapes the scroll gutter so it runs edge to edge (DESIGN.md §2)
+  rule: { height: 1, backgroundColor: paper.line, marginHorizontal: -layout.gutter, marginTop: 22 },
+  section: { fontSize: 20, lineHeight: 25, fontWeight: '800', color: paper.ink, marginTop: 14, marginBottom: 2 }, // → theme.secTitle
+  // __DEV__-only club-lab entry: left as its own violet-bordered box (never ships), corners squared
+  devCard: { marginTop: 10, paddingHorizontal: 15, borderWidth: 1, borderColor: '#7B6CDF' },
   cardPending: { backgroundColor: paper.disabledFill }, // 준비 중 card — explicit fill, no alpha
-  div: { height: 1, backgroundColor: '#f0eee3' },
+  div: { height: 1, backgroundColor: '#EEEEEE' },
+  chev: { fontSize: 16, color: paper.dim },
+  endSession: { color: paper.critical },
   actionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   actionText: { fontSize: 16, fontWeight: '700', color: paper.ink },
   // 15pt 플로어 + paper.dim(5.7:1) — 디테일 텍스트 법 (theme.ts)
   actionHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, marginTop: 3 },
   baseValue: { fontSize: 15.5, fontWeight: '700', color: paper.ink },
   // loud-fail strip — criticalWash ground, critical ink, underlined retry ≥44pt (house grammar)
-  failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13, marginTop: 10 },
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 10 },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
 });

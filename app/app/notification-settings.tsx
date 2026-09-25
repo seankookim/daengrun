@@ -1,13 +1,17 @@
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { AppState, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NotificationPrimer } from '../src/components/notification-primer';
 import { StatusBarCover } from '../src/components/status-bar-cover';
-import { Row } from '../src/components/ui';
+import { ScreenHead } from '../src/components/ui';
 import { fetchNotificationPrefs, opsMe, saveNotificationPrefs } from '../src/lib/api';
 import { haptic } from '../src/lib/haptics';
-import { goBackOrHome } from '../src/lib/nav';
+import { primerAction, PushPermissionRead } from '../src/lib/notification-primer-gate';
 import { NotiPrefs, PREFS_NOTE, PrefKey, visiblePrefRows } from '../src/lib/notification-prefs';
-import { colors, paper } from '../src/theme';
+import { readPushPermission } from '../src/lib/push';
+import { session } from '../src/store';
+import { colors, layout, paper } from '../src/theme';
 
 // 알림 설정 — 0187. `settings.tsx`의 준비 중 카드에 「알림 설정 · 푸시 도입 후」로 앉아 있던 자리가
 // 실화면이 됐다. 푸시는 0024부터 나가고 있었으므로 그 라벨은 거짓이었다.
@@ -43,6 +47,39 @@ export default function NotificationSettings() {
   //     라우드-페일 스트립을 띄우지 않는 이유: 이건 **실패가 아니라 부재**다. 비운영자에게
   //     「운영자 여부를 확인하지 못했어요」는 자기와 상관없는 일의 오류다.
   const [isOps, setIsOps] = useState<boolean | null>(null);
+
+  // ── The DEVICE's answer, which outranks every switch below (onboarding-first-run-4) ──────────
+  // The switches are real server columns, but iOS decides whether ANY push reaches this phone. A
+  // person who refused the system alert used to see four live-looking switches while nothing was
+  // ever delivered, and nothing in the app said so or offered a way back. Two states get a strip:
+  //   'denied' — only the OS can undo it, so the strip opens the system Settings page.
+  //   'ask'    — the one system question is still unspent. The strip opens the EXISTING
+  //              NotificationPrimer, whose 계속 button stays the only code that fires the system
+  //              alert (push.ts, "THE PRIMER'S BUTTON IS THE ONLY CALLER"). This screen never asks.
+  //   null     — granted, or unreadable (old build / throwing module): nothing to say, the same
+  //              fold push.ts makes. A permission we cannot read is not drawn as a refusal.
+  // Re-read on focus AND on return to the foreground: coming back from Settings must move the
+  // strip, and there is no event for "the user changed a system permission" (onboard/runner.tsx
+  // idiom). readPushPermission never throws — it folds failures to null itself.
+  const [perm, setPerm] = useState<PushPermissionRead | null>(null);
+  const [primerOpen, setPrimerOpen] = useState(false);
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    const read = () => { readPushPermission().then((p) => { if (alive) setPerm(p); }); };
+    read();
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') read(); });
+    return () => { alive = false; sub.remove(); };
+  }, []));
+  // Denied is checked FIRST: Android can report a re-askable denial, and the Settings page is the
+  // door that works on both platforms. `dismissed` is passed as false on purpose — the home-screen
+  // primer is once per install, but here the person came looking for this control.
+  const osGate: 'denied' | 'ask' | null =
+    perm?.status === 'denied' ? 'denied'
+      : primerAction(perm, false) === 'primer' ? 'ask'
+        : null;
+  const openOsSettings = () => {
+    Linking.openSettings().catch((e) => console.warn('[noti-prefs] openSettings:', (e as Error)?.message ?? e));
+  };
 
   const load = useCallback(() => {
     setLoadErr(false);
@@ -88,37 +125,56 @@ export default function NotificationSettings() {
       .finally(() => setSavingKey(null));
   }, [prefs, savingKey]);
 
+  // The primer takes the whole screen, exactly as both homes draw it; either of its buttons hands
+  // back here and the permission is read again so the strip reflects the answer.
+  if (primerOpen) {
+    return (
+      <NotificationPrimer
+        role={session.role === 'runner' ? 'runner' : 'owner'}
+        onDone={() => {
+          setPrimerOpen(false);
+          readPushPermission().then(setPerm);
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <ScrollView
-        style={{ flex: 1, backgroundColor: colors.cream }}
-        contentContainerStyle={{ paddingHorizontal: 11, paddingTop: insets.top, paddingBottom: 40 }}
+        style={{ flex: 1, backgroundColor: paper.canvas }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 40 }}
       >
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로">
-            <Text style={{ fontSize: 20.5 }}>‹</Text>
-          </Pressable>
-          <Text style={{ fontSize: 23, fontWeight: '900', color: paper.ink }}>알림 설정</Text>
-          <View style={{ width: 40 }} />
-        </Row>
+        <ScreenHead title="알림 설정" />
+
+        {osGate === 'denied' && (
+          <View style={s.failStrip}>
+            <Text style={s.failTxt}>기기 설정에서 알림이 꺼져 있어요</Text>
+            <Pressable onPress={openOsSettings} accessibilityRole="button" style={s.retryBtn}>
+              <Text style={s.retryTxt}>설정 열기 ›</Text>
+            </Pressable>
+          </View>
+        )}
+        {osGate === 'ask' && (
+          <View style={s.askStrip}>
+            <Text style={s.askTxt}>기기 알림이 아직 꺼져 있어요</Text>
+            <Pressable onPress={() => setPrimerOpen(true)} accessibilityRole="button" style={s.retryBtn}>
+              <Text style={[s.retryTxt, { color: paper.actionInk }]}>알림 켜기 ›</Text>
+            </Pressable>
+          </View>
+        )}
 
         <Text style={s.note}>{PREFS_NOTE}</Text>
 
         {prefs === null && !loadErr && (
-          <View style={[s.card, { marginTop: 10 }]}>
-            <Text style={s.loading}>설정을 불러오는 중이에요…</Text>
-          </View>
+          <Text style={s.loading}>설정을 불러오는 중이에요…</Text>
         )}
 
         {loadErr && (
           <View style={s.failStrip}>
-            <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical }}>
-              알림 설정을 불러오지 못했어요
-            </Text>
+            <Text style={s.failTxt}>알림 설정을 불러오지 못했어요</Text>
             <Pressable onPress={load} accessibilityRole="button" style={s.retryBtn}>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' }}>
-                다시 시도
-              </Text>
+              <Text style={s.retryTxt}>다시 시도</Text>
             </Pressable>
           </View>
         )}
@@ -127,9 +183,7 @@ export default function NotificationSettings() {
           <>
             {saveErr !== null && (
               <View style={s.failStrip}>
-                <Text style={{ fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical }}>
-                  {saveErr}
-                </Text>
+                <Text style={s.failTxt}>{saveErr}</Text>
                 {/* 되돌려 놓았다는 사실을 말한다 — 스위치가 왜 제자리로 갔는지 설명이 없으면
                     사용자는 앱이 자기 조작을 삼켰다고 읽는다. 「다시 시도」 버튼은 두지 않는다:
                     다시 시도는 스위치를 한 번 더 누르는 것이고, 그 문은 바로 아래 열려 있다. */}
@@ -139,7 +193,8 @@ export default function NotificationSettings() {
               </View>
             )}
 
-            <View style={[s.card, { marginTop: 10 }]}>
+            <View style={s.rule} />
+            <View>
               {rows.map((r, i) => {
                 const on = r.key === null ? true : prefs[r.key];
                 return (
@@ -170,22 +225,29 @@ export default function NotificationSettings() {
           </>
         )}
       </ScrollView>
-      <StatusBarCover color={colors.cream} />
+      <StatusBarCover color={paper.canvas} />
     </>
   );
 }
 
+// Paper grammar (DESIGN.md §2 · §3b): radius 0, the switch list opens under a full-bleed coral
+// rule instead of sitting in a card, rows divide with neutral #EEE.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
   // 15pt 플로어 (DESIGN.md:145) — 한국어는 kicker 면제를 타지 않는다
   note: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 14, marginBottom: 2 },
-  card: { backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 15, borderWidth: 1, borderColor: '#DCD6C4' },
-  div: { height: 1, backgroundColor: '#f0eee3' },
+  rule: { height: 1, backgroundColor: paper.line, marginHorizontal: -layout.gutter, marginTop: 14 },
+  div: { height: 1, backgroundColor: '#EEEEEE' },
   prefRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
   label: { fontSize: 16, fontWeight: '700', color: paper.ink },
   desc: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: paper.dim, marginTop: 3 },
   reason: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.actionInk, marginTop: 4 },
   loading: { fontSize: 15.5, lineHeight: 22, color: paper.dim, paddingVertical: 16 },
-  failStrip: { backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13, marginTop: 10 },
+  // loud-fail strip — criticalWash ground, critical ink, underlined action ≥44pt (house grammar)
+  failStrip: { backgroundColor: paper.criticalWash, padding: 13, marginTop: 14 },
+  failTxt: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.critical },
   retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
+  retryTxt: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // notice panel (not a failure): the wash grammar — the question is still unspent, nothing broke
+  askStrip: { backgroundColor: paper.wash, padding: 13, marginTop: 14 },
+  askTxt: { fontSize: 15, lineHeight: 21, fontWeight: '800', color: paper.actionInk },
 });
