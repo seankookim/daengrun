@@ -189,9 +189,15 @@ for (const [k, pre, fetchName, cls] of [
     c.includes('bookingRef(r.bookingId)') && c.includes('partiesLine(r.ownerName, r.runnerName)')
     && (c.includes('custodyAgeLabel(r.shape, r.sinceAt, readAt)') || c.includes('sealedAgeLabel(r.minutesSealed)')));
   // The back key is ScreenHead's (DESIGN.md §3b chrome header, ui/chrome-consistency-2) — so the
-  // screen's own tappables are exactly one: the failure strip's 다시 시도.
-  t(`D2 · 🔴 /ops/${k} draws NO row door — its only own Pressable is 다시 시도 (with a role); the header is ScreenHead`,
-    (c.match(/<Pressable\b/g) || []).length === 1 && (c.match(/accessibilityRole="button"/g) || []).length === 1
+  // screen's own tappables are exactly its failure strips' 다시 시도.
+  // [0233 §F] /ops/custody now carries TWO lists (러닝 좌초 + 러닝 전 사고 검토) that load and fail
+  // independently, so it has TWO 다시 시도 — and still NO row door. The property this pin owns is
+  // unchanged (every Pressable is a retry); only the count of lists moved. `0233-P1` below pins the
+  // second strip's retry target.
+  const retries = k === 'custody' ? 2 : 1;
+  t(`D2 · 🔴 /ops/${k} draws NO row door — its only own Pressables are 다시 시도 (${retries}, with a role); the header is ScreenHead`,
+    (c.match(/<Pressable\b/g) || []).length === retries && (c.match(/accessibilityRole="button"/g) || []).length === retries
+    && (c.match(/<Text style=\{s\.retryLabel\}>다시 시도<\/Text>/g) || []).length === retries
     && c.includes(`<ScreenHead title={${pre}_TITLE_KO} />`) && !c.includes('accessibilityLabel="뒤로"'));
   t(`D3 · /ops/${k} reads the bell's bid and marks its row, and says so when the row is gone`,
     c.includes('useLocalSearchParams<{ bid?: string }>()') && c.includes("const highlightId = typeof params.bid === 'string' ? params.bid : '';")
@@ -199,6 +205,31 @@ for (const [k, pre, fetchName, cls] of [
     && /!rows\.some\(\(r\) => r\.bookingId === highlightId\)/.test(c) && c.includes(`{${pre}_GONE_KO}`));
   t(`D4 · /ops/${k} logs rpcRaw and renders the folded message`,
     new RegExp(`${fetchName}\\(\\)[\\s\\S]{0,200}rpcRaw\\(e\\)[\\s\\S]{0,120}\\(e as Error\\)\\?\\.message \\|\\| ${pre}_FAILED_KO`).test(c));
+}
+
+// ── [0233 §F] /ops/custody's pre-run section: its own faces, its own retry, the bid, no remedy ─────
+{
+  const c = scr.custody.code;
+  t('0233-P1 · the pre-run list is fetched only when the desk is held, and has all four faces with its OWN retry',
+    c.includes("if (access === 'held') loadPre();") && c.includes('{PRERUN_LOADING_KO}')
+    && /prePhase === 'error'[\s\S]{0,300}onPress=\{loadPre\}[\s\S]{0,200}다시 시도/.test(c)
+    && c.includes('{PRERUN_EMPTY_KO}') && c.includes('pre.map((c) =>'));
+  t('0233-P1 · a bid marks a PRE-RUN row too, and 「gone」 waits for BOTH lists',
+    c.includes('const preMarked = c.bookingId === highlightId;') && c.includes('preMarked && s.rowMarked')
+    && /phase === 'ready' && prePhase === 'ready'[\s\S]{0,200}!pre\.some\(\(c\) => c\.bookingId === highlightId\)/.test(c));
+  // 🔴 NO REMEDY: no pre-run row names a door (L2/L3 are Sean's). Checked on the RAW source of the
+  //    section's copy so a remedy word anywhere in its sentences reddens.
+  const sec = scr.custody.raw.slice(scr.custody.raw.indexOf('const PRERUN_TITLE_KO'), scr.custody.raw.indexOf('const s = StyleSheet.create'));
+  t('0233-P1 · 🔴 the pre-run copy names no remedy (no confirm/resolve/close door, no 해주세요)',
+    sec.length > 200 && !/confirm_return|resolve|해주세요|처리하세요|눌러/.test(sec), sec.slice(0, 80));
+  // 🔴 `runner_gated` answers for THIS row only (0233 §F), so the sentence must be about this booking:
+  //    「러너는 새 요청을 받을 수 있어요」 is false for a runner held by ANOTHER booking (review of 8682181).
+  const gatedDecl = (name) => (c.match(new RegExp(`const ${name} = '([^']*)';`)) || [])[1];
+  t('0233-P2 · 🔴 the gated line speaks for THIS booking, never for the runner as a whole',
+    c.includes('{c.runnerGated ? PRERUN_GATED_KO : PRERUN_NOT_GATED_KO}')
+    && /^이 예약/.test(gatedDecl('PRERUN_GATED_KO') || '') && /^이 예약/.test(gatedDecl('PRERUN_NOT_GATED_KO') || '')
+    && !c.includes('러너는 새 요청을 받을 수 있어요') && !c.includes('러너는 새 요청을 받을 수 없는 상태예요'),
+    `${gatedDecl('PRERUN_GATED_KO')} / ${gatedDecl('PRERUN_NOT_GATED_KO')}`);
 }
 
 // ── ops/index.tsx: the entry rows appear only for the relevant class ─────────────────────────────
@@ -214,6 +245,32 @@ for (const [k, pre, fetchName, cls] of [
     idx.includes("count={custodyPhase === 'ready' ? custody.length : null}") && idx.includes("count={sealedPhase === 'ready' ? sealed.length : null}")
     && idx.includes('<FailStrip message={custodyErr} onRetry={loadCustody} />') && idx.includes('<FailStrip message={sealedErr} onRetry={loadSealed} />')
     && idx.includes('{CUSTODY_EMPTY_KO}') && idx.includes('{SEALED_EMPTY_KO}'));
+  // [0234 §D] the open-incidents desk: its own class, fetched only when held, four faces, no door
+  t('0234-P1 · 🔴 the open-incidents desk is computed from incident_opened, drawn and fetched only when held',
+    idx.includes("const hasIncidentDesk = deskAccess(kinds, INCIDENT_DESK_CLASS) === 'held';")
+    && idx.includes("const INCIDENT_DESK_CLASS = 'incident_opened';")
+    && /\{hasIncidentDesk && \(\s*<>/.test(idx)
+    && (idx.match(/if \(hasIncidentDesk\) loadIncidents\(\);/g) || []).length === 2);
+  t('0234-P1 · loading in words, FailStrip with 다시 시도 → loadIncidents, an empty face, count only once read',
+    idx.includes('{INCIDENTS_LOADING_KO}') && idx.includes('<FailStrip message={incErr} onRetry={loadIncidents} />')
+    && idx.includes('열린 사고가 없어요') && idx.includes("count={incPhase === 'ready' ? incidents.length : null}"));
+  // [0234 review finding 4] a bell tap into this screen must always have a visible effect: the
+  // marked card is scrolled into view, and a mark this screen does not draw is SAID (closed since, or
+  // the desk no longer held) — never a silent no-op, and never claimed before the answer is read.
+  t('0234-P2 · 🔴 a bell pointed at an incident this screen does not draw says so — only once the list was read or the desk is known not held',
+    idx.includes("(incidentDeskHeld === 'held' && incPhase === 'ready' && !incidents.some((i) => i.incidentId === incidentMark))")
+    && idx.includes("|| incidentDeskHeld === 'not_held');")
+    && idx.includes("const incidentNotListed = incidentMark !== '' && (")
+    && /\{incidentNotListed && \(\s*<View[\s\S]{0,400}\{INCIDENT_NOT_LISTED_KO\}/.test(idx)
+    && idx.includes("{incidentDeskHeld === 'held' ? INCIDENT_NOT_LISTED_SUB_KO : INCIDENT_DESK_NOT_HELD_SUB_KO}"));
+  t('0234-P2 · 🔴 a marked incident is brought into view — the tap scrolls to the card (or the note), a push pays on layout',
+    idx.includes('ref={scrollRef}') && idx.includes('scrollRef.current?.scrollTo({ y: Math.max(0, y - 16), animated: true });')
+    && idx.includes('if (bringIntoView(listed ? iid : INCIDENT_NOT_LISTED_KEY)) pendingScroll.current = \'\';')
+    && idx.includes('if (pendingScroll.current === i.incidentId && bringIntoView(i.incidentId)) pendingScroll.current = \'\';')
+    && idx.includes("useEffect(() => { if (paramIid !== '') pendingScroll.current = paramIid; }, [paramIid]);"));
+  t('0234-P1 · 🔴 an incident card is NOT a door (a plain View; no push to a per-incident screen)',
+    // (the card's props now span lines — it gained an onLayout for 0234-P2 — so `\s+`, same property)
+    /incidents\.map\(\(i\) => \{[\s\S]{0,200}<View\s+key=\{i\.incidentId\}/.test(idx) && !/router\.push\(`\/ops\/incident/.test(idx));
   t('D2 · each section\'s door opens its list and is drawn only when there are rows',
     /custody\.length > 0 && \(\s*<Pressable\s+onPress=\{\(\) => router\.push\('\/ops\/custody'\)\}/.test(idx)
     && /sealed\.length > 0 && \(\s*<Pressable\s+onPress=\{\(\) => router\.push\('\/ops\/sealed'\)\}/.test(idx));

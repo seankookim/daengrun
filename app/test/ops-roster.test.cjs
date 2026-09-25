@@ -44,6 +44,8 @@ const SERVER_CLASSES = [
   'club_fee_mint_failed', 'payment_manual_cancel', 'charge_ladder_exhausted',
   'charge_dispatch_stale', 'settled_without_payment', 'enroute_comp_failed',
   'late_comp_failed', 'incident_waive_pending', 'payment_marker_lost',
+  // [0234 §C] the fourteenth — a SQL emitter (open_incident_tx's `c_ops_class` routing constant)
+  'incident_opened',
 ];
 
 t('every class the server accepts has a chip (no desk the product cannot seat anyone at)',

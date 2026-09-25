@@ -7547,6 +7547,95 @@ export async function fetchOpsSealedUnsettled(): Promise<OpsSealedUnsettled[]> {
   }));
 }
 
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0233 §F · 0234 §D] TWO MORE OPS READS — the rows behind 「러닝 전 사고 검토 — 확인 필요」 and the
+// three incident_opened bells (「사고 접수 / 긴급 사고 접수 — 확인 필요」, 「SOS 사고 접수 — 즉시 확인
+// 필요」). READ ONLY: no door resolves a pre-run incident review or closes an incident (gap sweep 2
+// §P5 DO NOT BUILD — letters L2/L3 are Sean's). `ops_prerun_cases()` gates on the `return_strand`
+// roster (the roster its bell rings — the custody desk's), `ops_open_incidents()` on the new
+// `incident_opened` roster. Both fold through `opsError` → `foldRpcError` and both sit on
+// `PENDING_DEPLOY` (rpc-skew.ts) until 0233/0234 are pushed.
+// ⚠ Neither carries money, a phone, an address, a memo or an incident's free-text note.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** One marketplace booking in `incident_review` whose run never ended, from `ops_prerun_cases()`.
+ *  ⚠ `rawStatus` is NEVER rendered. `runnerGated` is the server's own answer to 「does this row still
+ *    hold the runner off new work」 (a handoff stamp exists); an arrived-only row does not.
+ *  ⚠ `lastChangedAt` is `bookings.updated_at` — NOT the moment the row entered review (no column
+ *    records that), so the screen never words it as one. */
+export interface OpsPrerunCase {
+  bookingId: string;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawStatus: string;
+  scheduledAt: string | null;
+  arrivedAt: string | null;
+  ownerHandoffAt: string | null;
+  runnerHandoffAt: string | null;
+  runnerGated: boolean;
+  lastChangedAt: string | null;
+  notifiedAt: string | null;
+}
+
+export async function fetchOpsPrerunCases(): Promise<OpsPrerunCase[]> {
+  const { data, error } = await supabase.rpc('ops_prerun_cases');
+  if (error) throw opsError(error, 'ops_prerun_cases');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    bookingId: String(r.booking_id),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawStatus: String(r.status),
+    scheduledAt: typeof r.scheduled_at === 'string' ? r.scheduled_at : null,
+    arrivedAt: typeof r.arrived_at === 'string' ? r.arrived_at : null,
+    ownerHandoffAt: typeof r.owner_confirmed_handoff_at === 'string' ? r.owner_confirmed_handoff_at : null,
+    runnerHandoffAt: typeof r.runner_confirmed_handoff_at === 'string' ? r.runner_confirmed_handoff_at : null,
+    runnerGated: r.runner_gated === true,
+    lastChangedAt: typeof r.last_changed_at === 'string' ? r.last_changed_at : null,
+    notifiedAt: typeof r.notified_at === 'string' ? r.notified_at : null,
+  }));
+}
+
+/** One OPEN incident (`resolved_at is null`), from `ops_open_incidents()`, SOS first.
+ *  ⚠ `kind` / `severity` / `reporterRole` are the server's own words — an unknown one is carried
+ *    as-is and the screen prints its raw value rather than guessing.
+ *  ⚠ `notifiedAt === null` = nobody on the `incident_opened` roster was paged when it was reported
+ *    (the roster was empty then) — said, never hidden. */
+export interface OpsOpenIncident {
+  incidentId: string;
+  bookingId: string | null;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawBookingStatus: string | null;
+  kind: string;
+  severity: string;
+  reporterRole: string;
+  openedAt: string | null;
+  verifiedAt: string | null;
+  notifiedAt: string | null;
+}
+
+export async function fetchOpsOpenIncidents(): Promise<OpsOpenIncident[]> {
+  const { data, error } = await supabase.rpc('ops_open_incidents');
+  if (error) throw opsError(error, 'ops_open_incidents');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    incidentId: String(r.incident_id),
+    bookingId: typeof r.booking_id === 'string' ? r.booking_id : null,
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawBookingStatus: typeof r.booking_status === 'string' ? r.booking_status : null,
+    kind: typeof r.kind === 'string' ? r.kind : '',
+    severity: typeof r.severity === 'string' ? r.severity : '',
+    reporterRole: typeof r.reporter_role === 'string' ? r.reporter_role : '',
+    openedAt: typeof r.opened_at === 'string' ? r.opened_at : null,
+    verifiedAt: typeof r.verified_at === 'string' ? r.verified_at : null,
+    notifiedAt: typeof r.notified_at === 'string' ? r.notified_at : null,
+  }));
+}
+
 export interface OpsResolveReturnResult {
   resolved: boolean;
   settled: boolean;

@@ -47,6 +47,15 @@ export const PENDING_DEPLOY: Record<string, string> = {
   //   select count(*) from pg_proc where proname in ('ops_stranded_custody','ops_sealed_unsettled')  → 2
   ops_stranded_custody: '0224 §F custody-strand console list — until db push, the section shows the version-mismatch sentence',
   ops_sealed_unsettled: '0224 §F sealed-unsettled console list — until db push, the section shows the version-mismatch sentence',
+  // 2026-09-26: ops_prerun_cases (0233 §F) + ops_open_incidents (0234 §D) added — the read-only
+  //   console lists behind the pre-run incident bell (custody desk) and the incident_opened bells
+  //   (console home), written in this build before 0233/0234 are pushed, so a PGRST202 window is
+  //   real. In that window each section folds to PENDING_DEPLOY_KO in its failure strip rather than
+  //   printing PostgREST's English. No fallback: there is no older read of the same rows. When
+  //   deployed, delete these two lines and the list pin in test/rpc-skew.test.cjs together:
+  //   select count(*) from pg_proc where proname in ('ops_prerun_cases','ops_open_incidents')  → 2
+  ops_prerun_cases: '0233 §F pre-run incident console list — until db push, the section shows the version-mismatch sentence',
+  ops_open_incidents: '0234 §D open-incidents console list — until db push, the section shows the version-mismatch sentence',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */

@@ -58,6 +58,8 @@ export const CLASS_LABELS: Readonly<Record<string, string>> = {
   payout_due: '정산 지급',
   return_strand: '귀가 좌초',
   handoff_unanswered: '인계 무응답',
+  // [0234 §C] open_incident_tx's ops bell — every newly reported incident, title by severity
+  incident_opened: '사고 접수',
   billing_key_revocation_abandoned: '결제수단 해지 실패',
   club_fee_mint_failed: '클럽 수수료 발행 실패',
   payment_manual_cancel: '결제 수동 취소',

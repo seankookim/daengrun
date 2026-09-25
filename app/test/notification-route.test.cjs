@@ -24,6 +24,7 @@ const {
   CUSTODY_START_STRAND_TITLE, CUSTODY_END_STRAND_TITLE, CUSTODY_STRAND_TITLES,
   OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE,
   NOMINATION_FAILED_TITLE,
+  OPS_PRERUN_INCIDENT_TITLE, OPS_INCIDENT_OPENED_TITLE, OPS_INCIDENT_URGENT_TITLE, OPS_INCIDENT_SOS_TITLE,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -491,8 +492,11 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
   // owner). 0224 added three ops bells with console lists behind them — 러닝 시작/종료 좌초 →
   // /ops/custody, 정산 미완료 → /ops/sealed. Each is read out of 0224 and routed by the `0224-R*`
   // pins at the end of this file, which own the new titles.
-  t('OPS_SYSTEM_TITLES is exactly the seven ops titles and carries no customer title',
-    OPS_SYSTEM_TITLES.length === 7
+  // [0233/0234] SEVEN → ELEVEN, moved in the slice that moved it: arm ⓗ's pre-run incident bell
+  // (→ /ops/custody) and the three incident_opened bells (→ /ops). The `0233-R*` / `0234-R*` pins at
+  // the end of this file read each string out of its writer and own the new titles.
+  t('OPS_SYSTEM_TITLES is exactly the eleven ops titles and carries no customer title',
+    OPS_SYSTEM_TITLES.length === 11
     && OPS_SYSTEM_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !RETURN_TITLES.includes(x)
                                       && !LIVE_TITLES.includes(x) && x !== CHAT_TITLE));
 
@@ -1163,6 +1167,59 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
       && /marked && s\.rowMarked/.test(src));
   }
   t('0224-R5 · /runner/home is a real screen', fs.existsSync(path.join(REPO, 'app/app/runner/home.tsx')));
+
+  // ════════════════════════════════════════════════════════════════════════════════════════
+  // [0233 · 0234] THE PRE-RUN INCIDENT BELL AND THE THREE INCIDENT_OPENED BELLS
+  // ════════════════════════════════════════════════════════════════════════════════════════
+  // Same rules as 0224-R*: every expected string is read out of the LATEST declaration of its
+  // writer (comments stripped), absence fails loudly, and a destination must be a real screen that
+  // READS the param it is handed.
+  const prerun = latestFn('_sweep_prerun_incidents');
+  t('0233-R0 · some migration declares _sweep_prerun_incidents (absence must fail LOUDLY)', !!prerun);
+  const pb = prerun ? prerun.body : '';
+  const opener = latestFn('open_incident_tx');
+  t('0234-R0 · some migration declares open_incident_tx', !!opener);
+  const ob = opener ? opener.body : '';
+  if (opener) console.log(`  (open_incident_tx read from ${opener.file})`);
+  t('0233-R1 · OPS_PRERUN_INCIDENT_TITLE is _sweep_prerun_incidents\' c_prerun_ops_title',
+    constOf(pb, 'c_prerun_ops_title') !== null && constOf(pb, 'c_prerun_ops_title') === OPS_PRERUN_INCIDENT_TITLE,
+    `sql: ${constOf(pb, 'c_prerun_ops_title')}`);
+  t('0233-R1 · it is kind system to the return_strand roster, ref = the booking',
+    /'system'::noti_kind, c_prerun_ops_title, c_prerun_ops_body, v_b\.id/.test(pb)
+    && /c_ops_class constant text := 'return_strand'/.test(pb));
+  for (const [name, title] of [['c_ops_title_normal', OPS_INCIDENT_OPENED_TITLE],
+                               ['c_ops_title_urgent', OPS_INCIDENT_URGENT_TITLE],
+                               ['c_ops_title_sos', OPS_INCIDENT_SOS_TITLE]]) {
+    t(`0234-R1 · ${title} is open_incident_tx's ${name}`,
+      constOf(ob, name) !== null && constOf(ob, name) === title, `sql: ${constOf(ob, name)}`);
+    t(`0234-R1 · ${name} is inserted as kind system with ref = the NEW incident (v_id)`,
+      new RegExp(`'system'::noti_kind, ${name}, c_ops_body, v_id`).test(ob));
+  }
+  t('0234-R1 · the three are addressed to the incident_opened roster',
+    /c_ops_class\s+constant text := 'incident_opened'/.test(ob) && /ops_recipients_for\(c_ops_class\)/.test(ob));
+  {
+    const d = destinationForSystemRef({ refId: BID, title: OPS_PRERUN_INCIDENT_TITLE });
+    t(`0233-R2 · ${OPS_PRERUN_INCIDENT_TITLE} → /ops/custody carrying the bid`,
+      !!d && d.pathname === '/ops/custody' && d.params && d.params.bid === BID, show(d));
+  }
+  const IID = 'd0000000-0000-0000-0000-000000000234';
+  for (const title of [OPS_INCIDENT_OPENED_TITLE, OPS_INCIDENT_URGENT_TITLE, OPS_INCIDENT_SOS_TITLE]) {
+    const d = destinationForSystemRef({ refId: IID, title });
+    t(`0234-R2 · ${title} → /ops carrying the incident as iid`,
+      !!d && d.pathname === '/ops' && d.params && d.params.iid === IID, show(d));
+  }
+  t('0233/0234-R2 · the four titles are in OPS_SYSTEM_TITLES and a ref-less row routes nowhere',
+    [OPS_PRERUN_INCIDENT_TITLE, OPS_INCIDENT_OPENED_TITLE, OPS_INCIDENT_URGENT_TITLE, OPS_INCIDENT_SOS_TITLE]
+      .every((x) => OPS_SYSTEM_TITLES.includes(x) && destinationForSystemRef({ refId: null, title: x }) === null));
+  {
+    const cust = stripAll(fs.readFileSync(path.join(REPO, 'app/app/ops/custody.tsx'), 'utf8'));
+    t('0233-R3 · /ops/custody marks a PRE-RUN row with the bid it is handed (not only a custody row)',
+      /const preMarked = c\.bookingId === highlightId;/.test(cust) && /preMarked && s\.rowMarked/.test(cust));
+    const home = stripAll(fs.readFileSync(path.join(REPO, 'app/app/ops/index.tsx'), 'utf8'));
+    t('0234-R3 · /ops reads the iid param and marks an incident row with it',
+      /useLocalSearchParams<\{ iid\?: string \}>\(\)/.test(home) && /const incMarked = i\.incidentId === incidentMark;/.test(home)
+      && /incMarked && s\.rowMarked/.test(home));
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
