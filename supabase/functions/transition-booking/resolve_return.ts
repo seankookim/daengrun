@@ -150,6 +150,7 @@ export async function resolveReturn(
     await notify(
       runnerId,
       RETURN_SEALED_TITLE,
+      // The `!settled` arm is unreachable today (0224 answers resolved:true only after _settle_sealed_run settles or raises); it is kept as a guard for a future widening of ops_resolve_return_tx's return.
       res.settled
         ? "담당자가 반환을 확인했어요 — 러닝이 마무리됐어요"
         : "담당자가 반환을 확인했어요 — 정산은 담당자 확인 뒤에 진행돼요",
