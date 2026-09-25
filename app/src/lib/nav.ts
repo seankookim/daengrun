@@ -20,6 +20,21 @@ import { homePath } from '../components/bottomnav';
 // role-select screen, so a cold deep link that skips it defaults to owner (see the hydration note in
 // `src/auth-context.tsx`). Best available answer, and better than a hardcoded path.
 export function goBackOrHome(): void {
+  goBackOr(homePath());
+}
+
+/** Where `router.replace` can go — taken from the router itself so it tracks expo-router's own type. */
+export type NavTarget = Parameters<typeof router.replace>[0];
+
+// The same idiom with a screen-specific landing. Use it where the right place to be after a SUCCESS
+// is known and is not the role home — after a review the booking's report, after a reschedule
+// request the schedule, after a course pick the request form that reads it. `goBackOrHome` is this
+// with the role home as the fallback.
+// ⚠ With history, it still goes BACK (never pushes the fallback): the screen underneath is usually
+// the fallback itself, and a push/replace there would leave two copies of it on the stack.
+// `test/nav-back.test.cjs` refuses an unguarded `router.back()` ANYWHERE, this file included — the
+// call below passes only because it sits under `canGoBack()`; un-guard it and that test reddens.
+export function goBackOr(fallback: NavTarget): void {
   if (router.canGoBack()) router.back();
-  else router.replace(homePath());
+  else router.replace(fallback);
 }

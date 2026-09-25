@@ -1,10 +1,11 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row, ScreenHead } from '../../src/components/ui';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOr } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { colors, paper } from '../../src/theme';
 
@@ -29,6 +30,12 @@ import { colors, paper } from '../../src/theme';
 //   · chips   §3b — radius 0, #EEE border; selected = wash 면 + coral 보더 + actionInk (dog.tsx)
 //   · CTA     §3b — paper.action 면, white 17/800, radius 0; busy = 라벨 스왑, 알파 금지
 //   · stars        colors.gold (#D9A93C, §8 기록 골드) on #EEE, each a real 44pt target
+// After a written review — or the 23505 「already reviewed」 refusal — the owner leaves this screen.
+// It is pushed from the report, so BACK is normally right; but a cold deep link has no history and
+// a bare `router.back()` NO-OPs, leaving the owner on a form that has already been sent with no way
+// forward. The fallback is the same booking's report, the screen this one is always opened from.
+const reportOf = (bid: string) => ({ pathname: '/owner/report' as const, params: { bid } });
+
 const TAGS = ['시간 약속 철저', '사진 잘 찍어줘요', '소통이 빨라요', '아이를 잘 다뤄요', '페이스 조절 굿', '또 부르고 싶어요'];
 
 export default function OwnerReview() {
@@ -67,12 +74,12 @@ export default function OwnerReview() {
         visibility: privateFlag ? 'platform_only' : 'public',
       });
       if (error) {
-        if (error.code === '23505') { Alert.alert('이미 후기를 남겼어요', '이 러닝의 후기는 한 번만 작성할 수 있어요'); router.back(); return; }
+        if (error.code === '23505') { Alert.alert('이미 후기를 남겼어요', '이 러닝의 후기는 한 번만 작성할 수 있어요'); goBackOr(reportOf(bid)); return; }
         throw error;
       }
       haptic('success');
       Alert.alert('후기 등록 완료', `${rname ?? '러너'}님의 프로필에 반영됐어요 — 고마워요!`);
-      router.back();
+      goBackOr(reportOf(bid));
     } catch (e) {
       Alert.alert('등록 실패', (e as Error).message);
     } finally {

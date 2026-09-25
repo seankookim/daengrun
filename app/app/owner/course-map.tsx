@@ -16,7 +16,6 @@
 // 부유 목록을 따로 띄우지 않는다. 검색·칩·레일·시트 네 층이 지도를 조이면 '낮은 정보 밀도'라는
 // 요구와 정면으로 충돌한다. 시트가 peek→list→detail 세 일을 순서대로 맡는다 (지도 앱 3사 공통
 // 문법이라 학습 비용 0 — Jakob).
-import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, Dimensions, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, View,
@@ -30,7 +29,7 @@ import { getNaverMap } from '../../src/lib/geo';
 import { boundsOfTraces, orderByProximity, totalKmFor } from '../../src/lib/route-pick';
 import { haptic } from '../../src/lib/haptics';
 import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
-import { goBackOrHome } from '../../src/lib/nav';
+import { goBackOr, goBackOrHome } from '../../src/lib/nav';
 import { GeoRoutePoint, RouteInfo, draft } from '../../src/store';
 import { lilac, paper } from '../../src/theme';
 
@@ -221,7 +220,12 @@ export default function CourseMap() {
     // 선택만 전달한다. candidate 확인 의식과 스냅샷 스탬프는 요청 화면이 소유한다
     // (게이트가 두 곳에 흩어지면 둘 다 반쪽이 된다).
     draft.routeId = sel.id;
-    router.back();
+    // Back to the request form, whose focus effect adopts draft.routeId (with the candidate ceremony).
+    // A cold deep link has no history and a bare back() NO-OPs — the CTA would do nothing at all. Then
+    // the request form is opened FRESH with the course as a param: its routeId effect selects it,
+    // snaps the dial and records the candidate ack, the same entry course/[id]'s CTA uses (this
+    // sheet's detail detent renders that screen's CourseDetailBody and the same CTA).
+    goBackOr({ pathname: '/owner/request', params: { routeId: sel.id } });
   };
 
   // ── 지도 ──────────────────────────────────────────────────────────────────
