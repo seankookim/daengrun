@@ -10,7 +10,7 @@ import { Row } from '../src/components/ui';
 import { DropRow, fetchActiveBoostLabel, fetchDrops, fetchGearClaims, fetchMiles, GearClaim, MilesInfo } from '../src/lib/api';
 import { claimStatusLabel } from '../src/lib/claim-status';
 import { products, session } from '../src/store';
-import { colors, paper } from '../src/theme';
+import { colors, paper, secTitle } from '../src/theme';
 
 // 도그스하이 샵 셸 (2026-07-29) — '하이 포인트 사용처' 허브.
 // 실데이터: 포인트 잔액(0027 RPC)·최근 적립·기어 교환권·도착한 드랍(러너).
@@ -30,7 +30,12 @@ import { colors, paper } from '../src/theme';
 // 마지막 잔재였고, 12개 파일에 각자 로컬 상수로 복사돼 있었다 (한 값에 주인 12명).
 // paper.ink(#111111)로 접는다 — 색차는 사실상 안 보이고(둘 다 근처 검정), 그게 정확히 아무도
 // 못 본 이유다. 다크 면에도 같은 토큰을 쓴다 — 캘린더 보드·정산 티켓·빕 스트랩이 이미 그런다.
-const CATS = ['전체', '간식', '용품', '의류', '영양제'];
+//
+// [2026-09-25] The category chip row (전체 · 간식 · 용품 · 의류 · 영양제) is gone too. It was five
+// plain <View>s with the first one painted as the SELECTED filter — a filter affordance with no
+// onPress, no state and no filtering behind it, i.e. the same false claim the 2026-09-15 retirement
+// above removed from the cart and search bar, which that pass missed. It comes back with a real
+// catalog filter, not before.
 
 export default function Shop() {
   const insets = useSafeAreaInsets();
@@ -95,7 +100,7 @@ export default function Shop() {
         <View style={s.hero}>
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 2, color: colors.volt }}>HIGH POINT</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 2, color: colors.volt }}>HIGH POINT</Text>{/* floor-exempt: latin-kicker — hero kicker over the balance */}
               <Text style={[{ fontSize: 34, fontWeight: '900', color: '#fff', marginTop: 5 }, nf]}>
                 {miles ? miles.balance.toLocaleString() : '—'}
                 <Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
@@ -227,22 +232,14 @@ export default function Shop() {
 
         {/* ---------- 스토어 미리보기 — 실 SKU 전, 섹션 단위 정직 라벨 ---------- */}
         <Row style={[s.secRow, { gap: 7, marginTop: 20, marginBottom: 2, alignItems: 'center' }]}>
-          <View style={s.gearTag}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#fff' }}>DOGS HIGH GEAR</Text></View>
+          <View style={s.gearTag}><Text style={{ fontSize: 9.5, fontWeight: '900', letterSpacing: 1.5, color: '#fff' }}>DOGS HIGH GEAR</Text></View>{/* floor-exempt: latin-kicker — terracotta boutique tag */}
           <Text style={[s.section, { color: colors.terraInk }]}>부티크 미리보기</Text>
           <Text style={{ fontSize: 15, color: '#A87A62', fontWeight: '700' }}>· 오픈 준비 중</Text>
         </Row>
 
-        {/* categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }} contentContainerStyle={{ gap: 8 }}>
-          {CATS.map((c, i) => (
-            <View key={c} style={[s.cat, i === 0 && { backgroundColor: colors.terraDeep, borderColor: colors.terraDeep }]}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: i === 0 ? '#fff' : '#3d453d' }}>{c}</Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* product grid — 예정 상품 미리보기 (가격은 예정가) */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        {/* product grid — 예정 상품 미리보기 (가격은 예정가). marginTop 12 = the gap the chip row's
+            marginVertical used to leave above the grid. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
           {products.map((p) => (
             <View key={p.id} style={[s.prod, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' }]}>{/* [페이퍼 크롬] 카드 = 샤프 1px #EEE (테라 틴트 보더 은퇴) */}
               <Text style={{ fontSize: 15, fontWeight: '900', color: p.fg }}>{p.tag}</Text>
@@ -268,7 +265,8 @@ export default function Shop() {
 }
 
 // [페이퍼 크롬 2026-08-10] 샵 크롬 페이퍼 이행 — 라운드·테라 틴트 보더 은퇴, 카드 = 샤프 1px #EEE.
-// 테라코타(gearTag·가격 잉크·활성 카테고리)와 볼트 리워드 스트립 필은 시맨틱으로 생존.
+// Terracotta (gearTag · price ink) and the volt reward-strip fills survive as semantics. The lit
+// category chip retired on 2026-09-25 with its row (see the header note).
 // (addBtn·circleBtn·search 스타일은 그 컨트롤들과 함께 은퇴 — 위 죽은 버튼 주석 참고.)
 const s = StyleSheet.create({
   // 섹션 헤더 — 풀블리드 코랄 1px 룰 (스크롤 패딩 16을 음수 마진으로 뚫는다)
@@ -277,7 +275,9 @@ const s = StyleSheet.create({
   heroGo: { backgroundColor: colors.volt, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 13 },
   dropStrip: { backgroundColor: '#eaf7c8', borderRadius: 0, padding: 14, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' }, // 볼트 워시 = 시맨틱 (보상 신호)
   boostStrip: { backgroundColor: '#fff', borderRadius: 0, padding: 12, marginTop: 10, borderWidth: 1, borderColor: '#c9dd8f', alignItems: 'center' },
-  section: { fontSize: 17, fontWeight: '900', color: paper.ink },
+  // §3b section title — theme.secTitle (was 17/900: one of five section sizes shipping app-wide).
+  // secRow above already draws the full-bleed coral rule.
+  section: { ...secTitle },
   countPill: { minWidth: 20, height: 20, borderRadius: 0, backgroundColor: '#e3f0c4', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5, alignSelf: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 0, padding: 14, borderWidth: 1, borderColor: '#EEEEEE' },
   // loud-fail strip — runner/rewards.tsx grammar (criticalWash ground, critical ink, underlined
@@ -286,7 +286,6 @@ const s = StyleSheet.create({
   retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 44, justifyContent: 'center' },
   div: { height: 1, backgroundColor: '#EEEEEE' },
   claimPill: { backgroundColor: '#eaf7c8', borderRadius: 0, paddingVertical: 5, paddingHorizontal: 10, alignSelf: 'center' },
-  cat: { borderRadius: 0, paddingVertical: 10, paddingHorizontal: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE' },
   gearTag: { backgroundColor: colors.terra, borderRadius: 0, paddingVertical: 3, paddingHorizontal: 9 },
   prod: { width: '47.5%', borderRadius: 0, padding: 14, minHeight: 210 },
   prodName: { fontSize: 16.5, fontWeight: '900', color: '#4A2A18', marginTop: 6, lineHeight: 23 },

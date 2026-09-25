@@ -7,7 +7,7 @@ import { goBackOrHome } from '../../src/lib/nav';
 import { fetchFitness, fetchRecentMoments, Fitness, Moment, updateDogGoal } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
-import { lilac, lilacRadius, paper } from '../../src/theme';
+import { lilac, lilacRadius, paper, secTitle } from '../../src/theme';
 
 // 체력 리포트 — 모프 링의 도착지. 브랜드의 심장: 반려견 피트니스.
 // [2026-08-04 W4] 히어로 = 랩 ①(시네 스트립) 골격 × ③(파노라마 릴) 사진법.
@@ -38,26 +38,37 @@ const MINI_SPROCKETS = Array.from({ length: 12 }, (_, i) => i);
 // 아래 하위 높이는 전부 고정값이거나 명시 lineHeight — 기기 폰트 메트릭에 흔들리지 않는다.
 // [FLOOR14 2026-08-05] 디테일 최소 활자 12–13.5 → 14pt 플로어. 히어로 안에서 높이를 바꾸는 건
 // mastSub(17→18) · bandLabel(17→18) · punchLabel(16→18) 셋뿐이고, 아래 상수에 정확히 그만큼 더했다.
-// edgeCode(필름 보이스) · counterText(시리얼)는 면제라 EDGE_H/FILM_H 불변. statLine은 lineHeight 18을 이미 갖고 있어 STAT_H 불변.
+// [FLOOR15 2026-09-25] The floor is 15 (DESIGN.md §3) and Korean never rides the kicker exemption.
+// Every Korean line inside the hero moved to 15, and each constant below moved by EXACTLY its
+// children's lineHeight delta — no other number in this block changed:
+//   HEAD_H   +2  mastSub lineHeight 18 → 20
+//   EDGE_H   +3  edgeCode 12/15 → 15/18 — it prints sel.when (「9월 25일 (목)」), Korean data, so the
+//                film-voice exemption FLOOR14 gave it no longer holds. counterText ('1 / 5') stays a
+//                serial exemption; it sits in the absolute pano overlay and moves nothing.
+//   BAND_H   +4  bandLabel 18 → 20 · bandCap 18 → 20
+//   PUNCH_H  +2  punchLabel 18 → 20
+//   STAT_H   +2  statLine 18 → 20
+//   HERO_BIG 619 → 632 (+13) · COLLAPSE 542 → 555. panoWhen/panoKmUnit/filmNote/filmRetryTxt also
+//   rose, but they sit in the absolute pano overlay or a flex-centred band of fixed FILM_H — no height.
 const PAD_TOP = 56;             // 상태바
-const HEAD_H = 49;              // 백 칩(38) vs 마스트헤드(30 + 1 + 18 = 49) 중 큰 쪽 — mastSub lineHeight 17→18
+const HEAD_H = 51;              // back chip (38) vs masthead (30 + 1 + 20 = 51), whichever is taller — mastSub lineHeight 18→20
 const SPROCKET_H = 11;
 const PANO_H = 200;
 const THUMB_RAIL_H = 42;        // paddingTop 7 + 썸네일 31 + paddingBottom 4
-const EDGE_H = 25;              // lineHeight 15 + paddingBottom 10 (edgeCode = 필름 엣지 보이스, 12pt 면제 → 불변)
-const FILM_H = SPROCKET_H + PANO_H + SPROCKET_H + THUMB_RAIL_H + EDGE_H; // 11+200+11+42+25 = 289
+const EDGE_H = 28;              // lineHeight 18 + paddingBottom 10 (edgeCode 15/18 — carries the Korean date)
+const FILM_H = SPROCKET_H + PANO_H + SPROCKET_H + THUMB_RAIL_H + EDGE_H; // 11+200+11+42+28 = 292
 const FILM_GAP = 14;
-const BAND_H = 86;              // 라벨 18 + 숫자 50 + 캡션 18 — bandLabel lineHeight 17→18 (bandCap은 이미 18)
+const BAND_H = 90;              // label 20 + numeral 50 + caption 20 — bandLabel/bandCap lineHeight 18→20
 const BAND_GAP = 15;
 const PROG_H = 16;              // marginTop 11 + 레일 5
-const PUNCH_H = 54;             // marginTop 13 + 펀치 19 + 라벨(marginTop 4 + lineHeight 18) — punchLabel 16→18
-const STAT_H = 30;              // marginTop 12 + lineHeight 18 (statLine 12.5→14, lineHeight 18 유지 = 1.29×)
+const PUNCH_H = 56;             // marginTop 13 + punch 19 + label (marginTop 4 + lineHeight 20) — punchLabel 18→20
+const STAT_H = 32;              // marginTop 12 + lineHeight 20 (statLine 15/20 = 1.33×)
 const HERO_PAD_BOTTOM = 10;     // 산술 오차 흡수용 여유
-// 합 검증: 56 + 49 + 14 + 289 + 15 + 86 + 16 + 54 + 30 + 10 = 619 (구 615, 승급분 +4 = HEAD +1, BAND +1, PUNCH +2)
+// Sum check: 56 + 51 + 14 + 292 + 15 + 90 + 16 + 56 + 32 + 10 = 632 (was 619; +13 = HEAD +2, EDGE +3, BAND +4, PUNCH +2, STAT +2)
 const HERO_BIG =
-  PAD_TOP + HEAD_H + FILM_GAP + FILM_H + BAND_GAP + BAND_H + PROG_H + PUNCH_H + STAT_H + HERO_PAD_BOTTOM; // 619
-const RIBBON_H = 46 + 21 + 10;  // paddingTop + 콘텐츠(lineHeight 21) + paddingBottom = 77 — 리본 활자는 전부 ≥14라 불변
-const COLLAPSE = HERO_BIG - RIBBON_H; // 619 - 77 = 542 — 히어로가 리본만 남기고 접히는 거리
+  PAD_TOP + HEAD_H + FILM_GAP + FILM_H + BAND_GAP + BAND_H + PROG_H + PUNCH_H + STAT_H + HERO_PAD_BOTTOM; // 632
+const RIBBON_H = 46 + 21 + 10;  // paddingTop + content (lineHeight 21) + paddingBottom = 77 — ribbon type is already ≥15, unchanged
+const COLLAPSE = HERO_BIG - RIBBON_H; // 632 - 77 = 555 — 히어로가 리본만 남기고 접히는 거리
 const HERO_GAP = 12;            // 히어로 바닥 ↔ 첫 카드
 // 페이드는 기하가 아니라 폴리시다. 접힘 '끝 구간'에서만 태워야 중간에 빈 캔버스가 생기지 않는다
 // (COLLAPSE 가 페이드 길이보다 짧으면 자동으로 0부터 시작 = 원안과 동일 곡선).
@@ -246,6 +257,8 @@ export default function FitnessHub() {
             {weeks.map((w, i) => (
               // [FLOOR14] 라벨 칸은 8분할이라 30~39px뿐 — 14pt '이번주'(3음절 ≈42px)는 두 줄로 접힌다.
               // '이번'(≈28px)이면 최소폭 기기(320dp, 칸 30.3px)에서도 한 줄. numberOfLines로 못을 박는다.
+              // [FLOOR15] At 15pt '이번' is ≈30px — still one line in the 30.3px column at 320dp, by a
+              // hair (unmeasured on device; the smoke list carries it).
               <Text key={w.label} style={[s.barX, i === 7 && s.barXNow]} numberOfLines={1}>
                 {i === 7 ? '이번' : i === 0 ? '7주' : i === 2 ? '5주' : i === 4 ? '3주' : ''}
               </Text>
@@ -259,8 +272,10 @@ export default function FitnessHub() {
           )}
         </View>
 
-        {/* ---------- 최근 러닝 → 리포트 ---------- */}
-        <Text style={s.sect}>최근 러닝</Text>
+        {/* ---------- 최근 러닝 → 리포트 — §3b section header: full-bleed coral rule + theme.secTitle ---------- */}
+        <View style={s.sect}>
+          <Text style={secTitle}>최근 러닝</Text>
+        </View>
         {fit && fit.recent.length === 0 ? (
           <View style={s.emptyRuns}>
             <Text style={s.emptyCopy}>
@@ -498,15 +513,16 @@ function SprocketRow() {
 }
 
 const s = StyleSheet.create({
-  // 체력 로드 실패 스트립 — 라우드 페일 문법(F1.2): 위아래 1px critical 헤어라인 · 14pt/700 critical
+  // 체력 로드 실패 스트립 — 라우드 페일 문법(F1.2): 위아래 1px critical 헤어라인 · 15/700 critical
   // 잉크 · 캔버스 바닥 · 재시도는 텍스트 버튼. GUTTER 밖까지 나가는 풀블리드는 음수 마진으로.
   fitFail: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9,
     marginHorizontal: -GUTTER, paddingVertical: 11, paddingHorizontal: GUTTER,
     backgroundColor: paper.canvas, borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.critical,
   },
-  fitFailTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: paper.critical, flex: 1 },
-  fitFailRetry: { fontSize: 14, lineHeight: 18, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // The failStrip family's sizes (payments · shop · my): sentence 15/700, retry 16/800 underlined.
+  fitFailTxt: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical, flex: 1 },
+  fitFailRetry: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
   // ── 핀 고정 히어로 ──
   heroWrap: {
     position: 'absolute', left: 0, right: 0, top: 0, height: HERO_BIG, zIndex: 20,
@@ -519,13 +535,13 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: lilac.hair,
   },
   mastTitle: { fontSize: 23, lineHeight: 30, fontWeight: '900', color: lilac.head, letterSpacing: 0.2 },
-  mastSub: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 1 },
+  mastSub: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 1 }, // ⚠ lineHeight feeds HEAD_H
 
   // ── 필름 밴드 (풀블리드) — 파노라마/로딩/빈 상태 모두 정확히 같은 높이 ──
   filmBand: { backgroundColor: FILM, marginHorizontal: -GUTTER, marginTop: FILM_GAP, height: FILM_H },
-  filmNote: { fontSize: 14, lineHeight: 20, color: FILM_INK },
+  filmNote: { fontSize: 15, lineHeight: 20, color: FILM_INK },
   filmRetry: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 8, backgroundColor: 'rgba(244,242,251,0.12)', borderWidth: 1, borderColor: 'rgba(201,194,232,0.4)' },
-  filmRetryTxt: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: '#F2EFFA' },
+  filmRetryTxt: { fontSize: 16, lineHeight: 21, fontWeight: '700', color: '#F2EFFA' }, // a button label — ≥16 (DESIGN.md §3)
   emptySlot: { marginTop: FILM_GAP, height: FILM_H, justifyContent: 'center' },
   sprocketRow: { height: SPROCKET_H, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6 },
   sprocketDot: { width: 8, height: 5, borderRadius: 2.5, backgroundColor: lilac.bg },
@@ -534,30 +550,30 @@ const s = StyleSheet.create({
     position: 'absolute', right: 12, top: 10,
     backgroundColor: 'rgba(16,12,36,0.68)', borderRadius: lilacRadius.tag, paddingVertical: 4, paddingHorizontal: 9,
   },
-  counterText: { fontSize: 13, lineHeight: 17, color: FILM_TITLE, letterSpacing: 1.2 },
+  counterText: { fontSize: 13, lineHeight: 17, color: FILM_TITLE, letterSpacing: 1.2 }, // floor-exempt: serial — the '1 / 5' frame counter (Oswald numerals)
   panoOverlay: { position: 'absolute', left: GUTTER, bottom: 10 },
   panoKm: { fontSize: 32, lineHeight: 40, color: '#fff' },
-  panoKmUnit: { fontSize: 14, lineHeight: 19, color: 'rgba(255,255,255,0.85)' },
-  panoWhen: { fontSize: 14, lineHeight: 18, color: 'rgba(255,255,255,0.88)' },
+  panoKmUnit: { fontSize: 15, lineHeight: 19, color: 'rgba(255,255,255,0.85)' },
+  panoWhen: { fontSize: 15, lineHeight: 20, color: 'rgba(255,255,255,0.88)' },
   railRow: { flexDirection: 'row', gap: 5, paddingHorizontal: 14, paddingTop: 7, paddingBottom: 4 },
   thumb: { width: 42, height: 31, borderRadius: 3, borderWidth: 2, overflow: 'hidden', backgroundColor: '#171332' },
-  edgeCode: { fontSize: 12, lineHeight: 15, color: FILM_INK, letterSpacing: 0.8, paddingHorizontal: GUTTER, paddingBottom: 10 },
+  edgeCode: { fontSize: 15, lineHeight: 18, color: FILM_INK, letterSpacing: 0.8, paddingHorizontal: GUTTER, paddingBottom: 10 }, // ⚠ lineHeight feeds EDGE_H (Oswald 1.2×, BUG A)
   emptyFilm: {
     backgroundColor: lilac.card, borderRadius: lilacRadius.card,
     borderWidth: 1.6, borderStyle: 'dashed', borderColor: lilac.hair,
     paddingVertical: 20, paddingHorizontal: 16, alignItems: 'center',
   },
   emptyDog: { width: 40, height: 40, borderRadius: 20, marginBottom: 9, backgroundColor: lilac.inset },
-  emptyCopy: { fontSize: 14, lineHeight: 22, color: lilac.dim, textAlign: 'center' },
+  emptyCopy: { fontSize: 15, lineHeight: 22, color: lilac.dim, textAlign: 'center' },
 
   // ── 데이터 밴드 ──
-  bandLabel: { fontSize: 14, lineHeight: 18, fontWeight: '600', color: lilac.dim },
+  bandLabel: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: lilac.dim }, // ⚠ lineHeight feeds BAND_H
   bandBigWeek: { fontSize: 40, lineHeight: 50, color: lilac.head },
   bandBigAge: { fontSize: 40, lineHeight: 50, color: lilac.coralDeep },
   bandUnit: { fontSize: 16, lineHeight: 21, color: lilac.dim },
   // 미측정은 가짜 숫자를 쓰지 않는다 — 서체도 Oswald가 아니다. lineHeight 50 = 좌측 숫자와 밑선 정렬
   bandAgeGate: { fontSize: 18, lineHeight: 50, fontWeight: '700', color: lilac.dim },
-  bandCap: { fontSize: 14, lineHeight: 18, color: lilac.dim },
+  bandCap: { fontSize: 15, lineHeight: 20, color: lilac.dim }, // ⚠ lineHeight feeds BAND_H
   rail: { height: 5, borderRadius: 3, backgroundColor: lilac.inset, marginTop: 11, overflow: 'hidden' },
   railFill: { height: '100%', borderRadius: 3, backgroundColor: lilac.coralDeep },
 
@@ -567,9 +583,9 @@ const s = StyleSheet.create({
     borderColor: lilac.hair, backgroundColor: lilac.card,
   },
   punchInner: { position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, borderRadius: 8, borderWidth: 2.5, borderColor: lilac.coralSoft },
-  punchLabel: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 4 },
+  punchLabel: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 4 }, // ⚠ lineHeight feeds PUNCH_H
   punchLabelOn: { color: lilac.head, fontWeight: '700' },
-  statLine: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 12 },
+  statLine: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 12 }, // ⚠ lineHeight feeds STAT_H
 
   // ── 카드 ──
   card: {
@@ -577,10 +593,10 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: lilac.hair, marginTop: 12,
   },
   cardTitle: { fontSize: 15.5, lineHeight: 21, fontWeight: '700', color: lilac.head },
-  cardSub: { fontSize: 14, lineHeight: 20, color: lilac.dim, marginTop: 3 },
+  cardSub: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 3 },
   ageVal: { fontSize: 34, lineHeight: 43, color: lilac.coralDeep },
   ageValGate: { fontSize: 20, lineHeight: 27, fontWeight: '700', color: lilac.dim },
-  ageGate: { fontSize: 14, lineHeight: 21, color: lilac.dim, marginTop: 9 },
+  ageGate: { fontSize: 15, lineHeight: 21, color: lilac.dim, marginTop: 9 },
 
   // ── 주간 목표 ──
   goalBtn: {
@@ -589,7 +605,7 @@ const s = StyleSheet.create({
   },
   goalGlyph: { fontSize: 22, lineHeight: 27, fontWeight: '700', color: lilac.accent },
   goalVal: { fontSize: 29, lineHeight: 36, color: lilac.head },
-  goalHint: { fontSize: 14, lineHeight: 18, color: lilac.dim, marginTop: 3 },
+  goalHint: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 3 },
 
   // ── 8주 추이 ──
   bars: {
@@ -597,14 +613,20 @@ const s = StyleSheet.create({
     paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: lilac.hair,
   },
   barCol: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
-  barVal: { fontSize: 14, lineHeight: 18, color: lilac.head, marginBottom: 3 },
+  // Oswald numerals at 15/18 (1.2×, BUG A) — lineHeight held at 18 so s.bars (91) and BAR_MAX (66) stand.
+  barVal: { fontSize: 15, lineHeight: 18, color: lilac.head, marginBottom: 3 },
   barsNote: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 8 },
   bar: { width: '62%', borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  barX: { flex: 1, textAlign: 'center', fontSize: 14, lineHeight: 18, color: lilac.dim },
+  barX: { flex: 1, textAlign: 'center', fontSize: 15, lineHeight: 20, color: lilac.dim },
   barXNow: { color: lilac.coralDeep, fontWeight: '700' },
 
   // ── 최근 러닝 ──
-  sect: { fontSize: 16, lineHeight: 22, fontWeight: '800', color: lilac.head, marginTop: 22, marginBottom: 8 },
+  // §3b section header — full-bleed 1px coral rule (the GUTTER padding cancelled by negative margin),
+  // then theme.secTitle. Was 16/800 lilac.head, one of five section sizes shipping app-wide.
+  sect: {
+    marginTop: 22, marginBottom: 8, marginHorizontal: -GUTTER, paddingHorizontal: GUTTER,
+    borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 12,
+  },
   emptyRuns: {
     backgroundColor: lilac.inset, borderRadius: lilacRadius.card, borderWidth: 1, borderColor: lilac.hair,
     paddingVertical: 18, paddingHorizontal: 16, alignItems: 'center',
@@ -615,7 +637,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: lilac.hair, marginBottom: 8,
   },
   runWhen: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: lilac.head },
-  runMeta: { fontSize: 14, lineHeight: 19, color: lilac.dim, marginTop: 2 },
+  runMeta: { fontSize: 15, lineHeight: 20, color: lilac.dim, marginTop: 2 },
   runKm: { fontSize: 18, lineHeight: 23, color: lilac.coralDeep },
   // 거리 미측정 — 숫자 자리에 서지만 숫자가 아니다: 강조색(coralDeep)도, 숫자 조판도 쓰지 않는다
   runNoKm: { fontSize: 15, lineHeight: 23, fontWeight: '600', color: lilac.dim },
