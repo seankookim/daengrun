@@ -21,7 +21,7 @@
 -- `register_push_token(p_token)`, a SECURITY DEFINER writer, in ONE transaction: upserts the
 -- CALLER's row (auth.uid(); one row per profile, as before) AND deletes every OTHER profile's row
 -- holding the same token. The next registration on a device is the correction, whatever happened
--- at the previous sign-out.
+-- at the previous sign-out — when there IS a next registration (§0d ④ names the case with none).
 --
 -- ⚠ Order inside the body is deliberate: the caller's own row is written FIRST, so every refusal
 --   the write can raise — the 0189 §C trigger's `account_deleted` for a tombstoned caller — fires
@@ -89,6 +89,16 @@
 --      a unique index would make every OLD build's direct upsert fail with 23505 on a device
 --      another account still holds — i.e. convert 「the old account also gets pushes」 into 「the
 --      current account gets none」. The takeover lives in the writer instead.
+--   ④ INACTION — no next registration (0236 executing review, low; READ, not measured on a device).
+--      This function corrects a failed sign-out release only when the device REGISTERS again. If
+--      the release fails (offline, the 4 s timeout, an error — `auth-context.tsx` only warns and
+--      signs out) and nobody signs in on that device afterwards (a phone handed over, sold, or just
+--      left signed out), `push_tokens` keeps {A:T} and `notify_push` keeps sending A's chat,
+--      request and money pushes to that lock screen indefinitely. Nothing persists or retries the
+--      release. It is NOT closed here, and both closures cost something this slice does not decide:
+--      a retry on the next launch needs A's session, which the sign-out has just ended; a
+--      token-scoped release callable WITHOUT a session is the same eviction capability as §0e
+--      exposed to anon, and needs its own threat decision. Left for Sean.
 
 -- ═══ §A register_push_token — the caller's row, and nobody else's copy of the token ═══════════
 create or replace function register_push_token(p_token text)

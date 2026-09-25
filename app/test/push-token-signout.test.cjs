@@ -30,6 +30,15 @@
 // the reset · no fallback on PGRST202 · fall back on ANY error · rename the argument · remove the
 // PENDING_DEPLOY line. And a parked promise that is never released now FAILS instead of letting
 // node exit 0 with no summary (see `finished`).
+//
+// [0236 executing review, low] Ⓐ4. The c3 cleanup itself deleted a NEWER registration when the same
+// account signed straight back in (measured by the reviewer: rows {} and no later write). Closed by
+// a registration QUEUE (the next write is sent only after the earlier write + cleanup settled) and a
+// SUPERSEDED re-assert past the queue's cap. The fake's delete now honours RLS `push self all`, so a
+// cleanup running under the next account's session is refused as production refuses it.
+// Mutations measured (each alone): no queue wait → the 2 QUEUE arms · no superseded branch → the 2
+// SUPERSEDED arms · both → those 4 + the 2 reviewer-interleaving arms · no re-assert → SUPERSEDED B
+// (the same-account arm keeps its row either way, by design) · unconditional commit → 2 c3 + 1.
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -89,6 +98,9 @@ const world = {
   rpcMode: 'present',          // 'present' | 'missing' (PGRST202, the skew window) | 'refuse'
   holdToken: false, heldToken: null,   // hold the NEXT getExpoPushTokenAsync
   holdWrite: false, heldWrite: null,   // hold the NEXT registration write; the server applies it on release
+  // [0236 review] hold only the RESPONSE of the next rpc write: the server applies it NOW and the
+  // client hears back on release — the order in which a late cleanup can overtake a newer write.
+  holdWriteResponse: false, heldResponse: null,
 };
 const SKEW = { code: 'PGRST202', message: 'Could not find the function public.register_push_token(p_token) in the schema cache' };
 const fakeSupabase = {
@@ -106,6 +118,11 @@ const fakeSupabase = {
     if (world.holdWrite) {
       world.holdWrite = false;
       return new Promise((r) => { world.heldWrite = () => r(apply()); });
+    }
+    if (world.holdWriteResponse) {
+      world.holdWriteResponse = false;
+      const res = apply();
+      return new Promise((r) => { world.heldResponse = () => r(res); });
     }
     return Promise.resolve(apply());
   },
@@ -131,8 +148,12 @@ const fakeSupabase = {
           then(res, rej) {
             calls.deletes.push({ table, filters });
             if (!world.deleteImpl) {
+              // RLS `push self all` (0024): a delete reaches only the CALLER's own row. [0236 review]
+              // Without this the fake let a stale cleanup running under the NEXT account's session
+              // delete the old account's row, which production refuses.
               const f = Object.fromEntries(filters);
-              if (f.profile_id !== undefined && f.token !== undefined && rows.get(f.profile_id) === f.token) rows.delete(f.profile_id);
+              const self = world.user && world.user.id;
+              if (f.profile_id !== undefined && f.profile_id === self && f.token !== undefined && rows.get(f.profile_id) === f.token) rows.delete(f.profile_id);
             }
             const r = world.deleteImpl ? world.deleteImpl() : Promise.resolve({ error: null });
             return r.then(res, rej);
@@ -335,10 +356,15 @@ const tapOf = (id, title, kind, ref) => ({
     push.resetPushRegistration();
   };
   const since = (n) => calls.writes.slice(n).map((w) => w.profile + ':' + w.via);
+  const CAP_DEFAULT = push.registrationQueue && push.registrationQueue.capMs;
+  t('push.ts exports registrationQueue with a positive cap (the Ⓐ4 arms shorten it; absence fails LOUDLY)',
+    typeof CAP_DEFAULT === 'number' && CAP_DEFAULT > 0, show(push.registrationQueue));
   const fresh = () => {
     push.resetPushRegistration(); rows.clear();
     world.rpcMode = 'present'; world.deleteImpl = null; world.token = T; world.perm = 'granted';
     world.holdToken = false; world.heldToken = null; world.holdWrite = false; world.heldWrite = null;
+    world.holdWriteResponse = false; world.heldResponse = null;
+    push.registrationQueue.capMs = CAP_DEFAULT;
   };
 
   fresh();
@@ -516,6 +542,90 @@ const tapOf = (id, title, kind, ref) => ({
   t('🔴 c3 · a reset with no release (the release was skipped) also retires the in-flight registration',
     show(c4Writes) === show([]) && rowsNow() === show([['B', T]]),
     show({ writesAfterReset: c4Writes, rows: rowsNow() }));
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // Ⓐ4 [0236 review, low · MEASURED by the executing reviewer] a stale call's cleanup must never
+  // remove a NEWER registration. The old write's RESPONSE arrives after the next sign-in has already
+  // registered; before the fix its cleanup `delete (A, T)` removed the row the new registration had
+  // just written while `_registered` stayed true, so the device got no pushes for the rest of the
+  // process. (On trunk, which has no cleanup, the same sequence ends {A:T}.) The server may have
+  // processed the old write early — only its response is late — so this is not the named residual.
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  const reauthRun = async (next, capMs) => {
+    fresh();
+    if (capMs !== undefined) push.registrationQueue.capMs = capMs;   // fresh() restored the default
+    world.user = { id: 'A' };
+    world.holdWrite = true;
+    const w0 = calls.writes.length;
+    const old = push.registerPushToken();
+    const parked = await until(() => typeof world.heldWrite === 'function');
+    await signOutAs('A');
+    world.user = { id: next };                      // the next sign-in on this device
+    const again = push.registerPushToken();
+    for (let i = 0; i < 20; i++) await tick();      // let it run as far as it can before the old write returns
+    releaseHeld('heldWrite');
+    await old; await again;
+    const settled = rowsNow();
+    const before = calls.writes.length;
+    await push.registerPushToken();                 // a later home mount
+    return { parked, settled, later: calls.writes.length - before, rows: rowsNow(), writes: since(w0) };
+  };
+  {
+    const r = await reauthRun('A');
+    t('fixture: A\'s first write is in flight (re-sign-in arm)', r.parked);
+    t('🔴 same account signs straight back in while its old write is in flight: the device ends holding {A:T} — the stale cleanup never deletes the newer registration',
+      r.settled === show([['A', T]]) && r.rows === show([['A', T]]), show(r));
+  }
+  {
+    const r = await reauthRun('B');
+    t('fixture: A\'s first write is in flight (next-account arm)', r.parked);
+    t('🔴 a DIFFERENT account signs in while A\'s old write is in flight: the device ends holding {B:T} only (A\'s late write never outlives B\'s registration)',
+      r.settled === show([['B', T]]) && r.rows === show([['B', T]]), show(r));
+  }
+
+  // Two mechanisms close Ⓐ4, and each gets an arm that ONLY it can pass, so deleting either one
+  // reddens something (both arms above pass on either alone).
+  //  · the QUEUE: the next write is not sent until the earlier section (write + cleanup) settled.
+  //    Arm: the new write's RESPONSE is late while the server has already applied it — the old
+  //    cleanup then lands after it at the server and before its commit at the client, which the
+  //    superseded re-assert cannot see (`_registered` is still false when the old call checks).
+  const queueRun = async (next) => {
+    fresh();
+    world.user = { id: 'A' };
+    world.holdWrite = true;
+    const old = push.registerPushToken();
+    const parked = await until(() => typeof world.heldWrite === 'function');
+    await signOutAs('A');
+    world.user = { id: next };
+    world.holdWriteResponse = true;
+    const again = push.registerPushToken();
+    for (let i = 0; i < 20; i++) await tick();
+    releaseHeld('heldWrite');
+    const responded = await until(() => typeof world.heldResponse === 'function');
+    for (let i = 0; i < 20; i++) await tick();      // let the old call's cleanup run, if it is going to
+    releaseHeld('heldResponse');
+    await old; await again;
+    const settled = rowsNow();
+    const before = calls.writes.length;
+    await push.registerPushToken();
+    return { parked, responded, settled, later: calls.writes.length - before, rows: rowsNow() };
+  };
+  for (const next of ['A', 'B']) {
+    const r = await queueRun(next);
+    t(`fixture: old write parked and the new write's response parked (queue arm, next=${next})`, r.parked && r.responded, show(r));
+    t(`🔴 QUEUE · the next write (${next}) is sent only after the old write and its cleanup settled — the device ends holding {${next}:T}`,
+      r.settled === show([[next, T]]) && r.rows === show([[next, T]]), show(r));
+  }
+  //  · the SUPERSEDED re-assert: past the queue's cap the next registration commits before the old
+  //    response returns; the old call must then delete nothing and re-assert the current one.
+  //    Arm: the reviewer's interleaving with the cap shortened so the queue does not order it.
+  for (const next of ['A', 'B']) {
+    const r = await reauthRun(next, 1);
+    push.registrationQueue.capMs = CAP_DEFAULT;
+    t(`fixture: A's first write is in flight (past-the-cap arm, next=${next})`, r.parked);
+    t(`🔴 SUPERSEDED · past the queue's cap, a late old response neither deletes nor keeps the newer registration's token — the device ends holding {${next}:T}`,
+      r.settled === show([[next, T]]) && r.rows === show([[next, T]]), show(r));
+  }
 
   Module._load = realLoad;
 
