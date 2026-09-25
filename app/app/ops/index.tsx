@@ -6,12 +6,12 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
   fetchNotifications, fetchOpsGearClaimsPending, fetchOpsPayoutsDue, fetchOpsStalledHandoffs,
-  fetchOpsStrandedReturns, LiveNoti, OpsGearClaim, OpsPayoutDue, OpsStalledHandoff,
-  OpsStrandedReturn,
+  fetchOpsStrandedReturns, LiveNoti, markNotificationsRead, OpsGearClaim, OpsPayoutDue,
+  OpsStalledHandoff, OpsStrandedReturn,
 } from '../../src/lib/api';
 import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
-import { destinationForSystemRef, OPS_SYSTEM_TITLES } from '../../src/lib/notification-route';
+import { destinationForSystemRef } from '../../src/lib/notification-route';
 import { strandAgeLabel } from '../../src/lib/ops-console';
 import { useOps } from '../../src/lib/ops-context';
 import { wonLabel } from '../../src/lib/ops-payout';
@@ -127,16 +127,22 @@ export default function OpsHome() {
   // 🔴 [0206] THE OPERATOR'S OWN INBOX, filtered to the ops kind. `fetchNotifications` reads
   //    `notifications` under RLS `noti self` (0002:138 — `profile_id = auth.uid()`), so this is the
   //    caller's OWN rows and no new read surface: the ops escalations were always addressed to
-  //    them and always readable; they simply had nowhere to land. Filtered to `kind === 'system'`
-  //    AND to a title with a console destination, so every row drawn here is one this console can
-  //    actually open — the remaining `system` rows (if a future writer adds a title) still show in
-  //    the ordinary /alerts inbox as text.
+  //    them and always readable; they simply had nowhere to land.
+  // 🔴 [gap sweep 2026-09-25 · ops-notifications-5/8] TWO FILTERS CHANGED, and both were hiding
+  //    work. (a) The kind filter is now SERVER-side (`{ kind: 'system' }`): the old read took the
+  //    newest 20 rows of EVERY kind and filtered here, so an operator who is also an owner or a
+  //    runner could have an ops bell pushed out of the window by their own chat traffic.
+  //    (b) The title filter is GONE. It admitted only the four titles with a console screen, so
+  //    seven of the eleven ledgered ops titles (0214 `_noti_ops_titles()` — 카드 해지 실패, the
+  //    lost payment marker, the failed compensation records …) never appeared on the desk at all.
+  //    Every `system` row is now drawn; the ones with no console door are drawn as plain cards
+  //    carrying their BODY, which is the operator's instruction. No dead tap either way.
   const loadAlerts = useCallback(() => {
     setAlertPhase('loading');
     setAlertErr(null);
-    fetchNotifications()
+    fetchNotifications({ kind: 'system' })
       .then((rows) => {
-        setAlerts(rows.filter((n) => n.kind === 'system' && OPS_SYSTEM_TITLES.includes(n.title)));
+        setAlerts(rows);
         setAlertPhase('ready');
       })
       .catch((e) => {
@@ -144,6 +150,20 @@ export default function OpsHome() {
         setAlertErr((e as Error)?.message || '운영 알림을 불러오지 못했어요');
         setAlertPhase('error');
       });
+  }, []);
+
+  // [ops-notifications-7] Opening a bell marks THAT row read. The 2pt unread border clears only
+  // after the write resolves; a failed write is logged and the row stays drawn as unread (the next
+  // focus reload is the truth). The navigation does not wait for the bookkeeping.
+  const openAlert = useCallback((n: LiveNoti) => {
+    const dest = destinationForSystemRef({ refId: n.refId, title: n.title });
+    if (dest === null) return;   // unreachable: only rows with a destination are drawn as buttons
+    if (n.unread) {
+      markNotificationsRead([n.id])
+        .then(() => setAlerts((prev) => prev.map((r) => (r.id === n.id ? { ...r, unread: false } : r))))
+        .catch((e) => console.warn('[ops] alert mark read:', (e as Error)?.message ?? e));
+    }
+    router.push(dest as Parameters<typeof router.push>[0]);
   }, []);
 
   // Re-read on every return: paying a runner, posting a box or resolving a strand on a detail
@@ -365,15 +385,16 @@ export default function OpsHome() {
         )}
 
         {/* ── 운영 알림 [0206] ───────────────────────────────────────────────────────────
-            The operator's OWN `system` rows — the bells 0183 · 0186 · 0193 · 0206 §C ring. Read
-            through `fetchNotifications` under RLS `noti self`, so no new read surface: these rows
-            were always addressed to this person and always readable, they simply had nowhere to
-            land. Every row drawn here has a console destination (the filter guarantees it), so
-            there is no dead tap in this list by construction. */}
+            The operator's OWN `system` rows — the bells 0183 · 0186 · 0193 · 0206 §C ring, plus
+            the ledgered titles with no console screen (0214 `_noti_ops_titles()`). Read through
+            `fetchNotifications({ kind: 'system' })` under RLS `noti self`, so no new read surface.
+            A row is a BUTTON only when `destinationForSystemRef` names a screen; otherwise it is a
+            plain card that carries its body — the instruction is the whole content, and a chevron
+            on a card that goes nowhere would be a dead button. */}
         <SectionHeader
           title="운영 알림"
           count={alertPhase === 'ready' ? alerts.length : null}
-          hint="담당자에게 온 알림 · 누르면 해당 화면으로 가요"
+          hint="담당자에게 온 알림 · 누를 수 있는 알림은 해당 화면으로 가요"
         />
 
         {alertPhase === 'loading' && <Text style={s.loading}>운영 알림을 불러오는 중이에요…</Text>}
@@ -383,31 +404,37 @@ export default function OpsHome() {
         {alertPhase === 'ready' && alerts.length === 0 && (
           <View style={s.emptyCard}>
             <Text style={s.emptyText}>최근 운영 알림이 없어요</Text>
-            {/* ⚠ Honest about what this list IS: `fetchNotifications` reads the most recent 20
-                rows of every kind, so an operator with a busy inbox can have older ops rows that
-                do not appear here. Said rather than implied. */}
-            <Text style={s.emptySub}>최근 알림 20건 중 담당자 알림만 보여줘요</Text>
+            {/* ⚠ Honest about what this list IS: the newest 20 `system` rows addressed to this
+                person, so an older bell past that window does not appear here. Said rather than
+                implied. */}
+            <Text style={s.emptySub}>최근 담당자 알림 20건 안에 없어요</Text>
           </View>
         )}
 
         {alertPhase === 'ready' && alerts.map((n) => (
-          <Pressable
-            key={n.id}
-            onPress={() => {
-              const dest = destinationForSystemRef({ refId: n.refId, title: n.title });
-              if (dest === null) return;   // unreachable: the filter admits only routable titles
-              router.push(dest as Parameters<typeof router.push>[0]);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={`${n.title} · ${n.when}`}
-            style={({ pressed }) => [s.row, pressed && s.rowPressed, n.unread && s.rowUnread]}
-          >
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={s.rowTitle}>{n.title}</Text>
-              <Text style={s.rowHint}>{n.when}</Text>
+          destinationForSystemRef({ refId: n.refId, title: n.title }) !== null ? (
+            <Pressable
+              key={n.id}
+              onPress={() => openAlert(n)}
+              accessibilityRole="button"
+              accessibilityLabel={`${n.unread ? '안 읽음 · ' : ''}${n.title} · ${n.when}`}
+              style={({ pressed }) => [s.row, pressed && s.rowPressed, n.unread && s.rowUnread]}
+            >
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={s.rowTitle}>{n.title}</Text>
+                <Text style={s.rowHint}>{n.when}</Text>
+              </View>
+              <Text style={s.chev}>›</Text>
+            </Pressable>
+          ) : (
+            <View key={n.id} style={[s.row, n.unread && s.rowUnread]}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowTitle}>{n.title}</Text>
+                {n.body ? <Text style={s.rowBody}>{n.body}</Text> : null}
+                <Text style={s.rowHint}>{n.when}</Text>
+              </View>
             </View>
-            <Text style={s.chev}>›</Text>
-          </Pressable>
+          )
         ))}
 
         {/* ── 운영자 명단 ───────────────────────────────────────────────────────────────── */}
@@ -478,6 +505,9 @@ const s = StyleSheet.create({
   rowUnread: { borderColor: paper.ink, borderWidth: 2 },
   rowTitle: { fontSize: 17, fontWeight: '800', color: paper.ink },
   rowHint: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 3 },
+  // The body of a bell with no console door is the operator's instruction, so it is INK, not dim —
+  // it is the one thing on that card that must not be skipped.
+  rowBody: { fontSize: 15, lineHeight: 21, color: paper.ink, marginTop: 4 },
   rowAmount: { fontSize: 18, fontWeight: '900', color: paper.ink },
   chev: { fontSize: 16, color: paper.dim, marginLeft: 8 },
   emptyCard: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 18 },

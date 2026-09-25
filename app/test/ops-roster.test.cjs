@@ -21,8 +21,10 @@
 // for · make `wouldStrandConsole` class-agnostic · make it fire on an already-off row · make
 // `groupRoster` drop inactive-only people · make `classLabel` return '' or a placeholder for an
 // unknown class · make `chipLabel` return the same string busy and idle.
+const fs = require('fs');
+const path = require('path');
 const {
-  CONSOLE_CLASS, CLASS_LABELS, CLASS_ORDER, SELECTABLE_CLASSES,
+  CONSOLE_CLASS, CLASS_LABELS, CLASS_ORDER, SELECTABLE_CLASSES, DORMANT_CLASSES, dormantNote,
   classLabel, chipLabel, groupRoster, activeConsoleOperators, wouldStrandConsole, personSummary,
 } = require('./ops-roster.build.cjs');
 
@@ -130,6 +132,127 @@ t('a row that is ALREADY off is not flagged (the server does not refuse it eithe
   wouldStrandConsole(ROWS, 'p4', 'payout_due', false) === false);
 t('a person with no row at all is not flagged',
   wouldStrandConsole(ONE, 'stranger', 'payout_due', false) === false);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [gap sweep 2026-09-25 · ops-notifications-6] DORMANT CLASSES — a chip must not promise a page
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// The roster sells thirteen alert classes and four have no emitter anywhere. The screen labels
+// those four 「· 아직 발신 없음」 instead of hiding them (0208 §0c keeps every server class seatable).
+// The set is not this file's opinion: it is re-derived from the EMITTERS on every run, and the
+// comparison is two-sided — an emitter landing for a dormant class reddens here (shrink the set), and
+// a class that loses its last emitter reddens here too (grow it). Comments are stripped first, and a
+// `/* … */` or `--` quoting an emitter must not count as one (the standing comment-matching law).
+//
+// Where the scan looks, and why exactly there:
+//   · `supabase/functions/**` (not `_test/`) — `notifyOps(<db>, "<class>"` is the edge's only door
+//     into `ops_recipients_for`. `_test/` is excluded because `ops_routing_test.ts` CALLS notifyOps
+//     with dormant classes to test the router; a test exercising a class is not an emitter of it.
+//   · `supabase/migrations/*.sql` — `ops_recipients_for('<class>'` literals, and the routing
+//     constants `… constant text := '<class>'` that every 0182+ writer passes as `c_ops_class`.
+//     0208's `c_classes` allowlist names every class in one array literal, which is exactly why a
+//     bare-literal scan would be wrong: it would find all thirteen and call every class emitted.
+// MIGRATIONS_DIR / FUNCTIONS_DIR point the scan at a copy — the only way to plant an emitter without
+// editing a landed migration (CLAUDE.md: never edit a live migration, even transiently).
+{
+  const REPO = path.resolve(__dirname, '../..');
+  const MIG = process.env.MIGRATIONS_DIR || path.join(REPO, 'supabase/migrations');
+  const FNS = process.env.FUNCTIONS_DIR || path.join(REPO, 'supabase/functions');
+
+  // quote-aware SQL stripper: `--` to end of line only OUTSIDE a string literal
+  const stripSql = (src) => {
+    let out = '', i = 0, inStr = false;
+    while (i < src.length) {
+      const c = src[i];
+      if (inStr) {
+        out += c;
+        if (c === "'") { if (src[i + 1] === "'") { out += "'"; i += 2; continue; } inStr = false; }
+        i++; continue;
+      }
+      if (c === "'") { inStr = true; out += c; i++; continue; }
+      if (c === '-' && src[i + 1] === '-') { while (i < src.length && src[i] !== '\n') i++; continue; }
+      out += c; i++;
+    }
+    return out;
+  };
+  // TS: block comments, then `//` to end of line when it is not inside a "…" / '…' / `…` string
+  const stripTs = (src) => {
+    let out = '', i = 0, q = null;
+    while (i < src.length) {
+      const c = src[i];
+      if (q) { out += c; if (c === '\\') { out += src[i + 1] || ''; i += 2; continue; } if (c === q) q = null; i++; continue; }
+      if (c === '"' || c === "'" || c === '`') { q = c; out += c; i++; continue; }
+      if (c === '/' && src[i + 1] === '*') { const e = src.indexOf('*/', i + 2); i = e < 0 ? src.length : e + 2; continue; }
+      if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue; }
+      out += c; i++;
+    }
+    return out;
+  };
+  const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => {
+    const p = path.join(dir, d.name);
+    if (d.isDirectory()) return d.name === '_test' || d.name === 'node_modules' ? [] : walk(p);
+    return /\.ts$/.test(d.name) ? [p] : [];
+  });
+
+  const sqlFiles = fs.readdirSync(MIG).filter((f) => /^\d{4}_.*\.sql$/.test(f));
+  const sql = sqlFiles.map((f) => stripSql(fs.readFileSync(path.join(MIG, f), 'utf8'))).join('\n');
+  const tsFiles = walk(FNS);
+  const ts = tsFiles.map((f) => stripTs(fs.readFileSync(f, 'utf8'))).join('\n');
+
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const emitters = (cls) => {
+    const hits = [];
+    if (new RegExp(`notifyOps\\(\\s*[A-Za-z_$][\\w$]*\\s*,\\s*"${esc(cls)}"`).test(ts)) hits.push('notifyOps');
+    if (new RegExp(`ops_recipients_for\\(\\s*'${esc(cls)}'`).test(sql)) hits.push('ops_recipients_for literal');
+    if (new RegExp(`constant\\s+text\\s*:=\\s*'${esc(cls)}'`).test(sql)) hits.push('routing constant');
+    return hits;
+  };
+
+  // ── controls: the scan read something, and it SEES the emitters that exist ──
+  t('CONTROL · the scan read migrations and edge sources (an extractor that read nothing would call every class dormant)',
+    sqlFiles.length > 100 && tsFiles.length > 10, `sql=${sqlFiles.length} ts=${tsFiles.length}`);
+  t('CONTROL · the scan finds a known edge emitter (late_comp_failed, cancel_owner.ts)',
+    emitters('late_comp_failed').includes('notifyOps'), JSON.stringify(emitters('late_comp_failed')));
+  t('CONTROL · the scan finds a known SQL emitter (payout_due)',
+    emitters('payout_due').length > 0, JSON.stringify(emitters('payout_due')));
+  t('CONTROL · 0208\'s allowlist literal does NOT count as an emitter (it names every class, so a bare-literal scan would find all thirteen)',
+    /'charge_dispatch_stale'/.test(sql) && emitters('charge_dispatch_stale').length === 0);
+  t('CONTROL · a comment quoting an emitter does not count (the stripper is doing work)',
+    stripTs('// notifyOps(db, "x")\n/* notifyOps(db, "x") */ const a = "//not-a-comment";').indexOf('notifyOps') < 0
+    && stripTs('const a = "//not-a-comment";').includes('//not-a-comment')
+    && stripSql("select 1; -- ops_recipients_for('x')\nselect '--kept';").indexOf('ops_recipients_for') < 0
+    && stripSql("select '--kept';").includes('--kept'));
+
+  // ── the set itself ──
+  t('DORMANT_CLASSES ⊂ CLASS_LABELS (every dormant class is a real, seatable server class)',
+    DORMANT_CLASSES.size > 0 && [...DORMANT_CLASSES].every((c) => Object.prototype.hasOwnProperty.call(CLASS_LABELS, c)),
+    JSON.stringify([...DORMANT_CLASSES]));
+  t('dormant classes stay SELECTABLE (0208 §0c: labelled, never hidden)',
+    [...DORMANT_CLASSES].every((c) => SELECTABLE_CLASSES.includes(c)));
+  for (const c of DORMANT_CLASSES) {
+    t(`🔴 ${c} has NO emitter anywhere — if one landed, delete it from DORMANT_CLASSES`,
+      emitters(c).length === 0, JSON.stringify(emitters(c)));
+  }
+  for (const c of CLASS_ORDER.filter((x) => !DORMANT_CLASSES.has(x))) {
+    t(`${c} HAS an emitter — a class that lost its last one must join DORMANT_CLASSES`,
+      emitters(c).length > 0, JSON.stringify(emitters(c)));
+  }
+  t('a dormant chip says so; an emitted class carries no suffix',
+    [...DORMANT_CLASSES].every((c) => dormantNote(c) === ' · 아직 발신 없음')
+    && CLASS_ORDER.filter((x) => !DORMANT_CLASSES.has(x)).every((c) => dormantNote(c) === '')
+    && dormantNote('written_by_psql') === '');
+}
+
+// ── the screen actually renders the suffix, in both places a chip is drawn ─────────────────────
+{
+  const screen = fs.readFileSync(path.join(__dirname, '..', 'app', 'ops', 'roster.tsx'), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  t('roster.tsx renders dormantNote on the person rows AND in the 운영자 추가 sheet',
+    (screen.match(/\{classLabel\(c\)\}\{dormantNote\(c\)\}/g) || []).length === 1
+    && /\{chipLabel\(c, busy\)\}\{busy \? '' : dormantNote\(c\)\}/.test(screen),
+    'dormantNote is not rendered in both chip lists');
+  t('…and VoiceOver hears it too (both chips\' accessibilityLabel carry it)',
+    (screen.match(/accessibilityLabel=\{`\$\{classLabel\(c\)\}\$\{dormantNote\(c\)\}/g) || []).length === 2);
+}
 
 console.log(`\n${pass} pass / ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

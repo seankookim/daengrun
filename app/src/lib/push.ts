@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { session } from '../store';
-import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE } from './api';
+import { draft, session } from '../store';
+import { fetchCurrentOwnerBookingId, INCIDENT_NOTI_TITLE, SOS_TITLE } from './api';
 import {
   CHAT_TITLE, destinationForBookingRef, destinationForCommunityRef, destinationForRefLessBookingTitle,
-  destinationForSystemRef, needsClubProbe, needsCommunityClubProbe, needsCurrentBookingProbe,
-  OWNER_MEETUP_TITLES, refMayBeClubSession,
+  destinationForSystemRef, isOwnerLiveRunTitle, needsClubProbe, needsCommunityClubProbe,
+  needsCurrentBookingProbe, OWNER_MEETUP_TITLES, refMayBeClubSession,
 } from './notification-route';
 import { supabase } from './supabase';
 
@@ -69,7 +69,7 @@ async function bookingClubSessionId(refId: string): Promise<string | null | unde
 // to the honest fallback inside the pure table rather than to a screen that guesses.
 function routeForBookingRef(refId: string, title: string): void {
   const role = session.role;
-  const club = needsClubProbe(title) ? bookingClubSessionId(refId) : Promise.resolve<string | null | undefined>(null);
+  const club = needsClubProbe(title, role) ? bookingClubSessionId(refId) : Promise.resolve<string | null | undefined>(null);
   const current = needsCurrentBookingProbe(role, title)
     ? fetchCurrentOwnerBookingId().then((cur) => !!cur && cur === refId).catch((): boolean | null => null)
     : Promise.resolve<boolean | null>(null);
@@ -77,8 +77,16 @@ function routeForBookingRef(refId: string, title: string): void {
     .then(([clubSessionId, isCurrentOwnerBooking]) => {
       const dest = destinationForBookingRef(
         { refId, title, role, clubSessionId, isCurrentOwnerBooking },
-        { incident: INCIDENT_NOTI_TITLE },
+        { incident: INCIDENT_NOTI_TITLE, sos: SOS_TITLE },
       );
+      // [ops-notifications-3] `/owner/live` takes no bid: it opens `draft.bookingId` when that is
+      // set and resolves the in-flight booking only when it is EMPTY (live.tsx:121/:202). A STALE
+      // store — a request made while another run is live sets it (request.tsx:615) — would open a
+      // different booking's live screen. Every other caller of this route writes the store first
+      // (owner/home.tsx:607, schedule.tsx, club/session O9); the table returns '/owner/live' only
+      // when the probe said this ref IS the current booking, so writing it here is that same
+      // fact, not a guess.
+      if (dest === '/owner/live') draft.bookingId = refId;
       try { router.push(dest as Parameters<typeof router.push>[0]); } catch { /* navigation not ready — best-effort */ }
     })
     .catch(() => { /* unreachable: both probes fold their own failures; a deep link never throws */ });
@@ -169,9 +177,13 @@ export function routeForNotification(kind: string | null | undefined, refId: str
   // The titles on that list now fall through to the probe below, which asks the id itself — so a
   // session ref reaches the session screen and a booking ref still takes the 1:1 route. The skip
   // is unchanged for every other title, including the two named ones and the meetup family.
+  // [gap sweep 2026-09-25] Two more owner titles whose writers are known to emit a BOOKING id join
+  // the skip: SOS (`sendSOS` writes the resolved booking) and the live-run family (`start_run.ts`,
+  // api.ts `EVENT_NOTI` / `notifyKmMilestone`, and the club writers of the same strings all pass
+  // `b.id` / `bookingId`). The club probe for SOS still runs inside `routeForBookingRef`.
   if (kind === 'booking' && !refMayBeClubSession(title)
-      && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE
-      || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title))) {
+      && (title === CHAT_TITLE || title === INCIDENT_NOTI_TITLE || title === SOS_TITLE
+      || session.role === 'runner' || OWNER_MEETUP_TITLES.includes(title) || isOwnerLiveRunTitle(title))) {
     routeForBookingRef(refId, title);
     return;
   }

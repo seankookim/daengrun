@@ -6,7 +6,7 @@ import { BottomNav } from '../src/components/bottomnav';
 import { StatusBarCover } from '../src/components/status-bar-cover';
 import { Row } from '../src/components/ui';
 import { CycleGroup, groupByHandoffCycle, resendBadge } from '../src/lib/alerts-group';
-import { fetchNotifications, LiveNoti, markAllNotificationsRead } from '../src/lib/api';
+import { fetchNotifications, LiveNoti, markAllNotificationsRead, markNotificationsRead } from '../src/lib/api';
 import { useDisplayFont } from '../src/lib/displayFont';
 import { useNumFont } from '../src/lib/fonts';
 import { goBackOrHome } from '../src/lib/nav';
@@ -81,7 +81,25 @@ export default function Alerts() {
   const onRefresh = () => { setRefreshing(true); load().finally(() => setRefreshing(false)); };
 
   // 알림 탭 도착지 — push.ts routeForNotification과 단일 소스 (푸시 탭 딥링크와 동일 규칙)
-  const openNoti = (n: LiveNoti) => routeForNotification(n.kind, n.refId, n.title);
+  // [ops-notifications-7] Opening a card now marks it read. It takes the CYCLE, not the row: a
+  // collapsed handoff re-ask (groupByHandoffCycle) is one card standing for every row in it, and
+  // marking only the newest would leave the card's NEW seal up on the strength of its siblings.
+  // The seal clears only after the write RESOLVES — a failed write stays drawn as unread (the next
+  // focus reload is the truth) and is logged, never swallowed into a happy seal. The route does
+  // not wait for the write: the person asked to go somewhere, and the read mark is bookkeeping.
+  const openNoti = (c: CycleGroup<LiveNoti>) => {
+    const n = c.newest;
+    const ids = [c.newest, ...c.older].filter((r) => r.unread).map((r) => r.id);
+    if (ids.length > 0) {
+      markNotificationsRead(ids)
+        .then(() => {
+          const done = new Set(ids);
+          setLiveNotis((prev) => prev.map((r) => (done.has(r.id) ? { ...r, unread: false } : r)));
+        })
+        .catch((e) => console.warn('[alerts] mark read:', (e as Error)?.message ?? e));
+    }
+    routeForNotification(n.kind, n.refId, n.title);
+  };
   // 목적지가 없는 행은 Pressable로 그리지 않는다 (하우스 법칙: dead button 금지). 판정은 push.ts가
   // 소유한다 — 라우터와 같은 파일에 있어야 둘이 어긋나지 않는다.
   // 🔴 [0206] 이 주석은 「오늘 false를 돌려주는 실데이터는 없다(shop·system은 쓰는 마이그레이션이
@@ -109,7 +127,9 @@ export default function Alerts() {
   // 안 읽음 수는 화면에 그려진 것과 같은 말을 해야 한다 — 접힌 재요청 3건을 3으로 세면
   // NEW 배지 하나 옆에 「안 읽음 3」이 서서 고장처럼 읽힌다. 사이클 하나가 하나.
   const unreadCount = cycles.filter((g) => g.unread).length;
-  const latestUnread = cycles.find((g) => g.unread)?.newest ?? null;
+  // The ticker opens a CYCLE like every row does, so opening it marks the same set of rows read.
+  const latestUnreadCycle = cycles.find((g) => g.unread) ?? null;
+  const latestUnread = latestUnreadCycle?.newest ?? null;
   // 날짜 그룹 (fetchNotifications가 최신순 정렬 · groupByHandoffCycle이 최신순 보존)
   const groups = useMemo(() => {
     const out: { date: string; items: CycleGroup<LiveNoti>[] }[] = [];
@@ -160,9 +180,9 @@ export default function Alerts() {
             </Row>
             {/* 티커 — 최신 미읽음 1건 실데이터. 없으면 그리지 않는다.
                 셰브런(›)은 '누를 수 있다'는 신호라, 목적지가 없으면 티커도 셰브런도 버튼이 아니다 */}
-            {latestUnread && (isRoutable(latestUnread) ? (
+            {latestUnreadCycle && latestUnread && (isRoutable(latestUnread) ? (
               <Pressable
-                onPress={() => openNoti(latestUnread)}
+                onPress={() => openNoti(latestUnreadCycle)}
                 style={s.ticker}
                 accessibilityRole="button"
                 accessibilityLabel={`${latestUnread.timeLabel} ${latestUnread.title}`}
@@ -281,7 +301,7 @@ export default function Alerts() {
                   return isRoutable(n) ? (
                     <Pressable
                       key={n.id}
-                      onPress={() => openNoti(n)}
+                      onPress={() => openNoti(c)}
                       style={[s.evt, unread && s.evtNew]}
                       accessibilityRole="button"
                       accessibilityLabel={`${unread ? '안 읽음 · ' : ''}${n.timeLabel} ${n.title}${n.body ? ` · ${n.body}` : ''}`}

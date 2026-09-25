@@ -97,12 +97,37 @@ export const RETURN_TITLES = [
   RETURN_ASK_TITLE, RETURN_SEALED_TITLE, RETURN_STUCK_TITLE, RETURN_ESCALATION_TITLE,
 ];
 
+// ── [gap sweep 2026-09-25 · contract-gaps-1] SOS ─────────────────────────────────────────────
+// The WRITER's constant is `SOS_TITLE` in api.ts (`sendSOS`), and it stays there:
+// `test/notification-prefs.test.cjs` pins that api.ts is where the always-push family is declared.
+// push.ts passes that constant into `destinationForBookingRef` as `titles.sos` (the incident idiom),
+// so the ROUTING arm compares against the writer's own value. This copy exists for one reason: this
+// module imports nothing, and `CLUB_PROBE_TITLES` below has to be able to NAME the title so a club
+// delegation's SOS asks `bookings.club_session_id` first. `test/notification-route.test.cjs` reads
+// api.ts's `SOS_TITLE` and refuses a drift between the two.
+export const SOS_CLUB_PROBE_TITLE = 'SOS';
+
 /** The titles whose destination depends on whether the booking is a club delegation.
  *  [0193 · codex A6] `RETURN_ASK_TITLE` joins them: `session_confirm_return` (0069:124-126) writes
  *  that exact string for a club delegation, so it is a SHARED title and not a 1:1-only one. The
  *  other three return titles are written only by the 1:1 door (`transition-booking`'s end_run /
- *  confirm_return arms and migration 0188's sweep), so they need no probe and pay for none. */
-export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE, RETURN_ASK_TITLE];
+ *  confirm_return arms and migration 0188's sweep), so they need no probe and pay for none.
+ *  [contract-gaps-1] SOS joins them: `sendSOS` resolves the tapping side's CURRENT booking, and a
+ *  club delegation is a booking row too — a club party has no 1:1 chat thread to be sent to, and
+ *  the club session screen is where that booking's people are. */
+export const CLUB_PROBE_TITLES = [...HANDOFF_TITLES, ESCALATION_TITLE, RETURN_ASK_TITLE, SOS_CLUB_PROBE_TITLE];
+
+// ── [contract-gaps-2] 「반환 완료」 — a club probe for the RUNNER only ─────────────────────────
+// Written by `_club_finalize_return` (latest `0070:377-378`, and 0045/0046/0069 before it) to BOTH
+// parties with the CLUB booking id, and by nothing on the 1:1 side. The runner's copy says
+// 「반환이 확인됐어요 — 정산이 지급 대기로 넘어갑니다」 and writes NO ledger row (so `/runner/earnings`
+// would be a second screen that does not show it); the club session screen is where that return
+// was confirmed. The OWNER's copy of the same string says 「리포트를 확인하세요」, and the report is
+// where the owner already lands — so the probe is role-scoped rather than joining
+// `CLUB_PROBE_TITLES`, whose club branch applies to both roles and would have moved the owner off
+// the screen their own sentence names.
+export const RETURN_DONE_TITLE = '반환 완료';
+export const RUNNER_CLUB_PROBE_TITLES = [RETURN_DONE_TITLE];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════
 // [0206] THE `system` KIND — THE OPS ROSTER'S OWN INBOX
@@ -243,6 +268,17 @@ export function destinationForRefLessBookingTitle(title: string | null | undefin
   return REFLESS_BOOKING_DESTINATIONS[title] ?? null;
 }
 
+// ── [gap sweep 2026-09-25] the late-booking check-in family (0117) ──────────────────────
+// `open_checkin` asks BOTH parties a time-boxed question (「진행할지 함께 확인이 필요해요 — 앱에서
+// 응답해 주세요」); `_resolve_checkin` then tells both how it ended — `확인이 필요해요` (kind `safety`,
+// the `incident_review` terminal) or `지연 예약이 정리됐어요` (kind `booking`, `no_show`).
+// [ops-notifications-2] The question's `<CheckinAnswer>` is mounted on `runner/home.tsx` (the
+// runner's current job) and on `/owner/schedule` (inside the selected booking's sheet — schedule
+// takes no bid, so the owner still taps the row; one tap, not a wrong screen).
+export const CHECKIN_TITLE = '예약 시간이 지났어요';
+export const CHECKIN_CASE_TITLE = '확인이 필요해요';
+export const CHECKIN_CLOSED_TITLE = '지연 예약이 정리됐어요';
+
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
 // screen at the one moment that matters most: the owner taps 인계하기, the server sends
@@ -275,7 +311,81 @@ export const RUNNER_ROUTES: Record<string, string> = {
   // (`record_enroute_cancel_comp` 0080 · `record_late_cancel_share` 0085) and `/runner/earnings`
   // is the screen that draws those rows; the calendar draws none of them.
   [CANCEL_COMP_TITLE]: '/runner/earnings',
+  // ── [gap sweep 2026-09-25] every entry below was falling to the calendar default ──────────
+  // [ops-notifications-2] The runner's only `<CheckinAnswer>` mount is `runner/home.tsx` (for the
+  // current job); the calendar has none. No bid: home takes none.
+  [CHECKIN_TITLE]: '/runner/home',
+  // [contract-gaps-2] Money sentences land on the ledger. `sweep_run_end_recovery` (latest 0201) is
+  // 1:1-only and names the settlement it is holding; `club_incident_settle` (latest 0152) writes a
+  // `ledger_items` row before it says 「N원이 정산에 반영됐어요」.
+  '정산을 확인하고 있어요': '/runner/earnings',
+  '케이스 정산 결정': '/runner/earnings',
+  // [contract-gaps-2] `_resolve_checkin`'s two endings open the thread, where the other party is.
+  // Both terminals (`no_show`, `incident_review`) are in `is_booking_party_active`'s set (0114 §1),
+  // so `ensureThread` is not refused and chat.tsx's `preaccept` state cannot fire. Bid-scoped —
+  // see RUNNER_BID_TITLES below. The case title arrives as kind `safety`, which reaches this table
+  // through push.ts's probe path (a booking ref answers false), exactly as a booking row would.
+  [CHECKIN_CASE_TITLE]: '/chat',
+  [CHECKIN_CLOSED_TITLE]: '/chat',
+  // [contract-gaps-2] The non-compensated half of `cancel_owner.ts`'s title choice. Listed so the
+  // calendar is a DECISION for it rather than the default it happened to fall into: the booking
+  // is cancelled and the schedule is what changed.
+  '예약 취소됨': '/runner/calendar',
 };
+
+/** Runner destinations that open ONE booking and therefore carry its id. The bare pathname is a
+ *  real defect for these (0193 codex A4): a cold start has no store to fall back on. The return
+ *  family resolves its booking on the seal screen; the two check-in endings open the thread. */
+export const RUNNER_BID_TITLES = [...RETURN_TITLES, CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE];
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [gap sweep 2026-09-25] OWNER titles that were falling to the POST-RUN report
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// The owner default below is `/owner/report?bid=` — right for a run that has ended, and a false
+// statement for everything else: a pre-run booking opens a placeholder two taps from anything
+// useful, and a run IN PROGRESS opened the record card as if it had finished unmeasured.
+// Each list is an EXACT-title table read out of its writers by `test/notification-route.test.cjs`
+// (comments stripped), so a writer that renames a title reddens there instead of falling back here.
+
+// [ops-notifications-4] PRE-run owner titles. `/owner/radar` takes `bid` (radar.tsx:100) and holds
+// the nominate list, which is the one useful action on a booking that is back to `matching`.
+// Everything else lands on the schedule, which badges each row by `rawStatus`.
+// ⚠ 「매칭 만료」 is deliberately NOT radar: radar's `expired` arm alerts and immediately exits to
+//   the schedule — an alert-then-bounce for a push whose whole content is that the booking expired.
+// ⚠ 「일정 변경 요청 만료」 is also written to the RUNNER (0021:23). This map is consulted after the
+//   runner branch, so the runner keeps the calendar for it.
+export const OWNER_PRERUN_ROUTES: Record<string, '/owner/radar' | '/owner/schedule'> = {
+  '러너 재탐색 중': '/owner/radar',
+  '러너 매칭 완료': '/owner/schedule',
+  '매칭 만료': '/owner/schedule',
+  '일정 변경 수락 ✓': '/owner/schedule',
+  '일정 변경 거절': '/owner/schedule',
+  '일정 변경 요청 만료': '/owner/schedule',
+};
+
+// [ops-notifications-12] Money gate failures whose own body says 「설정 > 결제 관리에서 …」. The
+// destination carries the exact `returnTo` / `returnLabel` pair report.tsx already hands /payments
+// (payments.tsx `allowedReturn` admits `/owner/report`), so the way back is the booking's report.
+// ⚠ THREE titles, not the two the finding named: `charge.ts` has a SECOND `notifyOwner` — the
+//   relink rung's 「카드 재연결이 필요해요」 (「설정 > 결제 관리에서 카드를 다시 연결하면 …」) — which
+//   fell to the report the same way. Found by the pin that reads EVERY `notifyOwner` title out of
+//   charge.ts rather than the one the finding cited; the finding's sentence was the property.
+export const OWNER_PAYMENT_TITLES = ['결제가 완료되지 않았어요', '카드 재연결이 필요해요', '결제 처리 안내'];
+
+// [ops-notifications-3] Titles written DURING a run, to the owner. `start_run.ts` writes the first;
+// api.ts's `EVENT_NOTI` writes the four events; `notifyKmMilestone` composes `${km}km 돌파` at
+// write time, which is why the milestone is a pattern and not a list entry (an exact-match table
+// structurally cannot hold a title the writer composes — the 리캡 도착 lesson).
+// The club run writes two of the same strings (`club_start_delegated_runs` 「러닝 시작」, and
+// `club/run/[sid].tsx`'s photo event), and they route the same way on purpose: the club session
+// screen's own 「실시간 지켜보기」 door (club/session/[sid].tsx O9) opens this very `/owner/live`.
+export const OWNER_LIVE_RUN_TITLES = ['러닝 시작', '응가 완료', '간식 타임', '수분 보충', '새 사진 도착'];
+export const KM_MILESTONE_TITLE = /^\d+km 돌파$/;
+
+/** Is this an owner push written while the run is in progress? */
+export function isOwnerLiveRunTitle(title: string): boolean {
+  return OWNER_LIVE_RUN_TITLES.includes(title) || KM_MILESTONE_TITLE.test(title);
+}
 
 // Owner titles that mean "the meetup is happening NOW". /owner/meetup takes no bid, so these only
 // route there when the notification IS the current booking; otherwise they fall to the bid-scoped
@@ -384,19 +494,29 @@ export function destinationForCommunityRef(
   return f.isClubSession === true ? `/club/session/${f.refId}` : '/community';
 }
 
-/** Does resolving this tap need `bookings.club_session_id`? Only the handoff family and the
- *  sweep's escalation — every other booking title has the same destination in both worlds, and a
- *  probe on those would slow a tap for nothing. */
-export function needsClubProbe(title: string): boolean {
-  return CLUB_PROBE_TITLES.includes(title);
+/** Does resolving this tap need `bookings.club_session_id`? The handoff family, the sweep's
+ *  escalation, the shared return ask and SOS for both roles; 「반환 완료」 for the runner only
+ *  (see RUNNER_CLUB_PROBE_TITLES). Every other booking title has the same destination in both
+ *  worlds, and a probe on those would slow a tap for nothing.
+ *  ⚠ `role` is optional so the one-argument call shape still answers — without it the answer is
+ *  the both-roles set, which never includes a runner-only title (the probe it skips could only
+ *  have moved a runner). */
+export function needsClubProbe(title: string, role?: Role): boolean {
+  return CLUB_PROBE_TITLES.includes(title)
+    || (role === 'runner' && RUNNER_CLUB_PROBE_TITLES.includes(title));
 }
 
-/** Does resolving this tap need to know whether the ref is the owner's current booking? */
+/** Does resolving this tap need to know whether the ref is the owner's current booking? The
+ *  meetup family and the live-run family: both open a screen that takes NO bid and shows whatever
+ *  is in flight, so both are right only when this notification IS that booking. */
 export function needsCurrentBookingProbe(role: Role, title: string): boolean {
-  return role !== 'runner' && OWNER_MEETUP_TITLES.includes(title);
+  return role !== 'runner' && (OWNER_MEETUP_TITLES.includes(title) || isOwnerLiveRunTitle(title));
 }
 
-export function destinationForBookingRef(f: BookingRefFacts, titles: { incident: string }): Destination {
+export function destinationForBookingRef(
+  f: BookingRefFacts,
+  titles: { incident: string; sos: string },
+): Destination {
   const { refId, title, role } = f;
   // [0090 ⑬] Chat regardless of role — runner or owner, the message sits in the same thread.
   if (title === CHAT_TITLE) return { pathname: '/chat', params: { bid: refId } };
@@ -412,9 +532,15 @@ export function destinationForBookingRef(f: BookingRefFacts, titles: { incident:
   }
   // THE CLUB BRANCH — before either role's 1:1 table, for both roles: the club session screen is
   // where a club handoff is confirmed, and it is keyed by the session, not the booking.
-  if (CLUB_PROBE_TITLES.includes(title) && typeof f.clubSessionId === 'string' && f.clubSessionId !== '') {
+  if (needsClubProbe(title, role) && typeof f.clubSessionId === 'string' && f.clubSessionId !== '') {
     return `/club/session/${f.clubSessionId}`;
   }
+  // [contract-gaps-1] SOS — 「상대방이 긴급 도움을 요청했어요 — 즉시 연락해주세요」. BOTH roles, to the
+  // booking's thread: the one bid-scoped surface where the counterparty can be reached (the report
+  // and the calendar, where this used to land, have no contact control at all). AFTER the club
+  // branch on purpose: a club delegation has no 1:1 thread, and its people are on the session
+  // screen. The constant is the writer's (`api.ts` SOS_TITLE), passed in like the incident title.
+  if (title === titles.sos) return { pathname: '/chat', params: { bid: refId } };
   if (role === 'runner') {
     const pathname = RUNNER_ROUTES[title];
     if (!pathname) return '/runner/calendar';
@@ -426,9 +552,32 @@ export function destinationForBookingRef(f: BookingRefFacts, titles: { incident:
     // screen opened 「확인할 인계가 없어요」 for a booking the runner was being asked to confirm;
     // and with a STALE store it opened a DIFFERENT booking, whose seal button would then stamp
     // that one. Two failures, and the second writes to the wrong row.
-    // Only this family is wrapped: the other runner destinations are list screens that take no
-    // bid, and handing them one would be a param nothing reads.
-    return RETURN_TITLES.includes(title) ? { pathname, params: { bid: refId } } : pathname;
+    // Only the bid-scoped screens are wrapped (RUNNER_BID_TITLES — the return family's seal screen
+    // and the check-in endings' thread): the other runner destinations are list screens that take
+    // no bid, and handing them one would be a param nothing reads.
+    return RUNNER_BID_TITLES.includes(title) ? { pathname, params: { bid: refId } } : pathname;
+  }
+  // [ops-notifications-2] the check-in question — its answer lives on the schedule's booking sheet.
+  if (title === CHECKIN_TITLE) return '/owner/schedule';
+  // [ops-notifications-4] pre-run titles: radar (with the bid it reads) for 「러너 재탐색 중」, the
+  // schedule for the rest. Never the post-run report.
+  const prerun = OWNER_PRERUN_ROUTES[title];
+  if (prerun === '/owner/radar') return { pathname: prerun, params: { bid: refId } };
+  if (prerun === '/owner/schedule') return prerun;
+  // [ops-notifications-12] the money gate — the screen the body names, with the way back.
+  if (OWNER_PAYMENT_TITLES.includes(title)) {
+    return {
+      pathname: '/payments',
+      params: { returnTo: `/owner/report?bid=${refId}`, returnLabel: '러닝 리포트로' },
+    };
+  }
+  // [ops-notifications-3] the live-run family. `/owner/live` takes no bid and shows the booking in
+  // flight, so it is right only when this notification IS that booking — the meetup arm's rule,
+  // for the same reason. An old inbox row (or an unknown answer) goes to the bid-scoped report,
+  // which is where a finished run's record is. push.ts writes `draft.bookingId` before it pushes
+  // this destination, as every other `/owner/live` caller does (see its comment there).
+  if (isOwnerLiveRunTitle(title)) {
+    return f.isCurrentOwnerBooking === true ? '/owner/live' : { pathname: '/owner/report', params: { bid: refId } };
   }
   // 반복 러닝 ① — the cron's freshly inserted booking, which is PRE-run. The owner default below
   // is the post-run report, so this arm is the difference between 「러너 찾는 중 · 지명하기」 and a

@@ -78,6 +78,36 @@ export const CLASS_ORDER: readonly string[] = Object.keys(CLASS_LABELS);
  *  two questions are different: this one is 「what may a new person be seated at」. */
 export const SELECTABLE_CLASSES: readonly string[] = CLASS_ORDER;
 
+/** Classes the server ACCEPTS and nothing EMITS — a chip an operator can turn on and never be paged
+ *  by. [gap sweep 2026-09-25 · ops-notifications-6]
+ *
+ *  Measured on trunk `943eb7c`, comment-stripped: the edge's `notifyOps(db, "<class>")` callers are
+ *  late_comp_failed + enroute_comp_failed (transition-booking/cancel_owner.ts) and
+ *  payment_marker_lost + payment_manual_cancel (confirm-payment/handler.ts); the migrations'
+ *  `ops_recipients_for('<class>')` literals and `c_ops_class constant text := '<class>'` routing
+ *  constants cover payout_due · return_strand · handoff_unanswered ·
+ *  billing_key_revocation_abandoned · club_fee_mint_failed. These four appear in neither.
+ *
+ *  ⚠ They stay SELECTABLE (0208 §0c: a class the server knows and this table omits is a desk nobody
+ *    can be seated at from the product — and seating someone ahead of an emitter is legitimate).
+ *    The screen LABELS them instead of hiding them, so the chip stops promising a page.
+ *  ⚠ `ops-roster.test.cjs` scans the emitters every run and fails in BOTH directions: an emitter
+ *    landing for a class listed here reddens it (delete the entry), and a class NOT listed here
+ *    with no emitter reddens it too (add it). The set can only say what the source says.
+ *  ⚠ The charge ladder's `charge_ladder_exhausted` ping is the money-path slice that turns charging
+ *    on (`charge.ts`'s last rung tells only the owner today) — not this file's to add. */
+export const DORMANT_CLASSES: ReadonlySet<string> = new Set([
+  'charge_ladder_exhausted',
+  'charge_dispatch_stale',
+  'settled_without_payment',
+  'incident_waive_pending',
+]);
+
+/** The suffix a dormant class's chip carries — '' for every class something emits. */
+export function dormantNote(eventClass: string): string {
+  return DORMANT_CLASSES.has(eventClass) ? ' · 아직 발신 없음' : '';
+}
+
 /** The Korean label, or the raw class when we do not have one (see CLASS_LABELS' header). */
 export function classLabel(eventClass: string): string {
   return CLASS_LABELS[eventClass] ?? eventClass;

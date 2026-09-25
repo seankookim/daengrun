@@ -12,7 +12,7 @@ import {
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import {
-  chipLabel, classLabel, CONSOLE_CLASS, groupRoster, OpsRosterPerson, personSummary,
+  chipLabel, classLabel, CONSOLE_CLASS, dormantNote, groupRoster, OpsRosterPerson, personSummary,
   SELECTABLE_CLASSES, wouldStrandConsole,
 } from '../../src/lib/ops-roster';
 import { runSeat, seatRefusalText } from '../../src/lib/ops-roster-seat';
@@ -287,11 +287,13 @@ export default function OpsRoster() {
                       }}
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
-                      accessibilityLabel={classLabel(c)}
+                      accessibilityLabel={`${classLabel(c)}${dormantNote(c)}`}
                       style={({ pressed }) => [s.chip, on && s.chipOn, pressed && s.rowPressed]}
                     >
+                      {/* [ops-notifications-6] a class nothing emits says so — the chip must not
+                          promise a page that cannot arrive */}
                       <Text style={[s.chipText, on && s.chipTextOn]}>
-                        {on ? '✓ ' : ''}{classLabel(c)}
+                        {on ? '✓ ' : ''}{classLabel(c)}{dormantNote(c)}
                       </Text>
                     </Pressable>
                   );
@@ -371,7 +373,7 @@ function PersonCard({ person, rows, busyKey, onToggle }: {
               disabled={busy || otherBusy || stranding}
               accessibilityRole="switch"
               accessibilityState={{ checked: on, disabled: busy || otherBusy || stranding }}
-              accessibilityLabel={`${classLabel(c)} ${on ? '해제' : '설정'}`}
+              accessibilityLabel={`${classLabel(c)}${dormantNote(c)} ${on ? '해제' : '설정'}`}
               accessibilityHint={stranding ? '마지막 운영자는 해제할 수 없어요' : undefined}
               style={({ pressed }) => [
                 s.chip,
@@ -385,7 +387,7 @@ function PersonCard({ person, rows, busyKey, onToggle }: {
                 on && s.chipTextOn,
                 (busy || otherBusy || stranding) && s.chipTextDisabled,
               ]}>
-                {on && !busy ? '✓ ' : ''}{chipLabel(c, busy)}
+                {on && !busy ? '✓ ' : ''}{chipLabel(c, busy)}{busy ? '' : dormantNote(c)}
               </Text>
             </Pressable>
           );
