@@ -222,7 +222,6 @@ const KNOWN_HAMNIDA = {
   // DELIBERATE, and it stays: the live-run km caption is a sports-caster parody (「꼬리 텐션
   // 최상입니다」) — the formal register IS the joke. Two template variants, one caption.
   'app/runner/run.tsx': 2,
-  'app/runner/home.tsx': 1,        // held by fix/custody-strand-client while this slice ran
   // not held by any builder, and outside this slice's file list — for the orchestrator
   'app/owner/course-map.tsx': 1,
   'src/lib/ops-console.ts': 1,

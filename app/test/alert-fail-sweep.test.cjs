@@ -162,8 +162,6 @@ const KNOWN_RAW = {
   // this slice's brief: do not touch — chat.tsx was in flight on fix/chat-read-cursor when the
   // brief was written, and be/0225 holds the chat send path these three failures come from.
   'app/chat.tsx': 3,
-  // held by fix/custody-strand-client (wave 3)
-  'app/runner/home.tsx': 2,
   // HELD be/0211-owner-proximity (awaiting Sean's ruling) owns both screens
   'app/owner/matching.tsx': 2,
   'app/owner/radar.tsx': 2,
@@ -185,7 +183,6 @@ const KNOWN_RAW = {
 // forgotten: owner/meetup.tsx 「인계 확인이 전송되지 않았어요」 and runner/meetup.tsx's twin — a
 // failure in sentence form beside club/session's 「인계 확인 실패」, in files this slice may not edit.
 const KNOWN_TITLE = {
-  'app/runner/home.tsx': 2,    // fix/custody-strand-client
   'app/owner/matching.tsx': 1, // HELD be/0211
   'app/owner/meetup.tsx': 2,   // frozen zone, not this slice's to edit
 };
@@ -369,9 +366,10 @@ const judged = FILES.filter((rel) => !EXCLUDED.some((x) => rel.startsWith(x)));
 
 // A sweep of nothing reads exactly like a clean tree (§「a battery that never ran reads as success」),
 // so assert it walked a real tree with real Alerts in it first. Measured 2026-09-25 on the
-// post-sweep tree, with this file's own functions: 196 files, 293 failure-Alert calls (252
-// `Alert.alert(` + 41 `alertFail(`, the helper's own definition included), 44 raw reads and 10
-// sentence titles before exclusions (the excluded Codex/dev files hold the ones not ledgered).
+// post-sweep tree (trunk 2defc08 + this slice), with this file's own functions: 200 files, 293
+// failure-Alert calls (250 `Alert.alert(` + 43 `alertFail(`, the helper's own definition
+// included), 42 raw reads and 8 sentence titles before exclusions (the excluded Codex/dev files
+// hold the ones not ledgered).
 t('the sweep walked the app (≥150 source files)', FILES.length >= 150, String(FILES.length));
 const totalCalls = FILES.reduce((n, rel) => n + alertCalls(STRIPPED.get(rel)).length, 0);
 t('the sweep saw real Alert calls (≥200; 293 at write time)', totalCalls >= 200, String(totalCalls));
@@ -410,9 +408,10 @@ const CONVERTED = [
   'app/runner-profile/[id].tsx', 'src/components/card-link-panel.tsx',
   'app/safety.tsx', 'app/owner/request.tsx', 'app/owner/schedule.tsx', 'app/runner/requests.tsx',
   'app/runner/done.tsx', 'app/runner/run.tsx',
-  // landed from ui/chrome-consistency-2 (59c3fdc) during this slice, then converted here
+  // landed from ui/chrome-consistency-2 (59c3fdc) and fix/custody-strand-client (2defc08) during
+  // this slice, then converted here
   'app/compose.tsx', 'app/incident/[bid].tsx', 'app/owner/review.tsx', 'app/owner/addresses.tsx',
-  'app/owner/address-pin.tsx',
+  'app/owner/address-pin.tsx', 'app/runner/home.tsx',
 ];
 for (const rel of CONVERTED) {
   const s = STRIPPED.get(rel) || '';
