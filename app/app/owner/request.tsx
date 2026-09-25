@@ -549,7 +549,8 @@ export default function Request() {
     }
     // ── 픽업 주소 — 반려견과 같은 문법, 사다리에서 바로 다음 칸 ──────────────────────────────
     // 여기가 없던 동안: 어디서 행이 「주소를 불러오지 못했어요」를 빨갛게 적고 있어도 도크는
-    // 「러너 찾기」였고, 이 함수는 `address_id: pickupAddr?.id` = undefined 를 보냈다. 서버는 NULL
+    // 「러너 찾기」였고, 이 함수는 화면 상태의 주소 id 를 **옵셔널 체이닝으로** 보냈다 — 읽기가
+    // 실패했을 때도, 등록된 주소가 아예 없을 때도 그 값은 undefined 다. 서버는 NULL
     // 픽업을 받는다 (create-booking-hold/handler.ts:147) — 그래서 러너가 갈 곳을 모르는 진짜 예약이
     // 하나 생겼다. 모르는 것을 '없음'으로 만들지 않는 것이 반려견 게이트의 규칙이고, 주소도 같다.
     let addr = pickupAddr;
@@ -637,7 +638,7 @@ export default function Request() {
         // origin은 'auto'지만 보호자는 분명히 선호를 표현했다. 둘을 따로 기록해야 구분된다.
         route_chips: chips,
         candidate_ack: candidateAck != null && candidateAck === routeId ? true : undefined,
-        address_id: addr.id, // 사다리가 보장한다 — `pickupAddr?.id`(undefined 가능)가 있던 자리
+        address_id: addr.id, // 사다리가 보장한다 — undefined 가 될 수 있던 값이 있던 자리
         scheduled_at: draft.scheduledAtIso!, // pay()에서 선택 강제됨 — +3h 폴백 은퇴
         km, // fractional-safe: bookings.km is numeric(4,1); the edge fn rounds the fare
         pace_label: pace,
