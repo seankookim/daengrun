@@ -205,11 +205,16 @@ export default function Request() {
   // `lib/route-pick`이 소유한다 — 화면에 묻어 두면 읽을 수도 고칠 수도 없다.
   // ⚠ 넘기는 집합은 반드시 `activeRoutes`(status 게이트 + 칩 적용) — 원본 목록을 넘기면
   // 사용자가 끈 조건의 코스나 candidate가 배정된다.
-  const autoPick = (target: number): PickResult => pickRoute(activeRoutes, target, pickup);
+  // useCallback so `recommended` below can call it: one owner of the rule, and the snapshot's
+  // recommended_route_id cannot drift from what the dial actually auto-picks.
+  const autoPick = useCallback(
+    (target: number): PickResult => pickRoute(activeRoutes, target, pickup),
+    [activeRoutes, pickup],
+  );
   const autoPickFor = (target: number): string | null => autoPick(target).id;
   // 이 거리에서 앱이 골랐을 코스 — 스냅샷의 recommended_route_id. 보호자가 무엇을 덮어썼는지
   // 서버가 알 수 있어야 오버라이드율이 계산된다.
-  const recommended = useMemo(() => pickRoute(activeRoutes, km, pickup), [activeRoutes, km, pickup]);
+  const recommended = useMemo(() => autoPick(km), [autoPick, km]);
   const recommendedRouteId = recommended.id;
 
   const pickRouteForKm = (target: number) => {

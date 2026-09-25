@@ -186,8 +186,7 @@ export default function RunDone() {
     fetchMyReturnResolution(bookingId)
       .then(setResolution)
       .catch((e) => console.warn('[done] resolution:', (e as Error)?.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bookingId]); // same key as the trace and photo reads below, so all three follow one booking
 
   // [0193] …and the NAME is part of the same defect. `runResult.dogName` belongs to whatever run
   // ended last in this process, so on a receipt opened for a DIFFERENT booking it is another dog's
