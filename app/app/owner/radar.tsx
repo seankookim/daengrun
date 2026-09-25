@@ -11,6 +11,7 @@ import {
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { loopUnlessReduced } from '../../src/lib/reducedMotion';
 import { scheduleDoor } from '../../src/lib/home-hero-route';
 import { draft } from '../../src/store';
 import { layout, lilac, paper } from '../../src/theme';
@@ -70,15 +71,17 @@ const RADAR_H = 132;
 const RIPPLE_BASE = 52;
 const RIPPLE_MAX = 2.5;
 
-function Ripple({ delay }: { delay: number }) {
+// Reduce Motion (DESIGN.md §7c): no loop runs, and each ring is parked at its own `rest` phase.
+// Phase 0 is RIPPLE_BASE (52) — under the 54 core disc, i.e. hidden — so the three rings rest at
+// 0.2 / 0.4 / 0.6 instead: 68 / 83 / 99 px at 0.31 / 0.23 / 0.14 opacity, three static concentric
+// rings fading outward inside the 132 stage. The same radar picture, without the travel.
+function Ripple({ delay, rest }: { delay: number; rest: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const loop = Animated.loop(
+    return loopUnlessReduced(() => Animated.loop(
       Animated.timing(v, { toValue: 1, duration: 3200, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [v, delay]);
+    ), () => v.setValue(rest));
+  }, [v, delay, rest]);
   return (
     <Animated.View
       pointerEvents="none"
@@ -409,9 +412,9 @@ export default function Radar() {
         <View style={s.radar}>
           {!matchedName && (
             <>
-              <Ripple delay={0} />
-              <Ripple delay={1050} />
-              <Ripple delay={2100} />
+              <Ripple delay={0} rest={0.2} />
+              <Ripple delay={1050} rest={0.4} />
+              <Ripple delay={2100} rest={0.6} />
             </>
           )}
           <View style={s.core}>

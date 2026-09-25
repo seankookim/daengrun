@@ -13,6 +13,7 @@ import { startOwnerActivity } from '../../src/lib/ownerActivity';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
 import { withParticle } from '../../src/lib/particle';
+import { loopUnlessReduced } from '../../src/lib/reducedMotion';
 import { draft } from '../../src/store';
 import { layout, paper } from '../../src/theme';
 
@@ -371,12 +372,10 @@ export default function OwnerMeetup() {
   const isWaiting = stage === 'waiting';
   useEffect(() => {
     if (!isWaiting) { pulse.setValue(0); return; }
-    const loop = Animated.loop(Animated.sequence([
+    return loopUnlessReduced(() => Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
+    ])), () => pulse.setValue(0));
   }, [isWaiting, pulse]);
 
   // [0063] owner Live Activity — starts at the sealed handoff (server truth: status picked_up),

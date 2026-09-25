@@ -66,3 +66,60 @@ export function useReducedMotionState(): ReducedMotionState {
 export function useReducedMotion(): boolean {
   return useReducedMotionState().reduce;
 }
+
+/** The loop-shaped slice of `Animated.CompositeAnimation` — all a decorative loop needs. */
+export type LoopHandle = { start: () => void; stop: () => void };
+
+/**
+ * A decorative loop that starts only once the OS has ANSWERED, and only if Reduce Motion is off.
+ * Call it from the effect that used to call `.start()`, and return what it returns (the cleanup):
+ *
+ *   useEffect(() => {
+ *     if (!isWaiting) { pulse.setValue(0); return; }
+ *     return loopUnlessReduced(() => <the loop>, () => pulse.setValue(0));
+ *   }, [isWaiting, pulse]);
+ *
+ * Why a plain function and not `useReducedMotionState()`: both meetup screens are under the
+ * hook-freeze law (DO-NOT-REFACTOR — no new hooks in their bodies), and they carry two of the four
+ * loops this exists for. One idiom for every loop keeps the source pin
+ * (`test/reduced-motion-loops.test.cjs`) exact: a loop is gated iff it is built inside this
+ * function's first argument.
+ *
+ * Settled-aware — the A7 lesson (see `useReducedMotionState`): the boolean hook answers `false`
+ * before the platform has replied, so a loop started on that first answer runs on a Reduce Motion
+ * device until the reply lands. Here nothing starts until the reply (or the same
+ * SETTLE_FALLBACK_MS timeout — a platform that never answers keeps motion, as the hook does).
+ *
+ *   · `make` builds a FRESH loop per start. A stopped loop does not restart on the JS driver (its
+ *     finished latch stays set), so re-using one would make a live OFF-toggle a silent no-op.
+ *   · `rest` puts the value where the element is still DRAWN (§7c: the loop stops, the element
+ *     stays — never hidden, never a different meaning). Called under Reduce Motion, and when the
+ *     setting flips on mid-loop.
+ *   · a live toggle is honoured both ways, like the hook's `reduceMotionChanged` listener.
+ */
+export function loopUnlessReduced(make: () => LoopHandle, rest: () => void): () => void {
+  let alive = true;
+  let settled = false;
+  let running: LoopHandle | null = null;
+  const apply = (reduce: boolean) => {
+    if (!alive) return;
+    settled = true;
+    if (reduce) {
+      if (running) { running.stop(); running = null; }
+      rest();
+      return;
+    }
+    if (!running) { running = make(); running.start(); }
+  };
+  AccessibilityInfo.isReduceMotionEnabled()
+    .then((v) => apply(!!v))
+    .catch(() => apply(false)); // unsupported platform — keep motion, as the hook does
+  const timer = setTimeout(() => { if (!settled) apply(false); }, SETTLE_FALLBACK_MS);
+  const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => apply(!!v));
+  return () => {
+    alive = false;
+    clearTimeout(timer);
+    sub?.remove?.();
+    if (running) { running.stop(); running = null; }
+  };
+}
