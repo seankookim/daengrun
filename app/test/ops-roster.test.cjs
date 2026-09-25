@@ -199,13 +199,14 @@ t('a person with no row at all is not flagged',
   const ts = tsFiles.map((f) => stripTs(fs.readFileSync(f, 'utf8'))).join('\n');
 
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const emitters = (cls) => {
+  const emittersIn = (cls, tsSrc, sqlSrc) => {
     const hits = [];
-    if (new RegExp(`notifyOps\\(\\s*[A-Za-z_$][\\w$]*\\s*,\\s*"${esc(cls)}"`).test(ts)) hits.push('notifyOps');
-    if (new RegExp(`ops_recipients_for\\(\\s*'${esc(cls)}'`).test(sql)) hits.push('ops_recipients_for literal');
-    if (new RegExp(`constant\\s+text\\s*:=\\s*'${esc(cls)}'`).test(sql)) hits.push('routing constant');
+    if (new RegExp(`notifyOps\\(\\s*[A-Za-z_$][\\w$]*\\s*,\\s*"${esc(cls)}"`).test(tsSrc)) hits.push('notifyOps');
+    if (new RegExp(`ops_recipients_for\\(\\s*'${esc(cls)}'`).test(sqlSrc)) hits.push('ops_recipients_for literal');
+    if (new RegExp(`constant\\s+text\\s*:=\\s*'${esc(cls)}'`).test(sqlSrc)) hits.push('routing constant');
     return hits;
   };
+  const emitters = (cls) => emittersIn(cls, ts, sql);
 
   // ── controls: the scan read something, and it SEES the emitters that exist ──
   t('CONTROL · the scan read migrations and edge sources (an extractor that read nothing would call every class dormant)',
@@ -214,8 +215,23 @@ t('a person with no row at all is not flagged',
     emitters('late_comp_failed').includes('notifyOps'), JSON.stringify(emitters('late_comp_failed')));
   t('CONTROL · the scan finds a known SQL emitter (payout_due)',
     emitters('payout_due').length > 0, JSON.stringify(emitters('payout_due')));
-  t('CONTROL · 0208\'s allowlist literal does NOT count as an emitter (it names every class, so a bare-literal scan would find all thirteen)',
-    /'charge_dispatch_stale'/.test(sql) && emitters('charge_dispatch_stale').length === 0);
+  // ⚠ This control reads a FIXTURE, not the live tree. Its first version asserted
+  //   `emitters('charge_dispatch_stale').length === 0` on the live sources — the same variable,
+  //   through the same operator, as the dormant pin below — and a planted emitter reddened BOTH, so
+  //   it was the dormant pin printed twice (measured in this slice's battery, LAB-P5). What the
+  //   control has to establish is independent of any class's current state: that an allowlist
+  //   ARRAY literal is not read as an emitter while a real routing call is.
+  {
+    const FIXTURE_SQL = "c_classes constant text[] := array['payout_due', 'x_class'];\n"
+      + "select * from ops_recipients_for('y_class');\n  c_ops_class constant text := 'z_class';";
+    t('CONTROL · an allowlist array literal is NOT an emitter; a routing call and a routing constant ARE (fixture)',
+      emittersIn('x_class', '', FIXTURE_SQL).length === 0
+      && emittersIn('y_class', '', FIXTURE_SQL).includes('ops_recipients_for literal')
+      && emittersIn('z_class', '', FIXTURE_SQL).includes('routing constant')
+      && emittersIn('w_class', 'await notifyOps(db, "w_class", {});', '').includes('notifyOps'));
+    t('CONTROL · the live tree really does carry the allowlist literal the fixture models (0208 §C)',
+      /'charge_dispatch_stale'/.test(sql) && /'incident_waive_pending'/.test(sql));
+  }
   t('CONTROL · a comment quoting an emitter does not count (the stripper is doing work)',
     stripTs('// notifyOps(db, "x")\n/* notifyOps(db, "x") */ const a = "//not-a-comment";').indexOf('notifyOps') < 0
     && stripTs('const a = "//not-a-comment";').includes('//not-a-comment')
