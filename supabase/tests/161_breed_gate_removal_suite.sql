@@ -469,10 +469,18 @@ declare
   --    `[0111]`). 268 `0237-E1…E5` own the new behaviour.
   --    Previous values: src ac52c31c24d7933b719ed1513d829c03 / 15287, comment
   --    3e0908e17979419058cf14ec5e2687ed / 1224.
-  c_gen_src_md5 constant text := 'cfa69ec84f3e6dad221339d57543bbea';
-  c_gen_src_len constant int  := 17562;
-  c_gen_cmt_md5 constant text := 'b69c55a84a0820a7bbbaf0f9957173d7';
-  c_gen_cmt_len constant int  := 1625;
+  -- ⚠ [0237, exec-review round] RE-READ FROM THE CATALOG on 2026-09-26 after the revised 0237 applied.
+  --    The body moved ON PURPOSE by one more edit (0237 §E ④): `v_sched := null` at the top of each
+  --    series' block, and only a failure that is costing a booking (occurrence never named, or no booking
+  --    of the series on its KST date) advances the failure episode — an executing review measured lock
+  --    contention on an already-booked series paging the roster. Undoing the four edits still gives
+  --    0232's text byte for byte. The comment's `[0237]` stanza says so. 268 `0237-E9` owns it.
+  --    Previous values: src cfa69ec84f3e6dad221339d57543bbea / 17562, comment
+  --    b69c55a84a0820a7bbbaf0f9957173d7 / 1625.
+  c_gen_src_md5 constant text := '77d412da41f78bd8d39df7d8d20bb11e';
+  c_gen_src_len constant int  := 19250;
+  c_gen_cmt_md5 constant text := 'fe20c26f980d268e551cb805795ec15c';
+  c_gen_cmt_len constant int  := 1733;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have

@@ -3,7 +3,7 @@
 --        `recurring_generation_failed` class, one ring per failure EPISODE, recovery resets it
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- Suite: 268_recurring_failure_escalation_suite.sql (tag `rfe`) — 0237-C1 · E1 · E2 · E3 · E4 · E5 ·
---        E6 · E7 · B1 · S1
+--        E6 · E7 · E8 · E9 · B1 · S1
 -- Deploy: `supabase db push` only. No edge function, no cron change, no client code change (one
 --        roster chip label and the 운영 알림 sentence — display vocabulary, no new route), no flag.
 -- ⚠ Numbers: 0229–0231 / suites 260–262 are held by unpushed worktrees on Sean's Mac (REGISTRY, the
@@ -40,16 +40,22 @@
 --      every `recurring_generation_failed` recipient (constant title, identifier-free body, `ref_id` =
 --      the SERIES) and stamp `escalated_at` — ONLY when at least one recipient was written (an empty
 --      roster rings nobody, stamps nothing, and the next failing tick tries again: 0233 arm ⓗ's rule).
---   §E `generate_recurring_bookings` — 0232 §D's body, built BY SCRIPT, three edits and nothing else:
---        ① the failure upsert also counts the episode (`episode_failures + 1`, `episode_started_at`
---          kept or started);
+--   §E `generate_recurring_bookings` — 0232 §D's body, built BY SCRIPT, four edits and nothing else:
+--        ① the failure upsert also counts the episode (`episode_failures` + 1, `episode_started_at`
+--          kept or started) — ④ says which failures count;
 --        ② after the record's own block, the escalation in ITS OWN subtransaction (a raise inside it is
 --          a WARNING; the record, the rest of the tick and every sibling stand — 268 `0237-E4`);
 --        ③ after `n := n + 1` (a booking of this series was MINTED this tick), the RECOVERY reset in its
 --          own subtransaction: `episode_failures = 0`, `episode_started_at` / `escalated_at` NULL — so
 --          the next failure starts a NEW episode that rings again (`0237-E3`); a raise inside it is a
---          WARNING and the booking stands (`0237-E5`).
---      Every other line is 0232's byte for byte — the build script undoes the three edits and asserts
+--          WARNING and the booking stands (`0237-E5`);
+--        ④ [exec review 2026-09-26] only a failure that is COSTING A BOOKING advances the episode:
+--          ④a `v_sched := null` at the top of the series' block (so a failure before the occurrence is
+--          named cannot read the previous series' value), ④b inside the record's own block, `v_owed` =
+--          「the occurrence was never named, or the series holds no booking on its KST date」, and the
+--          upsert adds 1 only when owed (the lifetime `attempts` / `error_code` are written either way).
+--          `0237-E9` (two real sessions).
+--      Every other line is 0232's byte for byte — the build script undoes the four edits and asserts
 --      equality with 0232's text. The money gates, the route gate, the episode rows of 0232, 0227's
 --      per-series block and nested record write, the dog lock, `lock_timeout`, the loop order, the
 --      ownership belt, every insert and every owner-facing string: UNCHANGED. ACL restated.
@@ -67,6 +73,13 @@
 --     outlast one 2 s lock wait. Two ticks can be the same stuck session. The third is past both, and it
 --     arrives ~2 h into a ~70 h minting window (T-72 h → T-2 h), leaving an operator ~2½ days before the
 --     booking is lost. Bigger thresholds spend that margin; smaller ones page for noise.
+--   · **Only a failure that is costing a booking counts (§E ④).** After a mint, the occurrence stays
+--     inside the 72 h window for ~70 hourly ticks, and each of them still takes the dog lock BEFORE the
+--     dedup `continue` (0180's order, pinned by 211 `0180-A1`, deliberately not moved). So contention
+--     noise could not be assumed to sit between mints: an executing review measured three 55P03 ticks
+--     on a series already holding its booking → a page. A failed tick whose occurrence is named and
+--     already booked is RECORDED (attempts, error_code) and does not advance the episode; a failure that
+--     never named its occurrence (malformed rule, bad time) always counts — errs toward telling.
 --   · Why "failed ticks in the episode" and not "CONSECUTIVE ticks": a tick in which the series is NOT
 --     attempted (paused by its owner, outside its window, money-blocked, clash, route gate) is not a
 --     success — only a mint proves the series works. Counting those as resets would let a series that
@@ -112,18 +125,31 @@
 --   · `_shared/ops.ts`'s `OpsEventClass` is not touched: the emitter is SQL (like `return_strand`).
 --   · A tick in which the ring's own write fails (`0237-E4`) does not stamp `escalated_at`, so the next
 --     FAILING tick rings. If the series stops failing first, that episode is never rung — it ended.
+--   · NAMED RESIDUE (prose — no pin: the harness cannot separate a shared cause from a planted one): the
+--     ring is an INSERT into `notifications`, the same channel the generator's own notices use
+--     (「반복 러닝 예약 생성」). A fault that breaks every notifications insert — the kind that could BE
+--     why the series fails — breaks the ring the same way on every tick: `escalated_at` is never
+--     stamped and the only trace per tick is a WARNING. Common mode, not isolation. The durable record
+--     survives it: `recurring_generation_failures` (error_code, episode_failures ≥ 3, escalated_at IS
+--     NULL) is exactly the 「due and unrung」 set a later read or desk should show.
 --   · NAMED RESIDUE (prose — the harness has one session): two overlapping ticks (a manual call beside
 --     the cron). The follower records a 55P03 for a dog the leader holds, and — if the leader then
 --     mints that series — the leader's reset UPDATE may wait on the follower's row lock for the 2 s
 --     `lock_timeout` and time out; the booking stands (E5's property) and the episode is NOT reset, so
 --     the follower's noise failure and any later real ones share an episode. Errs toward telling; the
 --     series' next mint resets it.
---   · Pre-0237 failure rows get a one-time episode backfill in §A (production has no such rows: 0227
---     is not deployed there — per the handoff's 「production is at 0202」, READ, not measured here).
+--   · NO backfill of pre-0237 failure rows (exec review 2026-09-26 removed a draft one): such a row reads
+--     episode 0 / not rung and its series' next failing tick starts an episode — at most two ticks of
+--     delay, never a page for a series that had recovered. Production is believed to hold no such rows
+--     (0227 is not deployed there — the handoff's 「production is at 0202」, READ, not measured here).
+--   · The ring BODY claims only what every ringing episode makes true — the generator failed for this
+--     series several times — and points at `error_code` (55P03 = lock contention). It does not say the
+--     owner is losing bookings (a malformed rule can ring while this week's booking exists), and it does
+--     not say 「연속으로」: the rule counts failed ticks in the episode, not consecutive ones (§0c).
 --
 -- ═══ §0f SHIPPED PINS / FILES THAT MOVE, AND WHY ═════════════════════════════════════════════
 --   · `161 P4` — the generator's prosrc/comment digests, re-read from the catalog after this file
---     applied, as P4's own note asks.
+--     applied, as P4's own note asks (re-read again after the exec-review round's edit ④).
 --   · `245 0214-T1` (19 titles) and `0214-T4` (`_recurring_failure_escalate` joins SYSTEM_WRITERS).
 --   · `239`'s copy of `c_classes` gains the class (its NAMED GAP ④: the two copies AGREE).
 --   · `app/src/lib/ops-roster.ts` gains the chip label; `app/test/ops-roster.test.cjs`'s SERVER_CLASSES
@@ -132,14 +158,15 @@
 --     re-derives the ledger from the writers and needs no edit (it reads the latest declarations).
 --
 -- ═══ §0g WHOSE OBJECTS THIS BUILDS ON (REGISTRY's silent-collision table) ═════════════════════
---   RE-DECLARES `generate_recurring_bookings()` ←0232 §D (built by script, every other line asserted
---   identical) · `_noti_ops_titles()` ←0234 §A (copied by script, +1) · `ops_roster_set(uuid,text,
+--   RE-DECLARES `generate_recurring_bookings()` ←0232 §D (built by script, four edits, every other line
+--   asserted identical) · `_noti_ops_titles()` ←0234 §A (copied by script, +1) · `ops_roster_set(uuid,text,
 --   boolean)` ←the catalog (0208 §C + 0216 §A + 0234 §C; one array entry). ALTERS table
 --   `recurring_generation_failures` (+3 columns). CREATES `_recurring_failure_escalate(uuid)`. Every
 --   ACL restated in THIS file.
 --   ⚠ A later slice re-declaring `generate_recurring_bookings` must keep 0227's per-series block and
---   nested record write, 0232's route gate and episode rows, AND this file's episode count, the
---   escalation's own block and the recovery reset's own block (268 `0237-E1…E5`).
+--   nested record write, 0232's route gate and episode rows, AND this file's episode count (with its
+--   `v_owed` condition and the `v_sched := null` reset), the escalation's own block and the recovery
+--   reset's own block (268 `0237-E1…E5`, `E8`, `E9`).
 --   ⚠ ⚠ `0231` (be/sweep-honesty-route-gate, held on Sean's Mac) was ROUTED this finding and is
 --   described in the verdict doc as 「already re-declaring generate_recurring_bookings」. If it lands
 --   after this file it will be a re-declaration from an OLDER body — whoever lands second must rebuild
@@ -159,19 +186,10 @@ do $chk$ begin
   end if;
 end $chk$;
 
--- One-time backfill of rows written before this file (production has none — §0e). A row whose series
--- has a booking created after its last failure had recovered: its episode is closed (0). Otherwise the
--- lifetime count is the episode's upper bound — errs toward telling, at most once per series.
-update recurring_generation_failures f
-   set episode_failures   = case when exists (select 1 from bookings b
-                                                where b.series_id = f.series_id
-                                                  and b.created_at > f.last_failed_at)
-                                 then 0 else f.attempts end,
-       episode_started_at = case when exists (select 1 from bookings b
-                                                where b.series_id = f.series_id
-                                                  and b.created_at > f.last_failed_at)
-                                 then null else f.first_failed_at end
- where f.episode_failures = 0 and f.escalated_at is null;
+-- NO BACKFILL (exec review 2026-09-26). A pre-0237 row starts at episode 0 / not rung, and its series'
+-- next failing tick starts an episode (§0e). The earlier draft backfilled from `bookings.created_at` —
+-- the very witness §0c rejects as party-writable — and no pin could reach it (the harness applies
+-- every migration before any suite writes a failure row, so it always ran on an empty table).
 
 -- 0227's seal, restated (a column add does not move it; said so the VERIFY below can hold it)
 alter table recurring_generation_failures enable row level security;
@@ -183,12 +201,13 @@ comment on table recurring_generation_failures is
 SQLSTATE and message (SQLERRM, 500 chars, never DETAIL), a lifetime attempt count, first and last
 failure time; and since 0237 the current failure EPISODE: episode_failures (failed ticks since it began),
 episode_started_at, escalated_at (when this episode rang the recurring_generation_failed roster; NULL =
-not yet). The generator''s failure handler writes the row; _recurring_failure_escalate stamps
+not yet). A failure advances the episode only when it is costing a booking (the occurrence was never
+named, or the series holds no booking on its date). The generator''s failure handler writes the row; _recurring_failure_escalate stamps
 escalated_at; a MINT of the series resets the episode (0237 §E ③). A 55P03 row can also mean an
 overlapping tick held that dog (0227 §0d ②). Server-only: RLS on, no policies, no client privilege.
-258 0227-V1/V2/S1 and 268 0237-E1…E5 pin it.';
+258 0227-V1/V2/S1 and 268 0237-E1…E9 pin it.';
 comment on column recurring_generation_failures.episode_failures is
-  '0237: failed ticks in the current episode. Rings at 3 (_recurring_failure_escalate c_ring_at). Reset to 0 when the generator mints a booking for the series.';
+  '0237: failed ticks in the current episode that were costing a booking (a failure on a tick whose occurrence is already booked is recorded but not counted). Rings at 3 (_recurring_failure_escalate c_ring_at). Reset to 0 when the generator mints a booking for the series.';
 comment on column recurring_generation_failures.escalated_at is
   '0237: the instant this episode rang the recurring_generation_failed roster (at least one row written). NULL = not rung. The ring''s one-shot key — server-only, so no client can forge it (268 0237-E6).';
 
@@ -330,7 +349,7 @@ declare
   c_ring_at   constant int  := 3;   -- §0c: the episode's THIRD failed tick rings
   c_ops_class constant text := 'recurring_generation_failed';
   c_ops_title constant text := '반복 예약 생성 실패 — 확인 필요';
-  c_ops_body  constant text := '반복 예약 하나가 연속으로 만들어지지 않고 있어요. 보호자에게 예약이 생기지 않는 중이에요 — 서버 기록(recurring_generation_failures)에서 원인을 확인해 주세요.';
+  c_ops_body  constant text := '반복 예약 하나가 생성 중 여러 번 실패했어요 — 서버 기록(recurring_generation_failures)의 error_code로 원인을 확인해 주세요. 55P03은 다른 작업과의 잠금 경합이에요.';
   v_f   record;
   v_ops int;
 begin
@@ -368,12 +387,12 @@ when recurring_generation_failures.episode_failures reaches 3 and escalated_at i
 recipient (「반복 예약 생성 실패 — 확인 필요」, identifier-free body, ref_id = the series); escalated_at is
 stamped only when a row was written (empty roster ⇒ retried on the next failing tick). The one-shot key
 is escalated_at — server-only, never a notifications read, so no client can forge it. Called only from
-generate_recurring_bookings'' failure handler in its own subtransaction. Server-only. 268 0237-E1…E7 pin it.';
+generate_recurring_bookings'' failure handler in its own subtransaction. Server-only. 268 0237-E1…E9 pin it.';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- §E generate_recurring_bookings — the episode counted, the ring isolated, a mint resets it
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
--- 0232 §D's body, built BY SCRIPT: the three edits in §0b, every other line 0232's byte for byte.
+-- 0232 §D's body, built BY SCRIPT: the four edits in §0b, every other line 0232's byte for byte.
 create or replace function generate_recurring_bookings() returns int
 language plpgsql security definer set search_path = public, pg_temp as $$
 declare
@@ -393,6 +412,7 @@ declare
   v_fail_msg text;            -- [0227] … and its message
   v_nid uuid;                 -- [0232] the notice just written (its episode row keys on it)
   v_debt uuid[];              -- [0232] the owner's debt charges NOW (a pause's episode)
+  v_owed boolean;             -- [0237] a failure this tick counts toward the episode (§E ④)
 begin
   select (select f.payments_live_since from ops_flags f where f.id) is not null into v_live;
 
@@ -414,6 +434,9 @@ begin
     -- commits or rolls back TOGETHER, so a booking never outlives the notice that announces it
     -- (`0227-R3`). Inside this block the body is 0226's byte for byte, one indent deeper.
     begin
+      -- [0237 §E ④a] this series' occurrence is unknown until computed below — a failure before that
+      -- line must not read the PREVIOUS series' v_sched (plpgsql variables survive the rollback).
+      v_sched := null;
       v_dow := (s.rule->'weekdays'->>0)::int;
       v_time := s.rule->>'time';
       if v_dow is null or v_time is null then continue; end if;
@@ -636,16 +659,32 @@ begin
         -- [0237 §E ①] …and counts the failure EPISODE: a first failure (or the first after a mint
         -- reset it to 0) starts one; every further failed tick adds one. `_recurring_failure_escalate`
         -- reads the count below. 268 `0237-E1`/`E3`.
+        -- [0237 §E ④b] …but ONLY a failure that is costing a booking counts: if this tick got as far
+        -- as naming the occurrence (v_sched) and the series already HOLDS its booking for that KST
+        -- date, nothing is being lost — the tick had nothing to mint. Such a failure is still recorded
+        -- (lifetime `attempts`, `error_code`) and does not advance the episode. Without this, the ~70
+        -- hourly ticks after every mint that still queue on the dog lock turned lock contention (an
+        -- overlapping manual call, a long edge hold → 55P03) into a page (exec review 2026-09-26,
+        -- measured with two sessions: three such ticks rang for a series holding its booking).
+        -- An occurrence never named (a malformed rule — v_sched NULL, §E ④a) always counts: errs
+        -- toward telling. 268 `0237-E9`.
+        v_owed := v_sched is null
+                  or not exists (select 1 from bookings b
+                                  where b.series_id = s.id
+                                    and (b.scheduled_at at time zone 'Asia/Seoul')::date
+                                        = (v_sched at time zone 'Asia/Seoul')::date);
         insert into recurring_generation_failures as f
           (series_id, error_code, error_message, episode_failures, episode_started_at)
-        values (s.id, v_fail_state, left(coalesce(v_fail_msg, ''), 500), 1, now())
+        values (s.id, v_fail_state, left(coalesce(v_fail_msg, ''), 500),
+                case when v_owed then 1 else 0 end, case when v_owed then now() end)
         on conflict (series_id) do update
           set error_code         = excluded.error_code,
               error_message      = excluded.error_message,
               attempts           = f.attempts + 1,
               last_failed_at     = now(),
-              episode_failures   = f.episode_failures + 1,
-              episode_started_at = coalesce(f.episode_started_at, now());
+              episode_failures   = f.episode_failures + case when v_owed then 1 else 0 end,
+              episode_started_at = case when v_owed then coalesce(f.episode_started_at, now())
+                                        else f.episode_started_at end;
       exception when others then
         raise warning 'generate_recurring_bookings: recurring_series % — its failure record could not be written (% %); the warning above is the only trace',
           s.id, sqlstate, sqlerrm;
@@ -684,10 +723,12 @@ the notice went out, extended while the debt continues) and a notice counts only
 is still debt — 0226''s witness remains for notices older than 0232. And a series on a suspended or
 retired course mints nothing and tells its owner 「반복 예약 코스 점검 중」 once per series per 24 h per
 episode. 263 0232-B1…B4/D1…D3 pin it.
-+ [0237] a failure also counts the failure EPISODE of the series (recurring_generation_failures.episode_failures);
++ [0237] a failure that is costing a booking also counts the failure EPISODE of the series
+(recurring_generation_failures.episode_failures — a failure on a tick whose occurrence is already booked
+is recorded, not counted);
 at its third failed tick _recurring_failure_escalate rings the recurring_generation_failed roster ONCE
 (「반복 예약 생성 실패 — 확인 필요」, ref = the series), in its own subtransaction; a MINT of the series
-resets the episode, in its own subtransaction. No owner-facing copy. 268 0237-E1…E5 pin it.';
+resets the episode, in its own subtransaction. No owner-facing copy. 268 0237-E1…E9 pin it.';
 
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- VERIFY — apply-time SHAPE only (behaviour is suite 268's — 0131-G4's lesson). Source arms read
@@ -721,7 +762,7 @@ begin
     from pg_proc p where p.oid = to_regprocedure('public.generate_recurring_bookings()');
   if v_src is null or btrim(v_src) = '' then v_bad := v_bad || ' NO-SOURCE(generate_recurring_bookings);';
   else
-    if (v_src like '%episode_failures   = f.episode_failures + 1%') is not true
+    if (v_src like '%episode_failures   = f.episode_failures + case when v_owed then 1 else 0 end%') is not true
       then v_bad := v_bad || ' generator: the failure upsert does not count the episode;'; end if;
     if (v_src like '%perform _recurring_failure_escalate(s.id);%') is not true
       then v_bad := v_bad || ' generator: the escalation is not called;'; end if;

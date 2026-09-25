@@ -1,6 +1,6 @@
 -- ═══ 268 — 0237: a recurring series that keeps failing reaches an operator — one ring per failure
 -- ═══        EPISODE, recovery resets it, the ring can neither abort the tick nor be forged silent
--- ═══        0237-C1 · E1 · E2 · E3 · E4 · E5 · E6 · E7 · B1 · S1, tag `rfe`
+-- ═══        0237-C1 · E1 · E2 · E3 · E4 · E5 · E6 · E7 · E8 · E9 · B1 · S1, tag `rfe`
 --
 -- Codex wave-4 s1 (high): a series that fails every tick is recorded (0227) and warned, the tick
 -- succeeds, and nothing escalates. This file was RUN AGAINST 0232's body (0237 removed) before 0237
@@ -39,19 +39,39 @@
 --   · E7 **AN EMPTY ROSTER PAGES NOBODY AND IS RETRIED.** Every `recurring_generation_failed` row off:
 --        three failing ticks write no ring and the record stays NOT rung (episode 3); the operator is
 --        re-seated → the next failing tick rings once; the one after adds none.
+--   · E8 **TWO EPISODES AT ONCE: EACH RINGS AT ITS OWN THIRD FAILURE.** Series A fails one tick before
+--        series B exists; then four shared ticks. A rings at its third failure and B at ITS third — rings
+--        per shared tick A={0,1,1,1}, B={0,0,1,1} — so one series' ring never marks another's episode as
+--        rung. (Added by the exec-review round: removing the ring's `where series_id = …` from its
+--        stamp silenced every other failing series and no pin saw it.)
+--   · E9 **ONLY A FAILURE THAT IS COSTING A BOOKING ADVANCES THE EPISODE** — two REAL sessions. P and W
+--        already hold their booking for this week's occurrence (linked by series_id, as a series' first
+--        booking is); W's rule is broken; V is healthy; Q is due and unbooked. A second backend (dblink)
+--        holds P's and Q's dog locks, as an overlapping tick or a long edge hold would. Three ticks:
+--        P (already booked) records three 55P03 failures and its episode stays 0, never rung; Q (the
+--        CONTROL — same lock, same 55P03, no booking) reaches episode 3 and rings once, so the contention
+--        is real and does count where a booking is owed; W (booked, rule broken after the mint — its
+--        occurrence is never named) reaches episode 3 and rings, and V sits before W in the loop so a
+--        failure that read the PREVIOUS series' occurrence would have looked booked. Rolled back after
+--        measuring; only this pin's series run inside it.
 --   · B1 **THE WRITTEN TITLE IS LEDGERED** — in `_noti_ops_titles()`, `ops` category, not urgent;
 --        measured on what the ring actually wrote.
 --   · S1 **DEPLOYED SHAPE.** The ring is a definer with its in-body search_path that no client can
 --        execute; comment-stripped, it names the class as a routing constant and reads NO notifications
 --        row (its key is `escalated_at`); in the generator the ring call and the recovery reset each sit
 --        in their OWN `begin … exception` block, the ring after the failure record and the reset after
---        the mint; the three episode columns exist; `ops_roster_set` names the class.
+--        the mint; the series block clears `v_sched` first and the episode count is conditioned on
+--        `v_owed` (0237 §E ④); the three episode columns exist; `ops_roster_set` names the class.
 --
 -- ─── GAPS (prose — the harness cannot reach these; no pin is written for them) ───
 --   · Every tick here shares ONE `now()` (one DO block = one transaction), so `episode_started_at`'s
 --     preservation across ticks (the `coalesce`) is not observable; E3 pins only that a reset clears it
---     and a new failure sets it. The ring's `for update` and the overlapping-tick residue (0237 §0e)
---     need two sessions.
+--     and a new failure sets it. The ring's `for update` and the overlapping-tick RESET residue (0237 §0e)
+--     are not pinned; E9 uses a second session only to hold a dog lock.
+--   · The common-mode residue (0237 §0e: a fault that breaks every notifications insert breaks the ring
+--     too) is prose — E4's plant is title-specific by design and cannot model a shared cause.
+--   · There is no backfill to pin (0237 removed its draft one: the harness applies every migration
+--     before any suite writes a failure row, so a backfill would always run on an empty table).
 --   · The WARNING lines (the ring's, an empty roster's, a failed ring's, a failed reset's) are log lines;
 --     SQL cannot read its own warnings. The durable halves are the record's columns, pinned here.
 --   · Nothing here pushes (`00_shim.sql` stubs `net.http_post`).
@@ -84,6 +104,23 @@
 --   M15 reset's no-op filter deleted                      → 1630/2  S1 · P4 (named above)
 --   M16 ring's not-found early return deleted             → 1632/0  (named above)
 --   M17 reset loses `series_id = s.id`                    → 1628/4  E1 · E4 · S1 · P4
+--   ── exec-review round (2026-09-26; control on the revised tree first: 1634/0; every plant asserted
+--      landed and `&&`-gated to its run) ──
+--   M18 ring stamp loses `where series_id = p_series`     → 1632/2  E8 (B={0,0,0,0}) · E9 (Q's ring
+--                                                           stamped P's and W's rows; W never rang)
+--   M19 ring stamp keyed `where escalated_at is null`     → 1632/2  E8 · E9 (same)
+--   M20 every failure counts (`v_owed := true or …`)      → 1632/2  E9 (P, already booked, rang on
+--                                                           contention) · P4
+--   M21 `v_sched := null` deleted                          → 1630/4  E9 (W read V's occurrence: not
+--                                                           counted, never rang) · S1 · P4 · E3 (F's
+--                                                           re-break read an earlier series' v_sched —
+--                                                           order-dependent on other suites' series;
+--                                                           E9 is the deterministic owner)
+--   M22 owed-check loses `b.series_id = s.id`              → 1632/2  E9 (CONTROL Q, unbooked, read
+--                                                           P's/W's bookings as its own: not counted) · P4
+--   Reproduction of the exec-review finding (the revised 268 against the ORIGINAL 0237 + its 161):
+--   1632/2 — E9 (P, holding its booking, advanced to a rung episode on three 55P03 ticks) and S1's two
+--   new shape arms. E8 GREEN there: the stamp key was right, only unpinned (M18 is its proof).
 --   Pre-0237 reproduction (0237 removed, same suites): 1617/15 — E1 read rings {0,0,0,0,0,0}; 9 of this
 --   file's 10 pins red (E2 green — a healthy series was never the defect).
 --
@@ -103,6 +140,29 @@
 --     tick 1 happens while F already holds an episode — E1 then also sees a reset that lost its
 --     `series_id = s.id` key (it would zero F's episode and shift the ring to tick 4).
 set client_min_messages = warning;
+
+-- E9's second session: dblink in a suite-owned schema, exactly 247's arrangement (247 creates the same
+-- schema and extension first in the manifest; both statements are idempotent). If dblink is absent the
+-- create FAILS and the harness stops loudly — a missing second session is not a green.
+create schema if not exists _rlk;
+create extension if not exists dblink with schema _rlk;
+
+-- the harness's own socket, read from the server (247's connstr, a copy this file owns)
+create or replace function t_rfe_connstr() returns text language sql stable as $$
+  select format('host=%s port=%s dbname=%s user=%s',
+                current_setting('unix_socket_directories'), current_setting('port'),
+                current_database(), current_user)
+$$;
+
+-- advisory locks a backend holds on the generator's dog key (211 ②'s encoding: classid = k >> 32,
+-- objid = k & 0xFFFFFFFF, objsubid = 1)
+create or replace function t_rfe_dog_locks_held(p_pid int, p_dogs uuid[]) returns int language sql stable as $$
+  select count(*)::int from pg_locks l
+    join unnest(p_dogs) d(id) on true
+   where l.locktype = 'advisory' and l.granted and l.pid = p_pid and l.objsubid = 1
+     and l.classid = ((hashtextextended('booking_hold_dog:' || d.id::text, 0) >> 32) & 4294967295)::oid
+     and l.objid   = ( hashtextextended('booking_hold_dog:' || d.id::text, 0)        & 4294967295)::oid
+$$;
 
 -- ---------- the fault plants (dropped at the end of this file) ----------
 create table if not exists t_rfe_faults (series_id uuid not null, what text not null);
@@ -203,6 +263,15 @@ declare
   e6_n1 uuid; e6_n2 uuid; e6_n3 uuid; e6_pre12 int;
   -- E7
   e7_err text; e7_rings0 int; e7_rec0 jsonb; e7_rings1 int; e7_rings2 int; e7_rec1 jsonb;
+  -- E8
+  oA uuid; oB uuid; dA uuid; dB uuid; sA uuid; sB uuid;
+  e8_err text; e8_ra int[] := '{}'; e8_rb int[] := '{}'; e8_recA jsonb; e8_recB jsonb;
+  -- E9
+  oP uuid; oQ uuid; oV uuid; oW uuid; dP uuid; dQ uuid; dV uuid; dW uuid;
+  sP uuid; sQ uuid; sV uuid; sW uuid;
+  e9_err text; e9_tick_err text; e9_mint int; e9_pid int; e9_held int; e9_vbook int;
+  e9_rp int[] := '{}'; e9_rq int[] := '{}'; e9_rw int[] := '{}';
+  e9_recP jsonb; e9_recQ jsonb; e9_recW jsonb;
 begin
   perform set_config('request.jwt.claim.sub', '', true);
   v_tom := (extract(dow from (now() at time zone 'Asia/Seoul'))::int + 1) % 7;
@@ -519,6 +588,136 @@ begin
   update recurring_series set paused = true where id = any(v_mine);
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [0237-E8] two episodes at once — each rings at ITS OWN third failure
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    v_bad := ''; e8_err := null;
+    oA := t_user('rfe_oA', 'owner'); dA := t_dog(oA, 'rfe견A');
+    oB := t_user('rfe_oB', 'owner'); dB := t_dog(oB, 'rfe견B');
+    sA := t_rfe_series(oA, dA, v_bad_rule);
+    v_mine := v_mine || sA;
+    v_err := t_rfe_tick();                                          -- A's first failure; B does not exist yet
+    if v_err is not null then e8_err := ' tick0: ' || v_err; end if;
+    sB := t_rfe_series(oB, dB, v_bad_rule);
+    v_mine := v_mine || sB;
+    for i in 1..4 loop
+      v_err := t_rfe_tick();
+      if v_err is not null then e8_err := coalesce(e8_err, '') || ' tick' || i || ': ' || v_err; end if;
+      e8_ra := e8_ra || t_rfe_rings(sA);
+      e8_rb := e8_rb || t_rfe_rings(sB);
+    end loop;
+    e8_recA := t_rfe_rec(sA); e8_recB := t_rfe_rec(sB);
+
+    select count(*)::int into v_n from ops_recipients_for(CLS);
+    if v_n is distinct from 1 then v_bad := v_bad || ' FIXTURE: roster=' || v_n || ' (1 expected)'; end if;
+    if e8_err is not null then v_bad := v_bad || ' a tick raised:' || e8_err; end if;
+    if (e8_recA->>'attempts')::int is distinct from 5 or (e8_recB->>'attempts')::int is distinct from 4
+      then v_bad := v_bad || ' FIXTURE: A/B did not fail 5/4 ticks (' || coalesce(e8_recA->>'attempts', 'NULL') || '/'
+                   || coalesce(e8_recB->>'attempts', 'NULL') || ') — the offset the pin needs is not there'; end if;
+    if e8_ra is distinct from array[0,1,1,1]
+      then v_bad := v_bad || ' 🔴 A rings per shared tick=' || e8_ra::text || ' (expected {0,1,1,1}: at its third failure)'; end if;
+    if e8_rb is distinct from array[0,0,1,1]
+      then v_bad := v_bad || ' 🔴 B rings per shared tick=' || e8_rb::text || ' (expected {0,0,1,1}: at ITS third failure — {0,0,0,0} means A''s ring marked B''s episode rung)'; end if;
+    if (e8_recA->>'escalated_at') is null or (e8_recB->>'escalated_at') is null
+      then v_bad := v_bad || ' a record does not read rung: A=' || coalesce(e8_recA::text, 'NULL') || ' B=' || coalesce(e8_recB::text, 'NULL'); end if;
+    if v_bad = '' then call _pass('rfe','0237-E8 두 에피소드가 동시에 — A가 B보다 한 틱 먼저 실패하기 시작하면, 공유한 네 틱에서 A는 자기 세 번째 실패에(A={0,1,1,1}), B는 자기 세 번째 실패에(B={0,0,1,1}) 울린다 — 한 시리즈의 벨이 다른 시리즈의 에피소드를 울린 것으로 찍지 않는다');
+    else v_msg := v_bad; call _fail('rfe','0237-E8 each episode rings at its own third failure', v_msg); end if;
+  exception when others then call _fail('rfe','0237-E8 each episode rings at its own third failure', sqlerrm); end;
+  update recurring_series set paused = true where id = any(v_mine);
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [0237-E9] only a failure that is costing a booking advances the episode — TWO REAL SESSIONS
+  --           (rolled back after measuring)
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    v_bad := ''; e9_err := null; e9_tick_err := null;
+    begin
+      oP := t_user('rfe_oP', 'owner'); dP := t_dog(oP, 'rfe견P');
+      oQ := t_user('rfe_oQ', 'owner'); dQ := t_dog(oQ, 'rfe견Q');
+      oV := t_user('rfe_oV', 'owner'); dV := t_dog(oV, 'rfe견V');
+      oW := t_user('rfe_oW', 'owner'); dW := t_dog(oW, 'rfe견W');
+      -- V must come BEFORE W in the loop's order, so a W failure that read a stale v_sched would read
+      -- V's occurrence (the same KST date W is booked on). Swap roles if the random ids disagree.
+      if dW < dV then
+        v_tmp_u := oV; oV := oW; oW := v_tmp_u;
+        v_tmp_u := dV; dV := dW; dW := v_tmp_u;
+      end if;
+      insert into billing_keys (profile_id, billing_key, card)
+      select p, 'bkey_rfe_' || left(p::text, 8), jsonb_build_object('brand', '신한', 'last4', '4242')
+        from unnest(array[oP, oQ, oV, oW]) p;
+      -- only this pin's series run (every other series paused — rolled back with the pin)
+      update recurring_series set paused = true where not paused;
+      sP := t_rfe_series(oP, dP, v_rule);
+      sV := t_rfe_series(oV, dV, v_rule);
+      sW := t_rfe_series(oW, dW, v_bad_rule);                       -- W's rule is broken…
+      sQ := t_rfe_series(oQ, dQ, v_rule);                           -- Q: due, never booked
+      -- …and P and W already HOLD their booking for this week's occurrence (tomorrow 12:00 KST), linked
+      -- by series_id exactly as a series' first booking is. Inserted, not minted by a tick: a tick in
+      -- THIS transaction would take P's dog lock and hold it to commit, and the second backend below
+      -- could then never take it (measured: the first draft's backend hit its statement_timeout).
+      insert into bookings (owner_id, dog_id, series_id, status, scheduled_at, km, pace_label, addons,
+                            base_fare, distance_fare, addon_fare, total_price, min_fare)
+      select rs.owner_id, rs.dog_id, rs.id, 'matching'::booking_status,
+             ((now() at time zone 'Asia/Seoul')::date + 1 + time '12:00') at time zone 'Asia/Seoul',
+             rs.km, rs.pace_label, rs.addons, rs.base_fare, rs.distance_fare, rs.addon_fare, rs.total_price, rs.min_fare
+        from recurring_series rs where rs.id in (sP, sW);
+      select count(*)::int into e9_mint from bookings where series_id in (sP, sW);
+      -- the second backend takes P's and Q's dog locks and sits on them, idle in transaction
+      if 'rfe9' = any(coalesce(_rlk.dblink_get_connections(), '{}'::text[])) then perform _rlk.dblink_disconnect('rfe9'); end if;
+      perform _rlk.dblink_connect('rfe9', t_rfe_connstr());
+      perform _rlk.dblink_exec('rfe9', $q$set statement_timeout = '10s'$q$);
+      select t.pid into e9_pid from _rlk.dblink('rfe9', 'select pg_backend_pid()') as t(pid int);
+      perform _rlk.dblink_exec('rfe9', 'begin');
+      perform * from _rlk.dblink('rfe9', format(
+        'select 1 from (select pg_advisory_xact_lock(%s), pg_advisory_xact_lock(%s)) z',
+        hashtextextended('booking_hold_dog:' || dP::text, 0), hashtextextended('booking_hold_dog:' || dQ::text, 0))) as t(x int);
+      e9_held := t_rfe_dog_locks_held(e9_pid, array[dP, dQ]);
+      for i in 1..3 loop
+        v_err := t_rfe_tick();
+        if v_err is not null then e9_tick_err := coalesce(e9_tick_err, '') || ' tick' || i || ': ' || v_err; end if;
+        e9_rp := e9_rp || t_rfe_rings(sP);
+        e9_rq := e9_rq || t_rfe_rings(sQ);
+        e9_rw := e9_rw || t_rfe_rings(sW);
+      end loop;
+      e9_recP := t_rfe_rec(sP); e9_recQ := t_rfe_rec(sQ); e9_recW := t_rfe_rec(sW);
+      select count(*)::int into e9_vbook from bookings where series_id = sV;
+      perform _rlk.dblink_disconnect('rfe9');
+      raise exception 'rfe_e9_rollback';
+    exception when others or query_canceled then        -- `others` does not catch a statement timeout
+      if sqlerrm is distinct from 'rfe_e9_rollback' then e9_err := sqlstate || ' ' || sqlerrm; end if;
+    end;
+    if 'rfe9' = any(coalesce(_rlk.dblink_get_connections(), '{}'::text[])) then perform _rlk.dblink_disconnect('rfe9'); end if;
+
+    if e9_err is not null then v_bad := v_bad || ' staging raised: ' || e9_err; end if;
+    if e9_tick_err is not null then v_bad := v_bad || ' a tick raised:' || e9_tick_err; end if;
+    if e9_mint is distinct from 2 then v_bad := v_bad || ' FIXTURE: P/W hold ' || coalesce(e9_mint::text, 'NULL') || ' bookings (2 expected) — the pin has no subject'; end if;
+    if e9_vbook is distinct from 1 then v_bad := v_bad || ' FIXTURE: V (healthy, before W) minted ' || coalesce(e9_vbook::text, 'NULL') || ' bookings (1 expected) — it must reach its occurrence every tick'; end if;
+    if e9_held is distinct from 2 then v_bad := v_bad || ' CONTROL: the second backend holds ' || coalesce(e9_held::text, 'NULL') || ' of the two dog locks'; end if;
+    -- CONTROL Q: the contention is real and counts where a booking is owed
+    if (e9_recQ->>'error_code') is distinct from '55P03' or (e9_recQ->>'attempts')::int is distinct from 3
+       or (e9_recQ->>'episode_failures')::int is distinct from 3 or (e9_recQ->>'escalated_at') is null
+      then v_bad := v_bad || ' CONTROL: Q (due, unbooked, lock held) is not 55P03 ×3, episode 3, rung: ' || coalesce(e9_recQ::text, 'NULL'); end if;
+    if e9_rq is distinct from array[0,0,1] then v_bad := v_bad || ' CONTROL: Q rings=' || e9_rq::text || ' (expected {0,0,1})'; end if;
+    -- SUBJECT P: the same contention on a series already holding its booking
+    if (e9_recP->>'error_code') is distinct from '55P03' or (e9_recP->>'attempts')::int is distinct from 3
+      then v_bad := v_bad || ' FIXTURE: P did not fail three ticks on the lock (' || coalesce(e9_recP::text, 'NULL') || ') — the pin has no subject'; end if;
+    if (e9_recP->>'episode_failures')::int is distinct from 0 or (e9_recP->>'escalated_at') is not null
+       or (e9_recP->>'episode_started_at') is not null
+      then v_bad := v_bad || ' 🔴 P (already booked) advanced its episode on lock contention: ' || coalesce(e9_recP::text, 'NULL'); end if;
+    if e9_rp is distinct from array[0,0,0] then v_bad := v_bad || ' 🔴 P rang on contention for a booking it holds: ' || e9_rp::text; end if;
+    -- W: booked, then its rule broke — an occurrence never named always counts
+    if (e9_recW->>'error_code') is distinct from '22P02' or (e9_recW->>'episode_failures')::int is distinct from 3
+       or (e9_recW->>'escalated_at') is null
+      then v_bad := v_bad || ' 🔴 W (booked, rule broken) is not 22P02, episode 3, rung — a failure read another series'' occurrence: ' || coalesce(e9_recW::text, 'NULL'); end if;
+    if e9_rw is distinct from array[0,0,1] then v_bad := v_bad || ' 🔴 W rings=' || e9_rw::text || ' (expected {0,0,1})'; end if;
+    if (dV < dW) is not true then v_bad := v_bad || ' FIXTURE: V is not before W in the loop order'; end if;
+    if v_bad = '' then call _pass('rfe','0237-E9 예약을 잃게 하는 실패만 에피소드를 센다 — 두 번째 세션이 P·Q의 강아지 락을 쥔 세 틱: 이미 예약을 가진 P는 55P03 실패 3회가 기록되지만 에피소드 0·안 울림, 예약이 없는 Q(대조군)는 에피소드 3·1회 울림; 예약을 가진 채 규칙이 깨진 W는 회차를 알 수 없으니 에피소드 3·울림(루프에서 앞선 V의 회차를 읽지 않음) (측정 후 롤백)');
+    else v_msg := v_bad; call _fail('rfe','0237-E9 only a failure costing a booking counts', v_msg); end if;
+  exception when others or query_canceled then
+    if 'rfe9' = any(coalesce(_rlk.dblink_get_connections(), '{}'::text[])) then perform _rlk.dblink_disconnect('rfe9'); end if;
+    call _fail('rfe','0237-E9 only a failure costing a booking counts', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [0237-B1] the written title is ledgered, ops, not urgent
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   begin
@@ -565,6 +764,10 @@ begin
         then v_bad := v_bad || ' the ring does not follow the failure record'; end if;
       if (v_src ~ 'begin\s+update recurring_generation_failures\s+set episode_failures = 0, episode_started_at = null, escalated_at = null\s+where series_id = s\.id\s+and \(episode_failures > 0 or escalated_at is not null\);\s+exception when others then') is not true
         then v_bad := v_bad || ' the recovery reset is not alone in its own begin … exception block'; end if;
+      if (v_src ~ 'begin\s+v_sched := null;\s+v_dow := ') is not true
+        then v_bad := v_bad || ' the series block does not clear v_sched before naming its occurrence'; end if;
+      if (v_src ~ 'episode_failures   = f\.episode_failures \+ case when v_owed then 1 else 0 end') is not true
+        then v_bad := v_bad || ' the episode count is not conditioned on v_owed'; end if;
       if (position('set episode_failures = 0' in v_src) > position('n := n + 1;' in v_src)
           and position('n := n + 1;' in v_src) > 0) is not true
         then v_bad := v_bad || ' the recovery reset does not follow the mint'; end if;
@@ -577,7 +780,7 @@ begin
     v_src := t_rfe_src('ops_roster_set');
     if (position('''recurring_generation_failed''' in coalesce(v_src, '')) > 0) is not true
       then v_bad := v_bad || ' ops_roster_set does not name the class'; end if;
-    if v_bad = '' then call _pass('rfe','0237-S1 배포 형상 — 벨은 본문 search_path를 가진 definer이고 anon·authenticated 실행 불가; 주석 벗긴 소스에서 recurring_generation_failed 라우팅 상수, notifications를 읽지 않음(키는 escalated_at); 생성기에서 벨 호출과 회복 리셋이 각자 자기 begin … exception 블록에 홀로 있고 벨은 실패 기록 뒤·리셋은 발행 뒤; 에피소드 세 칸이 있고 ops_roster_set이 클래스를 안다');
+    if v_bad = '' then call _pass('rfe','0237-S1 배포 형상 — 벨은 본문 search_path를 가진 definer이고 anon·authenticated 실행 불가; 주석 벗긴 소스에서 recurring_generation_failed 라우팅 상수, notifications를 읽지 않음(키는 escalated_at); 생성기에서 벨 호출과 회복 리셋이 각자 자기 begin … exception 블록에 홀로 있고 벨은 실패 기록 뒤·리셋은 발행 뒤, 시리즈 블록은 v_sched를 먼저 비우고 에피소드 증가는 v_owed 조건부; 에피소드 세 칸이 있고 ops_roster_set이 클래스를 안다');
     else v_msg := v_bad; call _fail('rfe','0237-S1 deployed shape', v_msg); end if;
   exception when others then call _fail('rfe','0237-S1 deployed shape', sqlerrm); end;
 
