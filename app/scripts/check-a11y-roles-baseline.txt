@@ -62,7 +62,7 @@ app/owner/course-map.tsx 1
 app/owner/fitness.tsx 1
 app/owner/report.tsx 2
 app/owner/request.tsx 4
-app/owner/schedule.tsx 16
+app/owner/schedule.tsx 10
 app/runner-profile/[id].tsx 5
 app/runner/calendar.tsx 3
 app/runner/home.tsx 3

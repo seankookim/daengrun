@@ -14,6 +14,7 @@ import { RecurringCta } from '../../src/components/recurring-cta';
 import { Monogram, Row, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
+import { bookingStateLabel, reportShowsInProgress } from '../../src/lib/booking-state-copy';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
@@ -89,10 +90,13 @@ const REASON: Record<string, { label: string; color: string; bg: string; note?: 
   incident: { label: '사고로 중단', color: '#d84a2f', bg: '#fde8e3' },
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  matching: '러너 매칭 중', runner_pending: '러너 응답 대기', confirmed: '러너 확정 — 러닝 전',
-  runner_enroute: '러너 이동 중', picked_up: '인계 완료 — 시작 대기', active: '러닝 진행 중',
-};
+// [contract-gaps-7 2026-09-25] 이 화면이 들고 있던 상태 낱말 표는 은퇴했다. 같은 서버 상태에
+// 대해 owner/schedule.tsx 가 다른 표를 갖고 있었고(한쪽은 「예약 확정」, 이쪽은 「러너 확정 —
+// 러닝 전」), 어느 쪽도 정본이 아니어서 보호자는 어느 화면을 열었는지에 따라 다른 낱말을 배웠다.
+// 두 화면이 이제 src/lib/booking-state-copy.ts 한 곳을 읽는다. 표가 모르는 상태는 null 을
+// 돌려주고, 이 화면의 기존 폴백 문장이 그대로 그 자리를 받는다 — 가장 가까운 문장을 추측하지
+// 않는다. 이 교체가 고치는 실제 결함: 「매칭 만료」 알림에서 들어온 행이 여기서
+// 「진행 상황 확인 중」이라고 자기 상태를 잘못 말하고 있었다 (ops-notifications-4).
 
 // 실트레이스 → 박스 좌표: src/lib/trace.ts의 traceToBox로 이전 (0082 K1).
 // 여기 있던 normalizeTrace는 축별 min-max라 종횡비를 늘렸다 — 동서로 긴 경로가
@@ -525,6 +529,19 @@ export default function Report() {
   // a run row with no end_reason has not ended, and treating unknown as "stopped" would hoist an
   // empty audit block and rename the frame's one saturated element on a live run.
   const stopped = !!run?.endReason && run.endReason !== 'completed';
+  // ═══ 진행 중인 러닝은 끝난 러닝이 아니다 (ops-notifications-3) ═══
+  // 라이브 중에 보호자에게 가는 푸시(러닝 시작 · N km 돌파 · 응가 완료 …)는 어느 보호자 제목
+  // 표에도 없어서 notification-route 가 전부 이 화면으로 보낸다. 그런데 `run` 은 runs 행이
+  // 생기는 순간 — 즉 러닝이 **시작될 때**(0087 start_run_tx) — 채워지므로, 그 탭은 측정값이 전부
+  // null 인 '완료된 리포트'를 열었다: 거리 기록 없음 · 러닝 시간 기록 없음 · 달성률을 계산할 수
+  // 없어요. 문장 하나하나는 참이지만 **끝난 러닝에 대한 판정**으로 인쇄된다. 아직 안 끝난
+  // 러닝에는 기록 카드 대신 진행 중 얼굴을 그린다. 술어는 pinnable 하게 lib 에 있다.
+  const inProgress = reportShowsInProgress({
+    hasRunRow: !!run,
+    endReason: run?.endReason,
+    status: report?.status,
+    runEndedAt: seal?.runEndedAt,
+  });
   // `rating` is nullable in the table (0001_init.sql:255) even though owner/review.tsx never
   // writes a null. Pulled out as its own const so the 1..5 clamp below is a plain number check.
   const myRating = myReview && myReview.rating != null && myReview.rating >= 1 && myReview.rating <= 5
@@ -690,11 +707,34 @@ export default function Report() {
         {report && !run && (
           <View style={s.emptyBox}>
             <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>
-              {STATUS_LABEL[report.status] ?? '진행 상황 확인 중'}
+              {bookingStateLabel(report.status) ?? '진행 상황 확인 중'}
             </Text>
             <Text style={[s.emptyText, { marginTop: 6 }]}>러닝이 끝나면 여기서 기록을 볼 수 있어요</Text>
             <PaperBtn label="내 일정에서 보기 ›" variant="secondary" style={{ alignSelf: 'stretch', marginTop: 14 }}
               onPress={() => router.replace('/owner/schedule')} />
+          </View>
+        )}
+
+        {/* ══════ 러닝 진행 중 — 같은 자리, 다른 얼굴 (ops-notifications-3) ══════
+            `run` 은 있지만 아직 끝나지 않았다. 기록 카드는 측정이 **확정된** 뒤의 물건이므로
+            여기서는 그리지 않는다 — 「기록 없음」과 「달성률을 계산할 수 없어요」는 러닝이 끝난
+            뒤에야 참인 문장이고, 달리는 중에 인쇄하면 끝난 러닝에 대한 판정이 된다.
+            ⚠ 문은 진짜다: /owner/live 는 같은 예약의 실시간 화면이고, draft.bookingId 로 어느
+              예약인지 넘긴다 (일정 화면의 라이브 진입과 같은 문법). 죽은 버튼 없음.
+            ⚠ 반환 확인 세리머니(위)와 겹치지 않는다 — 그 블록은 `runEndedAt` 이 찍힌 뒤에만
+              열리고, 이 얼굴은 정확히 그 조건에서 닫힌다. */}
+        {report && run && inProgress && (
+          <View style={s.emptyBox}>
+            <Text style={{ fontSize: 17, fontWeight: '900', color: paper.ink }}>러닝 진행 중</Text>
+            <Text style={[s.emptyText, { marginTop: 6 }]}>
+              {report.dogName}가 지금 달리고 있어요{'\n'}기록은 러닝이 끝난 뒤에 여기에 채워져요
+            </Text>
+            <PaperBtn
+              label="실시간 보기 ›"
+              variant="primary"
+              style={{ alignSelf: 'stretch', marginTop: 14 }}
+              onPress={() => { if (bid) draft.bookingId = bid; router.push('/owner/live'); }}
+            />
           </View>
         )}
 
@@ -847,7 +887,11 @@ export default function Report() {
           );
         })()}
 
-        {report && run && (
+        {/* ⚠ `!inProgress` — the record card is the FINISHED reading, and a live run gets the
+            in-progress face above instead. Gating the whole block (rather than each number) is
+            deliberate: every child of it — the goal bar, the share door, the 재예약 panel, the
+            earning strip — assumes the measurement is final. */}
+        {report && run && !inProgress && (
           <>
             {/* ══════ ① 러닝 경로 (실트레이스) — §E frame 7 opens on the map ══════
                 [2026-08-19 · RULING #11·12·13, lab 14a/14b] The dark full-bleed hero that used to
