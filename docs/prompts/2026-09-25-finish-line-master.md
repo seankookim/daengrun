@@ -261,4 +261,17 @@ club v2 ships in the pilot at all.
   ledger guard REFUSED the runner branch once (+1 fingerprint: a still-bare button whose text the branch changed); fixed honestly by
   giving that button its role (`efd45f7`), not by re-registering it. Trunk: harness 1536/0 · deno 383/0 · npm 3889/0 + 39 ✅.
   CLAUDE.md's a11y-gate paragraph corrected (it still described the per-file ledger).
+- 18:4x — Codex on 0221 APPROVE-WITH-FIXES/1 (in-place RPC change: no versioning — production never served 0215; the push letter now
+  says install the new client with the push) and on the six client landings REJECT/4 → P2 (incident_review readers) +
+  fix/client-review-3 (`docs/reviews/2026-09-25-wave2-codex-verdicts.md`).
+- 19:30 — LANDED since 18:40, each through the full chain, read back, worktree + branch removed: `55a28cf` **0222** evidence-preserve
+  fix + an observed-overlap race script (harness 1540) · `c045330` ui/safety-settings-chrome (ScreenHead; DESIGN.md's button table
+  corrected to the coral primary Sean ruled 08-11) · `acc232b` ui/my-fitness-floor (15pt floor restored on 마이/fitness/payments/cards/shop,
+  theme.secTitle) · `d31376d` fix/notification-landings-ops-inbox (+153 pins; SOS → chat, mid-run pushes → live, per-row read) ·
+  `aa84c2e` fix/chat-read-cursor + **0223** (acknowledge only what was rendered after a successful fetch; `(created_at, id)` cursor) ·
+  `f131f28` **0224** custody strand sweep (thresholds NULL = off; five titles; F6 `resolved_by` scrub; recurring pause dedupe) ·
+  `268a30c` fix/client-review-3 (failed gate read shuts accept; `--rewrite-baseline` only deletes, `--migrate` for moved elements;
+  sealed handoff → record) · `36d7a4d` fix/runner-live-run (+77: incident_review in both runner readers, start_run no longer
+  swallowed, homeward routing, receipt phases). **Trunk: harness 1557/0 · deno 383/0 · npm 4269/0 + 39 ✅.** Migrations above production:
+  0203–0224 (twenty-one). Wave 3 building: custody-strand client half, 0225 server-stamped chat timestamps, header/primary sweep.
 

@@ -34,6 +34,8 @@ Codex-plugin broker trees from finished 09-17…09-23 review/build runs (cwd gon
 
 **18:13: the Fable account ran out of credits mid-wave at ~17:3x and six builders died; Sean switched the session to Opus 5.5 ("continue everything with opus 5.5"). Sweep result: 91 confirmed findings, 10 build slices, 16 letters for you (queue item 0-sweep, `docs/reviews/2026-09-25-gap-sweep-final.md`). At 18:40 all six finished branches were on trunk (`597f4c1`: harness 1536/0 · deno 383/0 · npm 3889/0) — owner hero late doors, request funnel, schedule/report faces, runner home/requests, 0221 offered slots, ops/a11y fixes; seven Opus builders are running (two resumed in place). Codex reviews at 16:3x: 0216–0220 APPROVE-WITH-FIXES/2 → 0221/0222; client REJECT/4 → chat read cursor + client-review-2.**
 
+**19:30: EVERY SLICE OF THE SWEEP'S PLAN EXCEPT THE COPY SLICE IS ON TRUNK (`36d7a4d`: harness 1557/0 · deno 383/0 · npm 4269/0).** Since 18:40: 0222, 0223 (chat read cursor), 0224 (custody strand sweep — thresholds ship NULL; your letter), safety/settings chrome, 15pt floor on 마이/fitness, notification landings, client-review-3, runner live run. Twenty-one migrations now sit above production (0203–0224). Wave 3 (custody client half, 0225 chat timestamp stamp, header/button sweep) and the copy slice are building; the Codex review of this wave is next.
+
 **Running now (02:3x):** (1) Workflow `finish-line-gap-sweep` — nine code-verified finders (owner/runner journeys, server↔client
 contracts, UI consistency measured, less-is-more, backend logic incl. inaction, ops+notifications, first-run, copy) → dedup →
 adversarial refuters → a planner emitting disjoint-file build slices + letters; builders spawn from its plan (numbers 0216+/247+).

@@ -695,12 +695,15 @@ fixed; a line with no element fails (stale — delete it), so the ledger still o
 line-keyed, so unrelated edits that shift lines stay green (measured: 40 lines of churn above every
 element in the heaviest file → exit 0). Why it changed: Codex MEASURED the old per-file ledger's named
 blind spot — remove a role in `owner/schedule.tsx` and add one to another bare Pressable in the same
-file, and v1 exited 0. v2 exits 1 on that exact mutation. **Re-emit with
-`node scripts/check-a11y-roles.mjs --rewrite-baseline`** when you rename a component or edit a
-still-bare element's text (its fingerprint moves); the rewrite REFUSES to grow the ledger. ⚠ The
-rewrite alone can still launder a fix+regress swap inside one fingerprint bucket (9 identical-shape
-buckets covering 21 elements at v2), so the orchestrator's landing resolver takes trunk's ledger,
-re-emits it on the merged tree and **refuses any fingerprint that is not already on trunk** —
+file, and v1 exited 0. v2 exits 1 on that exact mutation. **`--rewrite-baseline` may only DELETE lines** (fix/client-review-3,
+2026-09-25 — Codex measured that a totals-only rewrite accepted a +1/−1 swap). When a still-bare
+element MOVES (a component rename, or its text changed), re-register it with an explicit
+`node scripts/check-a11y-roles.mjs --migrate '<old fingerprint>=<new fingerprint>'` (repeatable); the
+script checks same file, old in the ledger and gone from the tree, new present and not yet listed.
+It cannot prove the pair is the same element, and the gate prints the pair to copy only after telling
+you to restore the role — so **the better answer to a moved bare element is usually to give it its
+role**. The orchestrator's landing resolver takes trunk's ledger, re-emits it on the merged tree and
+**refuses any fingerprint that is not already on trunk** —
 measured on its first use: a branch that edited a still-bare element's text was refused (+1), and
 the honest fix was to give that element its role, not to re-register it. Escape hatch
 `// a11y-role-ok: <reason>` on the element's opening line; a bare marker is refused. (The paragraph
