@@ -431,7 +431,8 @@ export default function CourseMap() {
         </View>
 
         {/* PEEK — 어느 단이든 항상 보이는 머리 */}
-        <Pressable onPress={() => snap(detent === 'peek' ? 'list' : 'peek')} style={s.head}>
+        <Pressable onPress={() => snap(detent === 'peek' ? 'list' : 'peek')} style={s.head}
+          accessibilityRole="button" accessibilityState={{ expanded: detent !== 'peek' }}>
           <View style={{ flex: 1 }}>
             <Text style={[s.kick, isCand && { color: paper.pending }]} numberOfLines={1}>
               {sel ? (isCand ? `점검 예정 · ${sel.area}` : `${sel.area} · ${sel.terrain}`) : '코스 미정'}

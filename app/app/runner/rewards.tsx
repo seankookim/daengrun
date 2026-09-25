@@ -318,6 +318,8 @@ export default function Rewards() {
                     key={k}
                     disabled={busy !== null}
                     onPress={() => open(d, k)}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: busy !== null, busy: busy === d.id }}
                     style={({ pressed }) => [s.pickBtn, pressed && { backgroundColor: colors.voltDeep, transform: [{ scale: 0.96 }] }]}
                   >
                     <Text style={{ fontSize: 15, fontWeight: '800', color: '#111111' }}>{label}</Text>
@@ -329,6 +331,8 @@ export default function Rewards() {
             <Pressable
               disabled={busy !== null}
               onPress={() => open(d)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: busy !== null, busy: busy === d.id }}
               style={({ pressed }) => [s.openBtn, pressed && { backgroundColor: colors.voltDeep, transform: [{ scale: 0.96 }] }]}
             >
               <Text style={{ fontSize: 16, fontWeight: '800', color: '#111111' }}>{busy === d.id ? '여는 중…' : '상자 열기'}</Text>
@@ -521,7 +525,7 @@ export default function Rewards() {
         </>
       )}
 
-      <Pressable onPress={() => router.push('/leaderboard')} style={s.rankLink}>
+      <Pressable onPress={() => router.push('/leaderboard')} style={s.rankLink} accessibilityRole="link">
         <Text style={{ fontSize: 15, fontWeight: '800', color: colors.coralText }}>주간 랭킹에서 보너스 노려보기 ›</Text>
       </Pressable>
     </ScrollView>

@@ -116,6 +116,8 @@ const toDate = (dateIdx: number, t: string): Date => {
 // 서버가 한 말 그대로 사용자에게 보여주기 위한 helper (pay.tsx의 같은 helper와 같은 문법)
 const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+const PREVIEW_A11Y_ACTIONS = [{ name: 'preview', label: '코스 미리보기' }];
+
 export default function Request() {
   const insets = useSafeAreaInsets();
   const nf = useNumFont(); // [V4] numerals = Oswald — total, distance, countdown, prices
@@ -1119,7 +1121,8 @@ export default function Request() {
               {dogOpen && (
                 <View style={{ paddingBottom: 14 }}>
                   {myDog && (
-                    <Pressable onPress={() => router.push('/owner/dog')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}>
+                    <Pressable onPress={() => router.push('/owner/dog')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 }}
+                      accessibilityRole="button">
                       <Avatar url={myDog.photoUrl} char={myDog.name.slice(0, 1)} bg={colors.ink} size={42} />
                       <Text style={{ flex: 1, fontSize: 16.5, fontWeight: '800', color: paper.ink }}>
                         <Text style={{ fontWeight: '900' }}>{myDog.name}</Text>
@@ -1138,6 +1141,7 @@ export default function Request() {
                     ))}
                     <Pressable
                       style={s.dogSelChip}
+                      accessibilityRole="button"
                       onPress={() => {
                         // ⚠ [2026-09-15] 이 자리는 `Alert.prompt?.(…) ?? Alert.alert('…', 'iOS에서
                         // 지원돼요')` 였다. Alert.prompt 는 **void 를 반환한다** — 그래서 iOS 에서도
@@ -1337,6 +1341,10 @@ export default function Request() {
                         }}
                         accessibilityRole="radio"
                         accessibilityState={{ selected: sel }}
+                        // 미리보기 › sits inside this card, which VoiceOver reads as ONE element — so
+                        // the chip cannot be focused on its own. It rides here as a custom action.
+                        accessibilityActions={PREVIEW_A11Y_ACTIONS}
+                        onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'preview') router.push(`/course/${r.id}`); }}
                         style={[s.routeCard, sel && { borderColor: paper.line, borderWidth: 2 }]}
                       >
                         {/* 적합도·★추천 배지 퇴역 (item 6) — 실 스코어러 없음. 모든 코스는 동등한 '안심 코스' */}
@@ -1379,7 +1387,7 @@ export default function Request() {
                             </View>
                           )}
                           {/* 코스 미리보기 — 트레이스·설명·점검일·우리 기록 (탭=선택은 카드가, 미리보기는 이 칩만) */}
-                          <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6}>
+                          <Pressable onPress={() => router.push(`/course/${r.id}`)} style={s.previewChip} hitSlop={6} accessibilityRole="button">
                             <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>미리보기 ›</Text>
                           </Pressable>
                         </View>
@@ -1483,6 +1491,7 @@ export default function Request() {
                 말하지 않는다. */}
             <Pressable
               style={s.methodChip}
+              accessibilityRole="button"
               onPress={() => {
                 if (pickEarliest()) return;
                 Alert.alert(

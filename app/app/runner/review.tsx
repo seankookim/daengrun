@@ -138,7 +138,7 @@ export default function RunnerReview() {
         {/* ⚠ 이 화면은 push로 열리고 자체 헤더가 없다 — 출구 하나는 로딩 얼굴에도 있어야 한다.
             (종전에는 로딩 중에도 폼이 떠 있어서 '다음에 할게요'가 그 일을 했다.) */}
         <View style={s.actions}>
-          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
             <Text style={s.quietText}>다음에 할게요</Text>
           </Pressable>
         </View>
@@ -166,6 +166,7 @@ export default function RunnerReview() {
           <Pressable
             style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]}
             onPress={() => router.dismissTo('/runner/home')}
+            accessibilityRole="button"
           >
             <Text style={s.ctaText}>홈으로 돌아가기</Text>
           </Pressable>
@@ -186,10 +187,10 @@ export default function RunnerReview() {
         </View>
         <View style={s.rule} />
         <View style={s.actions}>
-          <Pressable style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]} onPress={loadReport}>
+          <Pressable style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]} onPress={loadReport} accessibilityRole="button">
             <Text style={s.ctaText}>다시 시도</Text>
           </Pressable>
-          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
             <Text style={s.quietText}>홈으로 돌아가기</Text>
           </Pressable>
         </View>
@@ -317,11 +318,13 @@ export default function RunnerReview() {
           style={({ pressed }) => [s.cta, guardOff && s.ctaOff, !guardOff && (pressed && !busy ? s.ctaPressed : s.ctaLip)]}
           disabled={blocked}
           onPress={submit}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: blocked, busy }}
         >
           <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중…' : '후기 남기기'}</Text>
         </Pressable>
         {guardOff && <Text style={s.ctaHint}>별점을 선택하면 후기를 남길 수 있어요</Text>}
-        <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
+        <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
           <Text style={s.quietText}>다음에 할게요</Text>
         </Pressable>
       </View>

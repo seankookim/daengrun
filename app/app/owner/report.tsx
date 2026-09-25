@@ -1562,7 +1562,8 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
   }, [settled]);
 
   return (
-    <Pressable onPress={onClose} style={s.haulBack}>
+    <Pressable onPress={onClose} style={s.haulBack} // a11y-role-ok: tap-anywhere backdrop; accessible={false} lets VoiceOver reach the words and 컬렉션 보기 inside, and 닫기 below is its button
+      accessible={false} accessibilityViewIsModal onAccessibilityEscape={onClose}>
       <Animated.Text style={[s.haulKicker, { opacity: kick }]}>DOGS HIGH · 오늘의 수확</Animated.Text>
 
       {patch && (
@@ -1634,10 +1635,13 @@ function HaulOverlay({ patch, stamps, nf, onClose, onCollection }: {
         ) : (
           <Text style={s.haulSub}>패치가 컬렉션에 들어갔어요</Text>
         )}
-        <Pressable onPress={onCollection} style={s.haulCta}>
+        <Pressable onPress={onCollection} style={s.haulCta} accessibilityRole="button">
           <Text style={s.haulCtaText}>컬렉션 보기 ›</Text>
         </Pressable>
-        <Text style={s.haulHint}>탭하면 닫혀요</Text>
+        {/* The visible line is an instruction to a sighted tap; to VoiceOver it is the close button. */}
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기">
+          <Text style={s.haulHint}>탭하면 닫혀요</Text>
+        </Pressable>
       </Animated.View>
     </Pressable>
   );
