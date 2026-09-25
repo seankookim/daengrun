@@ -234,4 +234,11 @@ club v2 ships in the pilot at all.
   (`wuu7mr216`, resume of `wf_ed4f322e-68e` with 20 kept / 2 refuted passed as settled) and launched the Codex re-review of
   0216–0220 (srv2 export, base b46adb9) then the client half (cli2 export, base da47510). Sean 16:3x: *"continue the
   finish-line-gap-sweep flow"*.
+- 16:43 — Codex verdicts landed: **0216–0220 APPROVE-WITH-FIXES / 2** (`docs/reviews/2026-09-25-0216-0220-codex-verdict.md`: the merged
+  judge admits adjacent-window slots the calendar never offers → **0221**; 0218's equality skip can abort the apply on a constructible
+  historical payload → **0222** + an observed handshake for the 248 race script) and **client REJECT / 4**
+  (`…client-since-da47510-codex-verdict.md`: chat acknowledges unseen messages on focus/foreground (high) + timestamp-only pagination
+  loses boundary siblings → **fix/chat-read-cursor** (+0223 if the RPC needs a cursor); the ops returns queue claims strand alerts are OFF on
+  an empty page + the a11y gate's per-file ledger nets a fix against a regression → **fix/client-review-2** (per-element fingerprints)).
+  Four builders running. The a11y blind spot I twice filed as prose is now a build — Codex measured it, which is the difference.
 
