@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -137,7 +136,9 @@ export default function RunnerBasePin() {
     try {
       await setRunnerBase(c.lat, c.lng);
       haptic('success');
-      router.back();
+      // [runner-journey-10] goBackOrHome, not a bare back(): a single-entry stack (deep link, cold
+      // start) makes back() a silent no-op and the save would appear to do nothing (nav.ts).
+      goBackOrHome();
     } catch (e) {
       console.warn('[runner-base] save:', (e as Error)?.message ?? e);
       if (isBaseCooldownError(e)) {
@@ -163,7 +164,7 @@ export default function RunnerBasePin() {
     try {
       await setRunnerBase(null, null);
       haptic('success');
-      router.back();
+      goBackOrHome();
     } catch (e) {
       console.warn('[runner-base] clear:', (e as Error)?.message ?? e);
       setErr('clear');
@@ -179,7 +180,7 @@ export default function RunnerBasePin() {
           <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
         </Pressable>
       </Row>
-      <Text style={[s.title, df]}>어디에서 출발하세요?</Text>
+      <Text style={[s.title, df]}>어디서 출발하세요?</Text>
 
       <View style={s.banner}>
         <Text style={s.bannerLead}>요청 카드에 출발지까지의 대략 거리가 표시돼요</Text>

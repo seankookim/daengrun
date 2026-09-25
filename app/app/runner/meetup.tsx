@@ -4,13 +4,14 @@ import { Alert, Animated, Easing, Linking, Pressable, ScrollView, StyleSheet, Te
 import { PaperBtn } from '../../src/components/paper-btn';
 import { PickupMap } from '../../src/components/PickupMap';
 import { Avatar, Icon, Row } from '../../src/components/ui';
-import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, startRunServer, subscribeBooking } from '../../src/lib/api';
+import { confirmHandoff, fetchBookingAddress, fetchBookingSync, fetchCurrentRunnerJobId, fetchMeetupInfo, MeetupInfo, PickupAddress, runnerArrived, runnerEnroute, subscribeBooking } from '../../src/lib/api';
 import { handoffEscalationStrip, HandoffEscalationStrip } from '../../src/lib/handoff-escalation';
 import { lateness } from '../../src/lib/lateness';
 import { LateNotice } from '../../src/components/late-notice';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { kstCal, kstClock } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { runnerJob } from '../../src/store';
@@ -23,6 +24,11 @@ import { layout, paper } from '../../src/theme';
 // 보호자 화면과 같은 의식을 반대편에서 본다: 같은 이중 봉인 스텁 · 같은 스텝 레일 · 역할 카피만 다름.
 // 봉인 자리는 서버 진실(stage / peerConfirmed)로만 채워진다. 장비 체크는 러너 프리플라이트(로컬).
 // 로직 동결: 스테이지 머신·구독/폴링·confirmHandoff·startRunServer·라우팅·게이트 전부 원본 그대로.
+// ⚠ [2026-09-25 · runner-journey-9] startRunServer LEFT this screen. The 러닝 시작하기 door used to
+// call it and swallow every failure, and run.tsx swallowed it a second time — so a runner could run
+// for 30 minutes on a booking the server still held at `picked_up` and learn it only at 종료. The
+// start now happens once, on the run screen, after tracking is proven, and a failure is shown there.
+// The stage machine, polling and confirmHandoff are untouched.
 //
 // [2026-08-06 심 룰 리페인트 · 정직 배치 item 8] 테일러드 라일락 은퇴 → 순백/코랄.
 // 법: "dark is the artifact, light is the screen" — 봉인 밴드만 나이트 지면으로 남고(코랄 헤어라인
@@ -106,6 +112,10 @@ export default function Meetup() {
   // `src/lib/handoff-escalation.ts`, shared with `owner/meetup.tsx` so the two sides of one
   // stalled handoff cannot come to disagree about it.
   const [escalation, setEscalation] = useState<HandoffEscalationStrip | null>(null);
+  // [runner-journey-12] The runner's own handoff stamp as an INSTANT — display-only, appended at the
+  // END of this bundle under the same freeze as `escalation` above. The 'waiting' stage had no time
+  // anchor, while return-seal.tsx frame b anchors the sibling wait on `hhmm(runnerConfirmedAt)`.
+  const [runnerConfirmedAt, setRunnerConfirmedAt] = useState<string | null>(null);
   const allChecked = check.leash && check.water && check.treats;
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   // [2026-08-25 defect] Once-latch for the terminal exit below — owner/meetup's closingRef idiom,
@@ -201,6 +211,7 @@ export default function Meetup() {
       // [0199] 같은 성격의 한 줄 — 표시 조건일 뿐, 아래 스테이지 분기 어디에도 들어가지 않는다.
       setEscalation(handoffEscalationStrip(s2.escalatedAt, s2.opsAlertedAt,
         s2.ownerConfirmed && s2.runnerConfirmed));
+      setRunnerConfirmedAt(s2.runnerConfirmedAt); // [runner-journey-12] display-only, same posture
       setSynced(true); // [P2-12] 봉인 진실이 처음 도착한 지점 — 이 커밋 이후부터가 '라이브'
       if (s2.status === 'picked_up' || s2.status === 'active') setStage('confirmed');
       else if (s2.runnerConfirmed) setStage('waiting');
@@ -709,7 +720,18 @@ export default function Meetup() {
               <Text style={s.statusKick}>WAITING</Text>
             </Row>
             <Text style={s.statusText}>보호자 확인 대기 중…</Text>
-            <Text style={s.statusSub}>보호자 앱에 확인 요청을 보냈어요</Text>
+            {/* [runner-journey-12] A time anchor and the next step. The instant is the server's
+                `runner_confirmed_handoff_at`, rendered through kst.ts (fixed +9, never the device
+                clock); until the first sync brings it — or if it does not parse — the sentence is
+                the one this stage always said, never an invented time. */}
+            <Text style={s.statusSub}>
+              {(() => {
+                const ms = runnerConfirmedAt ? Date.parse(runnerConfirmedAt) : NaN;
+                return Number.isNaN(ms)
+                  ? '보호자 앱에 확인 요청을 보냈어요'
+                  : `${kstClock(kstCal(ms))}에 확인 요청을 보냈어요 · 보호자가 확인하면 러닝을 시작할 수 있어요`;
+              })()}
+            </Text>
           </View>
         )}
         {/* ── 이번 러닝 (v4 R3c) — 인계가 끝난 뒤에만. 네 줄 전부 실필드다:
@@ -741,14 +763,11 @@ export default function Meetup() {
 
         {stage === 'confirmed' && (
           <View style={s.actions}>
+            {/* [runner-journey-9] No server call here any more — see the header note. The run screen
+                calls start_run once, after tracking is proven, and shows a failure as a failure. */}
             <PaperBtn
               label="러닝 시작하기 ›"
-              onPress={async () => {
-                if (runnerJob.bookingId) {
-                  try { await startRunServer(runnerJob.bookingId); } catch { /* run 화면에서 재시도 */ }
-                }
-                router.replace('/runner/run');
-              }}
+              onPress={() => router.replace('/runner/run')}
             />
             <Text style={s.ctaHint}>인계 완료 · 러닝을 시작하면 GPS 기록이 켜져요</Text>
           </View>

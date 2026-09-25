@@ -9,7 +9,9 @@ import { DropRow, fetchDrops, fetchLedger, fetchMeetupInfo, fetchMyReturnResolut
 import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
+import { kstCal, kstClock } from '../../src/lib/kst';
 import { MediaImage } from '../../src/lib/media';
+import { receiptPhase } from '../../src/lib/receipt-phase';
 import { RESOLUTION_KICKER_SHORT, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { GeoRoutePoint, traceToBox } from '../../src/lib/trace';
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
@@ -105,6 +107,12 @@ type Receipt = {
    *  is a custody screen too and owes the same ping. Never used for the settled claim — that stays
    *  `rawStatus === 'completed'`, computed once above. */
   rawStatus: string | null;
+  /** [runner-journey-3] `runner_confirmed_return_at` — the runner's OWN return stamp. In the custody
+   *  phase it decides whether the 반환 봉인 door is this runner's turn (coral) or a wait on the
+   *  owner (secondary, the return-seal screen's frame b), and it anchors the sentence that replaces
+   *  「인계해 주세요」 once the runner has already said they handed the dog back. null on the
+   *  store path: no server read, no claim. */
+  runnerConfirmedAt: string | null;
 };
 
 /** server `runs.end_reason` → this screen's three-word vocabulary. `completed` and `incident` map
@@ -152,6 +160,7 @@ export default function RunDone() {
           completed: seal.endReason === 'completed',
           reason: seal.endReason ? (RECEIPT_REASON[seal.endReason] ?? null) : null,
           rawStatus: seal.rawStatus ?? null,
+          runnerConfirmedAt: seal.runnerConfirmedAt ?? null,
         });
         setReceiptState('ready');
       })
@@ -290,7 +299,23 @@ export default function RunDone() {
     // cannot pass `inCustodyPhase`, which is exactly right: the in-memory path is the
     // freeze-FAILED route (run.tsx:860), where there may be no custody at all.
     rawStatus: null,
+    runnerConfirmedAt: null,
   };
+
+  // ═══ [runner-journey-3] WHICH MOMENT THIS RECEIPT IS FOR ═══════════════════════════════════
+  // One face used to serve four moments: 「인계해 주세요」 on a SETTLED run whose dog was long home,
+  // 「러닝 화면에서 다시 정산하면」 during the return ceremony (where the run screen is not the door —
+  // `settle_run_tx` answers `return_not_sealed` — and the seal screen is), and a coral 「다음 요청
+  // 보기」 while the work gate (0092) holds the runner off new requests. receipt-phase.ts decides the
+  // moment once; the sentence, the fail strip and the exits below all read that one answer.
+  const phase = receiptPhase({ paramBid, settled: v.settled, rawStatus: v.rawStatus });
+  // The runner's own return stamp as a KST clock (kst.ts — never the device clock). '' when absent
+  // or unparseable, and an empty clock is never printed: the sentence falls back to one with no time.
+  const stampedAt = (() => {
+    const ms = v.runnerConfirmedAt ? Date.parse(v.runnerConfirmedAt) : NaN;
+    return Number.isNaN(ms) ? '' : kstClock(kstCal(ms));
+  })();
+  const runnerStamped = !!v.runnerConfirmedAt;
 
   // ═══ [0083 §5] THE 귀가 HEARTBEAT, second site ═════════════════════════════════════════════
   // `return-seal.tsx` frame b draws 「기록 먼저 보기 ›」 into this screen (return-seal.tsx:377) —
@@ -371,6 +396,37 @@ export default function RunDone() {
       {(() => {
         const strip = returnResolutionStrip(resolution);
         if (!strip) {
+          // [runner-journey-3] per phase. The 인계 sentence survives in exactly the two moments it
+          // is true: custody before the runner's own stamp, and the estimate (freeze-failed) path.
+          // Vocabulary is borrowed, not coined: 「정산이 확정됐어요」 is return-seal.tsx's sentence for
+          // the same `completed` fact (「끝났어요」 would read as paid, and calendar.tsx C③ retired
+          // 정산 완료 for exactly that — nothing pays a runner yet), and 「담당자가 확인하고 있어요」 is
+          // return-seal's and runner/home's word for the same held booking.
+          if (phase === 'settled') {
+            return (
+              <Row style={{ gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <Text style={s.sub}>정산이 확정됐어요</Text>
+                <Pressable
+                  onPress={() => router.push('/runner/earnings')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="수익 화면 보기"
+                >
+                  <Text style={s.subLink}>수익 보기 ›</Text>
+                </Pressable>
+              </Row>
+            );
+          }
+          if (phase === 'pending') {
+            return <Text style={s.sub}>담당자가 확인하고 있어요</Text>;
+          }
+          if (phase === 'custody' && runnerStamped) {
+            return (
+              <Text style={s.sub}>
+                {stampedAt ? `${stampedAt}에 반환 확인을 보냈어요 · 보호자 확인을 기다리고 있어요` : '반환 확인을 보냈어요 · 보호자 확인을 기다리고 있어요'}
+              </Text>
+            );
+          }
           return (
             <Text style={s.sub}>
               {dogName ? `${dogName}를 보호자에게 안전하게 인계해 주세요` : '반려견을 보호자에게 안전하게 인계해 주세요'}
@@ -427,7 +483,10 @@ export default function RunDone() {
       {/* 정산 미완료 = 진짜 실패. 라우드-페일 스트립 문법(criticalWash + critical) — 이 화면의
           앰버 장식이 아니라 earnings.tsx가 이미 쓰는 실패의 얼굴이다. 재시도 문은 러닝
           화면에 있고(여기엔 없다), 문장이 그 경로를 가리킨다 — 죽은 버튼을 만들지 않는다. */}
-      {!v.settled && (
+      {/* [runner-journey-3] ONLY in 'estimate'. With a booking param the run was frozen server-side,
+          and the run screen is not a settle door any more (0188): the custody phase's door is the
+          seal screen below, and the pending phase has no door the runner can press at all. */}
+      {phase === 'estimate' && !v.settled && (
         <View style={s.failStrip}>
           <Text style={s.failText}>
             정산이 아직 서버에 반영되지 않았어요 — 이 숫자는 앱이 계산한 추정치예요.{'\n'}
@@ -554,19 +613,35 @@ export default function RunDone() {
           door, and (b) a STALE store filed the review against the WRONG booking — the insert
           writes `booking_id: bookingId` verbatim, so yesterday's run collects today's stars.
           With a param the review screen names the run it is actually reviewing. */}
+      {/* [runner-journey-3] The custody phase's real next step, and it comes FIRST. Coral only while
+          it is this runner's turn (their own stamp is not in — return-seal frame a); once they have
+          stamped it is a wait on the owner and the door drops to secondary (frame b's 「코랄 0」). */}
+      {phase === 'custody' && paramBid && (
+        <PaperBtn
+          label={runnerStamped ? '반환 확인 상태 보기 ›' : '반환 봉인하러 가기 ›'}
+          variant={runnerStamped ? 'secondary' : 'primary'}
+          style={{ marginTop: photoMissing ? 14 : 22 }}
+          onPress={() => router.push({ pathname: '/runner/return-seal', params: { bid: paramBid } })}
+        />
+      )}
       {bookingId && (
         <PaperBtn
-          label={dogName ? `${dogName} 리뷰 남기기 ›` : '반려견 리뷰 남기기 ›'}
+          label={dogName ? `${dogName} 후기 남기기 ›` : '반려견 후기 남기기 ›'}
           variant="secondary"
-          style={{ marginTop: photoMissing ? 14 : 22 }}
+          style={{ marginTop: phase === 'custody' ? 8 : photoMissing ? 14 : 22 }}
           onPress={() => router.push({ pathname: '/runner/review', params: { bid: bookingId } })}
         />
       )}
-      <PaperBtn
-        label="다음 요청 보기 ›"
-        style={{ marginTop: bookingId ? 8 : photoMissing ? 14 : 22 }}
-        onPress={() => router.replace('/runner/requests')}
-      />
+      {/* [runner-journey-3] 「다음 요청 보기」 is a promise that a request can be taken, and in custody
+          and pending the work gate (0092) says it cannot. Those two phases keep only the quiet
+          홈으로 below — no coral, and no door onto a refusal. */}
+      {(phase === 'settled' || phase === 'estimate') && (
+        <PaperBtn
+          label="다음 요청 보기 ›"
+          style={{ marginTop: bookingId ? 8 : photoMissing ? 14 : 22 }}
+          onPress={() => router.replace('/runner/requests')}
+        />
+      )}
       <PaperBtn label="홈으로" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
     </ScrollView>
   );
@@ -594,6 +669,8 @@ const s = StyleSheet.create({
   // ---------- ② 헤드라인 ----------
   headline: { fontSize: 27.5, fontWeight: '900', color: paper.ink },
   sub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
+  // [runner-journey-3] the settled sentence's 수익 door — the section-header action grammar (secAction)
+  subLink: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk, marginTop: 6 },
   // ---------- ③ 숫자 셋 — owner/report.tsx와 같은 문법 ----------
   statValue: { fontSize: 27, lineHeight: 33, fontWeight: '900', color: paper.ink }, // [BUG A] 27 × 1.22
   statUnit: { fontSize: 15, lineHeight: 33, fontWeight: '800', color: paper.dim },

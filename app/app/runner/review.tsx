@@ -110,13 +110,13 @@ export default function RunnerReview() {
       console.warn('[r-review] submit:', (e as Error)?.message ?? e);
       setBusy(false);
       setFailed(true);
-      Alert.alert('등록 실패', '리뷰가 저장되지 않았어요 — 다시 시도해주세요');
+      Alert.alert('등록 실패', '후기가 저장되지 않았어요 — 다시 시도해주세요');
       return;
     }
     setBusy(false);
     Alert.alert(
-      '리뷰 완료',
-      '리뷰가 서버에 저장됐어요.' + (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : ''),
+      '후기 등록 완료',
+      '후기가 서버에 저장됐어요.' + (privateFlag ? '\n비공개 신고는 도그스하이 운영팀만 확인해요.' : ''),
     );
     // ⚠ Clear the store ONLY when it is this booking. With a param the screen can be opened for a
     // run the store knows nothing about (the calendar's second door), and blanking it there would
@@ -132,7 +132,7 @@ export default function RunnerReview() {
       <View style={s.root}>
         <View style={[s.head, { paddingTop: insets.top + 4 }]}>
           <Text style={[s.title, df]}>러닝 기록을 불러오는 중이에요</Text>
-          <Text style={s.helper}>어떤 러닝의 리뷰인지 확인하고 있어요</Text>
+          <Text style={s.helper}>어떤 러닝의 후기인지 확인하고 있어요</Text>
         </View>
         <View style={s.rule} />
         {/* ⚠ 이 화면은 push로 열리고 자체 헤더가 없다 — 출구 하나는 로딩 얼굴에도 있어야 한다.
@@ -155,7 +155,7 @@ export default function RunnerReview() {
       <View style={s.root}>
         <View style={[s.head, { paddingTop: insets.top + 4 }]}>
           <Text style={[s.title, df]}>
-            {unreadable ? '이 러닝을 찾을 수 없어요' : '리뷰를 남길 예약을 찾지 못했어요'}
+            {unreadable ? '이 러닝을 찾을 수 없어요' : '후기를 남길 예약을 찾지 못했어요'}
           </Text>
           <Text style={s.helper}>
             {unreadable ? '이미 마무리됐거나 내 예약이 아니에요' : '러닝을 마치면 이 화면이 다시 열려요'}
@@ -182,7 +182,7 @@ export default function RunnerReview() {
       <View style={s.root}>
         <View style={[s.head, { paddingTop: insets.top + 4 }]}>
           <Text style={[s.title, df]}>러닝 기록을 불러오지 못했어요</Text>
-          <Text style={s.helper}>어떤 러닝의 리뷰인지 확인하지 못해서 아직 열 수 없어요 — 기록은 서버에 그대로 있어요</Text>
+          <Text style={s.helper}>어떤 러닝의 후기인지 확인하지 못해서 아직 열 수 없어요 — 기록은 서버에 그대로 있어요</Text>
         </View>
         <View style={s.rule} />
         <View style={s.actions}>
@@ -211,7 +211,7 @@ export default function RunnerReview() {
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
       <View style={[s.head, { paddingTop: insets.top + 4 }]}>
         <Text style={[s.title, df]}>오늘 러닝 어땠나요?</Text>
-        <Text style={s.helper}>러너의 리뷰가 다음 러너를 지켜요</Text>
+        <Text style={s.helper}>러너의 후기가 다음 러너를 지켜요</Text>
       </View>
       <View style={s.rule} />
 
@@ -308,7 +308,7 @@ export default function RunnerReview() {
       {/* 라우드-페일 — 전송이 실패한 사실은 화면에 남는다 (알럿을 닫아도 사라지지 않음) */}
       {failed && (
         <View style={s.failStrip}>
-          <Text style={s.failText}>리뷰가 저장되지 않았어요 — 다시 시도해주세요</Text>
+          <Text style={s.failText}>후기가 저장되지 않았어요 — 다시 시도해주세요</Text>
         </View>
       )}
 
@@ -318,9 +318,9 @@ export default function RunnerReview() {
           disabled={blocked}
           onPress={submit}
         >
-          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중…' : '리뷰 남기기'}</Text>
+          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중…' : '후기 남기기'}</Text>
         </Pressable>
-        {guardOff && <Text style={s.ctaHint}>별점을 선택하면 리뷰를 남길 수 있어요</Text>}
+        {guardOff && <Text style={s.ctaHint}>별점을 선택하면 후기를 남길 수 있어요</Text>}
         <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')}>
           <Text style={s.quietText}>다음에 할게요</Text>
         </Pressable>

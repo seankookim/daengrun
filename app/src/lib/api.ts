@@ -1487,6 +1487,11 @@ export interface BookingSync {
   //                  `handoff-escalation.ts` is where that distinction becomes copy.
   escalatedAt: string | null;
   opsAlertedAt: string | null;
+  /** [runner-journey-12] The runner's own handoff stamp, as the INSTANT it is. `runnerConfirmed`
+   *  above is the same column flattened to a boolean and stays — the stage machine reads it and is
+   *  frozen. This one is display-only: the meetup 'waiting' stage anchors 「HH:MM에 확인 요청을
+   *  보냈어요」 on it, the way return-seal.tsx frame b anchors its sibling wait. */
+  runnerConfirmedAt: string | null;
 }
 export async function fetchBookingSync(id: string): Promise<BookingSync> {
   const { data, error } = await supabase
@@ -1506,6 +1511,7 @@ export async function fetchBookingSync(id: string): Promise<BookingSync> {
     arrivedAt: data.arrived_at ?? null,
     escalatedAt: (data as any).handoff_escalated_at ?? null,
     opsAlertedAt: (data as any).handoff_ops_alerted_at ?? null,
+    runnerConfirmedAt: data.runner_confirmed_handoff_at ?? null,
   };
 }
 
@@ -1570,11 +1576,17 @@ export async function fetchCurrentOwnerBookingId(): Promise<string | null> {
   return pickCurrent(data as any);
 }
 
+// [runner-journey-8] The RUNNER-side reads add `incident_review`; the shared `IN_FLIGHT` above does
+// NOT change. It also feeds the owner's current-booking read, SERIES_UPCOMING and the chat
+// resolver, and none of those asked to widen. A booking in `incident_review` can still have the dog
+// with the runner (0066 §1: picked_up/active → incident_review, and 0092:116 holds the work gate on
+// it whether or not the run ended), so the runner's own screens must be able to FIND it. It ranks
+// last in `pickCurrent` (unlisted → 9): it only resolves when nothing else is in flight.
 export async function fetchCurrentRunnerJobId(): Promise<string | null> {
   const { data: user } = await supabase.auth.getUser();
   if (!user.user) return null;
   const { data } = await supabase.from('bookings').select('id, status, scheduled_at')
-    .eq('runner_id', user.user.id).in('status', IN_FLIGHT);
+    .eq('runner_id', user.user.id).in('status', [...IN_FLIGHT, 'incident_review']);
   return pickCurrent(data as any);
 }
 
@@ -1965,7 +1977,10 @@ export async function fetchRunnerJobs(): Promise<RunnerJob[]> {
     // 가장 싫어하는 종류의 버그다. runs 임베드가 안전한 이유는 R1 과 동일 (unique 단일 FK).
     .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
-    .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'completed'])
+    // [runner-journey-8] `incident_review` joins the list — see fetchCurrentRunnerJobId's note. It
+    // flattens to 'in_progress' below (it is not completed and not merely confirmed) and keeps its
+    // rawStatus, which is what every route and label must read.
+    .in('status', ['confirmed', 'runner_enroute', 'picked_up', 'active', 'incident_review', 'completed'])
     .order('scheduled_at', { ascending: false });
     // [Q5 → Sean 2026-08-25, verbatim "keep everything" + console #17 "Fix the list"] the
     // `.limit(20)` that stood here is GONE. It kept the FURTHEST 20 rows, so a heavy owner's
@@ -2036,7 +2051,7 @@ export async function fetchInFlightRunnerJobs(): Promise<RunnerJob[]> {
     .from('bookings')
     .select('id, scheduled_at, km, base_fare, distance_fare, addon_fare, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, route_id, dogs(name, photo_url), runs(started_at)')
     .eq('runner_id', user.user.id)
-    .in('status', IN_FLIGHT)
+    .in('status', [...IN_FLIGHT, 'incident_review'])   // [runner-journey-8] runner side only
     .gte('scheduled_at', since)
     .order('scheduled_at', { ascending: true })
     .limit(10);
@@ -7083,7 +7098,7 @@ export async function fetchMyReviewedBookingIds(bookingIds: string[]): Promise<S
   // the presence of an error and never its text: a wrapper whose failure is not foldable today is
   // one screen away from being rendered tomorrow, and the fold is identity-preserving for the
   // caller (an Error is still an Error, `raw` still carries the original).
-  if (error) throw foldRpcError(error, { empty: '리뷰 기록을 확인하지 못했어요' });
+  if (error) throw foldRpcError(error, { empty: '후기 기록을 확인하지 못했어요' });
   return new Set((data ?? []).map((r: { booking_id: string }) => r.booking_id));
 }
 
