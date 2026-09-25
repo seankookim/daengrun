@@ -32,6 +32,7 @@ const {
   describeSeries, ruleWeekdayAndTime, courseGateOf, WEEKDAY_KO, CREATE_SERIES_TOKENS,
   PENDING_NEXT, PAUSED_NOTE, DEBT_NOTE, BROKEN_LINE,
   COURSE_SUSPENDED_NOTE, COURSE_RETIRED_NOTE, COURSE_UNKNOWN_NOTE, PAUSED_NOTE_PLAIN,
+  PAUSED_COURSE_SUSPENDED_NOTE, PAUSED_COURSE_RETIRED_NOTE,
 } = require('./recurring-state.build.cjs');
 
 let pass = 0, fail = 0;
@@ -109,6 +110,10 @@ for (const [what, over] of [
 }
 t('a broken PAUSED series is still broken (brokenness wins — resuming it would be a dead button)',
   d({ paused: true, weekday: null }).canResume === false && d({ paused: true, weekday: null }).broken === true);
+// ⑧ (fix round 1, reviewer finding 2 — every site of 「a paused series renders like a live one」)
+t('⑧ 🔴 a broken PAUSED series still states the owner\'s own 해지 — it differs from the broken live one',
+  d({ paused: true, weekday: null }).note === PAUSED_NOTE_PLAIN && d({ weekday: null }).note === null,
+  `${d({ paused: true, weekday: null }).note}`);
 
 // ══ ⑥ THE ROUTE GATE (0232 §B) ═════════════════════════════════════════════════════════════════
 // `generate_recurring_bookings` refuses to mint for a series whose course is `suspended` or
@@ -150,12 +155,19 @@ t('⑥ 🔴 the UNKNOWN note claims neither way — no 점검, no 운영이 끝�
 t('⑥ the open course keeps the 72h rule (the one state that licenses it)',
   d({ course: 'open' }).line === `${BASE_LINE} · ${PENDING_NEXT}` && d({ course: 'open' }).note === null);
 
-// paused × course
+// paused × course. ⚠ Fix round 1 (reviewer finding 2, MEASURED): these arms asserted the UNPAUSED
+// course note here, so a series the owner had 해지'd read exactly like a live one waiting on the
+// course. The paused view now states both facts; the arms below pin the pause AND the difference.
 for (const c of ['suspended', 'retired']) {
   const v = d({ paused: true, course: c });
+  const live = d({ paused: false, course: c });
   t(`⑥ 🔴 a PAUSED series on a ${c} course offers no 다시 시작 (it would restart a series the route gate still refuses) and says why`,
-    v.canResume === false && v.note === (c === 'suspended' ? COURSE_SUSPENDED_NOTE : COURSE_RETIRED_NOTE) && v.line === BASE_LINE,
+    v.canResume === false && v.note === (c === 'suspended' ? PAUSED_COURSE_SUSPENDED_NOTE : PAUSED_COURSE_RETIRED_NOTE) && v.line === BASE_LINE,
     `${v.line} | ${v.note} | ${v.canResume}`);
+  t(`⑧ 🔴 a PAUSED series on a ${c} course states the pause (반복이 멈춰 있어요) and the course, and differs from the LIVE one`,
+    v.note.startsWith('반복이 멈춰 있어요') && v.note !== live.note
+    && (c === 'suspended' ? v.note.includes('점검 중') : v.note.includes('운영이 끝난')),
+    `${v.note} | live: ${live.note}`);
 }
 t('⑥ a paused series on an OPEN course keeps PAUSED_NOTE and its 다시 시작 (unchanged)',
   d({ paused: true, course: 'open' }).note === PAUSED_NOTE && d({ paused: true, course: 'open' }).canResume === true);
@@ -164,13 +176,18 @@ t('⑥ 🔴 a paused series with an UNKNOWN course drops PAUSED_NOTE\'s 「다�
   && !PAUSED_NOTE_PLAIN.includes('잡혀요'));
 
 // debt × course — the cron's order: the debt gate (0232:438) runs before the route gate (0232:527)
+// ⚠ Fix round 1 (reviewer finding 4, MEASURED): the arm that read 「debt on an OPEN course is
+// unchanged — the debt note beside the 72h line」 froze a promise the debt gate refuses
+// (`0232:440-448` `continue`s before the insert). It now pins the opposite, and the SWEEP below
+// requires ¬debt for PENDING_NEXT.
 t('⑥ debt AND a suspended course: the debt note (the gate the cron meets first), and still no 3일 전 promise',
   d({ unsettledCharge: true, course: 'suspended' }).note === DEBT_NOTE
   && d({ unsettledCharge: true, course: 'suspended' }).line === BASE_LINE);
 t('⑥ debt AND an UNKNOWN course: the debt note, no 3일 전 promise',
   d({ unsettledCharge: true, course: null }).note === DEBT_NOTE && d({ unsettledCharge: true, course: null }).line === BASE_LINE);
-t('⑥ debt on an OPEN course is unchanged — the debt note beside the 72h line',
-  d({ unsettledCharge: true, course: 'open' }).line === `${BASE_LINE} · ${PENDING_NEXT}`);
+t('⑦ 🔴 debt on an OPEN course withholds the 3일 전 promise too — the debt gate refuses the insert, and 「자동 예약이 멈춰 있어요」 beside 「3일 전에 자동으로 잡혀요」 would contradict itself',
+  d({ unsettledCharge: true, course: 'open' }).line === BASE_LINE && d({ unsettledCharge: true, course: 'open' }).note === DEBT_NOTE,
+  d({ unsettledCharge: true, course: 'open' }).line);
 t('⑥ debt with a booking already made names it on any course',
   ['open', 'suspended', null].every((c) => d({ unsettledCharge: true, course: c, nextBookingAt: NEXT_WED }).line === NEXT_LINE));
 
@@ -191,15 +208,16 @@ t('⑥ a broken rule on a suspended course is still just broken',
           n++;
           const v = d({ course, paused, unsettledCharge, nextBookingAt });
           const hasNext = nextBookingAt === NEXT_WED;
-          const want = course === 'open' && !paused && !hasNext;
+          const want = course === 'open' && !paused && !hasNext && unsettledCharge !== true;
           const got = v.line.includes(PENDING_NEXT) || (v.note || '').includes(PENDING_NEXT);
           if (got !== want) bad.push(JSON.stringify({ course, paused, unsettledCharge, nextBookingAt }));
           if (course !== 'open' && (v.note || '').includes('다시 시작하면')) bad.push('resume-promise ' + JSON.stringify({ course, paused }));
+          if (paused !== (v.note || '').startsWith('반복이 멈춰 있어요')) bad.push('pause-fact ' + JSON.stringify({ course, paused, unsettledCharge }));
         }
       }
     }
   }
-  t(`⑥ 🔴 SWEEP (${n} states): PENDING_NEXT iff unpaused ∧ nothing upcoming ∧ course known open; no 다시 시작하면 promise off an open course`,
+  t(`⑥ 🔴 SWEEP (${n} states): PENDING_NEXT iff unpaused ∧ nothing upcoming ∧ course known open ∧ ¬debt; no 다시 시작하면 promise off an open course; the pause is stated iff paused`,
     n === 90 && bad.length === 0, bad.slice(0, 4).join(' ; '));
 }
 
@@ -208,10 +226,15 @@ t('⑥ the suspended note speaks 0232\'s own vocabulary (점검 중 · 다른 �
   COURSE_SUSPENDED_NOTE.includes('점검 중') && COURSE_SUSPENDED_NOTE.includes('다른 코스로 바꿔 예약해주세요'));
 t('⑥ 🔴 the suspended note does NOT say 이번 주 — it sits beside a 다음 예약 that may be this week',
   !COURSE_SUSPENDED_NOTE.includes('이번 주'));
-t('⑥ 🔴 the RETIRED note says neither 점검 nor 이번 주 (retired is permanent — the P9 reviewer\'s point) and names the way out',
-  !/점검|이번 주/.test(COURSE_RETIRED_NOTE) && COURSE_RETIRED_NOTE.includes('다른 코스로 바꿔 예약해주세요'));
+t('⑥ 🔴 the RETIRED notes say neither 점검 nor 이번 주 (retired is permanent — the P9 reviewer\'s point) and name the way out',
+  [COURSE_RETIRED_NOTE, PAUSED_COURSE_RETIRED_NOTE].every((x) => !/점검|이번 주/.test(x) && x.includes('다른 코스로')));
+t('⑥ 🔴 the UNPAUSED retired note names 해지 and the screen that carries it — a live series on a retired course keeps drawing 0232\'s 24 h notice until cancelled',
+  COURSE_RETIRED_NOTE.includes('내 일정에서 해지'), COURSE_RETIRED_NOTE);
+t('⑧ the PAUSED suspended note does not say 이번 주 and does not promise the course returns (no 끝나면 / 다시 시작하면)',
+  !/이번 주|끝나면|다시 시작하면/.test(PAUSED_COURSE_SUSPENDED_NOTE), PAUSED_COURSE_SUSPENDED_NOTE);
 t('⑥ every new note is Korean 해요체, no token echoed at a person',
-  [COURSE_SUSPENDED_NOTE, COURSE_RETIRED_NOTE, COURSE_UNKNOWN_NOTE, PAUSED_NOTE_PLAIN]
+  [COURSE_SUSPENDED_NOTE, COURSE_RETIRED_NOTE, COURSE_UNKNOWN_NOTE, PAUSED_NOTE_PLAIN,
+    PAUSED_COURSE_SUSPENDED_NOTE, PAUSED_COURSE_RETIRED_NOTE]
     .every((x) => /[가-힣]/.test(x) && /요$/.test(x) && !/[a-z_]{4,}/.test(x)));
 
 // courseGateOf — the route gate's own predicate (`s.route_id is not null and rt.status in
@@ -429,6 +452,23 @@ const courseFailsUnknown = (src) => { const b = seriesBody(src);
     && b.includes('return rt ? courseGateOf(row.route_id, (rt as { status?: unknown }).status) : null;')
     && !/'(open|suspended|retired)'/.test(b); };
 t('⑥ api · 🔴 a failed, rejected or empty course read is UNKNOWN (null) — never a gate value minted in the read', courseFailsUnknown(API));
+// Fix round 1 (reviewer finding 3, MEASURED): `? Promise.resolve(courseGateOf(null, null))` →
+// `? Promise.resolve(null)` reddened NOTHING — every course-less series (route_id is optional:
+// create-booking-hold/handler.ts `route_id?`) would lose PENDING_NEXT and read 「코스 상태를 확인하지
+// 못해…」 on a healthy series. The property: a series with NO course is read as the gate reads it —
+// open, through courseGateOf — and the null-route branch is the one that says so. Blind to: what
+// courseGateOf(null, …) itself returns, which the courseGateOf arms above own.
+const courselessIsOpen = (src) =>
+  /const courseRead: Promise<CourseGate \| null> = row\.route_id == null\s*\?\s*Promise\.resolve\(courseGateOf\(null, null\)\)\s*:/.test(seriesBody(src));
+t('⑥ api · 🔴 a series with NO course resolves through courseGateOf(null, …) (open), never null (unknown)', courselessIsOpen(API));
+{
+  const planted = API_RAW.replace('? Promise.resolve(courseGateOf(null, null))', '? Promise.resolve(null)');
+  t('⑥ api · CONTROL · the course-less plant landed in the copy', planted !== API_RAW);
+  t('⑥ api · 🔴 CONTROL · a course-less branch resolving null does NOT satisfy the arm', courselessIsOpen(stripComments(planted)) === false);
+  const flipped = API_RAW.replace('row.route_id == null\n    ? Promise.resolve(courseGateOf(null, null))', 'row.route_id != null\n    ? Promise.resolve(courseGateOf(null, null))');
+  t('⑥ api · CONTROL · the flipped-condition plant landed in the copy', flipped !== API_RAW);
+  t('⑥ api · 🔴 CONTROL · a flipped null test (course-FUL series read as open) does NOT satisfy the arm', courselessIsOpen(stripComments(flipped)) === false);
+}
 // CONTROL — a commented-out `course,` in the return must not satisfy the pin (blind to: a stripper
 // that reads raw text).
 {
