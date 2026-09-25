@@ -33,6 +33,10 @@ t('the REAL list is consulted by the shipped predicate — a LISTED function is 
   for (const fn of ['ops_stranded_custody', 'ops_sealed_unsettled'])
     ok(isPendingDeploy(fn, { code: 'PGRST202', message: NOT_FOUND(fn) }),
       fn + ' is on PENDING_DEPLOY but the shipped predicate did not read it');
+  // [0236] the device-token writer; push.ts falls back to the direct upsert only on this answer.
+  ok(isPendingDeploy('register_push_token',
+    { code: 'PGRST202', message: NOT_FOUND('register_push_token') }),
+    'register_push_token is on PENDING_DEPLOY but the shipped predicate did not read it');
   // ⚠ The 1-arg sibling (0212) is NOT on the list, and must not be: it is the FALLBACK target
   //   during 0223's skew window, so a server without it is a bug, never a skew — its PGRST202
   //   must reach the developer raw.
@@ -106,8 +110,11 @@ t('⚠ the PENDING_DEPLOY list is pinned — it must SHRINK, and a change must b
   //   refresh with no open hole (api.ts). Delete with the rpc-skew.ts line once deployed.
   // 2026-09-25: ops_stranded_custody + ops_sealed_unsettled added (0224 §F console lists, written
   //   in the same slice as their wrappers; production is at 0202). Delete with rpc-skew.ts's lines.
+  // 2026-09-26: register_push_token added (0236 §A device-token takeover writer, written in the
+  //   same slice as its caller in push.ts). In the skew window push.ts falls back to the direct
+  //   push_tokens upsert. Delete with the rpc-skew.ts line once deployed.
   // 배포되면 rpc-skew.ts의 줄과 이 배열을 함께 지워 다시 [] 로 돌린다.
-  ok(JSON.stringify(keys) === JSON.stringify(['chat_mark_read_to', 'ops_sealed_unsettled', 'ops_stranded_custody', 'runner_offered_slots']),
+  ok(JSON.stringify(keys) === JSON.stringify(['chat_mark_read_to', 'ops_sealed_unsettled', 'ops_stranded_custody', 'register_push_token', 'runner_offered_slots']),
     'list changed to ' + JSON.stringify(keys) + ' — EMPTY is the correct resting state. If you '
     + 'ADDED one, say why in the entry and update this pin; if a migration deployed, delete it here too.');
   for (const [k, why] of Object.entries(PENDING_DEPLOY))
