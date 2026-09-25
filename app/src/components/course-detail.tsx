@@ -14,7 +14,7 @@ import { ScrollView, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { fetchMyRoutePhotos } from '../lib/api';
 import { MediaImage } from '../lib/media';
 import { RouteInfo } from '../store';
-import { paper } from '../theme';
+import { paper, secTitle } from '../theme';
 
 const SHADE_BAR: Record<string, string> = { high: '▮▮▮', mid: '▮▮▯', low: '▮▯▯' };
 /** 누적 오르막이 이 값 이상이면 '언덕 많음'. Sean 2026-08-19 판정(질문 7 = A, "~40 m"). */
@@ -168,7 +168,8 @@ const s = StyleSheet.create({
   },
   stripTxt: { fontSize: 15, fontWeight: '800', color: paper.text, lineHeight: 20 },
 
-  sect: { fontSize: 16, fontWeight: '800', color: paper.dim, marginTop: 16, marginBottom: 7 },
+  // DESIGN.md §3b — the one section-title grammar (20/800 ink), in the course-map sheet too.
+  sect: { ...secTitle, marginTop: 16, marginBottom: 7 },
   body: { fontSize: 15, color: paper.text, lineHeight: 22 },
 
   metaBand: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F0EEE9' },

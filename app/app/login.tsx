@@ -121,7 +121,7 @@ export default function Login() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink, paddingHorizontal: 28 },
   // 아이콘 락업과 동일: 도그스 = 화이트, 하이 = volt (히어로 음절)
-  logo: { fontSize: 60, fontWeight: '900', color: '#fff', textAlign: 'center' },
+  logo: { fontSize: 60, lineHeight: 74, fontWeight: '900', color: '#fff', textAlign: 'center' },
   tagline: { fontSize: 16, color: '#8fa093', textAlign: 'center', marginTop: 6, marginBottom: 40 },
   kakao: { backgroundColor: '#FEE500', borderRadius: 16, alignItems: 'center', paddingVertical: 17, minHeight: 44, justifyContent: 'center' },
   kakaoText: { fontSize: 17, fontWeight: '800', color: '#191919' },

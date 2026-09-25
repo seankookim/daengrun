@@ -103,7 +103,7 @@ export default function Shop() {
           <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 12.5, fontWeight: '800', letterSpacing: 2, color: colors.volt }}>HIGH POINT</Text>{/* floor-exempt: latin-kicker — hero kicker over the balance */}
-              <Text style={[{ fontSize: 34, fontWeight: '900', color: '#fff', marginTop: 5 }, nf]}>
+              <Text style={[{ fontSize: 34, lineHeight: 42, fontWeight: '900', color: '#fff', marginTop: 5 }, nf]}>
                 {miles ? miles.balance.toLocaleString() : '—'}
                 <Text style={{ fontSize: 15, color: '#b8c4ae' }}> 포인트</Text>
               </Text>

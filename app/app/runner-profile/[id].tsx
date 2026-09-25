@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
 import { alertFail } from '../../src/lib/alert-fail';
 import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchOfferedSlots, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, OfferedSlotRow, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { PatchBadge } from '../../src/components/patch';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { MediaImage } from '../../src/lib/media';
@@ -13,7 +14,7 @@ import { goBackOrHome } from '../../src/lib/nav';
 import { useNumFont } from '../../src/lib/fonts';
 import { supabase } from '../../src/lib/supabase';
 import { draft, session } from '../../src/store';
-import { colors, paper } from '../../src/theme';
+import { colors, paper, secTitle } from '../../src/theme';
 import { kstCal, kstDateLabel, kstInstant, kstKey } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
 // [0215] 후보 슬롯 규칙은 순수 모듈 한 벌 — 이 화면과 owner/reschedule 이 같은 것을 읽는다.
@@ -439,13 +440,7 @@ export default function RunnerProfileScreen() {
 
               {/* 본인에게만 뜨는 문. 세컨더리 면(wash + 코랄 라인 + actionInk) — 이 화면의 프라이머리는 예약이다. */}
               {isMe && (
-                <Pressable
-                  onPress={() => router.push('/profile/edit')}
-                  style={({ pressed }) => [s.editBtn, pressed && { backgroundColor: paper.wash }]}
-                  accessibilityRole="button"
-                >
-                  <Text style={s.editBtnTxt}>프로필 편집</Text>
-                </Pressable>
+                <PaperBtn label="프로필 편집" variant="secondary" onPress={() => router.push('/profile/edit')} style={{ marginTop: 14 }} />
               )}
 
               {/* 러너 행을 못 읽었을 때: 침묵하면 '러너가 아닌 사람'과 구별되지 않는다 */}
@@ -534,7 +529,7 @@ export default function RunnerProfileScreen() {
                     </Pressable>
                   ))}
                   {canEdit && (
-                    <Pressable onPress={addPhoto} disabled={uploadingPhoto} style={[s.tile, s.addTile]}>
+                    <Pressable onPress={addPhoto} disabled={uploadingPhoto} style={[s.tile, s.addTile]} accessibilityRole="button">
                       <Text style={{ fontSize: 26, color: paper.actionInk }}>{uploadingPhoto ? '…' : '＋'}</Text>
                       <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>{uploadingPhoto ? '올리는 중' : '사진 추가'}</Text>
                     </Pressable>
@@ -660,6 +655,10 @@ export default function RunnerProfileScreen() {
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                       {daySlots.map((sl) => {
                         const ok = slotOk[sl.key];
+                        // An unseeded key (undefined) is as unknown as a seeded null: the seeding effect
+                        // runs after paint, so a new day's chips render one frame before it. Both read
+                        // as 확인 중 — an unknown slot is never painted 가능.
+                        const checking = ok === null || ok === undefined;
                         const sel = selected?.key === sl.key;
                         return (
                           <Pressable
@@ -672,16 +671,19 @@ export default function RunnerProfileScreen() {
                             }}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: sel, disabled: ok === false }}
+                            // [ui/paper-polish] State is explicit paint, never an alpha trick (theme.ts button
+                            // matrix): closed = the disabled face (disabledFill) with faint words;
+                            // checking (null OR not-yet-seeded undefined) = a dim label on the
+                            // normal face. The other states' words and tints are unchanged.
                             style={[
                               s.slotChip,
-                              ok === false && { opacity: 0.35 },
-                              ok === null && { opacity: 0.6 },
+                              ok === false && s.slotChipClosed,
                               sel && { backgroundColor: paper.ink, borderColor: paper.ink },
                             ]}
                           >
-                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : paper.ink }}>{sl.label}</Text>
-                            <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? '#d84a2f' : ok === 'error' ? paper.critical : ok === null ? colors.dim : '#5a7a3c' }}>
-                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : ok === null ? '확인 중' : '가능'}
+                            <Text style={{ fontSize: 15, fontWeight: '800', color: sel ? '#fff' : ok === false ? paper.faint : checking ? paper.dim : paper.ink }}>{sl.label}</Text>
+                            <Text style={{ fontSize: 15, marginTop: 1, color: sel ? colors.volt : ok === false ? paper.faint : ok === 'error' ? paper.critical : checking ? paper.dim : '#5a7a3c' }}>
+                              {sel ? '선택됨 ✓' : ok === false ? '마감' : ok === 'error' ? '확인 실패 · 다시 시도' : checking ? '확인 중' : '가능'}
                             </Text>
                             {/* [0215→0221] 추가 근무 칩 — 서버가 준 **segments** 에 묶는다,
                                 추측하지 않는다. 주간 그리드(합친 것)가 슬롯 전체를 덮지 않을 때만
@@ -746,13 +748,14 @@ export default function RunnerProfileScreen() {
                     /* [Sean 2026-08-26 press behaviour] filled primary = a physical key. This one
                        had no press state at all — a coral plate that never acknowledged a tap. */
                     style={({ pressed }) => [s.cta, pressed ? s.ctaDown : s.ctaLip]}
+                    accessibilityRole="button"
                     onPress={() => {
                       draft.preferredRunnerId = p.profileId;
                       draft.preferredRunnerName = p.name;
                       router.push('/owner/request');
                     }}
                   >
-                    <Text style={{ fontSize: 17, fontWeight: '900', color: '#fff' }}>{p.name} 러너와 예약하기</Text>
+                    <Text style={{ fontSize: 17, fontWeight: '800', color: '#fff' }}>{p.name} 러너와 예약하기</Text>
                     {/* [§E.5] 지명은 결제가 아니라 **홀드 직후** 나간다 (request.tsx의 pay()
                         ③번 걸음). "결제 후"는 더 이상 존재하지 않는 단계를 가리켰다. */}
                     <Text style={{ fontSize: 15, color: '#FFE7E0', marginTop: 2 }}>예약하면 이 러너에게 지명 요청이 먼저 전달돼요</Text>
@@ -811,8 +814,8 @@ export default function RunnerProfileScreen() {
               {p.name} 러너 · 코스·옵션 선택으로 이어져요
             </Text>
           </View>
-          <Pressable onPress={() => confirmSlot(selected)} style={({ pressed }) => [s.confirmBtn, pressed ? s.ctaDown : s.ctaLip]}>
-            <Text style={{ fontSize: 16, fontWeight: '900', color: '#fff' }}>이 시간으로 ›</Text>
+          <Pressable onPress={() => confirmSlot(selected)} style={({ pressed }) => [s.confirmBtn, pressed ? s.ctaDown : s.ctaLip]} accessibilityRole="button">
+            <Text style={{ fontSize: 16, fontWeight: '800', color: '#fff' }}>이 시간으로 ›</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -836,7 +839,7 @@ function GearCell({ slot, disabled, busy, onPress }: {
   const meta = GEAR_META[slot.kind];
   const press = useCallback(() => onPress(slot.kind), [onPress, slot.kind]);
   return (
-    <Pressable disabled={disabled} onPress={press} style={[s.gearSlot, !slot.item && s.gearSlotEmpty]}>
+    <Pressable disabled={disabled} onPress={press} style={[s.gearSlot, !slot.item && s.gearSlotEmpty]} accessibilityRole="button">
       {slot.item?.photoUrl ? (
         /* `source={{ uri }}` 는 그대로 둔다 — Image 의 계약이 오브젝트이고, MediaImage 로
            바꾸는 것은 프레젠테이션이 아니라 로딩 경로를 바꾸는 일이다 */
@@ -861,7 +864,7 @@ function GearCell({ slot, disabled, busy, onPress }: {
 function PatchCell({ course, onPress }: { course: CoursePatch; onPress: (routeId: string) => void }) {
   const press = useCallback(() => onPress(course.routeId), [onPress, course.routeId]);
   return (
-    <Pressable onPress={press} style={s.patchCell}>
+    <Pressable onPress={press} style={s.patchCell} accessibilityRole="button">
       <PatchBadge km={course.km} name={course.name} grade={course.grade} size={64} />
       <Text numberOfLines={1} style={s.patchName}>{course.name}</Text>
       <Text style={s.patchCount}>×{course.count} 완주</Text>
@@ -927,9 +930,6 @@ const s = StyleSheet.create({
   metaLine: { fontSize: 15, lineHeight: 21, color: paper.text, marginTop: 6 },
   metaLineEmpty: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 6 },
   bio: { fontSize: 15.5, lineHeight: 23, color: paper.text, marginTop: 8 },
-  // 세컨더리 버튼 (버튼 매트릭스): wash 면 + 코랄 보더 + actionInk 라벨. 프라이머리는 예약 CTA다.
-  editBtn: { marginTop: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: paper.line, backgroundColor: paper.canvas },
-  editBtnTxt: { fontSize: 16, fontWeight: '800', color: paper.actionInk },
   // ── 그리드 탭 ──
   tabs: { borderBottomWidth: 1, borderBottomColor: paper.line },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
@@ -951,15 +951,20 @@ const s = StyleSheet.create({
   failText: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
   failRetry: { fontSize: 15, lineHeight: 20, color: paper.critical, marginTop: 3 },
   section: { backgroundColor: paper.canvas, paddingHorizontal: 15, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: paper.line },
-  sectionTitle: { fontSize: 15.5, fontWeight: '900', color: paper.ink, marginBottom: 8 },
+  // DESIGN.md §3b — the one section-title grammar (theme.secTitle), not a local 15.5/900.
+  sectionTitle: { ...secTitle, marginBottom: 8 },
   statDiv: { width: 1, alignSelf: 'stretch', backgroundColor: paper.line },
-  specChip: { backgroundColor: '#eef4e0', borderRadius: 99, paddingVertical: 4, paddingHorizontal: 10 },
+  // specChip, gearSlot/gearSlotEmpty, gearPhoto/gearPhotoEmpty, dayChip and slotChip moved to paper
+  // grammar in ui/paper-polish: radius 0, neutral #EEEEEE borders, canvas faces, disabledFill for
+  // empty wells. NOT converted, still open for Sean: gearBadge (#DDF0A6 green pill, radius 99) and
+  // the forest-green #3d5a2b of specChipTxt and gearBadgeText.
+  specChip: { backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', paddingVertical: 4, paddingHorizontal: 10 },
   specChipTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: '#3d5a2b' },
   // 장비 로드아웃 슬롯 (0019)
-  gearSlot: { width: 104, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#DCD6C4', padding: 8, alignItems: 'center' },
+  gearSlot: { width: 104, backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', padding: 8, alignItems: 'center' },
   // 아래 열두 개는 예전에 renderItem 안의 인라인 오브젝트였다 — 값은 한 글자도 바뀌지 않았고
   // 조건부였던 것만 정적 스타일 쌍(On/Off)으로 갈라졌다.
-  gearPhotoEmpty: { width: 88, height: 66, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1eee3' },
+  gearPhotoEmpty: { width: 88, height: 66, borderRadius: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: paper.disabledFill },
   gearGlyph: { fontSize: 27 },
   gearName: { fontSize: 15, fontWeight: '800', marginTop: 6 },
   gearNameOn: { color: paper.ink },
@@ -968,21 +973,22 @@ const s = StyleSheet.create({
   gearHint: { fontSize: 15, color: colors.dim, marginTop: 3 },
   patchName: { fontSize: 15, fontWeight: '800', color: paper.ink, marginTop: 6 },
   patchCount: { fontSize: 15, color: colors.dim, marginTop: 1 },
-  dayChipOn: { backgroundColor: paper.ink },
+  dayChipOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   dayW: { fontSize: 15, color: colors.dim },
   dayWOn: { fontSize: 15, color: '#b8c4ae' },
   dayD: { fontSize: 17, fontWeight: '900', color: paper.ink },
   dayDOn: { fontSize: 17, fontWeight: '900', color: '#fff' },
-  // 9pt 는 이 스트립의 기존 값이다 — 이 슬라이스는 프레젠테이션 이관만 하고 타이포 플로어는
-  // 건드리지 않는다 (DESIGN.md §3 의 한글 15pt 플로어에 대한 별건 항목).
-  dayTag: { fontSize: 9, fontWeight: '700', color: '#5a7a3c' },
-  dayTagOn: { fontSize: 9, fontWeight: '700', color: colors.volt },
-  gearSlotEmpty: { borderStyle: 'dashed', backgroundColor: '#faf8f1' },
-  gearPhoto: { width: 88, height: 66, borderRadius: 10, backgroundColor: '#DCD6C4' },
+  // 「오늘」/「내일」 — Korean, so it takes the 15pt floor (DESIGN.md §3); it was 9pt until
+  // ui/paper-polish. Dim on the canvas chip, canvas on the ink (selected) chip.
+  dayTag: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.dim },
+  dayTagOn: { fontSize: 15, lineHeight: 18, fontWeight: '700', color: paper.canvas },
+  gearSlotEmpty: { borderStyle: 'dashed', backgroundColor: paper.canvas },
+  gearPhoto: { width: 88, height: 66, borderRadius: 0, backgroundColor: paper.disabledFill },
   gearBadge: { backgroundColor: '#DDF0A6', borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8, marginTop: 3 },
   reviewRow: { paddingVertical: 10 },
-  dayChip: { width: 46, borderRadius: 13, backgroundColor: '#f4f2ea', alignItems: 'center', paddingVertical: 8, gap: 1 },
-  slotChip: { width: '22.5%', backgroundColor: '#f7f9f0', borderRadius: 12, borderWidth: 1, borderColor: '#dde8c4', alignItems: 'center', paddingVertical: 9 },
+  dayChip: { width: 46, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', backgroundColor: paper.canvas, alignItems: 'center', paddingVertical: 8, gap: 1 },
+  slotChip: { width: '22.5%', backgroundColor: paper.canvas, borderRadius: 0, borderWidth: 1, borderColor: '#EEEEEE', alignItems: 'center', paddingVertical: 9 },
+  slotChipClosed: { backgroundColor: paper.disabledFill },
   addTile: { backgroundColor: paper.wash, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: paper.line },
   // 프라이머리 액션 = paper.action (흰 라벨 4.84:1). 볼트 라임 은퇴 — 이 화면은 페이퍼 월드다.
   cta: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 15, marginTop: 16 },

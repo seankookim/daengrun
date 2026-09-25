@@ -2,6 +2,7 @@ import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PaperBtn } from '../src/components/paper-btn';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import {
@@ -25,7 +26,7 @@ import {
 } from '../src/lib/api';
 import { supabase } from '../src/lib/supabase';
 import { session } from '../src/store';
-import { colors, paper } from '../src/theme';
+import { colors, layout, paper } from '../src/theme';
 
 // 채팅 — 예약당 스레드 1개, Supabase Realtime 실배달.
 // 진입: 위젯·일정 시트·미트업의 채팅 버튼(bid 전달) 또는 역할별 진행 중 예약 자동 해석.
@@ -662,11 +663,11 @@ export default function Chat() {
   // 유일한 통로일 때만** 사실이 된다.
   // 문장은 짧게 유지한다 — 이 줄은 모노그램·백버튼과 한 행을 나눠 쓰므로 길어지면 헤더가 2행이 된다.
   const linkLine: { tx: string; bad: boolean } | null =
-    state === 'loading' ? { tx: '연결 중...', bad: false }
+    state === 'loading' ? { tx: '연결 중…', bad: false }
       : state !== 'ready' ? null
         : link === 'live' ? { tx: '● 실시간 연결됨', bad: false }
           : pollErr ? { tx: '메시지를 못 받고 있어요', bad: true }
-            : link === 'connecting' ? { tx: '연결 중...', bad: false }
+            : link === 'connecting' ? { tx: '연결 중…', bad: false }
               : { tx: '실시간 끊김 — 새로고침 중', bad: false };
 
   // ── HIG A3/A6 — the two things this screen changes on its own ────────────────────────────────
@@ -678,7 +679,7 @@ export default function Chat() {
   // it gets the same treatment as a null state strip on the run and radar screens (the first
   // settled sentence is this screen's content, and only a later flip is a change). The ● is
   // decoration; it is dropped rather than spelled out.
-  const linkSentence = linkLine === null || linkLine.tx === '연결 중...'
+  const linkSentence = linkLine === null || linkLine.tx === '연결 중…'
     ? null
     : linkLine.tx.replace('●', '').trim();
   useAnnounceOnChange(linkSentence);
@@ -750,14 +751,7 @@ export default function Chat() {
       {state === 'error' && (
         <View style={s.emptyWrap}>
           <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>채팅을 불러오지 못했어요 — 잠시 후 다시 시도해주세요</Text>
-          <Pressable
-            style={s.retryBtn}
-            onPress={retryLoad}
-            accessibilityRole="button"
-            accessibilityLabel="채팅 다시 시도"
-          >
-            <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
-          </Pressable>
+          <PaperBtn label="다시 시도" variant="secondary" onPress={retryLoad} style={{ alignSelf: 'center', marginTop: 14, paddingHorizontal: 24 }} />
         </View>
       )}
 
@@ -765,7 +759,7 @@ export default function Chat() {
         <ScrollView
           ref={scroller}
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 18, gap: 8 }}
+          contentContainerStyle={{ padding: layout.gutter, gap: 8 }}
           onContentSizeChange={() => {
             // An older page just landed above the reader — growing the content must NOT throw
             // them back to the newest message. One jump is suppressed, then the normal
@@ -866,9 +860,9 @@ export default function Chat() {
 
       {/* quick replies */}
       {state === 'ready' && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 18 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 46 }} contentContainerStyle={{ gap: 8, paddingHorizontal: layout.gutter }}>
           {QUICK.map((q) => (
-            <Pressable key={q} style={s.quick} onPress={() => send(q)}>
+            <Pressable key={q} style={s.quick} onPress={() => send(q)} accessibilityRole="button">
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#3d453d' }}>{q}</Text>
             </Pressable>
           ))}
@@ -885,15 +879,15 @@ export default function Chat() {
           accessibilityLabel="사진 보내기"
           accessibilityState={{ disabled: state !== 'ready' }}
         >
-          <Text style={{ fontSize: 17, color: state === 'ready' ? '#5a7a3c' : colors.dim }}>▣</Text>
+          <Text style={{ fontSize: 17, color: state === 'ready' ? paper.ink : colors.dim }}>▣</Text>
         </Pressable>
         <TextInput
           style={s.input}
           value={input}
           onChangeText={setInput}
-          /* 플레이스홀더도 같은 법을 진다 — 수락 전 상태에서 '연결 중...'은 열릴 예정이 없는
+          /* 플레이스홀더도 같은 법을 진다 — 수락 전 상태에서 '연결 중…'은 열릴 예정이 없는
              연결을 기다리라는 말이 된다 */
-          placeholder={state === 'ready' ? '메시지 보내기' : state === 'preaccept' ? '수락 후 열려요' : '연결 중...'}
+          placeholder={state === 'ready' ? '메시지 보내기' : state === 'preaccept' ? '수락 후 열려요' : '연결 중…'}
           placeholderTextColor="#a9a795"
           editable={state === 'ready'}
           onSubmitEditing={() => send(input)}
@@ -914,7 +908,7 @@ export default function Chat() {
           accessibilityLabel={sending ? '보내는 중…' : '보내기'}
           accessibilityState={{ busy: sending, disabled: sendBlocked }}
         >
-          <Text style={{ fontSize: 17, fontWeight: '900', color: sendBlocked ? paper.faint : paper.ink }}>{sending ? '보내는 중…' : '↑'}</Text>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: sendBlocked ? paper.faint : '#FFFFFF' }}>{sending ? '보내는 중…' : '↑'}</Text>
         </Pressable>
       </Row>
     </KeyboardAvoidingView>
@@ -922,24 +916,23 @@ export default function Chat() {
 }
 
 const s = StyleSheet.create({
-  header: { paddingHorizontal: 18, paddingBottom: 12, gap: 10, backgroundColor: colors.cream, borderBottomWidth: 1, borderBottomColor: '#DCD6C4' },
-  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  contextStrip: { backgroundColor: '#eef4e0', paddingVertical: 8, paddingHorizontal: 18 },
+  header: { paddingHorizontal: layout.gutter, paddingBottom: 12, gap: 10, backgroundColor: paper.canvas, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  circleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
+  contextStrip: { backgroundColor: paper.wash, paddingVertical: 8, paddingHorizontal: layout.gutter },
   emptyWrap: { flex: 1, justifyContent: 'center', padding: 30 },
-  retryBtn: { alignSelf: 'center', marginTop: 14, backgroundColor: colors.volt, borderRadius: 99, paddingVertical: 10, paddingHorizontal: 18 },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   bubble: { maxWidth: '76%', borderRadius: 18, paddingVertical: 10, paddingHorizontal: 14 },
-  bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#DCD6C4', borderBottomLeftRadius: 6 },
+  bubblePeer: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEEEEE', borderBottomLeftRadius: 6 },
   bubbleMine: { backgroundColor: colors.volt, borderBottomRightRadius: 6 },
   time: { fontSize: 15, color: colors.dim, marginBottom: 3 },
   // [0212] 「읽음」 — 한글 디테일 플로어 15pt (DESIGN.md §3; 한글은 키커 예외를 타지 않는다).
   // 내 말풍선은 오른쪽 정렬이므로 영수증도 그 끝을 따라간다.
   receipt: { fontSize: 15, color: colors.dim, alignSelf: 'flex-end', marginTop: 2, marginRight: 2 },
-  quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center' },
+  quick: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 14, borderWidth: 1, borderColor: '#EEEEEE', alignSelf: 'center' },
   // The 「이전 메시지 더 보기」 door — the quick-reply chip grammar, centred at the top of the thread.
-  olderDoor: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#DCD6C4', alignSelf: 'center', marginBottom: 4 },
-  inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: colors.cream },
-  attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#DCD6C4', color: paper.ink },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.volt, alignItems: 'center', justifyContent: 'center' },
+  olderDoor: { backgroundColor: '#fff', borderRadius: 99, paddingVertical: 9, paddingHorizontal: 16, borderWidth: 1, borderColor: '#EEEEEE', alignSelf: 'center', marginBottom: 4 },
+  inputBar: { padding: 14, paddingBottom: 30, gap: 8, backgroundColor: paper.canvas },
+  attach: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#EEEEEE' },
+  input: { flex: 1, backgroundColor: '#fff', borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11, fontSize: 16, borderWidth: 1, borderColor: '#EEEEEE', color: paper.ink },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: paper.action, alignItems: 'center', justifyContent: 'center' },
 });

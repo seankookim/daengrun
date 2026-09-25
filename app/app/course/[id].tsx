@@ -289,7 +289,7 @@ export default function CourseScreen() {
             )}
 
             {/* ---------- 이름 + 지역 ---------- */}
-            <Text style={[{ fontSize: 27, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
+            <Text style={[{ fontSize: 27, lineHeight: 33, color: paper.ink, marginTop: 16, fontWeight: '900' }, df]}>{route.name}</Text>
             <Text style={{ fontSize: 15, color: paper.dim, fontWeight: '700', marginTop: 4 }}>{route.area}</Text>
 
             {/* ---------- 본문 — 시트 DETAIL 단과 같은 컴포넌트 ---------- */}

@@ -85,7 +85,6 @@
 # removes them from the count permanently and says why. Nobody has triaged these 162 yet; a line
 # here means only "this element had no role on the day it was written down."
 
-app/chat.tsx :: Chat :: 6f729935 :: 1
 app/club/[id].tsx :: ClubPage :: 1dc6feb0 :: 1
 app/club/[id].tsx :: ClubPage :: 5458a8bc :: 1
 app/club/[id].tsx :: ClubPage :: bbb2ab77 :: 1
@@ -149,11 +148,6 @@ app/dev/pay-lab.tsx :: PayLab :: 5b9d086c :: 1
 app/dev/pay-lab.tsx :: PayLab :: 8feca5dc :: 1
 app/dev/pay-lab.tsx :: PayLab :: 9c424264 :: 1
 app/owner/fitness.tsx :: FitnessHub :: da1028ea :: 1
-app/runner-profile/[id].tsx :: GearCell :: e20aed29 :: 1
-app/runner-profile/[id].tsx :: PatchCell :: 934e0e0a :: 1
-app/runner-profile/[id].tsx :: RunnerProfileScreen :: 4844af55 :: 1
-app/runner-profile/[id].tsx :: RunnerProfileScreen :: d78cbfc9 :: 1
-app/runner-profile/[id].tsx :: RunnerProfileScreen :: f78b3b17 :: 1
 app/runner/home.tsx :: RunnerHome :: 43ed60ec :: 1
 app/runner/home.tsx :: SectionHead :: 72dc108c :: 1
 app/runner/requests.tsx :: Requests :: 4b36383e :: 1

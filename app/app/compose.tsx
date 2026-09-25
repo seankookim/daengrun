@@ -10,7 +10,7 @@ import { alertFail } from '../src/lib/alert-fail';
 import { haptic } from '../src/lib/haptics';
 import { foldRpcError, rpcRaw } from '../src/lib/rpc-error';
 import { session } from '../src/store';
-import { CollarKey, collarColors, lilac, paper } from '../src/theme';
+import { CollarKey, collarColors, lilac, paper, secTitle } from '../src/theme';
 
 // 피드 컴포저 — 커뮤니티 직행 포스트 진입점 (owner home · runner home · 피드 상단 컴포즈 바가 여기로 온다).
 //
@@ -223,10 +223,10 @@ export default function Compose() {
 
       {loaded && error == null && cands.length > 0 && attachOpen && (
         <>
-          <Row style={{ alignItems: 'center', gap: 8, marginTop: 20, marginBottom: 10 }}>
-            <Text style={s.kicker}>SHARE TO FEED</Text>
-            <View style={s.kickerRule} />
-          </Row>
+          {/* §3b section header — full-bleed coral rule, then the one title grammar (no latin kicker) */}
+          <View style={[s.secWrap, { marginTop: 20, marginBottom: 10 }]}>
+            <Text style={secTitle}>피드에 올릴 기록</Text>
+          </View>
 
           {shareable.length === 0 ? (
             <View style={s.emptyBox}>
@@ -304,10 +304,9 @@ export default function Compose() {
           {/* 이미 공유한 러닝 — 상태 표시(버튼 아님). 다시 눌러도 되는 척하지 않는다 */}
           {done.length > 0 && (
             <View style={{ marginTop: 18 }}>
-              <Row style={{ alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Text style={s.kicker}>ALREADY SHARED</Text>
-                <View style={s.kickerRule} />
-              </Row>
+              <View style={[s.secWrap, { marginBottom: 8 }]}>
+                <Text style={secTitle}>이미 올린 기록</Text>
+              </View>
               <View style={{ gap: 6 }}>
                 {done.map((c) => (
                   <View key={c.bookingId} style={s.doneRow}>
@@ -332,8 +331,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', marginTop: 14, minHeight: 48,
     borderTopWidth: 1, borderBottomWidth: 1, borderColor: paper.line, paddingHorizontal: 2,
   },
-  kicker: { fontSize: 12, fontWeight: '600', letterSpacing: 2, color: paper.faint, textTransform: 'uppercase' },
-  kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' },
+  // §3b section header: the coral rule runs full-bleed by cancelling the scroll's 16pt side
+  // padding (contentContainerStyle above), then theme.secTitle — same shape as runner/rewards.tsx.
+  secWrap: { marginHorizontal: -16, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: paper.line, paddingTop: 10 },
 
   emptyBox: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 20, marginTop: 20 },
   // 라우드-페일 스트립 — criticalWash 바닥 + critical 잉크 (코랄 line과 절대 공유 금지)
