@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Image, Pressable, ScrollView, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Icon, Row } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { checkSlot, CoursePatch, deleteGear, NOT_FOUND, deleteRunnerPhoto, fetchGear, fetchOfferedSlots, fetchProfileIdentity, fetchProfilePosts, fetchRunnerCourseHistory, fetchRunnerProfile, fetchRunnerReviewCount, GEAR_KINDS, GEAR_META, GearItem, GearKind, OfferedSlotRow, ProfileIdentity, ProfilePost, RunnerPublicProfile, uploadRunnerPhoto, upsertGear } from '../../src/lib/api';
 import { PatchBadge } from '../../src/components/patch';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
@@ -270,7 +271,7 @@ export default function RunnerProfileScreen() {
       const photos = await uploadRunnerPhoto(res.assets[0].base64);
       setP((prev) => (prev ? { ...prev, photos } : prev));
     } catch (e) {
-      Alert.alert('업로드 실패', (e as Error).message);
+      alertFail('업로드 실패', e);
     } finally {
       setUploadingPhoto(false);
     }
@@ -291,7 +292,7 @@ export default function RunnerProfileScreen() {
       const item = await upsertGear(kind, res.assets[0].base64);
       setGear((cur) => [...cur.filter((g) => g.kind !== kind), item]);
     } catch (e) {
-      Alert.alert('장비 등록 실패', (e as Error).message);
+      alertFail('장비 등록 실패', e);
     } finally {
       setGearBusy(null);
     }
@@ -308,7 +309,7 @@ export default function RunnerProfileScreen() {
           try {
             await deleteGear(kind);
             setGear((cur) => cur.filter((g) => g.kind !== kind));
-          } catch (e) { Alert.alert('삭제 실패', (e as Error).message); }
+          } catch (e) { alertFail('삭제 실패', e); }
         },
       },
       { text: '취소', style: 'cancel' },
@@ -324,7 +325,7 @@ export default function RunnerProfileScreen() {
           try {
             const photos = await deleteRunnerPhoto(url);
             setP((prev) => (prev ? { ...prev, photos } : prev));
-          } catch (e) { Alert.alert('삭제 실패', (e as Error).message); }
+          } catch (e) { alertFail('삭제 실패', e); }
         },
       },
     ]);

@@ -9,6 +9,7 @@ import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, fetchRunPhase, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
+import { alertFail } from '../../src/lib/alert-fail';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
@@ -504,7 +505,9 @@ export default function Live() {
       router.push({ pathname: '/chat', params: { bid: bookingId } });
     } catch (e) {
       // Failure renders as failure — sheet stays open, retry possible
-      Alert.alert('요청을 보내지 못했어요', (e as Error)?.message ?? '네트워크를 확인하고 다시 시도해주세요');
+      // The `??` fallback this line used to carry was dead on an Error (a message is always a
+      // string); `empty` is where that sentence lives now, and it fires for a message-less throw.
+      alertFail('요청 전송 실패', e, null, { fold: { empty: '네트워크를 확인하고 다시 시도해주세요' } });
     } finally {
       setStopBusy(false);
     }

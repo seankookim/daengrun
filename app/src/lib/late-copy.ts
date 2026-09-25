@@ -44,12 +44,12 @@ export function copyFor(
     // 「자동으로 …되지 않아요」를 걷어낸 이유다. 남는 건 읽는 사람이 실제로 할 수 있는 행동뿐이다.
     if (late.custody === 'post' && !late.started) {
       return side === 'owner'
-        ? { kick: '직접 확인해 주세요', head: `${dog}와의 러닝이\n아직 시작되지 않았어요`, tone: 'warn',
-            strip: '러너에게 직접 연락해 주세요.' }
+        ? { kick: '직접 확인해주세요', head: `${dog}와의 러닝이\n아직 시작되지 않았어요`, tone: 'warn',
+            strip: '러너에게 직접 연락해주세요.' }
         : { kick: `${since} 지남`, head: '아직 러닝을\n시작하지 않았어요', tone: 'warn' };
     }
     return side === 'owner'
-      ? { kick: '직접 확인해 주세요', head: `${dog}가 아직\n돌아오지 않았어요`, tone: 'critical',
+      ? { kick: '직접 확인해주세요', head: `${dog}가 아직\n돌아오지 않았어요`, tone: 'critical',
           strip: '러너에게 연락하거나 긴급 도움을 요청하세요.' }
       // [랩 교정 ⑥] 목업은 「아직 달리는 중인가요?」라는 질문이었다. stage 1 은 답을 받을 수
       // 없으므로 질문형은 작은 거짓말이다 (물어놓고 답 칸이 없다). 서술형으로 바꾼다.
@@ -92,9 +92,9 @@ export function copyFor(
   if (!late.resumable) {
     return side === 'owner'
       ? { kick: `${since} 지남`, head: '예약 시각에서\n너무 오래 지났어요', tone: 'warn',
-          strip: '지금 진행하면 예정과 크게 달라져요 — 일정에서 정리하거나 다시 예약해 주세요.' }
+          strip: '지금 진행하면 예정과 크게 달라져요 — 일정에서 정리하거나 다시 예약해주세요.' }
       : { kick: `${since} 지남`, head: '예약 시각에서\n너무 오래 지났어요', tone: 'warn',
-          strip: '지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해 주세요.' };
+          strip: '지금 출발하면 예정과 크게 달라져요 — 보호자와 먼저 확인해주세요.' };
   }
 
   // ── 인계 전, 러너를 기다리는 중

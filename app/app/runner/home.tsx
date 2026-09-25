@@ -1,5 +1,6 @@
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
+import { alertFail } from '../../src/lib/alert-fail';
 import { useNumFont } from '../../src/lib/fonts';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -514,10 +515,10 @@ export default function RunnerHome() {
           try {
             await acceptBooking(rq.bookingId);
             haptic('success');
-            Alert.alert('수락 완료', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라갑니다');
+            Alert.alert('수락 완료', '보호자에게 알림이 갔어요 — 오늘의 루트에 올라가요');
             reloadQueue();
           } catch (e) {
-            Alert.alert('수락 실패', (e as Error).message);
+            alertFail('수락 실패', e);
           } finally { setBusyReq(false); }
         },
       },
@@ -540,7 +541,7 @@ export default function RunnerHome() {
             haptic('light');
             reloadQueue();
           } catch (e) {
-            Alert.alert('거절 실패', (e as Error).message);
+            alertFail('거절 실패', e);
           } finally { setBusyReq(false); }
         },
       },
@@ -667,7 +668,7 @@ export default function RunnerHome() {
     setRunnerOnline(next).catch((e) => {
       setRs((v) => ({ ...v, online: !next }));
       console.warn('[rhome] online:', e?.message ?? e);
-      Alert.alert('온라인 상태를 바꾸지 못했어요', '다시 시도해주세요');
+      Alert.alert('온라인 상태 변경 실패', '다시 시도해주세요');
     });
   };
 
@@ -688,7 +689,7 @@ export default function RunnerHome() {
     saveMyAvailability(next).catch((e) => {
       setAvail(prev);
       console.warn('[rhome] avail save:', e?.message ?? e);
-      Alert.alert('가용시간을 저장하지 못했어요', '다시 시도해주세요');
+      Alert.alert('가용시간 저장 실패', '다시 시도해주세요');
     });
   };
 

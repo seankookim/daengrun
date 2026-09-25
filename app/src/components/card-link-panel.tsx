@@ -17,6 +17,7 @@ import { Alert, Text, View } from 'react-native';
 import { BillingAuthSheet } from './billing-auth-sheet';
 import { PaperBtn } from './paper-btn';
 import { Pressable } from 'react-native';
+import { alertFail } from '../lib/alert-fail';
 import { cardRegistrationLive, issueBillingKey, prepareBillingAuth } from '../lib/api';
 import { useDisplayFont } from '../lib/displayFont';
 import { useNumFont } from '../lib/fonts';
@@ -59,7 +60,7 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
       setAttempt(at);
       setSheet(true);
     } catch (e) {
-      if (alive.current) Alert.alert('카드 연결 실패', (e as Error).message);
+      if (alive.current) alertFail('카드 연결 실패', e);
     } finally {
       if (alive.current) setBusy(false);
     }
@@ -75,7 +76,12 @@ export function CardLinkPanel({ context, dueAmount, onLinked, onSkip }: CardLink
     } catch (e) {
       // 토스/카드사의 문장 그대로 (서버 handler가 verbatim으로 넘긴다) — 우리가 지어낸 일반
       // 문구는 보호자가 자기 카드사에 확인할 단서를 지운다.
-      if (alive.current) Alert.alert('카드 등록이 거절됐어요', (e as Error).message);
+      // [fix/alert-fold-copy 2026-09-25] That rule still holds: `alertFail` passes a Hangul message
+      // through untouched, so Toss's Korean refusal is drawn as sent. What it stops is the OTHER
+      // thing this catch receives — the edge's own English 500s (「billing_issue_intent_open
+      // failed: …」) — and the title stopped claiming 「거절」 for those too: busy, an expired
+      // window and a server fault are not a card company's refusal.
+      if (alive.current) alertFail('카드 등록 실패', e);
     } finally {
       if (alive.current) setBusy(false);
     }

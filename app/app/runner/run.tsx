@@ -15,6 +15,7 @@ import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
 import { announce, useAnnounceOnChange } from '../../src/lib/a11y-announce';
+import { alertFail } from '../../src/lib/alert-fail';
 import { useNumFont } from '../../src/lib/fonts';
 import { EndReason, RouteInfo, runnerJob, runResult } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
@@ -233,7 +234,7 @@ export default function ActiveRun() {
       setEvCounts((c) => ({ ...c, photo: (c.photo ?? 0) + 1 }));
       haptic('success');
     } catch (e) {
-      Alert.alert('전송 실패', (e as Error).message);
+      alertFail('전송 실패', e);
     } finally {
       setSnapBusy(false);
     }
@@ -855,17 +856,21 @@ export default function ActiveRun() {
           return true;
         } catch (e) {
           return new Promise((resolve) => {
-            Alert.alert(
+            alertFail(
               '러닝 종료 실패',
+              e,
               // Says only what is known. The server transaction rolls back whole, but a LOST
               // RESPONSE (network drop, app kill) commits server-side while the client sees a
               // failure — and `end_run_tx` answers a retry with `{unchanged:true}`, so retrying
-              // is safe in both worlds and never double-freezes.
-              `${(e as Error).message}\n\n기록은 아직 서버에 확정되지 않았을 수 있어요 — 재시도는 안전해요.\n재시도가 성공하면 그대로 인계 확인으로 넘어가요.`,
-              [
-                { text: '나중에', style: 'cancel', onPress: () => resolve(false) },
-                { text: '다시 시도', onPress: () => resolve(tryEnd()) },
-              ],
+              // is safe in both worlds and never double-freezes. (The leading \n keeps the blank
+              // line this body always had between the failure and the explanation.)
+              '\n기록은 아직 서버에 확정되지 않았을 수 있어요 — 재시도는 안전해요.\n재시도가 성공하면 그대로 인계 확인으로 넘어가요.',
+              {
+                buttons: [
+                  { text: '나중에', style: 'cancel', onPress: () => resolve(false) },
+                  { text: '다시 시도', onPress: () => resolve(tryEnd()) },
+                ],
+              },
             );
           });
         }

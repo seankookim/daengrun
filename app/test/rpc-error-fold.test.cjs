@@ -60,7 +60,11 @@ t('🔴 an ALLOWLISTED function with PGRST202 gets the version-mismatch sentence
   // which pins that an unlisted function is NEVER given the sentence. The positive direction of
   // `isPendingDeploy` itself is pinned against a synthetic list by `rpc-skew.test.cjs`.
   // What is pinned HERE is that `foldRpcError` exposes the sentence at all, byte-exact.
-  eq(PENDING_DEPLOY_KO, '앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해 주세요',
+  // [fix/alert-fold-copy 2026-09-25] Spacing normalised to the closed 「시도해주세요」 — one retry
+  // sentence, one spelling: RPC_FOLD_KO four lines below it in rpc-error.ts already said
+  // 「다시 시도해주세요」, so two consecutive failures rendered two spellings of the same
+  // instruction. `clubRpc` imports this constant (api.ts), so there is no second literal to move.
+  eq(PENDING_DEPLOY_KO, '앱과 서버 버전이 맞지 않아 지금은 쓸 수 없어요 — 잠시 후 다시 시도해주세요',
     'the version-mismatch sentence drifted from the one clubRpc ships');
 });
 

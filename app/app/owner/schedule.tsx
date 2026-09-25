@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
+import { alertFail } from '../../src/lib/alert-fail';
 import { bookingStateLabel } from '../../src/lib/booking-state-copy';
 import { traceToBox } from '../../src/lib/trace';
 import { HeatTrace } from '../../src/components/runcard';
@@ -335,7 +336,7 @@ export default function Schedule() {
             load();
             Alert.alert('해지 완료', '매주 반복이 해지됐어요');
           } catch (e) {
-            Alert.alert('해지 실패', (e as Error).message ?? '잠시 후 다시 시도해주세요');
+            alertFail('해지 실패', e, null, { fold: { empty: '잠시 후 다시 시도해주세요' } });
           }
         },
       },
@@ -627,7 +628,7 @@ export default function Schedule() {
                 onPress={() => {
                   shareRunToFeed(b.id)
                     .then(() => Alert.alert('피드에 올렸어요', '하이 피드에서 확인해보세요'))
-                    .catch((err) => Alert.alert('피드 공유', (err as Error).message));
+                    .catch((err) => alertFail('피드 공유 실패', err));
                 }}
                 style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                 accessibilityRole="button"
@@ -1394,7 +1395,7 @@ export default function Schedule() {
                         );
                         load();
                       } catch (e) {
-                        Alert.alert('취소 실패', (e as Error).message);
+                        alertFail('취소 실패', e);
                       }
                     }}
                   >

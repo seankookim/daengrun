@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Avatar, Row } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { addDog, DogProfile, fetchMyDogs, updateMyDog, uploadDogPhoto } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
@@ -130,7 +131,7 @@ export default function DogProfileScreen() {
       try {
         const id = await addDog(n.trim());
         await load(id);
-      } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+      } catch (e) { alertFail('추가 실패', e); }
     });
   };
 
@@ -153,7 +154,7 @@ export default function DogProfileScreen() {
       setDogs((ds) => ds.map((x) => (x.id === photoDogId ? { ...x, photoUrl: url } : x)));
       setDog((d) => (d && d.id === photoDogId ? { ...d, photoUrl: url } : d));
     } catch (e) {
-      Alert.alert('업로드 실패', (e as Error).message);
+      alertFail('업로드 실패', e);
     } finally {
       setUploading(false);
     }
@@ -228,7 +229,7 @@ export default function DogProfileScreen() {
       }
       Alert.alert('저장 완료', '러너에게 전달되는 프로필이 업데이트됐어요');
     } catch (e) {
-      Alert.alert('저장 실패', (e as Error).message);
+      alertFail('저장 실패', e);
     } finally {
       setSaving(false);
     }
@@ -449,7 +450,7 @@ export default function DogProfileScreen() {
           {/* §3b primary. [Sean 2026-08-26 press behaviour] handed to PaperBtn so the 4px lip and
               the translateY(3) travel come from the one place that defines them. Same action
               fill, same 17/800 white, same busy label swap. */}
-          <PaperBtn label="저장하기" busyLabel="저장 중…" onPress={save} busy={saving} />
+          <PaperBtn label="저장" busyLabel="저장 중…" onPress={save} busy={saving} />
         </View>
       )}
     </View>

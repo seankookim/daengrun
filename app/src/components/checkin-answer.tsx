@@ -331,7 +331,7 @@ function FailBlock() {
   return (
     <View style={s.refusal}>
       <Text style={s.refusalTitle}>답을 보내지 못했어요</Text>
-      <Text style={s.refusalBody}>잠시 후 다시 시도해 주세요. 아직 아무것도 기록되지 않았어요.</Text>
+      <Text style={s.refusalBody}>잠시 후 다시 시도해주세요. 아직 아무것도 기록되지 않았어요.</Text>
     </View>
   );
 }

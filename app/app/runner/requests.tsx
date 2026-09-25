@@ -6,6 +6,7 @@ import { BottomNav } from '../../src/components/bottomnav';
 import { TabSwipe } from '../../src/components/tabswipe';
 import { DemandStrip } from '../../src/components/clubcard';
 import { Avatar, Row } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { acceptBooking, acceptReschedule, AvailRule, declineBooking, declineReschedule, fetchMyAvailability, fetchMyRunnerApplication, fetchMyRunnerBase, fetchMyRunnerStatus, fetchRescheduleRequests, fetchRunnerInbox, fetchRunnerJobs, fetchRunnerWorkGate, MyRunnerStatus, OpenRequest, RescheduleRequest, RunnerApplication, RunnerJob, RunnerWorkGate } from '../../src/lib/api';
 import { applicationLine, type ApplicationRead } from '../../src/lib/runner-application-copy';
 import { workGateDoor, type WorkGateRead } from '../../src/lib/work-gate-door';
@@ -462,7 +463,7 @@ export default function Requests() {
       Alert.alert('수락 완료', '보호자에게 수락 알림이 전송되었어요');
       router.push('/runner/meetup');
     } catch (e) {
-      Alert.alert('수락 실패', (e as Error).message);
+      alertFail('수락 실패', e);
       load();
     } finally {
       setAccepting(null);
@@ -492,7 +493,7 @@ export default function Requests() {
       haptic('light');
       load();
     } catch (e) {
-      Alert.alert('거절 실패', (e as Error).message);
+      alertFail('거절 실패', e);
       load();
     } finally {
       setDeclining(null);
@@ -848,7 +849,7 @@ export default function Requests() {
                     setReschedBusy(rq.bookingId);
                     setReschedAct('decline');
                     try { await declineReschedule(rq.bookingId); haptic('light'); load(); }
-                    catch (e) { Alert.alert('처리 실패', (e as Error).message); }
+                    catch (e) { alertFail('처리 실패', e); }
                     finally { setReschedBusy(null); setReschedAct(null); }
                   }}
                 >
@@ -885,9 +886,9 @@ export default function Requests() {
                           try {
                             await acceptReschedule(rq.bookingId);
                             haptic('success');
-                            Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영됩니다');
+                            Alert.alert('변경 수락', '일정이 새 시간으로 변경됐어요 — 캘린더에 반영돼요');
                             load();
-                          } catch (e) { Alert.alert('수락 실패', (e as Error).message); load(); }
+                          } catch (e) { alertFail('수락 실패', e); load(); }
                           finally { setReschedBusy(null); setReschedAct(null); }
                         } },
                       ]);

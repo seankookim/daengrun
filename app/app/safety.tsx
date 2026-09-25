@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav } from '../src/components/bottomnav';
 import { PaperBtn } from '../src/components/paper-btn';
 import { Icon, Row, ScreenHead } from '../src/components/ui';
+import { alertFail } from '../src/lib/alert-fail';
 import {
   addEmergencyContact, deleteEmergencyContact, EmContact, fetchEmergencyContacts,
   fetchReportableRun, ReportableRun, sendSOS,
@@ -69,7 +70,9 @@ export default function Safety() {
             if (bid) Alert.alert('전송 완료', '상대방에게 긴급 알림이 전송됐어요.\n위급 상황이면 즉시 112/119에 연락하세요.');
             else Alert.alert('진행 중인 러닝이 없어요', '위급 상황이면 즉시 112/119에 연락하세요.');
           } catch (e) {
-            Alert.alert('전송 실패', `${(e as Error).message}\n위급 상황이면 즉시 112/119에 연락하세요.`);
+            // The 112/119 line rides as the TAIL: it is the one sentence on this screen that must
+            // survive whatever the failure was, so it is never folded and never replaced.
+            alertFail('전송 실패', e, '위급 상황이면 즉시 112/119에 연락하세요.');
           }
         },
       },
@@ -84,7 +87,7 @@ export default function Safety() {
       await addEmergencyContact(cName.trim(), cPhone.trim());
       setCName(''); setCPhone(''); setAdding(false);
       load();
-    } catch (e) { Alert.alert('추가 실패', (e as Error).message); }
+    } catch (e) { alertFail('추가 실패', e); }
     finally { setSaving(false); }
   };
 
@@ -95,7 +98,7 @@ export default function Safety() {
         text: '삭제', style: 'destructive',
         // [honesty 2026-08-11] a confirmed destructive delete of an EMERGENCY contact
         // used to fail silently — the user believed the safety roster changed. It says so now.
-        onPress: () => deleteEmergencyContact(c.id).then(load).catch((e) => Alert.alert('삭제 실패', (e as Error).message)),
+        onPress: () => deleteEmergencyContact(c.id).then(load).catch((e) => alertFail('삭제 실패', e)),
       },
     ]);
   };

@@ -4,6 +4,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
 import { Row, ScreenHead } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOr } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
@@ -81,7 +82,7 @@ export default function OwnerReview() {
       Alert.alert('후기 등록 완료', `${rname ?? '러너'}님의 프로필에 반영됐어요 — 고마워요!`);
       goBackOr(reportOf(bid));
     } catch (e) {
-      Alert.alert('등록 실패', (e as Error).message);
+      alertFail('등록 실패', e);
     } finally {
       setBusy(false);
     }

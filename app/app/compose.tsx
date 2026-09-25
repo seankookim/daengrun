@@ -6,7 +6,9 @@ import { PaperBtn } from '../src/components/paper-btn';
 import { Row, ScreenHead } from '../src/components/ui';
 import { createFreePost, fetchMyBookings, fetchMySharedBookingIds, fetchRunnerJobs, shareRunToFeed } from '../src/lib/api';
 import { useNumFont } from '../src/lib/fonts';
+import { alertFail } from '../src/lib/alert-fail';
 import { haptic } from '../src/lib/haptics';
+import { foldRpcError, rpcRaw } from '../src/lib/rpc-error';
 import { session } from '../src/store';
 import { CollarKey, collarColors, lilac, paper } from '../src/theme';
 
@@ -81,7 +83,10 @@ export default function Compose() {
       setSel((cur) => (cur && list.some((c) => c.bookingId === cur && !c.shared) ? cur : null));
       setLoaded(true);
     } catch (e) {
-      setError((e as Error).message ?? '불러오지 못했어요');
+      // The `??` was dead on an Error; the fold keeps English off the strip and `empty` is where
+      // that sentence lives now (fix/alert-fold-copy 2026-09-25).
+      console.warn('[compose] load:', rpcRaw(e));
+      setError(foldRpcError(e, { empty: '불러오지 못했어요' }).message);
       setLoaded(true);
     }
   };
@@ -98,7 +103,7 @@ export default function Compose() {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, base64: true });
       if (res.canceled || !res.assets?.[0]?.base64) return;
       setPhoto(res.assets[0].base64);
-    } catch (e) { Alert.alert('사진을 불러오지 못했어요', (e as Error).message); }
+    } catch (e) { alertFail('사진 불러오기 실패', e); }
   };
 
   const submit = async () => {
@@ -112,7 +117,7 @@ export default function Compose() {
         haptic('light');
         router.replace('/community');
       } catch (e) {
-        Alert.alert('올리지 못했어요', (e as Error).message);
+        alertFail('업로드 실패', e);
       } finally { setBusy(false); }
       return;
     }
@@ -123,7 +128,7 @@ export default function Compose() {
       // Straight to the feed — the new post is at the top (fetchFeed reloads on focus).
       router.replace('/community');
     } catch (e) {
-      Alert.alert('피드 공유 실패', (e as Error).message);
+      alertFail('피드 공유 실패', e);
       load(); // e.g. '이미 피드에 공유한 러닝이에요' — refresh the 공유 완료 markers to match reality
     } finally {
       setBusy(false);

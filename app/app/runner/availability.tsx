@@ -5,6 +5,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { PaperSheet } from '../../src/components/paper-sheet';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
+import { alertFail } from '../../src/lib/alert-fail';
 import { AvailExceptionRow, AvailRule, deleteAvailabilityException, fetchMyAvailability, fetchMyAvailabilityExceptions, fetchMyBookingRules, RunnerBookingRules, saveMyAvailability, saveMyBookingRules, setAvailabilityException } from '../../src/lib/api';
 import {
   addDaysYmd, atExceptionCap, calOfYmd, deleteConfirmMessage, EXCEPTION_REFUSAL_KO,
@@ -114,7 +115,7 @@ export default function Availability() {
 
   // [honesty 2026-08-19 · runner review P2] 이 함수는 **켜져 있는 다른 요일**에만 값을 복사한다
   // (요일을 켜지도, 끄지도 않는다). 바꿀 대상이 없으면 화면에서는 아무것도 움직이지 않는데도
-  // setDirty(true)가 저장 바를 '저장됨 ✓'(비활성)에서 '저장하기'로 뒤집어, 러너에게 있지도 않은
+  // setDirty(true)가 저장 바를 '저장됨 ✓'(비활성)에서 '저장'(당시 '저장하기')으로 뒤집어, 러너에게 있지도 않은
   // 미저장 변경을 알리고 아무것도 바꾸지 않는 왕복을 팔았다. 실제 변화가 있을 때만 dirty다.
   const applyToAll = (srcWd: number) => {
     const src = days[srcWd];
@@ -140,7 +141,7 @@ export default function Availability() {
       setDirty(false);
       Alert.alert('저장 완료', '보호자 예약 화면과 내 공개 프로필에 바로 반영됐어요');
     } catch (e) {
-      Alert.alert('저장 실패', (e as Error).message);
+      alertFail('저장 실패', e);
     } finally {
       setSaving(false);
     }
@@ -193,7 +194,7 @@ export default function Availability() {
       setRulesBase(written);
       setRulesState('ready'); // [r3-18] 부재였다면 upsert가 행을 만들었다 — 이제 저장된 상태다
     } catch (e) {
-      Alert.alert('규칙 저장 실패', (e as Error).message);
+      alertFail('규칙 저장 실패', e);
     } finally {
       setRulesSaving(false);
     }
@@ -315,7 +316,7 @@ export default function Availability() {
             await deleteAvailabilityException(row.id, EXCEPTION_REFUSAL_KO);
             loadExceptions();
           } catch (e) {
-            Alert.alert('지우지 못했어요', (e as Error).message);
+            alertFail('삭제 실패', e);
           } finally {
             setExcBusy(false);
           }
@@ -491,7 +492,7 @@ export default function Availability() {
           <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>예외 일정</Text>
         </View>
         <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 8 }}>
-          휴가는 그 기간의 예약을 막고, 추가 근무는 그날 그 시간만 엽니다
+          휴가는 그 기간의 예약을 막고, 추가 근무는 그날 그 시간만 열어요
         </Text>
 
         {excState === 'loading' && (
@@ -800,7 +801,7 @@ export default function Availability() {
             </Text>
           )}
           <PaperBtn
-            label={dirty ? '저장하기' : '저장됨 ✓'}
+            label={dirty ? '저장' : '저장됨 ✓'}
             busyLabel="저장 중…"
             busy={saving}
             disabled={!dirty}
