@@ -12,6 +12,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal, kstClock } from '../../src/lib/kst';
 import { MediaImage } from '../../src/lib/media';
+import { withParticle } from '../../src/lib/particle';
 import { receiptPhase } from '../../src/lib/receipt-phase';
 import { RESOLUTION_KICKER_SHORT, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { GeoRoutePoint, traceToBox } from '../../src/lib/trace';
@@ -356,6 +357,10 @@ export default function RunDone() {
             : '서버에서 이 러닝의 실측·정산 상태를 확인하고 있어요.'}
         </Text>
         {failed && <PaperBtn label="다시 시도" onPress={loadReceipt} style={{ marginTop: 20 }} />}
+        {/* [runner-journey-8] the ready face's quiet 홈으로, on this face too. The receipt is opened
+            from pushes, the seal screen and the calendar; a read that hangs or fails used to leave
+            only 다시 시도 on screen, and this screen has no ‹ of its own. */}
+        <PaperBtn label="홈으로" variant="quiet" style={{ marginTop: failed ? 8 : 20 }} onPress={() => router.dismissTo('/runner/home')} />
       </View>
     );
   }
@@ -430,7 +435,8 @@ export default function RunDone() {
           }
           return (
             <Text style={s.sub}>
-              {dogName ? `${dogName}를 보호자에게 안전하게 인계해주세요` : '반려견을 보호자에게 안전하게 인계해주세요'}
+              {/* [copy-hierarchy-1] the particle follows the name (particle.ts) — 「콩을」, not 「콩를」 */}
+              {`${withParticle(dogName ?? '반려견', '를/을')} 보호자에게 안전하게 인계해주세요`}
             </Text>
           );
         }
@@ -474,10 +480,14 @@ export default function RunDone() {
         </Row>
       </Row>
       {/* [2026-08-11, kept] '수익은 매주 수요일 정산됩니다'는 존재하지 않는 지급 운영이었다.
-          기록은 진짜다(ledger_items). 지급 일정은 진짜가 아니었다. 아는 것만 말한다. */}
+          기록은 진짜다(ledger_items). 지급 일정은 진짜가 아니었다. 아는 것만 말한다.
+          [copy-hierarchy-4, 2026-09-25] …and the 「payout schedule comes after payment integration」
+          tail is gone too: since 0192 a ledger row can be PAID, and earnings prints 지급 완료 for it
+          (payout-status.ts). This screen reads no payout field, so it says nothing about payment
+          timing at all; the earnings screen is where that fact is drawn. */}
       <Text style={s.moneyNote}>
         {v.settled
-          ? '정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요 · 지급 일정은 결제 연동 후 안내드려요'
+          ? '정산 기록이 저장됐어요 — 수익 화면에서 누적을 볼 수 있어요'
           : '정산이 확정되면 수익 화면에 반영돼요'}
       </Text>
 
@@ -668,7 +678,8 @@ const s = StyleSheet.create({
   traceNote: { fontSize: 15, lineHeight: 19, color: '#BBBBBB', paddingHorizontal: 12 },
   traceCap: { position: 'absolute', right: 10, bottom: 8, fontSize: 15, lineHeight: 18, color: '#999999' },
   // ---------- ② 헤드라인 ----------
-  headline: { fontSize: 27.5, fontWeight: '900', color: paper.ink },
+  // Black Han Sans — [BUG A] lineHeight 34 = 1.24× (DESIGN §3); it wraps on a long dog name
+  headline: { fontSize: 27.5, lineHeight: 34, fontWeight: '900', color: paper.ink },
   sub: { fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 6 },
   // [runner-journey-3] the settled sentence's 수익 door — the section-header action grammar (secAction)
   subLink: { fontSize: 15, lineHeight: 19, fontWeight: '800', color: paper.actionInk, marginTop: 6 },

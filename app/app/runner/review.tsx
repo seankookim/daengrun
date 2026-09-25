@@ -2,13 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Row } from '../../src/components/ui';
+import { PaperBtn } from '../../src/components/paper-btn';
+import { Row, ScreenHead } from '../../src/components/ui';
 import { fetchRunReportOrNull, RunReport } from '../../src/lib/api';
-import { useDisplayFont } from '../../src/lib/displayFont';
+import { withParticle } from '../../src/lib/particle';
 import { resolveReviewBooking, reviewSurface, type ReportRead } from '../../src/lib/review-gate';
 import { supabase } from '../../src/lib/supabase';
 import { dogReviewTags, runResult } from '../../src/store';
-import { paper } from '../../src/theme';
+import { colors, layout, paper } from '../../src/theme';
 
 // 러너 → 보호자·반려견 리뷰 (양방향 신뢰의 반쪽).
 // Schema seed: reviews table is bidirectional; private flags go to platform only.
@@ -24,6 +25,17 @@ import { paper } from '../../src/theme';
 //      이 화면에서 아무도 쓰지 않고 있었다 — 제목이 가져간다. 두 분기(폼/예약 없음)는 서로
 //      배타적이라 화면당 1회는 그대로다.
 //  (b) 별점이 낱말을 단다 (STAR_WORD).
+//
+// [ui-consistency-3, 2026-09-25] (a) is superseded by DESIGN.md §3b 「Chrome header — pushed
+// sub-screens」 (2026-09-25): this screen is PUSHED (from runner/done and from the calendar's
+// completed ticket), so it wears `ScreenHead` — a working ‹ on every face — instead of a 30/900
+// display title with no back key. A runner who opened it from 캘린더 could previously leave only by
+// 「다음에 할게요」, which dismissed to HOME; the ‹ now returns them where they came from
+// (goBackOrHome, which still lands on home from a cold push). Each face's headline drops to the
+// 17/800 body line owner/review.tsx uses, the primaries are PaperBtn (the lip, busy label swap and
+// disabled fill are the component's, not a hand-rolled copy), the gutter is layout.gutter, and the
+// star/chip grammar matches the owner's mirror: gold stars, selected chip = wash 면 + coral 1px +
+// actionInk. What is written and where it goes are untouched.
 
 // ⑪(b) 별점의 낱말 — 1~5와 **1:1로만** 대응한다. 애매한 말('그냥 그랬어요')은 두 숫자에 걸쳐서
 // 러너가 고른 값을 흐린다. 이 별점은 다음 매칭에 실리는 값이라 그 무게를 낱말이 말한다.
@@ -39,7 +51,6 @@ const STAR_WORD: Record<number, string> = {
 
 export default function RunnerReview() {
   const insets = useSafeAreaInsets();
-  const df = useDisplayFont(); // 디스플레이 서체 — 이 화면의 유일한 사용처는 제목이다 (§3b)
   // ═══ WHICH BOOKING IS BEING REVIEWED ═══════════════════════════════════════════════════════
   // 🔴 This screen used to answer that with `runResult.bookingId` and nothing else — run.tsx's
   // in-memory snapshot of whatever run ended last in this process. Two costs, and the second is
@@ -84,6 +95,12 @@ export default function RunnerReview() {
   }, [bookingId]);
   useEffect(() => { loadReport(); }, [loadReport]);
   const surface = reviewSurface({ source: resolved.source, read });
+  // ONE header, drawn by every face below (DESIGN.md §3b) — the default onBack is goBackOrHome.
+  const head = (
+    <View style={[s.topBar, { paddingTop: insets.top }]}>
+      <ScreenHead title="반려견 후기" />
+    </View>
+  );
 
   const submit = async () => {
     if (!bookingId || stars === 0 || busy) return;
@@ -130,17 +147,16 @@ export default function RunnerReview() {
   if (surface === 'loading') {
     return (
       <View style={s.root}>
-        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
-          <Text style={[s.title, df]}>러닝 기록을 불러오는 중이에요</Text>
+        {head}
+        <View style={s.head}>
+          <Text style={s.headline}>러닝 기록을 불러오는 중이에요</Text>
           <Text style={s.helper}>어떤 러닝의 후기인지 확인하고 있어요</Text>
         </View>
         <View style={s.rule} />
-        {/* ⚠ 이 화면은 push로 열리고 자체 헤더가 없다 — 출구 하나는 로딩 얼굴에도 있어야 한다.
-            (종전에는 로딩 중에도 폼이 떠 있어서 '다음에 할게요'가 그 일을 했다.) */}
+        {/* ⚠ 출구 하나는 로딩 얼굴에도 있어야 한다 — the ‹ above is one, and this quiet exit keeps
+            its home landing. (종전에는 로딩 중에도 폼이 떠 있어서 '다음에 할게요'가 그 일을 했다.) */}
         <View style={s.actions}>
-          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
-            <Text style={s.quietText}>다음에 할게요</Text>
-          </Pressable>
+          <PaperBtn label="다음에 할게요" variant="quiet" onPress={() => router.dismissTo('/runner/home')} />
         </View>
       </View>
     );
@@ -153,8 +169,9 @@ export default function RunnerReview() {
     const unreadable = resolved.source !== 'none';
     return (
       <View style={s.root}>
-        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
-          <Text style={[s.title, df]}>
+        {head}
+        <View style={s.head}>
+          <Text style={s.headline}>
             {unreadable ? '이 러닝을 찾을 수 없어요' : '후기를 남길 예약을 찾지 못했어요'}
           </Text>
           <Text style={s.helper}>
@@ -163,13 +180,7 @@ export default function RunnerReview() {
         </View>
         <View style={s.rule} />
         <View style={s.actions}>
-          <Pressable
-            style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]}
-            onPress={() => router.dismissTo('/runner/home')}
-            accessibilityRole="button"
-          >
-            <Text style={s.ctaText}>홈으로 돌아가기</Text>
-          </Pressable>
+          <PaperBtn label="홈으로 돌아가기" onPress={() => router.dismissTo('/runner/home')} />
         </View>
       </View>
     );
@@ -181,18 +192,15 @@ export default function RunnerReview() {
     // 그게 이 슬라이스가 닫는 결함 그 자체다. 실패는 실패로 말하고 재시도를 준다.
     return (
       <View style={s.root}>
-        <View style={[s.head, { paddingTop: insets.top + 4 }]}>
-          <Text style={[s.title, df]}>러닝 기록을 불러오지 못했어요</Text>
+        {head}
+        <View style={s.head}>
+          <Text style={s.headline}>러닝 기록을 불러오지 못했어요</Text>
           <Text style={s.helper}>어떤 러닝의 후기인지 확인하지 못해서 아직 열 수 없어요 — 기록은 서버에 그대로 있어요</Text>
         </View>
         <View style={s.rule} />
         <View style={s.actions}>
-          <Pressable style={({ pressed }) => [s.cta, pressed ? s.ctaPressed : s.ctaLip]} onPress={loadReport} accessibilityRole="button">
-            <Text style={s.ctaText}>다시 시도</Text>
-          </Pressable>
-          <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
-            <Text style={s.quietText}>홈으로 돌아가기</Text>
-          </Pressable>
+          <PaperBtn label="다시 시도" onPress={loadReport} />
+          <PaperBtn label="홈으로 돌아가기" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
         </View>
       </View>
     );
@@ -205,13 +213,13 @@ export default function RunnerReview() {
   // 덮었다는 것이다: 러닝 기록이 아예 없는 예약과, 서버가 거리를 재지 않은 러닝(actual_km IS NULL,
   // incident 경로)이 똑같이 빈 자리로 보였다. 이제 세 상태가 각자 말한다.
   const actualKm = report?.run?.actualKm ?? null;
-  const guardOff = stars === 0;      // 별점 가드 — 명시 fill로 칠하는 유일한 disabled
-  const blocked = guardOff || busy;  // 입력 차단. busy는 disabled로 칠하지 않는다 (버튼 매트릭스 법)
+  const guardOff = stars === 0;      // 별점 가드 — 명시 fill로 칠하는 유일한 disabled (PaperBtn disabled)
 
   return (
     <ScrollView style={s.root} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={[s.head, { paddingTop: insets.top + 4 }]}>
-        <Text style={[s.title, df]}>오늘 러닝 어땠나요?</Text>
+      {head}
+      <View style={s.head}>
+        <Text style={s.headline}>오늘 러닝 어땠나요?</Text>
         <Text style={s.helper}>러너의 후기가 다음 러너를 지켜요</Text>
       </View>
       <View style={s.rule} />
@@ -267,7 +275,8 @@ export default function RunnerReview() {
 
       {/* behavior tags */}
       <View style={s.band}>
-        <Text style={s.label}>{dogName ? `${dogName}는 어땠나요?` : '강아지는 어땠나요?'}</Text>
+        {/* [copy-hierarchy-1] the particle follows the name — 「콩은」, not 「콩는」 (particle.ts) */}
+        <Text style={s.label}>{dogName ? `${withParticle(dogName, '는/은')} 어땠나요?` : '강아지는 어땠나요?'}</Text>
         <Row style={{ flexWrap: 'wrap', gap: 8 }}>
           {dogReviewTags.map((t) => (
             <Pressable key={t} onPress={() => toggleTag(t)} style={[s.tag, tags.includes(t) && s.tagSel]}
@@ -314,19 +323,12 @@ export default function RunnerReview() {
       )}
 
       <View style={s.actions}>
-        <Pressable
-          style={({ pressed }) => [s.cta, guardOff && s.ctaOff, !guardOff && (pressed && !busy ? s.ctaPressed : s.ctaLip)]}
-          disabled={blocked}
-          onPress={submit}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: blocked, busy }}
-        >
-          <Text style={[s.ctaText, guardOff && s.ctaTextOff]}>{busy ? '저장 중…' : '후기 남기기'}</Text>
-        </Pressable>
-        {guardOff && <Text style={s.ctaHint}>별점을 선택하면 후기를 남길 수 있어요</Text>}
-        <Pressable style={s.quiet} onPress={() => router.dismissTo('/runner/home')} accessibilityRole="button">
-          <Text style={s.quietText}>다음에 할게요</Text>
-        </Pressable>
+        {/* PaperBtn owns the matrix this Pressable hand-copied: the star guard is `disabled`
+            (disabledFill + faint, flat — a dead key has no travel), busy is the label swap with the
+            rest lip kept, and `submit` re-checks both, so no path double-inserts. */}
+        <PaperBtn label="후기 남기기" busyLabel="저장 중…" busy={busy} disabled={guardOff} onPress={submit} />
+        {guardOff && <Text style={s.guardHint}>별점을 선택하면 후기를 남길 수 있어요</Text>}
+        <PaperBtn label="다음에 할게요" variant="quiet" style={{ marginTop: 8 }} onPress={() => router.dismissTo('/runner/home')} />
       </View>
     </ScrollView>
   );
@@ -336,13 +338,14 @@ const s = StyleSheet.create({
   // 풀블리드 — 사이드 마진 0, 섹션은 코랄 헤어라인이 화면 끝까지 그어 나눈다
   root: { flex: 1, backgroundColor: paper.canvas },
   rule: { height: 1, backgroundColor: paper.line, alignSelf: 'stretch' },
-  head: { paddingHorizontal: 18, paddingBottom: 20 },
-  // ⑪(a) §3b 화면 제목 규격: 30/900 · lineHeight 37 (1.23×) · Black Han Sans.
-  // 라틴 키커 REVIEW는 은퇴 — §3b가 앱 전체에서 내린 장식이다. [BUG A]는 Black Han Sans에도
-  // 적용되므로 lineHeight는 명시값이다.
-  title: { fontSize: 30, lineHeight: 37, fontWeight: '900', color: paper.ink },
+  // Chrome header (DESIGN.md §3b) — the same wrapper owner/review.tsx uses, inside the gutter.
+  topBar: { paddingHorizontal: layout.gutter, paddingBottom: 12 },
+  head: { paddingHorizontal: layout.gutter, paddingTop: 10, paddingBottom: 20 },
+  // [ui-consistency-3] the face's headline is a 17/800 body line (owner/review.tsx:100), not a
+  // display title — the screen's title is the header's. ⑪(a)'s 30/900 Black Han Sans retired here.
+  headline: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: paper.ink },
   helper: { fontSize: 15, lineHeight: 21, fontWeight: '600', color: paper.dim, marginTop: 9 },
-  band: { paddingHorizontal: 18, paddingVertical: 18 },
+  band: { paddingHorizontal: layout.gutter, paddingVertical: 18 },
   // ⑪(b) 라벨과 낱말이 같은 베이스라인 위에 (§3b 상태 칩과 같은 규율: 판정은 자기 데이터 옆에 산다)
   labelRow: { justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 },
   labelFlush: { marginBottom: 0 },
@@ -360,11 +363,14 @@ const s = StyleSheet.create({
   // ── 라벨·입력 ──
   label: { fontSize: 15.5, lineHeight: 21, fontWeight: '700', color: paper.text, marginBottom: 12 },
   star: { fontSize: 40, lineHeight: 48, color: paper.faint },
-  starOn: { color: paper.line },
+  // §8 기록 골드 — the owner's mirror (owner/review.tsx) fills its stars with the same token.
+  starOn: { color: colors.gold },
   tag: { backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 9, paddingHorizontal: 14 },
-  tagSel: { backgroundColor: paper.ink, borderColor: paper.ink },
+  // §3b 선택칩 — wash 면 + coral 1px + actionInk (owner/review.tsx tagOn). An ink fill is STATE
+  // grammar on a View, never on a tappable (chrome-header CH-P's rule).
+  tagSel: { backgroundColor: paper.wash, borderColor: paper.line },
   tagText: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.text },
-  tagTextSel: { color: '#fff' },
+  tagTextSel: { color: paper.actionInk },
   noteInput: {
     backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
     padding: 13, minHeight: 84, fontSize: 15.5, lineHeight: 21, color: paper.ink, textAlignVertical: 'top',
@@ -382,30 +388,11 @@ const s = StyleSheet.create({
   // ── 라우드-페일 스트립 (F1.2) ──
   failStrip: {
     backgroundColor: paper.criticalWash, borderBottomWidth: 1, borderBottomColor: paper.critical,
-    paddingHorizontal: 18, paddingVertical: 14,
+    paddingHorizontal: layout.gutter, paddingVertical: 14,
   },
   failText: { fontSize: 15, lineHeight: 20, fontWeight: '700', color: paper.critical },
 
-  // ── 버튼 매트릭스 (불투명도 트릭 금지 — disabled는 명시 fill) ──
-  actions: { paddingHorizontal: 18, paddingTop: 20 },
-  // [액션] 후기 전송 = 커밋 -> 프라이머리 코랄. mono/tagSel은 잉크(아티팩트/상태)로 남는다.
-  cta: { backgroundColor: paper.action, alignItems: 'center', paddingVertical: 17 },
-  // [Sean 2026-08-26 press behaviour] filled primary = a physical key: 4px lip at rest,
-  // translateY(3) + 1px pressed, so the bottom edge stays put. Same predicate as PaperBtn:
-  // guard-off is DISABLED so it goes flat (a dead key has no travel), while busy keeps the
-  // rest lip and only loses the travel — the button is still a key, it is just mid-send.
-  ctaLip: { borderBottomWidth: 4, borderBottomColor: paper.actionPressed },
-  // ⚠ pressed was paper.text (#333) — the ink-primary matrix this button left behind when its
-  // face became paper.action. A coral face that darkens to grey is the wrong key, and the lip's
-  // colour IS the pressed fill, so the two had to agree before the lip could be drawn at all.
-  ctaPressed: {
-    backgroundColor: paper.actionPressed, transform: [{ translateY: 3 }],
-    borderBottomWidth: 1, borderBottomColor: paper.actionPressed,
-  },
-  ctaOff: { backgroundColor: paper.disabledFill },
-  ctaText: { fontSize: 17, lineHeight: 23, fontWeight: '800', color: '#fff' },
-  ctaTextOff: { color: paper.faint },
-  ctaHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
-  quiet: { alignItems: 'center', paddingVertical: 15, marginTop: 4 },
-  quietText: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.dim },
+  // ── 버튼 — PaperBtn owns the matrix (lip, pressed travel, disabled fill, busy label swap) ──
+  actions: { paddingHorizontal: layout.gutter, paddingTop: 20 },
+  guardHint: { fontSize: 15, lineHeight: 19, fontWeight: '600', color: paper.dim, textAlign: 'center', marginTop: 10 },
 });

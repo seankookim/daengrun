@@ -36,7 +36,7 @@
 //
 // ⚠ NO 운영자 force BUTTON. 0089 removed the party force; ops-only. Drawing one would be a dead
 // button. The 안심 센터 line the lab shows routes to the real incident screen.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,11 +45,13 @@ import {
   type ReturnResolution as ReturnResolutionRow, type ReturnSeal as ReturnSealRow,
 } from '../../src/lib/api';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { ScreenHead } from '../../src/components/ui';
 import { inCustodyPhase, PING_FAIL_LINE } from '../../src/lib/custody-ping-policy';
 import { useDisplayFont } from '../../src/lib/displayFont';
+import { END_REASON_LABEL } from '../../src/lib/end-reason';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
+import { withParticle } from '../../src/lib/particle';
 import { RESOLUTION_KICKER, returnResolutionStrip } from '../../src/lib/return-resolution';
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
@@ -78,12 +80,10 @@ function durLabel(sec: number | null): string | null {
   return `${String(m).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 }
 
-const END_REASON_LABEL: Record<string, string> = {
-  completed: '완주',
-  dog_condition: '컨디션 종료',
-  owner_request: '보호자 요청 종료',
-  runner_personal: '러너 사정 종료',
-};
+// [copy-hierarchy-3] No local END_REASON_LABEL. This screen kept a private 4-member copy and fell
+// back to the raw token, so an `incident` run printed 「종료 사유 incident」. The one table lives in
+// src/lib/end-reason.ts (all six enum members, pinned against 0001_init.sql by
+// test/end-reason.test.cjs); an unmapped value renders as NO row, never as English.
 
 /** One seal. `on` is a SERVER fact and the only input that decides whether the seal is filled —
  *  there is deliberately no animation prop: the once-per-entity gate lives in the screen
@@ -224,11 +224,35 @@ export default function ReturnSeal() {
 
   const pad = { paddingHorizontal: 18 };
 
+  // ═══ [runner-journey-8] ONE HEADER, ON EVERY FACE ═══════════════════════════════════════════
+  // notification-route.ts sends four push titles straight here, so this screen is routinely the
+  // ONLY entry on its stack — and the root Stack has no header and no back-swipe (nav.ts). The ‹
+  // used to exist only on the ready face, so a runner who opened a push on flaky LTE sat on the
+  // spinner or the failure face with no way off it but 다시 시도. The chrome header (DESIGN.md §3b,
+  // `ScreenHead`: 40×40 key, role button, label 뒤로, `goBackOrHome` — which still pops when it
+  // can) is now drawn by every face. The chat door rides the trailing slot on the ready face only:
+  // it is the one face that has confirmed this booking is the runner's.
+  const head = (right?: ReactNode) => (
+    <View style={[pad, { paddingTop: insets.top + 10, paddingBottom: 8 }]}>
+      <ScreenHead title="인계 · 반환" right={right} />
+    </View>
+  );
+  // 홈으로 is `dismissTo`, not `goBackOrHome`: the ‹ above already is the back key, and a button
+  // that reads 「홈으로」 must land on home even when there is history to pop (dismissTo replaces
+  // when home is not on the stack). Same call as the receipt's 홈으로 (done.tsx).
+  const homeExit = (style?: { marginTop: number }) => (
+    <PaperBtn label="홈으로" variant="quiet" onPress={() => router.dismissTo('/runner/home')} style={style} />
+  );
+
   if (state === 'loading') {
     return (
-      <View style={{ flex: 1, backgroundColor: paper.canvas, paddingTop: insets.top + 16, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={paper.action} />
-        <Text style={{ marginTop: 10, fontSize: 15, color: paper.dim }}>인계 상태를 불러오는 중이에요</Text>
+      <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+        {head()}
+        <View style={[pad, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator color={paper.action} />
+          <Text style={{ marginTop: 10, fontSize: 15, color: paper.dim }}>인계 상태를 불러오는 중이에요</Text>
+        </View>
+        <View style={[pad, { paddingBottom: insets.bottom + 14 }]}>{homeExit()}</View>
       </View>
     );
   }
@@ -236,18 +260,25 @@ export default function ReturnSeal() {
   if (state === 'err' || state === 'notfound') {
     const failed = state === 'err';
     return (
-      <View style={{ flex: 1, backgroundColor: paper.canvas, paddingTop: insets.top + 16, ...pad }}>
-        <Text style={[df, { fontSize: 22, color: paper.ink, marginTop: 24 }]}>
-          {failed ? '인계 상태를 불러오지 못했어요' : '확인할 인계가 없어요'}
-        </Text>
-        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 22 }}>
-          {failed
-            ? '연결을 확인하고 다시 시도해주세요 — 기록은 서버에 그대로 있어요.'
-            : '이 예약은 이미 마무리됐거나 내 예약이 아니에요.'}
-        </Text>
-        {failed
-          ? <PaperBtn label="다시 시도" onPress={() => { setState('loading'); load(); }} style={{ marginTop: 20 }} />
-          : <PaperBtn label="일정으로" variant="secondary" onPress={() => router.replace('/runner/calendar')} style={{ marginTop: 20 }} />}
+      <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+        {head()}
+        <View style={pad}>
+          {/* Black Han Sans — [BUG A] lineHeight 27 = 1.23× (DESIGN §3) */}
+          <Text style={[df, { fontSize: 22, lineHeight: 27, color: paper.ink, marginTop: 16 }]}>
+            {failed ? '인계 상태를 불러오지 못했어요' : '확인할 인계가 없어요'}
+          </Text>
+          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 22 }}>
+            {failed
+              ? '연결을 확인하고 다시 시도해주세요 — 기록은 서버에 그대로 있어요.'
+              : '이 예약은 이미 마무리됐거나 내 예약이 아니에요.'}
+          </Text>
+          {failed ? (
+            <>
+              <PaperBtn label="다시 시도" onPress={() => { setState('loading'); load(); }} style={{ marginTop: 20 }} />
+              {homeExit({ marginTop: 8 })}
+            </>
+          ) : <PaperBtn label="일정으로" variant="secondary" onPress={() => router.replace('/runner/calendar')} style={{ marginTop: 20 }} />}
+        </View>
       </View>
     );
   }
@@ -257,12 +288,16 @@ export default function ReturnSeal() {
   // simply is not open yet, and saying so is better than a disabled CTA with no reason.
   if (!s.runEndedAt) {
     return (
-      <View style={{ flex: 1, backgroundColor: paper.canvas, paddingTop: insets.top + 16, ...pad }}>
-        <Text style={[df, { fontSize: 22, color: paper.ink, marginTop: 24 }]}>아직 러닝이 끝나지 않았어요</Text>
-        <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 22 }}>
-          러닝을 종료하면 여기서 인계를 확인할 수 있어요.
-        </Text>
-        <PaperBtn label="러닝 화면으로" onPress={() => router.replace('/runner/run')} style={{ marginTop: 20 }} />
+      <View style={{ flex: 1, backgroundColor: paper.canvas }}>
+        {head()}
+        <View style={pad}>
+          {/* Black Han Sans — [BUG A] lineHeight 27 = 1.23× (DESIGN §3) */}
+          <Text style={[df, { fontSize: 22, lineHeight: 27, color: paper.ink, marginTop: 16 }]}>아직 러닝이 끝나지 않았어요</Text>
+          <Text style={{ fontSize: 15, color: paper.dim, marginTop: 6, lineHeight: 22 }}>
+            러닝을 종료하면 여기서 인계를 확인할 수 있어요.
+          </Text>
+          <PaperBtn label="러닝 화면으로" onPress={() => router.replace('/runner/run')} style={{ marginTop: 20 }} />
+        </View>
       </View>
     );
   }
@@ -294,12 +329,14 @@ export default function ReturnSeal() {
   // R6a = neither/mine-missing · R6b = mine in, theirs out · R6c = both
   const frame: 'a' | 'b' | 'c' = bothIn ? 'c' : mine ? 'b' : 'a';
   const dog = s.dogName ?? '반려견';
+  // [copy-hierarchy-1] the particle follows the name — 「콩이 집에 돌아갔어요」, not 「콩가」; the
+  // '반려견' fallback reads 반려견이 / 반려견을 (particle.ts).
   const alertTone = frame === 'c' ? paper.ready : frame === 'b' ? '#6C5CE7' : paper.ready;
   const alertText = frame === 'c'
-    ? `${dog}가 집에 돌아갔어요`
+    ? `${withParticle(dog, '가/이')} 집에 돌아갔어요`
     : frame === 'b'
       ? '보호자 확인 대기 중'
-      : `러닝 종료 · ${dog}를 돌려주세요`;
+      : `러닝 종료 · ${withParticle(dog, '를/을')} 돌려주세요`;
   const alertSub = frame === 'c'
     ? `양측 확인 ${hhmm(s.ownerConfirmedAt && s.runnerConfirmedAt && s.ownerConfirmedAt > s.runnerConfirmedAt ? s.ownerConfirmedAt : s.runnerConfirmedAt)}${settled ? ' · 정산 기록됨' : ''} · 새 요청을 받을 수 있어요`
     : frame === 'b'
@@ -309,14 +346,9 @@ export default function ReturnSeal() {
 
   return (
     <View style={{ flex: 1, backgroundColor: paper.canvas }}>
-      <View style={[pad, { paddingTop: insets.top + 10, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
-        {/* [runner-journey-10] notification-route.ts sends four push titles straight here, so this
-            screen is routinely the ONLY entry on its stack — a bare back() no-ops and the ‹ is dead
-            (nav.ts). goBackOrHome still pops when it can. */}
-        <Pressable onPress={goBackOrHome} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
-          <Text style={{ fontSize: 22, color: paper.ink }}>‹</Text>
-        </Pressable>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>인계 · 반환</Text>
+      {/* [runner-journey-10 · runner-journey-8] the same header as every other face (`head` above);
+          the chat door rides its trailing slot. */}
+      {head(
         <Pressable
           hitSlop={10}
           accessibilityRole="button"
@@ -328,8 +360,8 @@ export default function ReturnSeal() {
           }}
         >
           <Text style={{ fontSize: 15, fontWeight: '800', color: paper.actionInk }}>보호자 채팅 ›</Text>
-        </Pressable>
-      </View>
+        </Pressable>,
+      )}
 
       <ScrollView contentContainerStyle={[pad, { paddingBottom: insets.bottom + 120 }]}>
         {/* ══════ [0199/0200] 운영팀 판정 — it REPLACES the ceremony, it never joins it ══════
@@ -395,7 +427,7 @@ export default function ReturnSeal() {
         <Text style={{ fontSize: 15, fontWeight: '800', color: paper.dim, letterSpacing: 1, marginTop: 26 }}>이번 러닝</Text>
         {[
           ['기록', [kmLabel(s.actualKm), durLabel(s.durationSec)].filter(Boolean).join(' · ') || null],
-          ['종료 사유', s.endReason ? END_REASON_LABEL[s.endReason] ?? s.endReason : null],
+          ['종료 사유', s.endReason ? END_REASON_LABEL[s.endReason] ?? null : null],
           ['러닝 종료', hhmm(s.runEndedAt) || null],
         ].filter(([, v]) => !!v).map(([k, v]) => (
           <View key={String(k)} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' }}>
@@ -468,7 +500,7 @@ export default function ReturnSeal() {
         )}
         {!strip && frame === 'a' && canStamp && (
           <PaperBtn
-            label={`${dog}를 돌려줬어요 — 봉인`}
+            label={`${withParticle(dog, '를/을')} 돌려줬어요 — 봉인`}
             busyLabel="확인하는 중…"
             busy={busy}
             disabled={busy}
