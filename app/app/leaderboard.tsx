@@ -1,12 +1,10 @@
-import { useDisplayFont } from '../src/lib/displayFont';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar, Row } from '../src/components/ui';
+import { Avatar, Row, ScreenHead } from '../src/components/ui';
 import { boardKmLabel, BoardRow, fetchLeaderboards, fetchMiles, MilesInfo } from '../src/lib/api';
-import { goBackOrHome } from '../src/lib/nav';
-import { colors, paper } from '../src/theme';
+import { colors, layout, paper } from '../src/theme';
 
 // 주간 랭킹 — 주간 리더보드 (강아지 km / 러너 러닝 수) + 내 하이 포인트.
 // 서버 집계 함수(0012) 기반 — 개인 데이터는 비공개, 이름·사진·주간 합계만.
@@ -19,7 +17,6 @@ const BIB_BAND = ['#F2DA96', '#dfe3e8', '#f3cba8']; // 골드 · 실버 · 브�
 
 export default function Leaderboard() {
   const insets = useSafeAreaInsets();
-  const df = useDisplayFont(); // 디스플레이 서체 — 화면 타이틀
   const [tab, setTab] = useState<'dogs' | 'runners'>('dogs');
   const [boards, setBoards] = useState<{ dogs: BoardRow[]; runners: BoardRow[] }>({ dogs: [], runners: [] });
   const [miles, setMiles] = useState<MilesInfo | null>(null);
@@ -45,18 +42,16 @@ export default function Leaderboard() {
   const rows = boards[tab];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.cream }}>
+    <View style={{ flex: 1, backgroundColor: paper.canvas }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: insets.top, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: layout.gutter, paddingTop: insets.top, paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Row style={{ justifyContent: 'space-between' }}>
-          <Pressable onPress={goBackOrHome} style={s.backBtn} accessibilityRole="button" accessibilityLabel="뒤로"><Text style={{ fontSize: 20.5 }}>‹</Text></Pressable>
-          <Text style={[{ fontSize: 23, fontWeight: '900', color: paper.ink }, df]}>주간 랭킹</Text>
-          <View style={{ width: 40 }} />
-        </Row>
-        <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 6 }}>
+        {/* Chrome header (DESIGN.md §3b). The title no longer borrows the display face: a pushed
+            sub-screen's header is the shared 23/900 chrome title on every screen. */}
+        <ScreenHead title="주간 랭킹" />
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 6 }}>
           이번 주 · 월요일마다 새로 시작해요
         </Text>
 
@@ -92,7 +87,7 @@ export default function Leaderboard() {
           {([['dogs', '강아지 (거리)'], ['runners', '러너 (러닝 수)']] as const).map(([k, label]) => (
             <Pressable key={k} onPress={() => setTab(k)} style={[s.tab, tab === k && { backgroundColor: paper.ink }]}
               accessibilityRole="tab" accessibilityState={{ selected: tab === k }}>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: tab === k ? '#fff' : '#49524a' }}>{label}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: tab === k ? '#fff' : paper.text }}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -100,20 +95,20 @@ export default function Leaderboard() {
         {/* board — loading / error+retry / honest empty (never a fake fresh week) */}
         {!loaded && !loadErr && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center' }}>랭킹 불러오는 중…</Text>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center' }}>랭킹 불러오는 중…</Text>
           </View>
         )}
         {loadErr && (
           <View style={s.failStrip}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: paper.critical }}>랭킹을 불러오지 못했어요</Text>
             <Pressable onPress={load} style={s.retryBtn} accessibilityRole="button">
-              <Text style={{ fontSize: 16, fontWeight: '800', color: paper.ink }}>다시 시도</Text>
+              <Text style={s.retryTxt}>다시 시도</Text>
             </Pressable>
           </View>
         )}
         {loaded && !loadErr && rows.length === 0 && (
           <View style={s.emptyBox}>
-            <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', lineHeight: 23 }}>
+            <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', lineHeight: 23 }}>
               이번 주 완주 기록이 아직 없어요{'\n'}첫 러닝이 1위가 되는 주예요 — 지금이 기회!
             </Text>
           </View>
@@ -136,7 +131,9 @@ export default function Leaderboard() {
                   </Row>
                   <View style={{ alignItems: 'center', paddingTop: 4, paddingBottom: first ? 14 : 11 }}>
                     <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={first ? 46 : 38} />
-                    <Text style={{ fontSize: first ? 15 : 14, fontWeight: '900', color: paper.ink, marginTop: 6 }} numberOfLines={1}>
+                    {/* 15pt floor: a Korean name never rides below it, so 1st steps UP (16) rather
+                        than 2nd/3rd stepping down (the old 14). */}
+                    <Text style={{ fontSize: first ? 16 : 15, fontWeight: '900', color: paper.ink, marginTop: 6 }} numberOfLines={1}>
                       {r.name}
                     </Text>
                     {/* [0158] The board summed `coalesce(sum(actual_km), 0)`, so a dog whose only
@@ -153,9 +150,10 @@ export default function Leaderboard() {
             })}
           </Row>
         )}
+        {rows.length > 3 && <View style={s.listTop} />}
         {rows.slice(3).map((r, i) => (
           <View key={`${r.name}-${i + 3}`} style={s.row}>
-            <Text style={{ width: 34, fontSize: 15, fontWeight: '900', color: '#49524a', textAlign: 'center' }}>
+            <Text style={{ width: 34, fontSize: 15, fontWeight: '900', color: paper.text, textAlign: 'center' }}>
               {i + 4}
             </Text>
             <Avatar url={r.photoUrl} char={r.name[0]} bg={tab === 'dogs' ? '#c9a86e' : '#5a7a3c'} size={40} />
@@ -172,7 +170,7 @@ export default function Leaderboard() {
             total is partial, and this line says the ranking's own rule — an unmeasured total is
             ordered last (`nulls last`) rather than treated as the smallest number, which is what
             「모르는 거리는 순위에 넣지 않아요」 tells a reader whose dog is sitting at the bottom. */}
-        <Text style={{ fontSize: 15, color: colors.dim, textAlign: 'center', marginTop: 16, lineHeight: 20 }}>
+        <Text style={{ fontSize: 15, color: paper.dim, textAlign: 'center', marginTop: 16, lineHeight: 20 }}>
           주간 TOP 3 시즌 보상은 곧 공개돼요{'\n'}랭킹은 완주한 러닝만 집계해요
           {tab === 'dogs' && rows.some((r) => r.km == null || (r.unmeasured ?? 0) > 0)
             ? `\n거리 기록이 없는 러닝은 합계와 순위에 들어가지 않았어요` : ''}
@@ -182,26 +180,34 @@ export default function Leaderboard() {
   );
 }
 
+// Paper grammar (DESIGN.md §2 · §3b): radius 0, neutral #EEE for rows and boxes. The miles card
+// stays an INK plate (a dark artifact on a paper screen), so its dim-on-dark greys are correct and
+// stay; only its corners squared. The podium bibs keep their art — medal bands, punch holes, gold
+// edge on 1st — with square corners like every other card.
 const s = StyleSheet.create({
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DCD6C4' },
-  milesCard: { backgroundColor: paper.ink, borderRadius: 20, padding: 18, marginTop: 16 },
-  tabWrap: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 99, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#DCD6C4' },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 99 },
-  emptyBox: { marginTop: 20, backgroundColor: '#f4f2ea', borderRadius: 16, padding: 18 },
-  // loud-fail strip — criticalWash bg + critical ink + retry (community.tsx grammar)
-  failStrip: { marginTop: 20, backgroundColor: paper.criticalWash, borderRadius: 16, padding: 13 },
-  retryBtn: { alignSelf: 'flex-start', marginTop: 10, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: paper.ink, backgroundColor: '#fff' },
+  milesCard: { backgroundColor: paper.ink, padding: 18, marginTop: 16 },
+  tabWrap: { flexDirection: 'row', backgroundColor: paper.canvas, padding: 4, marginTop: 16, borderWidth: 1, borderColor: '#EEEEEE' },
+  // selected tab = ink fill: ink is STATE (a selected chip), never an action (paper-btn.tsx)
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 10 },
+  emptyBox: { marginTop: 20, backgroundColor: paper.canvas, borderWidth: 1, borderColor: '#EEEEEE', padding: 18 },
+  // loud-fail strip — criticalWash ground, critical ink, underlined retry ≥44pt (house grammar)
+  failStrip: { marginTop: 20, backgroundColor: paper.criticalWash, padding: 13 },
+  retryBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 44, justifyContent: 'center' },
+  retryTxt: { fontSize: 16, fontWeight: '800', color: paper.critical, textDecorationLine: 'underline' },
+  // ranks 4+ are a LIST, not a stack of cards: one #EEE hairline above, one under each row
+  listTop: { height: 1, backgroundColor: '#EEEEEE', marginTop: 14 },
   row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 16, padding: 12, borderWidth: 1, borderColor: '#DCD6C4', marginTop: 8,
+    flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
   // 포디움 빕 — 흰 몸통 + 메달 파스텔 밴드 + 펀치홀
   bib: {
-    flex: 1, backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden',
-    borderWidth: 1, borderColor: '#DCD6C4',
+    flex: 1, backgroundColor: paper.canvas, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#EEEEEE',
     shadowColor: paper.ink, shadowOpacity: 0.08, shadowRadius: 7, shadowOffset: { width: 0, height: 4 },
   },
   bibFirst: { borderColor: '#e2c56b', borderWidth: 1.5, shadowOpacity: 0.14 },
   bibBand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 6 },
-  bibHole: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#EDE8DA', borderWidth: 1, borderColor: '#d8d2c0' },
+  // the punch hole is a circle by nature (circles are the one radius exception, DESIGN.md §4)
+  bibHole: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#EEEEEE' },
 });

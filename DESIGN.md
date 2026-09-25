@@ -89,7 +89,7 @@ addresses):
   floating surface genuinely floats, e.g. the request floating ticket).
 - **Kickers**: latin letterspaced caps, `paper.faint` (the "PAYMENT" /
   "MOCK · 준비 중" grammar).
-- **Primary CTA**: PaperBtn primary (full-width ink bar, white ≥16 label) or
+- **Primary CTA**: PaperBtn primary (full-width `paper.action` coral bar, white ≥16 label) or
   screen-specific state color where a law assigns one (GO-colored ticket CTA).
 - **Notice/wash panels**: sharp boxes on `paper.wash` (info) or `criticalWash`
   (failure) — the hold-timer notice grammar. System Alert.alert dialogs are OS
@@ -117,11 +117,14 @@ addresses):
 - Sharp corners (radius 0). `radius` tokens (6/6/4) belong to the V4 world.
 - **Emphasis budget: the coral line + ONE CTA per screen.** Critical ink
   `#B3261E` is budget-exempt and must NEVER be the same value as `line`.
-- **Button matrix (F2.1):** primary = ink face / `#333` pressed /
-  `disabledFill #F2F2F2` + faint label · secondary = canvas + line border /
-  wash pressed · destructive = canvas + critical ink / criticalWash pressed ·
-  busy = **label swap ("저장 중...")**, never disabled-paint. No opacity tricks
-  anywhere — every state is an explicit color.
+- **Button matrix (F2.1, revised 2026-08-11):** primary = `paper.action` face /
+  `actionPressed` pressed / `disabledFill #F2F2F2` + faint label · secondary =
+  `wash` face + line border + `actionInk` label · destructive = canvas + critical
+  ink / criticalWash pressed · busy = **label swap ("저장 중…")**, never
+  disabled-paint. No opacity tricks anywhere — every state is an explicit color.
+  (The ink primary retired 2026-08-11 — Sean: 「검정은 제일 지루하다」. Ink survives
+  as STATE — selected chip, done step, live pill — never as an action.
+  `src/components/paper-btn.tsx` is the matrix of record.)
 
 ## 3. Typography
 
@@ -199,12 +202,19 @@ exact values. New code MUST use them; when you touch a screen, convert it.
 ### Buttons — four kinds, nothing else
 | Kind | Fill | Border | Label | Notes |
 |---|---|---|---|---|
-| Primary | `paper.ink` (`inkPressed` on press) | none | white **17/800** | one per screen |
+| Primary | `paper.action` (`actionPressed` on press) | none (4px `actionPressed` lip) | white **17/800** | one per screen |
 | Money | `MONEY_DEEP` coral | none | white **31 display** | full-bleed, no side margins, no price sub-plate |
-| Secondary | canvas (`wash` pressed) | 1px `paper.line` | ink **16/800** | |
+| Secondary | `paper.wash` | 1px `paper.line` | `actionInk` **16/800** | |
 | Destructive | canvas (`criticalWash` pressed) | 1px `critical` | critical **16/800** | |
 All: radius 0, `paddingVertical` ≥15, busy = label swap. No opacity tricks.
 Icon-only controls: 40×40 square, canvas, 1px coral.
+⚠ **This table said `paper.ink` for Primary until 2026-09-25, six weeks after the ink primary was
+retired (2026-08-11, `paper-btn.tsx:1-9`).** The stale row was not harmless prose: hand-rolled
+buttons cited it by line number and shipped black primaries on a coral system. Measured on trunk
+`210901c` (2026-09-25): ink-filled hand-rolled primaries remain in `ops/_layout.tsx`,
+`ops/returns/[bid].tsx`, `ops/gear/[claim].tsx` and `ops/payout/[runner].tsx`;
+`runner/earnings.tsx` and `runner/bank-account.tsx` were converted to PaperBtn the same day. The
+shipped matrix is `PaperBtn`; use it rather than re-deriving a button from this table.
 
 **PRESS BEHAVIOUR — two grammars, split by whether the button has a FILL** (Sean 2026-08-26:
 「all primary buttons should have a 3d kinda thing like you gave in the lab as well」):
@@ -242,6 +252,18 @@ had already discovered this locally and fixed only itself).
   This is the one axis where a screen title may legitimately differ.
 - Screens whose identity is a *lockup* rather than a word (owner home's `BrandLockup`, runner
   home's bib strap) have no text title and are outside this spec.
+
+**Chrome header — pushed sub-screens (2026-09-25).** A screen you arrive at by a push and leave
+by ‹ (settings, 알림 설정, 안심 센터, 정산 계좌, 주간 랭킹, payments …) does not wear the 30/900
+display title. It wears the **chrome header**: `ScreenHead` in `src/components/ui.tsx` — a 40×40
+square back key (canvas, 1px coral, ‹ 20.5 ink, `goBackOrHome`), the title at **23/900 ink,
+lineHeight 28**, and a 40-wide trailing slot that keeps the title centred. The 30/900 display title
+stays for tab and ceremony screens. Counted by the 2026-09-25 gap sweep (ui-consistency-1), before
+this existed: the 23/900 header was inlined on ~14 screens beside six competing back-button shapes
+and seven title sizes. First adopters: safety,
+settings, notification-settings, runner/bank-account, leaderboard. New sub-screens use the
+component instead of a copy of it; the remaining inline copies convert when their screen is next
+touched.
 
 ### Status chip (확정됨 · 확인 대기 · LIVE …)
 16/800, radius 0, tinted fill + no border, and it sits on the **same baseline row

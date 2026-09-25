@@ -1,8 +1,9 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Image, StyleProp, Text, View, ViewStyle } from 'react-native';
+import { Image, Pressable, StyleProp, Text, View, ViewStyle } from 'react-native';
 import { useBodyBold } from '../lib/fonts';
 import { isMediaPath, useMediaUrl } from '../lib/media';
-import { colors } from '../theme';
+import { goBackOrHome } from '../lib/nav';
+import { colors, paper } from '../theme';
 
 // 도그스하이 shared UI kit.
 //
@@ -68,4 +69,44 @@ export function Avatar({ url, char, bg, size = 52 }: { url?: string | null; char
 
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center' }, style]}>{children}</View>;
+}
+
+// Chrome header for a PUSHED sub-screen (DESIGN.md §3b "Screen title" — chrome header paragraph).
+// It encodes the majority header that was inlined on ~14 screens (payments.tsx is the reference):
+// a 40×40 SQUARE back key — canvas fill, 1px coral `paper.line`, ‹ 20.5 ink — then the title at
+// 23/900 ink, then a 40-wide trailing slot so the title stays centred. Six competing back shapes
+// (radius-20 circles with the retired beige border among them) collapse onto this one.
+// ⚠ Tab and ceremony screens keep the 30/900 display title; this is not their header.
+// ⚠ `onBack` defaults to goBackOrHome, never router.back(): a deep-linked sub-screen has an empty
+//   stack and a bare back() no-ops there, trapping the person (src/lib/nav.ts).
+// hitSlop 2 lifts the 40pt key to the 44pt Fitts/HIG minimum without changing its drawn size.
+export function ScreenHead({ title, onBack = goBackOrHome, right }: {
+  title: string;
+  onBack?: () => void;
+  right?: ReactNode;
+}) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Pressable
+        onPress={onBack}
+        hitSlop={2}
+        accessibilityRole="button"
+        accessibilityLabel="뒤로"
+        style={{
+          width: 40, height: 40, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line,
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 20.5, color: paper.ink }}>‹</Text>
+      </Pressable>
+      <Text
+        accessibilityRole="header"
+        numberOfLines={1}
+        style={{ flexShrink: 1, fontSize: 23, lineHeight: 28, fontWeight: '900', color: paper.ink, marginHorizontal: 8 }}
+      >
+        {title}
+      </Text>
+      {right ?? <View style={{ width: 40 }} />}
+    </View>
+  );
 }
