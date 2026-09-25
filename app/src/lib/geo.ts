@@ -254,8 +254,13 @@ export async function startTracking(
         showsBackgroundLocationIndicator: true,
         foregroundService: {
           notificationTitle: '도그스하이 · 러닝 기록 중',
+          // [2026-09-25 copy-hierarchy-1] A hardcoded 와 read 「밤와」 for any name ending in a
+          // consonant. 의 does not alternate, so the sentence is right for every name — including
+          // club/session's joined 「초코·밤」 — without a particle helper. ⚠ Not withParticle: this
+          // file is copied OUT of src/lib by test/run-geo-tests.sh, which re-points only
+          // ./supabase and ./pack, and a new sibling import was measured to break that bundle.
           notificationBody: opts.dogName
-            ? `${opts.dogName}와 러닝 중 — 거리와 경로를 기록하고 있어요`
+            ? `${opts.dogName}의 러닝 — 거리와 경로를 기록하고 있어요`
             : '거리와 경로를 기록하고 있어요',
           notificationColor: '#6C5CE7',
           // App killed ⇒ tracking stops. We do not support kill-continuation, and a service

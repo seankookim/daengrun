@@ -11,6 +11,7 @@ import { GeoPoint, getNaverMap, getTraceSnapshot, getTrackPermission, mergeFixes
 import { haversineM, nearestOnTrace, rotateLoopAtEntry } from '../../src/lib/route-geom';
 import { haptic } from '../../src/lib/haptics';
 import { goBackOrHome } from '../../src/lib/nav';
+import { withParticle } from '../../src/lib/particle';
 import { notifyLocal } from '../../src/lib/push';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
 import { endRunActivity, RunLAProps, startRunActivity, updateRunActivity } from '../../src/lib/runActivity';
@@ -169,7 +170,7 @@ export default function ActiveRun() {
 
   // 러닝 이벤트 원탭 — 기록 + 보호자 즉시 알림 (응가 도장 = 케어 증거이자 건강 데이터)
   const fireEvent = (kind: Exclude<RunEventKind, 'photo'>) => {
-    if (!runnerJob.bookingId) { Alert.alert('실예약에서만 기록돼요'); return; }
+    if (!runnerJob.bookingId) { Alert.alert('진행 중인 예약이 없어요'); return; }
     haptic('light');
     setEvCounts((c) => ({ ...c, [kind]: (c[kind] ?? 0) + 1 }));
     addRunEvent(runnerJob.bookingId, kind).catch((e) => console.warn('[run] event:', e?.message ?? e));
@@ -183,11 +184,15 @@ export default function ActiveRun() {
     const k = km.toFixed(2);
     const t = fmt(sec);
     // Name the dog only when the real booking told us the name — no invented names.
+    // [2026-09-25 copy-hierarchy-2] One variant was deleted: it stated a delta for the fitness-age
+    // metric owner/fitness.tsx really measures, auto-sent under the runner's name. A joke about a
+    // number the product computes elsewhere is a fake number the owner cannot tell is a joke.
+    // What stays names no metric the product computes (체력 적금 exists nowhere else — grep). The
+    // 합니다체 caster lines are counted in copy-forms.test.cjs KNOWN_HAMNIDA, which still reads 2.
     const lines = dogName
       ? [
           `${dogName}, ${k}km 지점에서 한 컷! ${t} · 오늘도 체력 적금 +1`,
           `${k}km 통과 중인 ${dogName} — 꼬리 텐션 최상입니다 (${t})`,
-          `지금 ${dogName} 표정 보세요! ${k}km 달리고 이 컨디션 · 체력 나이 -0.01살 적립 중`,
           `${dogName} 현장 소식: ${k}km · ${t} · 산소 가득 마시는 중`,
         ]
       : [
@@ -199,7 +204,7 @@ export default function ActiveRun() {
   };
 
   const firePhoto = async () => {
-    if (!runnerJob.bookingId) { Alert.alert('실예약에서만 기록돼요'); return; }
+    if (!runnerJob.bookingId) { Alert.alert('진행 중인 예약이 없어요'); return; }
     const bid = runnerJob.bookingId;
     let ImagePicker: any;
     try { ImagePicker = require('expo-image-picker'); } catch {
@@ -253,8 +258,8 @@ export default function ActiveRun() {
   const [ceilingHit, setCeilingHit] = useState(false); // 정산 밴드 상한 근접 → 기록 정지
   const runSentence = infoStatus !== 'ready' ? null
     : ceilingHit ? '기록이 멈췄어요'
-      : running ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
-        : dogName ? `${dogName}와 러닝 준비` : '러닝 준비';
+      : running ? dogName ? `● ${withParticle(dogName, '와/과')} 러닝 중 · GPS` : '● 러닝 중 · GPS'
+        : dogName ? `${withParticle(dogName, '와/과')} 러닝 준비` : '러닝 준비';
   // HIG A3/A6: the state strip flips on its own — the run starts, the settlement ceiling stops
   // the recording. The runner is moving and not looking at the screen, so this is the one screen
   // where the announcement is the ONLY channel for a change they must act on.
@@ -818,7 +823,7 @@ export default function ActiveRun() {
       settled.current = false;
       Alert.alert(
         'GPS 없이 정산할 수 없어요',
-        '실예약 정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시작해주세요.',
+        '정산은 실측 거리로만 가능해요.\n설정에서 위치 권한을 켠 뒤 다시 시작해주세요.',
       );
       return;
     }
@@ -1080,8 +1085,8 @@ export default function ActiveRun() {
   const idleBadge = incidentBid
     ? '확인 진행 중'
     : resumable
-      ? dogName ? `${dogName}와 러닝 기록 이어가기` : '러닝 기록 이어가기'
-      : dogName ? `${dogName}와 러닝 준비` : '러닝 준비';
+      ? dogName ? `${withParticle(dogName, '와/과')} 러닝 기록 이어가기` : '러닝 기록 이어가기'
+      : dogName ? `${withParticle(dogName, '와/과')} 러닝 준비` : '러닝 준비';
 
   // ---------- 사진 알림 (Sean 2026-08-24 · 맨 뒤에 붙인다) ----------
   // Verbatim: "For the runner done screen (C), make sure there's a mandatory nudge for pictures
@@ -1453,7 +1458,7 @@ export default function ActiveRun() {
               {ceilingHit
                 ? '기록이 멈췄어요'
                 : running
-                  ? dogName ? `● ${dogName}와 러닝 중 · GPS` : '● 러닝 중 · GPS'
+                  ? dogName ? `● ${withParticle(dogName, '와/과')} 러닝 중 · GPS` : '● 러닝 중 · GPS'
                   : idleBadge}
             </Text>
             {running && gps && !ceilingHit && (
@@ -1735,7 +1740,8 @@ export default function ActiveRun() {
             accessibilityRole="button"
             accessibilityState={{ busy: starting }}
           >
-            <Text style={[{ fontSize: 19.5, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
+            {/* lineHeight explicit — Black Han Sans clips its ascenders without one (DESIGN §3 「BUG A」) */}
+            <Text style={[{ fontSize: 19.5, lineHeight: 24, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
               {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중…' : resumable ? '기록 이어가기' : '러닝 시작'}
             </Text>
           </Pressable>
@@ -1753,7 +1759,6 @@ export default function ActiveRun() {
         <Pressable style={s.sheetBackdrop} onPress={() => { setRationale(false); setTrackMode('denied'); }}
           accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
-          <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>러닝 거리는 위치로 재요</Text>
           <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 8, lineHeight: 21 }}>
             주머니에 넣거나 화면이 꺼져도 거리와 경로가 계속 기록돼요. 이 거리가 보호자에게 보이는 기록이자 정산 기준이에요.{'\n'}
@@ -1784,7 +1789,6 @@ export default function ActiveRun() {
         <Pressable style={s.sheetBackdrop} onPress={closeEndSheet} accessibilityRole="button" accessibilityLabel="닫기" />
         {endStep === 'reason' ? (
           <View style={s.sheet}>
-            <View style={s.sheetHandle} />
             <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>어떤 이유로 종료하나요?</Text>
             <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 4 }}>
               지금까지 {km.toFixed(2)}km · 이유에 따라 정산이 달라져요
@@ -1825,7 +1829,6 @@ export default function ActiveRun() {
           // 키보드가 입력칸을 덮으면 러너는 자기가 쓴 문장을 못 본다 — 시트를 밀어 올린다
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={s.sheet}>
-              <View style={s.sheetHandle} />
               <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>무엇을 보고 멈췄나요?</Text>
               {/* 두 문장짜리 안내 — 랩 R5b의 1.5× 행간에 맞춘다 (15pt/22 = 1.47×) */}
               <Text style={{ fontSize: 15, color: '#BBBBBB', marginTop: 6, lineHeight: 22 }}>
@@ -2016,9 +2019,11 @@ const s = StyleSheet.create({
   // event stamp chips — pastel stamp fills survive (stamp-culture semantics), corners sharp
   eventBtn: { flex: 1, flexDirection: 'row', gap: 5, borderRadius: 0, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
   sheetBackdrop: { flex: 1, backgroundColor: '#00000066' },
-  // end-run sheets stay in the dark run world — sharp, coral hairline seam at the top edge
+  // end-run sheets stay in the dark run world — sharp, coral hairline seam at the top edge.
+  // [2026-09-25 ui-consistency-6] No grabber bar on any of the three: HIG reserves it for a
+  // RESIZABLE sheet and these have no drag handler, so it promised a swipe that did nothing
+  // (paper-sheet.tsx header). The backdrop, onRequestClose and each sheet's own cancel row exit.
   sheet: { backgroundColor: '#141414', borderTopWidth: 1, borderTopColor: paper.line, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 5, borderRadius: 3, backgroundColor: '#3A3A3A', marginBottom: 14 },
   // 종료 사유 행 — v4 랩 R5a는 세 행을 **같은 헤어라인 박스**로 그린다(레일 없음, 색 유도 없음).
   // #222 필은 #141414 시트 위에서 1.1:1이라 사실상 보이지 않았다 — 테두리가 행을 객체로 만든다.
   endOption: {

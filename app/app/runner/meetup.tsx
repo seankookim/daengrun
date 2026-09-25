@@ -197,10 +197,17 @@ export default function Meetup() {
         // 있는 러너에게 「더 진행할 수 없어요」라고 말하면 안 된다 (D3). 0117:644 가 같은 순간에
         // 보내는 푸시와 **같은 낱말**을 쓴다 — 한 사건에 두 어휘가 생기지 않게.
         closingRef.current = true; // latch BEFORE the alert — see declaration for the live loop this ends
+        // [2026-09-25 runner-journey-4, client half] Copy only — the allow-list, the latch and the
+        // exit above/below are the frozen machine and are untouched. An owner cancel used to reach
+        // the runner as the bare 「더 진행할 수 없어요」, which says nothing about why the job
+        // vanished. Name who cancelled. ⚠ No compensation clause: a fee-0 or waived cancel records none, and
+        // this branch cannot tell those apart from the en-route 50% case.
         Alert.alert(
           '예약 상태가 바뀌었어요',
           s2.status === 'completed' ? '이미 완료된 러닝이에요'
             : s2.status === 'incident_review' ? '확인이 필요해요'
+            : s2.status === 'cancelled_owner' ? '보호자가 예약을 취소했어요'
+            : s2.status === 'cancelled_runner' ? '예약이 취소됐어요'
             : '이 예약은 더 진행할 수 없어요',
         );
         goBackOrHome();
@@ -978,7 +985,8 @@ const s = StyleSheet.create({
 
   // ── 의식 헤더 ──
   kick: { fontSize: 12, fontWeight: '700', letterSpacing: 3, color: paper.faint }, // 장식 클래스 (15pt 플로어 면제)
-  ttl: { fontSize: 20, fontWeight: '900', color: paper.ink, marginTop: 3 },
+  // Black Han Sans (df) — explicit lineHeight or the ascenders clip (DESIGN §3 「BUG A」).
+  ttl: { fontSize: 20, lineHeight: 25, fontWeight: '900', color: paper.ink, marginTop: 3 },
   countPill: { alignSelf: 'flex-start', backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.line, paddingVertical: 4, paddingHorizontal: 9 },
   countPillOn: { backgroundColor: paper.ink, borderColor: paper.ink },
   countPillGo: { backgroundColor: paper.ink, borderColor: paper.ink },

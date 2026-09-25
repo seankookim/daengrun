@@ -5,15 +5,18 @@ import { Alert, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { bookingKmLabel } from '../../src/lib/route-label';
 import { homePath } from '../../src/components/bottomnav';
+import { PaperBtn } from '../../src/components/paper-btn';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Avatar, Row } from '../../src/components/ui';
 import { ensureThread, fetchCurrentOwnerBookingId, fetchMeetupInfo, fetchOwnerPickupCoords, fetchRouteById, fetchRunMeta, fetchRunPhase, MeetupInfo, notifyRunStop, OwnerPickup, sendChatMessage, subscribeBooking } from '../../src/lib/api';
 import { useAnnounceOnChange } from '../../src/lib/a11y-announce';
 import { alertFail } from '../../src/lib/alert-fail';
+import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { useNumFont } from '../../src/lib/fonts';
 import { getNaverMap, LiveLinkState, LivePos, smoothTrace, subscribePos } from '../../src/lib/geo';
 import { endOwnerActivity, OwnerLAProps, startOwnerActivity, updateOwnerActivity } from '../../src/lib/ownerActivity';
 import { clampSuggest, PACE_WINDOW_MS, PaceState, paceState, windowPaceSec } from '../../src/lib/pace';
+import { withParticle } from '../../src/lib/particle';
 import { haversineM, nearestOnTrace, rotateLoopAtEntry, snapToRoute } from '../../src/lib/route-geom';
 import { draft, RouteInfo } from '../../src/store';
 import { colors, lilac, paper } from '../../src/theme';
@@ -528,7 +531,7 @@ export default function Live() {
   const liveSentence = resolve !== 'ready' || info === null ? null
     : held && HELD_COPY[held] ? ` ${dogName} · ${HELD_COPY[held].pill}`
       : !hasFix ? ` ${dogName} · 위치 수신 대기`
-        : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`;
+        : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${withParticle(dogName, '가/이')} 달리는 중`;
   // HIG A3/A6: the hero pill is the one thing a sighted owner reads at a glance, and it changes
   // on its own — the runner's position stream, the 90-second staleness clock, an incident hold.
   // Rate-limited in the helper: a GPS fix and a status row landing together used to announce twice.
@@ -772,12 +775,20 @@ export default function Live() {
                 화면을 나갔다 들어오면 다시 연결을 시도해요.
               </Text>
             </>
+          ) : !maps ? (
+            // The Naver SDK is absent from this binary (an OTA bundle on an older build), so no map
+            // is coming on this device no matter what the runner does. The old waiting copy said
+            // 「경로가 그려져요」 with a developer's aside tacked on, and it kept saying 「수신 대기」
+            // even after fixes arrived. Say the true thing in the shared sentence (copy.ts) and
+            // point at what still works: the island below carries the live km/time/pace.
+            <>
+              <Text style={s.waitTitle}>{MAP_LOAD_FAIL_KO}</Text>
+              <Text style={s.waitBody}>러닝과 기록은 그대로 진행돼요.</Text>
+            </>
           ) : (
             <>
               <Text style={s.waitTitle}>러너 위치 수신 대기 중…</Text>
-              <Text style={s.waitBody}>
-                러너가 달리기 시작하면 실시간 경로가 그려져요{'\n'}{!maps ? '(실지도는 새 개발 빌드에서)' : ''}
-              </Text>
+              <Text style={s.waitBody}>러너가 달리기 시작하면 실시간 경로가 그려져요</Text>
             </>
           )}
         </View>
@@ -824,7 +835,7 @@ export default function Live() {
           <Text accessibilityLiveRegion="polite" style={s.livePillTxt}>
             <Text style={{ color: hasFix && !stale && !heldCopy ? paper.line : paper.faint }}>●</Text>
             {heldCopy ? ` ${dogName} · ${heldCopy.pill}`
-              : !hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${dogName}가 달리는 중`}
+              : !hasFix ? ` ${dogName} · 위치 수신 대기` : stale ? ` ${dogName} · 위치 갱신 없음` : ` LIVE · ${withParticle(dogName, '가/이')} 달리는 중`}
           </Text>
         </View>
         {/* SOS = 긴급 어포던스 — 라우드 페일 토큰이 정확히 이 자리를 위한 색이다.
@@ -833,7 +844,7 @@ export default function Live() {
             들고 있다**. 급한 사람을 자기가 아는 답을 모르는 척하는 화면으로 한 번 더 보내는
             셈이었다. 사고 접수로 곧장 간다. bid 가 아직 안 잡힌 동안에만 `/safety` 로 — 그때는
             안심 센터의 재조회가 이 화면보다 아는 게 많고, 죽은 버튼을 만들지 않는 유일한 길이다.
-            안심 센터 자체는 아래 홀드 스트립의 「안전 센터 열기」로 그대로 닿는다. */}
+            안심 센터 자체는 아래 홀드 스트립의 「안심 센터 열기」로 그대로 닿는다. */}
         <Pressable
           onPress={() => router.push(bookingId ? `/incident/${bookingId}` : '/safety')}
           style={s.sosBtn}
@@ -876,24 +887,20 @@ export default function Live() {
           <View style={s.holdStrip}>
             <Text style={s.holdTxt}>{heldCopy.strip}</Text>
             {/* push, never replace — the owner has to be able to come back to the last-known
-                position map, the most important artifact they have during a hold */}
+                position map, the most important artifact they have during a hold.
+                [2026-09-25 ui-consistency-1] Both doors are PaperBtn now: the ink-filled plate was
+                the primary the button matrix retired (paper-btn.tsx header), its labels sat at 15pt
+                on 42pt targets, and it called /safety by a different name from the one the
+                destination's own title and every other door use (「안심 센터」). The action row below
+                is gone during a hold, so this primary is the screen's only coral fill. */}
             <Row style={{ gap: 10, marginTop: 10 }}>
-              <Pressable
+              <PaperBtn
+                label="러너와 채팅"
+                variant="secondary"
                 onPress={() => router.push({ pathname: '/chat', params: { bid: bookingId! } })}
-                style={s.holdBtn}
-                accessibilityRole="button"
-                accessibilityLabel="러너와 채팅"
-              >
-                <Text style={s.holdBtnTxt}>러너와 채팅</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => router.push('/safety')}
-                style={s.holdBtnInk}
-                accessibilityRole="button"
-                accessibilityLabel="안전 센터 열기"
-              >
-                <Text style={s.holdBtnInkTxt}>안전 센터 열기</Text>
-              </Pressable>
+                style={{ flex: 1 }}
+              />
+              <PaperBtn label="안심 센터 열기" onPress={() => router.push('/safety')} style={{ flex: 1 }} />
             </Row>
           </View>
         )}
@@ -1014,13 +1021,15 @@ export default function Live() {
           accessibilityRole="button"
           accessibilityLabel="닫기"
         />
+        {/* [2026-09-25 ui-consistency-6] No grabber bar: HIG reserves it for a RESIZABLE sheet and
+            this one has no drag handler, so it promised a swipe that did nothing (paper-sheet.tsx
+            header). The backdrop above, onRequestClose and 계속 지켜볼게요 are the real exits. */}
         <View style={s.stopSheet}>
-          <View style={s.sheetHandle} />
           <Text style={s.sheetTitle}>정말 러닝을 종료할까요?</Text>
           {/* 정직 카피 — 실제로 일어나는 것만: 채팅(기록) + 알림(도달) → 러너가 확인 → 정지·복귀.
               2026-08-11까지는 채팅뿐이었고 그건 러너가 채팅을 열어야만 보였다. 이제 알림도 간다. */}
           <Text style={s.sheetBody}>
-            종료 요청과 사유를 러너에게 알림으로 보내고 채팅에도 남겨요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {dogName}를 데리고 픽업 장소로 복귀해요.
+            종료 요청과 사유를 러너에게 알림으로 보내고 채팅에도 남겨요.{'\n'}러너가 확인하면 안전하게 정지한 뒤 {withParticle(dogName, '를/을')} 데리고 픽업 장소로 복귀해요.
           </Text>
 
           <Text style={s.sheetLabel}>종료 사유</Text>
@@ -1149,15 +1158,8 @@ const s = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 16, marginTop: 12,
   },
   holdTxt: { fontSize: 15, lineHeight: 19, fontWeight: '700', color: paper.critical },
-  // Never two buttons of the same colour: 안전 센터 is the emphasized door (ink plate + white
-  // label), 채팅 is the critical-hairline plate. Both land at 42pt so neither outranks by size.
-  holdBtn: {
-    flex: 1, backgroundColor: paper.canvas, borderWidth: 1, borderColor: paper.critical,
-    alignItems: 'center', paddingVertical: 10,
-  },
-  holdBtnTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: paper.critical },
-  holdBtnInk: { flex: 1, backgroundColor: paper.ink, alignItems: 'center', paddingVertical: 11 },
-  holdBtnInkTxt: { fontSize: 15, lineHeight: 20, fontWeight: '800', color: '#ffffff' },
+  // The strip's two doors are PaperBtn (primary 안심 센터 · secondary 채팅) — the matrix owns their
+  // colour, size and pressed state, so this file carries no hold-button styles of its own.
   // ---------- 아일랜드 (풀블리드 · 샤프 · 코랄 프레임) ----------
   island: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
@@ -1221,6 +1223,8 @@ const s = StyleSheet.create({
   // 버튼 매트릭스 — secondary(wash 면 + 코랄 헤어라인 + actionInk 라벨) + destructive(캔버스 면
   // + 크리티컬 잉크·보더). [액션] 채팅은 이동이지 커밋이 아니다 -> 세컨더리. 이 화면은 코랄
   // **필**이 0개인 게 맞다: 예산은 상한이지 할당량이 아니고, 강조는 livePill(잉크=상태)이 진다.
+  // (Exception, 2026-09-25: during an incident hold this row leaves and the hold strip's
+  // 「안심 센터 열기」 is the one primary on screen.)
   //
   // ⚠ 면은 세컨더리로 바뀌었는데 라벨과 pressed 면색이 프라이머리의 것으로 남아 있었다:
   //   #FFFFFF on paper.wash(#FFF6F4) = 실측 1.05:1 — 이 화면의 유일한 CTA가 사실상 보이지 않았다.
@@ -1237,7 +1241,6 @@ const s = StyleSheet.create({
   // ---------- 종료 시트 ----------
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   stopSheet: { backgroundColor: paper.canvas, borderTopWidth: 1, borderColor: paper.line, padding: 16, paddingBottom: 40 },
-  sheetHandle: { alignSelf: 'center', width: 44, height: 3, backgroundColor: paper.line, marginBottom: 14 },
   sheetTitle: { fontSize: 20.5, fontWeight: '900', color: paper.ink },
   sheetBody: { fontSize: 15, color: paper.text, marginTop: 5, lineHeight: 20.5 },
   sheetLabel: { fontSize: 16, fontWeight: '800', color: paper.ink, marginTop: 16, marginBottom: 8 },
