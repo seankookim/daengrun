@@ -169,12 +169,24 @@ export const OPS_GEAR_CLAIM_TITLE = '굿즈 수령 신청 — 확인 필요';
 export const OPS_CUSTODY_START_STRAND_TITLE = '러닝 시작 좌초 — 확인 필요';
 export const OPS_CUSTODY_END_STRAND_TITLE = '러닝 종료 좌초 — 확인 필요';
 export const OPS_SEALED_UNSETTLED_TITLE = '정산 미완료 — 확인 필요';
+// [0233 §C] arm ⓗ's bell — a marketplace `incident_review` whose run never ended — to the
+// `return_strand` roster, ref = the BOOKING. It lands on the custody desk, whose pre-run section
+// (`ops_prerun_cases()`) reads `bid` to mark the row. Read-only: no door resolves it (L2/L3).
+export const OPS_PRERUN_INCIDENT_TITLE = '러닝 전 사고 검토 — 확인 필요';
+// [0234 §B] the incident_opened bells, one title per severity, ref = the INCIDENT (not the
+// booking — a booking can carry a second incident after the first resolves). They land on the
+// console home, whose open-incidents desk reads `iid` to mark the row. Read-only (L2/L3).
+export const OPS_INCIDENT_OPENED_TITLE = '사고 접수 — 확인 필요';
+export const OPS_INCIDENT_URGENT_TITLE = '긴급 사고 접수 — 확인 필요';
+export const OPS_INCIDENT_SOS_TITLE = 'SOS 사고 접수 — 즉시 확인 필요';
 
 /** Every `system` title with a console destination. `app/test/notification-route.test.cjs` reads
  *  each string out of the migration that writes it, so the two spellings cannot drift. */
 export const OPS_SYSTEM_TITLES = [
   OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE, OPS_GEAR_CLAIM_TITLE,
   OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE,
+  OPS_PRERUN_INCIDENT_TITLE,
+  OPS_INCIDENT_OPENED_TITLE, OPS_INCIDENT_URGENT_TITLE, OPS_INCIDENT_SOS_TITLE,
 ];
 
 /** Where a `system` (ops roster) notification lands, or `null` when this product has no screen
@@ -203,6 +215,12 @@ export function destinationForSystemRef(
     case OPS_CUSTODY_END_STRAND_TITLE: return { pathname: '/ops/custody', params: { bid: refId } };
     // [0224] ref = the sealed-but-unsettled booking → its list, which reads `bid` the same way.
     case OPS_SEALED_UNSETTLED_TITLE: return { pathname: '/ops/sealed', params: { bid: refId } };
+    // [0233] ref = the booking → the custody desk's pre-run section, which reads `bid`.
+    case OPS_PRERUN_INCIDENT_TITLE: return { pathname: '/ops/custody', params: { bid: refId } };
+    // [0234] ref = the INCIDENT → the console home's open-incidents desk, which reads `iid`.
+    case OPS_INCIDENT_OPENED_TITLE:
+    case OPS_INCIDENT_URGENT_TITLE:
+    case OPS_INCIDENT_SOS_TITLE: return { pathname: '/ops', params: { iid: refId } };
     default: return null;
   }
 }

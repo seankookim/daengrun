@@ -1,16 +1,16 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
-  fetchNotifications, fetchOpsGearClaimsPending, fetchOpsPayoutsDue, fetchOpsSealedUnsettled,
-  fetchOpsStalledHandoffs, fetchOpsStrandedCustody, fetchOpsStrandedReturns, LiveNoti,
-  markNotificationsRead, OpsGearClaim, OpsPayoutDue, OpsSealedUnsettled, OpsStalledHandoff,
-  OpsStrandedCustody, OpsStrandedReturn,
+  fetchNotifications, fetchOpsGearClaimsPending, fetchOpsOpenIncidents, fetchOpsPayoutsDue,
+  fetchOpsSealedUnsettled, fetchOpsStalledHandoffs, fetchOpsStrandedCustody, fetchOpsStrandedReturns,
+  LiveNoti, markNotificationsRead, OpsGearClaim, OpsOpenIncident, OpsPayoutDue, OpsSealedUnsettled,
+  OpsStalledHandoff, OpsStrandedCustody, OpsStrandedReturn,
 } from '../../src/lib/api';
-import { kstCal, kstMonthDay } from '../../src/lib/kst';
+import { kstCal, kstClock, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { destinationForSystemRef } from '../../src/lib/notification-route';
 import { strandAgeLabel } from '../../src/lib/ops-console';
@@ -52,6 +52,13 @@ import { colors, paper } from '../../src/theme';
 //    become a lie.
 //    ⚠ While `kinds` has not been read yet, neither section is drawn and neither is claimed to be
 //    empty. An unread answer is not a 'no'.
+//
+// [0234 §D] + the 열린 사고 desk — every OPEN incident (`ops_open_incidents()`), SOS first, drawn and
+//   fetched only for the `incident_opened` roster (the roster the incident bells page — the same
+//   rule as every desk above). READ-ONLY: no door closes an incident here (gap sweep 2 §P5, letters
+//   L2/L3 are Sean's), so each incident is a plain card — no chevron onto nothing. A bell tap lands
+//   on THIS screen with `iid` (notification-route.ts) and marks that card; tapping an incident bell
+//   from the inbox below marks it in place instead of pushing a second copy of this screen.
 
 type Phase = 'loading' | 'error' | 'ready';
 
@@ -63,6 +70,14 @@ export default function OpsHome() {
   // asked `ops_me()` to decide whether to render this stack at all, and asking again here was two
   // round trips on open plus one per return from a desk (`ops-context.tsx` carries the why).
   const { kinds, refresh } = useOps();
+
+  // [0234 §D] the incident a bell pointed at — from a push tap (`iid`) or an inbox tap (in place)
+  const params = useLocalSearchParams<{ iid?: string }>();
+  // Derived, not synced by an effect: an inbox tap marks IN PLACE and remembers which `iid` param it
+  // was made under, so a later push tap that re-navigates here with a NEW iid supersedes it.
+  const paramIid = typeof params.iid === 'string' ? params.iid : '';
+  const [inPlaceMark, setInPlaceMark] = useState<{ iid: string; underParam: string } | null>(null);
+  const incidentMark = inPlaceMark !== null && inPlaceMark.underParam === paramIid ? inPlaceMark.iid : paramIid;
 
   const [duePhase, setDuePhase] = useState<Phase>('loading');
   const [due, setDue] = useState<OpsPayoutDue[]>([]);
@@ -88,6 +103,11 @@ export default function OpsHome() {
   const [sealedPhase, setSealedPhase] = useState<Phase>('loading');
   const [sealed, setSealed] = useState<OpsSealedUnsettled[]>([]);
   const [sealedErr, setSealedErr] = useState<string | null>(null);
+
+  // [0234 §D] the open-incidents desk
+  const [incPhase, setIncPhase] = useState<Phase>('loading');
+  const [incidents, setIncidents] = useState<OpsOpenIncident[]>([]);
+  const [incErr, setIncErr] = useState<string | null>(null);
 
   const [alertPhase, setAlertPhase] = useState<Phase>('loading');
   const [alerts, setAlerts] = useState<LiveNoti[]>([]);
@@ -165,6 +185,18 @@ export default function OpsHome() {
       });
   }, []);
 
+  const loadIncidents = useCallback(() => {
+    setIncPhase('loading');
+    setIncErr(null);
+    fetchOpsOpenIncidents()
+      .then((rows) => { setIncidents(rows); setIncPhase('ready'); })
+      .catch((e) => {
+        console.warn('[ops] open_incidents:', rpcRaw(e));
+        setIncErr((e as Error)?.message || INCIDENTS_FAILED_KO);
+        setIncPhase('error');
+      });
+  }, []);
+
   // 🔴 [0206] THE OPERATOR'S OWN INBOX, filtered to the ops kind. `fetchNotifications` reads
   //    `notifications` under RLS `noti self` (0002:138 — `profile_id = auth.uid()`), so this is the
   //    caller's OWN rows and no new read surface: the ops escalations were always addressed to
@@ -204,8 +236,14 @@ export default function OpsHome() {
         .then(() => setAlerts((prev) => prev.map((r) => (r.id === n.id ? { ...r, unread: false } : r))))
         .catch((e) => console.warn('[ops] alert mark read:', (e as Error)?.message ?? e));
     }
+    // [0234 §D] an incident bell's destination IS this screen — mark its card in place rather than
+    // pushing a second console on top of this one.
+    if (typeof dest === 'object' && dest.pathname === '/ops') {
+      setInPlaceMark({ iid: dest.params.iid ?? '', underParam: paramIid });
+      return;
+    }
     router.push(dest as Parameters<typeof router.push>[0]);
-  }, []);
+  }, [paramIid]);
 
   // Re-read on every return: paying a runner, posting a box or resolving a strand on a detail
   // screen changes exactly these lists, and a stale count here is an operator acting twice.
@@ -228,12 +266,16 @@ export default function OpsHome() {
   // the people who may look」). `deskAccess` is the pinned form (src/lib/ops-custody.ts).
   const hasCustodyDesk = deskAccess(kinds, CUSTODY_DESK_CLASS) === 'held';
   const hasSealedDesk = deskAccess(kinds, SEALED_DESK_CLASS) === 'held';
+  // [0234 §D] the open-incidents desk, on the roster its read gates on
+  const hasIncidentDesk = deskAccess(kinds, INCIDENT_DESK_CLASS) === 'held';
   useFocusEffect(useCallback(() => {
     if (hasStrandDesk) loadStrand();
     if (hasStallDesk) loadStall();
     if (hasCustodyDesk) loadCustody();
     if (hasSealedDesk) loadSealed();
-  }, [hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, loadStrand, loadStall, loadCustody, loadSealed]));
+    if (hasIncidentDesk) loadIncidents();
+  }, [hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, hasIncidentDesk,
+    loadStrand, loadStall, loadCustody, loadSealed, loadIncidents]));
 
   // [0213] THE ONE REFRESH PATH, and the only thing in this stack that re-asks `ops_me()`. Every
   // section plus the roster answer — an operator who pulls expects the whole screen re-asked, not
@@ -247,12 +289,13 @@ export default function OpsHome() {
     if (hasStallDesk) loadStall();
     if (hasCustodyDesk) loadCustody();
     if (hasSealedDesk) loadSealed();
+    if (hasIncidentDesk) loadIncidents();
     // Only the roster re-ask is awaited, because it is the one whose progress this screen has no
     // section phase for. A refresh that FAILS keeps the last known answer (see `_layout`): the
     // spinner stops and nothing claims the operator lost a desk.
     refresh().finally(() => setRefreshing(false));
-  }, [loadDue, loadGear, loadAlerts, loadStrand, loadStall, loadCustody, loadSealed,
-    hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, refresh]);
+  }, [loadDue, loadGear, loadAlerts, loadStrand, loadStall, loadCustody, loadSealed, loadIncidents,
+    hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, hasIncidentDesk, refresh]);
 
   return (
     <>
@@ -514,6 +557,59 @@ export default function OpsHome() {
           </>
         )}
 
+        {/* ── 열린 사고 [0234 §D] ────────────────────────────────────────────────────────
+            READ-ONLY and names no remedy: closing an incident is Sean's letter (L2/L3). Drawn only
+            for the `incident_opened` roster. Each incident is a plain card — there is no per-incident
+            ops screen, and a chevron onto nothing would be a dead button. */}
+        {hasIncidentDesk && (
+          <>
+            <SectionHeader
+              title="열린 사고"
+              count={incPhase === 'ready' ? incidents.length : null}
+              hint="접수됐고 아직 닫히지 않은 사고 · SOS가 먼저 · 보기 전용이에요"
+            />
+
+            {incPhase === 'loading' && <Text style={s.loading}>{INCIDENTS_LOADING_KO}</Text>}
+
+            {incPhase === 'error' && <FailStrip message={incErr} onRetry={loadIncidents} />}
+
+            {incPhase === 'ready' && incidents.length === 0 && (
+              <View style={s.emptyCard}>
+                <Text style={s.emptyText}>열린 사고가 없어요</Text>
+                <Text style={s.emptySub}>사고가 접수되면 닫힐 때까지 여기에 나와요</Text>
+              </View>
+            )}
+
+            {incPhase === 'ready' && incidents.map((i) => {
+              const incMarked = i.incidentId === incidentMark;
+              return (
+                <View key={i.incidentId} style={[s.row, incMarked && s.rowMarked]}>
+                  <View style={{ flex: 1 }}>
+                    <Row style={{ justifyContent: 'flex-start', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <Text style={[s.rowTitle, i.severity === 'sos' || i.severity === 'urgent' ? s.rowCritical : null]}>
+                        {severityLabel(i.severity)} · {i.dogName ?? '이름 없는 강아지'}
+                      </Text>
+                      {incMarked && <Text style={s.marker}>알림</Text>}
+                    </Row>
+                    <Text style={s.rowBody}>{incidentKindLabel(i.kind)} · {reporterLabel(i.reporterRole)} 신고</Text>
+                    <Text style={s.rowHint}>
+                      보호자 {i.ownerName ?? '이름 없음'} · 러너 {i.runnerName ?? '이름 없음'}
+                    </Text>
+                    <Text style={s.rowHint}>
+                      {openedLabel(i.openedAt)}{i.verifiedAt !== null ? ' · 사실 확인됨' : ' · 사실 확인 전'}
+                    </Text>
+                    <Text style={i.notifiedAt === null ? s.rowPending : s.rowHint}>
+                      {i.notifiedAt === null
+                        ? '접수 때 알림을 받은 담당자가 없었어요'
+                        : '담당자 알림이 발송된 사고예요'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </>
+        )}
+
         {/* ── 운영 알림 [0206] ───────────────────────────────────────────────────────────
             The operator's OWN `system` rows — the bells 0183 · 0186 · 0193 · 0206 §C ring, plus
             the ledgered titles with no console screen (0214 `_noti_ops_titles()`). Read through
@@ -614,6 +710,40 @@ function FailStrip({ message, onRetry }: { message: string | null; onRetry: () =
   );
 }
 
+// [0234 §D] the open-incidents desk's words. The server's own vocabulary (0001: kind · severity;
+// 0234 §D: reporter_role) — an unknown word is PRINTED as itself rather than mapped onto a known one.
+const INCIDENT_DESK_CLASS = 'incident_opened';
+const INCIDENTS_LOADING_KO = '열린 사고를 불러오는 중이에요…';
+const INCIDENTS_FAILED_KO = '열린 사고를 불러오지 못했어요';
+function severityLabel(severity: string): string {
+  if (severity === 'sos') return 'SOS';
+  if (severity === 'urgent') return '긴급';
+  if (severity === 'normal') return '일반';
+  return severity || '심각도 없음';
+}
+function incidentKindLabel(kind: string): string {
+  switch (kind) {
+    case 'dog_injury': return '반려견 부상';
+    case 'lost_dog': return '반려견 실종';
+    case 'third_party': return '제3자 관련';
+    case 'equipment': return '장비 문제';
+    case 'other': return '기타';
+    default: return kind || '종류 없음';
+  }
+}
+function reporterLabel(role: string): string {
+  if (role === 'owner') return '보호자';
+  if (role === 'runner') return '러너';
+  return '예약 당사자가 아닌 사람';
+}
+/** 「9월 26일 19:04 접수」 in KST (kst.ts — never the device clock); absent is said, never 0. */
+function openedLabel(openedAt: string | null): string {
+  const ms = openedAt === null ? NaN : Date.parse(openedAt);
+  if (!Number.isFinite(ms)) return '접수 시각 없음';
+  const c = kstCal(ms);
+  return `${kstMonthDay(c)} ${kstClock(c)} 접수`;
+}
+
 /** The first eight characters of a uuid, uppercased — enough to tell two rows apart and to read
  *  aloud, and deliberately not a name (0186 §B). */
 function shortId(id: string): string {
@@ -633,6 +763,11 @@ const s = StyleSheet.create({
   },
   rowPressed: { transform: [{ scale: 0.985 }] },
   rowUnread: { borderColor: paper.ink, borderWidth: 2 },
+  // [0234 §D] a bell-pointed incident card, and the SOS / 긴급 headline
+  rowMarked: { borderColor: paper.ink, borderWidth: 2 },
+  rowCritical: { color: paper.critical },
+  marker: { fontSize: 15, fontWeight: '800', color: paper.ink, marginLeft: 8 },
+  rowPending: { fontSize: 15, lineHeight: 21, fontWeight: '700', color: paper.critical, marginTop: 3 },
   rowTitle: { fontSize: 17, fontWeight: '800', color: paper.ink },
   rowHint: { fontSize: 15, lineHeight: 21, color: paper.dim, marginTop: 3 },
   // The body of a bell with no console door is the operator's instruction, so it is INK, not dim —

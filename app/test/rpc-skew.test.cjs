@@ -29,8 +29,8 @@ t('the REAL list is consulted by the shipped predicate — a LISTED function is 
   ok(isPendingDeploy('chat_mark_read_to',
     { code: 'PGRST202', message: NOT_FOUND('chat_mark_read_to') }),
     'chat_mark_read_to is on PENDING_DEPLOY but the shipped predicate did not read it');
-  // [0224 §F] the two console reads, each asked by its own name.
-  for (const fn of ['ops_stranded_custody', 'ops_sealed_unsettled'])
+  // [0224 §F] the two console reads, each asked by its own name. [0233 §F · 0234 §D] + two more.
+  for (const fn of ['ops_stranded_custody', 'ops_sealed_unsettled', 'ops_prerun_cases', 'ops_open_incidents'])
     ok(isPendingDeploy(fn, { code: 'PGRST202', message: NOT_FOUND(fn) }),
       fn + ' is on PENDING_DEPLOY but the shipped predicate did not read it');
   // ⚠ The 1-arg sibling (0212) is NOT on the list, and must not be: it is the FALLBACK target
@@ -106,8 +106,11 @@ t('⚠ the PENDING_DEPLOY list is pinned — it must SHRINK, and a change must b
   //   refresh with no open hole (api.ts). Delete with the rpc-skew.ts line once deployed.
   // 2026-09-25: ops_stranded_custody + ops_sealed_unsettled added (0224 §F console lists, written
   //   in the same slice as their wrappers; production is at 0202). Delete with rpc-skew.ts's lines.
+  // 2026-09-26: ops_prerun_cases (0233 §F) + ops_open_incidents (0234 §D) added — the console lists
+  //   behind the pre-run incident and incident_opened bells, written in the same slice as their
+  //   wrappers before 0233/0234 are pushed. Delete with rpc-skew.ts's lines once deployed.
   // 배포되면 rpc-skew.ts의 줄과 이 배열을 함께 지워 다시 [] 로 돌린다.
-  ok(JSON.stringify(keys) === JSON.stringify(['chat_mark_read_to', 'ops_sealed_unsettled', 'ops_stranded_custody', 'runner_offered_slots']),
+  ok(JSON.stringify(keys) === JSON.stringify(['chat_mark_read_to', 'ops_open_incidents', 'ops_prerun_cases', 'ops_sealed_unsettled', 'ops_stranded_custody', 'runner_offered_slots']),
     'list changed to ' + JSON.stringify(keys) + ' — EMPTY is the correct resting state. If you '
     + 'ADDED one, say why in the entry and update this pin; if a migration deployed, delete it here too.');
   for (const [k, why] of Object.entries(PENDING_DEPLOY))

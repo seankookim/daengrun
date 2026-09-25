@@ -83,6 +83,9 @@ t('🔴 the safety row no longer claims the ops escalations — that sentence is
   always.length === 1 && !always[0].desc.includes('운영'), always[0].desc);
 t('the ops row names what it actually covers (the titles themselves, not a category word — ⑦ below pins every family)',
   !!opsRow && opsRow.desc.includes('지급 대기') && opsRow.desc.includes('굿즈'), opsRow && opsRow.desc);
+// [0233/0234] the two new families, named in the sentence an operator reads before switching it off
+t('the ops row names the pre-run incident review and the incident reports (0233 arm ⓗ · 0234 incident_opened)',
+  !!opsRow && opsRow.desc.includes('러닝 전 사고 검토') && opsRow.desc.includes('사고 접수'), opsRow && opsRow.desc);
 t('🔴 the ops row says what STAYS — turning it off changes the phone and not the console',
   !!opsRow && opsRow.desc.includes('콘솔'), opsRow && opsRow.desc);
 
@@ -416,6 +419,9 @@ const OPS_FAMILY = [
   { title: /^결제 (자동 )?취소 실패/, word: '결제' },
   { title: /취소 보상 기록 실패/, word: '보상' },
   { title: /^운영 확인이 필요한 이벤트/, word: '운영 확인' },
+  // [0233] arm ⓗ's pre-run incident bell · [0234] the incident_opened bells, one per severity
+  { title: /^러닝 전 사고 검토/, word: '러닝 전 사고 검토' },
+  { title: /사고 접수 — /, word: '사고 접수' },
 ];
 const unnamedBy = (desc, titles) => titles.filter((ti) => {
   const fams = OPS_FAMILY.filter((f) => f.title.test(ti));

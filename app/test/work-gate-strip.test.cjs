@@ -193,9 +193,16 @@ t('P3 · runner_work_gate\'s exit case is EXACTLY EXIT_FOR (five words, five exi
   && WORK_GATE_WAITING_ON.every((w) => serverPairs[w] === EXIT_FOR[w]), J(serverPairs));
 t('P3 · the blocking helper names the three return words (both · runner · owner) and falls to the custody shape FIRST',
   /coalesce\(x\.shape,/.test(blk) && /then 'both'/.test(blk) && /then 'runner'/.test(blk) && /else 'owner'/.test(blk));
-t('P3 · the gate admits exactly three arms: active + a stamped end · incident_review · a stranded custody shape',
+// [0233 §A] the incident arm moved, in the slice that moved it (the house law): it now admits an
+// incident_review ONLY when the dog was ever out — the run ended or a handoff stamp exists. An
+// arrived-only incident_review (0117 _resolve_checkin's evidence arm) no longer gates at all. The
+// strip's own handling of `incident+open` (the tuple below) is unchanged — such a row, when it is
+// gated (a stamp, no run), still draws no exit. 264 `0233-G1..G4` own the gate's behaviour.
+t('P3 · the gate admits exactly three arms: active + a stamped end · incident_review only when the dog was ever out · a stranded custody shape',
   blk.includes("(b.run_ended_at is not null and b.status::text = 'active')")
-  && blk.includes("or b.status::text = 'incident_review'") && blk.includes('or x.shape is not null'));
+  && blk.includes("or (b.status::text = 'incident_review' and (b.run_ended_at is not null or b.owner_confirmed_handoff_at is not null or b.runner_confirmed_handoff_at is not null))")
+  && !blk.includes("or b.status::text = 'incident_review' or")
+  && blk.includes('or x.shape is not null'));
 t('P3 · 0224 §B: start_run IS picked_up, end_run IS active with no run end',
   cst.includes("when b.status::text = 'picked_up' then 'start_run'")
   && cst.includes("when b.status::text = 'active' and b.run_ended_at is null then 'end_run'"));
