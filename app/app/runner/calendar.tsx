@@ -261,6 +261,7 @@ export default function RunnerCalendar() {
           key={j.bookingId}
           onPress={() => openJob(j)}
           style={({ pressed }) => [s.ticket, todayGroup && s.ticketToday, pressed && { transform: [{ scale: 0.98 }] }]}
+          accessibilityRole="button"
         >
           {body}
         </Pressable>
@@ -326,6 +327,7 @@ export default function RunnerCalendar() {
           <Pressable
             onPress={() => router.push('/runner/availability')}
             style={({ pressed }) => [s.availBtn, pressed && { backgroundColor: paper.wash }]}
+            accessibilityRole="button"
           >
             <Text style={{ fontSize: 15, fontWeight: '800', color: paper.ink }}>가용시간 설정</Text>
           </Pressable>

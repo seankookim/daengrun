@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { Addr, fetchAddresses, setAddressPin, updateAddressDetail } from '../../
 import { BANPO, getNaverMap, getOneShotPosition } from '../../src/lib/geo';
 import { MAP_LOAD_FAIL_KO } from '../../src/lib/copy';
 import { haptic } from '../../src/lib/haptics';
+import { goBackOr } from '../../src/lib/nav';
 import { supabase } from '../../src/lib/supabase';
 import { paper } from '../../src/theme';
 
@@ -187,7 +188,10 @@ export default function AddressPin() {
     try {
       await setAddressPin(id, c.lat, c.lng);
       haptic('success');
-      router.back();
+      // Back to whoever opened the picker (request · meetup · address book · onboarding). A cold deep
+      // link has no history and a bare back() NO-OPs on a pin that is already saved — land on the
+      // address book, which shows the address this pin now belongs to.
+      goBackOr('/owner/addresses');
     } catch (e) {
       console.warn('[addr-pin] save:', (e as Error)?.message ?? e);
       setErr('save'); // stay on screen — the strip is the retry path

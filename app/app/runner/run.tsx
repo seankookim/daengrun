@@ -1467,7 +1467,8 @@ export default function ActiveRun() {
                 {ceilingHit ? '위치 공유 중지' : running && gps ? '보호자에게 위치 공유 중' : running ? '위치 공유 대기' : '시작 전'}
               </Text>
             </View>
-            <Pressable onPress={toggleLayout} style={s.layoutBtn}>
+            <Pressable onPress={toggleLayout} style={s.layoutBtn} accessibilityRole="button"
+              accessibilityLabel="화면 배치 바꾸기" accessibilityValue={{ text: layout === 'island' ? '지도 위 카드' : '하단 패널' }}>
               <Text style={{ fontSize: 15, color: '#fff' }}>⧉</Text>
             </Pressable>
           </Row>
@@ -1531,6 +1532,7 @@ export default function ActiveRun() {
         <Pressable
           style={s.chatPin}
           onPress={() => router.push('/chat')}
+          accessibilityRole="button"
         >
           {/* Real dog identity — booking photo when it exists, monogram of the real name
               otherwise (mock char/color retired). Neutral tile on the dark panel. */}
@@ -1690,7 +1692,7 @@ export default function ActiveRun() {
             누르면 열리는 것은 오늘의 openEndSheet() 그대로 — 새 문이 아니다. */}
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {running && !ceilingHit && (
-            <Pressable style={s.moreBtn} onPress={openEndSheet}>
+            <Pressable style={s.moreBtn} onPress={openEndSheet} accessibilityRole="button" accessibilityLabel="러닝 종료 선택지 열기">
               <Text style={{ fontSize: 16, color: '#BBBBBB', fontWeight: '900' }}>❙❙</Text>
             </Pressable>
           )}
@@ -1725,6 +1727,8 @@ export default function ActiveRun() {
               if (running) { openEndSheet(); return; }
               beginRun();
             }}
+            accessibilityRole="button"
+            accessibilityState={{ busy: starting }}
           >
             <Text style={[{ fontSize: 19.5, fontWeight: '800', color: ceilingHit ? '#FFFFFF' : colors.ink }, df]}>
               {ceilingHit ? '지금 러닝 종료하기' : running ? '러닝 종료' : starting ? '위치 확인 중…' : resumable ? '기록 이어가기' : '러닝 시작'}
@@ -1741,7 +1745,8 @@ export default function ActiveRun() {
       {/* ---------- 위치 사전 설명 (OS 시트 직전, 최초 1회) ----------
           시스템 프롬프트는 한 번뿐이고, 거절하면 설정에서만 되돌릴 수 있다 — 먼저 이유를 말한다 */}
       <Modal visible={rationale} transparent animationType="slide" onRequestClose={() => setRationale(false)}>
-        <Pressable style={s.sheetBackdrop} onPress={() => { setRationale(false); setTrackMode('denied'); }} />
+        <Pressable style={s.sheetBackdrop} onPress={() => { setRationale(false); setTrackMode('denied'); }}
+          accessibilityRole="button" accessibilityLabel="닫기" />
         <View style={s.sheet}>
           <View style={s.sheetHandle} />
           <Text style={{ fontSize: 19.5, fontWeight: '900', color: '#FFFFFF' }}>러닝 거리는 위치로 재요</Text>
@@ -1757,11 +1762,13 @@ export default function ActiveRun() {
               setStarting(true);
               try { await startRun(); } finally { setStarting(false); }
             }}
+            accessibilityRole="button"
+            accessibilityState={{ busy: starting }}
           >
             {/* display font retired here — 1/screen budget is spent on the main CTA */}
             <Text style={{ fontSize: 17, fontWeight: '800', color: colors.ink }}>위치 허용하기</Text>
           </Pressable>
-          <Pressable style={s.sheetCancel} onPress={() => { setRationale(false); setTrackMode('denied'); }}>
+          <Pressable style={s.sheetCancel} onPress={() => { setRationale(false); setTrackMode('denied'); }} accessibilityRole="button">
             <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>나중에</Text>
           </Pressable>
         </View>
@@ -1769,7 +1776,7 @@ export default function ActiveRun() {
 
       {/* ---------- end-run sheet — 한 시트, 두 스텝 (이유 → 컨디션이면 기록) ---------- */}
       <Modal visible={endSheet} transparent animationType="slide" onRequestClose={closeEndSheet}>
-        <Pressable style={s.sheetBackdrop} onPress={closeEndSheet} />
+        <Pressable style={s.sheetBackdrop} onPress={closeEndSheet} accessibilityRole="button" accessibilityLabel="닫기" />
         {endStep === 'reason' ? (
           <View style={s.sheet}>
             <View style={s.sheetHandle} />
@@ -1805,7 +1812,7 @@ export default function ActiveRun() {
               onPress={() => endWith('runner')}
             />
 
-            <Pressable style={s.sheetCancel} onPress={closeEndSheet}>
+            <Pressable style={s.sheetCancel} onPress={closeEndSheet} accessibilityRole="button">
               <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>계속 달릴게요</Text>
             </Pressable>
           </View>
@@ -1854,7 +1861,8 @@ export default function ActiveRun() {
                   {endBusy ? '기록 중…' : '종료하고 기록 남기기'}
                 </Text>
               </Pressable>
-              <Pressable style={s.sheetCancel} onPress={() => setEndStep('reason')} disabled={endBusy}>
+              <Pressable style={s.sheetCancel} onPress={() => setEndStep('reason')} disabled={endBusy}
+                accessibilityRole="button" accessibilityState={{ disabled: endBusy }}>
                 <Text style={{ fontSize: 15, fontWeight: '700', color: '#BBBBBB' }}>이유 다시 고르기</Text>
               </Pressable>
             </View>
@@ -1867,7 +1875,7 @@ export default function ActiveRun() {
 
 function EndOption({ title, desc, pay, onPress }: { title: string; desc: string; pay: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={s.endOption}>
+    <Pressable onPress={onPress} style={s.endOption} accessibilityRole="button">
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16.5, fontWeight: '900', color: '#FFFFFF' }}>{title}</Text>
         <Text style={{ fontSize: 15, lineHeight: 20, color: '#BBBBBB', marginTop: 2 }}>{desc}</Text>

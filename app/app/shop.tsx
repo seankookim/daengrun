@@ -107,7 +107,7 @@ export default function Shop() {
               </Text>
             </View>
             {isRunner && (
-              <Pressable onPress={() => router.push('/runner/rewards')} style={s.heroGo}>
+              <Pressable onPress={() => router.push('/runner/rewards')} style={s.heroGo} accessibilityRole="button">
                 <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>리워드 센터 ›</Text>
               </Pressable>
             )}
@@ -174,7 +174,7 @@ export default function Shop() {
 
         {/* 도착한 드랍 (러너, 실카운트) — 열 것이 있을 때만 그린다 */}
         {isRunner && unopened.length > 0 && (
-          <Pressable onPress={() => router.push('/runner/rewards')} style={s.dropStrip}>
+          <Pressable onPress={() => router.push('/runner/rewards')} style={s.dropStrip} accessibilityRole="button">
             <Text style={{ fontSize: 15, fontWeight: '900', color: paper.ink }}>
               도착한 드랍 {unopened.length}개 — 열어보세요 ›
             </Text>

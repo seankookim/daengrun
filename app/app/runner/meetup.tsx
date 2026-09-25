@@ -533,7 +533,7 @@ export default function Meetup() {
                 이 파일 :103-112가 fetchCurrentRunnerJobId(IN_FLIGHT, api.ts:1058-1064)로만
                 복원한 뒤 없으면 Alert + back 한다. `: {}` 폴백조차 bare /chat의
                 IN_FLIGHT 리졸버로 떨어진다. 게이트 추가 불필요 — 상태 게이트가 이미 상류에 있다. */}
-            <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })}>
+            <Pressable style={s.chatChip} onPress={() => router.push({ pathname: '/chat', params: jobId ? { bid: jobId } : {} })} accessibilityRole="button">
               <Text style={s.chatChipText}>보호자 채팅</Text>
             </Pressable>
           </Row>

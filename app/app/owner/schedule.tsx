@@ -67,6 +67,16 @@ const CHAT_PRE_ACCEPT = ['draft', 'quoted', 'payment_hold', 'matching', 'runner_
 // runner_enroute·picked_up 는 STATUS_MAP이 '확정'·'인계'로 뭉개므로 이 필이 실제로 정보를 더한다.
 const LIVE_RAW = ['runner_enroute', 'picked_up', 'active'];
 
+// The 실시간 보기 door sits INSIDE a card that is itself one accessibility element, so VoiceOver
+// cannot focus it on its own — double-tapping the card opens the sheet, and the live map (the dog
+// is out with a stranger right now) had no way in. The card therefore carries the door as a custom
+// action (VoiceOver rotor → 「실시간 보기」), dispatched to the same code the nested button runs.
+const LIVE_A11Y_ACTIONS = [{ name: 'live', label: '실시간 보기' }];
+function openLive(bookingId: string) {
+  draft.bookingId = bookingId;
+  router.push('/owner/live');
+}
+
 const STATUS_STYLE: Record<BookingStatus, { label: string; bg: string; fg: string; rail: string }> = {
   confirmed: { label: '예약 확정', bg: '#e3f0c4', fg: '#3d5a2b', rail: '#5a7a3c' },
   pending: { label: '러너 응답 대기', bg: '#FDE8D0', fg: '#9D580A', rail: '#F59A43' }, // 앰버×탠저린 50:50 — 카운트다운의 색 (기대감, 코랄 불침범)
@@ -508,7 +518,9 @@ export default function Schedule() {
         const st = stFor(b);
         return (
           <View key={b.id}>
-          <Pressable style={s.bookingCard} onPress={() => open(b)}>
+          <Pressable style={s.bookingCard} onPress={() => open(b)} accessibilityRole="button"
+            accessibilityActions={b.status === 'active' ? LIVE_A11Y_ACTIONS : undefined}
+            onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'live') openLive(b.id); }}>
             <View style={[s.rail, { backgroundColor: st.rail }]} />
             {/* 절취선 (티켓 모티프 마지막 조각) — 확정 = 계약 = 티켓. 상태 레일이 스텁,
                 레일 경계에 펀치 노치 + 퍼포레이션 도트 (overflow hidden이 노치를 반원으로 클립) */}
@@ -592,8 +604,9 @@ export default function Schedule() {
               </Row>
               {b.status === 'active' && (
                 <Pressable
-                  onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
+                  onPress={(e) => { e.stopPropagation(); openLive(b.id); }}
                   style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                  accessibilityRole="button"
                 >
                   <Text style={{ fontSize: 16, fontWeight: '900', color: '#d84a2f' }}>● 실시간 보기 ›</Text>
                 </Pressable>
@@ -606,6 +619,7 @@ export default function Schedule() {
               <Pressable
                 onPress={() => router.push(`/shot/${b.id}`)}
                 style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                accessibilityRole="button"
               >
                 <Text style={s.shareTxt}>공유 카드</Text>
               </Pressable>
@@ -616,6 +630,7 @@ export default function Schedule() {
                     .catch((err) => Alert.alert('피드 공유', (err as Error).message));
                 }}
                 style={({ pressed }) => [s.shareBtn, pressed && { backgroundColor: paper.wash }, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                accessibilityRole="button"
               >
                 <Text style={s.shareTxt}>피드 자랑</Text>
               </Pressable>
@@ -701,6 +716,8 @@ export default function Schedule() {
                   style={({ pressed }) => [i > 0 && s.nowRowDiv, pressed && { backgroundColor: paper.wash }]}
                   accessibilityRole="button"
                   accessibilityLabel={line}
+                  accessibilityActions={b.rawStatus === 'active' ? LIVE_A11Y_ACTIONS : undefined}
+                  onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'live') openLive(b.id); }}
                 >
                   <Text style={s.nowT}>{line}</Text>
                   <Text style={s.nowS}>{sub}</Text>
@@ -708,7 +725,7 @@ export default function Schedule() {
                       버튼이 없고, 그 사실을 위 서브라인이 말한다 (없는 화면으로 보내는 버튼 금지). */}
                   {b.rawStatus === 'active' && (
                     <Pressable
-                      onPress={(e) => { e.stopPropagation(); draft.bookingId = b.id; router.push('/owner/live'); }}
+                      onPress={(e) => { e.stopPropagation(); openLive(b.id); }}
                       style={({ pressed }) => [s.goLiveBtn, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
                       accessibilityRole="button" accessibilityLabel="실시간 보기"
                     >
@@ -1229,6 +1246,7 @@ export default function Schedule() {
                             close();
                             router.push({ pathname: '/owner/matching', params: { mode: 'rebook', current: selected.runnerProfileId ?? '', pace: selected.paceLabel ?? '' } });
                           }}
+                          accessibilityRole="button"
                         >
                           <Text style={{ fontSize: 15.5, fontWeight: '800', color: paper.ink }}>러너 변경</Text>
                           <Text style={{ fontSize: 15, color: paper.dim, marginTop: 2 }}>이 예약 그대로 다른 러너에게 다시 요청해요</Text>
@@ -1245,6 +1263,7 @@ export default function Schedule() {
                         <Pressable
                           style={s.cancelLink}
                           onPress={() => { setSelected(null); router.push(`/club/session/${selected.clubSessionId}`); }}
+                          accessibilityRole="button"
                         >
                           <Text style={{ fontSize: 16, fontWeight: '700', color: paper.ink }}>
                             클럽 세션 화면으로 ›
@@ -1257,7 +1276,7 @@ export default function Schedule() {
                           </Text>
                         </Pressable>
                       ) : (
-                        <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')}>
+                        <Pressable style={s.cancelLink} onPress={() => setSheetMode('cancel')} accessibilityRole="button">
                           <Text style={{ fontSize: 16, fontWeight: '700', color: paper.critical }}>
                             {/* 티어는 네 팔 미러가 말한다 — 수수료가 0인 예약에 '(수수료 50%)'를
                                 달던 자리(이동 중만 표기하던 이분법)의 교정 */}
@@ -1285,7 +1304,7 @@ export default function Schedule() {
                   />
                   {/* 반복 해지 (0026) — 구독은 반드시 끌 수 있어야 한다. 상태 무관 노출 */}
                   {selected.seriesId && (
-                    <Pressable style={s.cancelLink} onPress={pauseSeries}>
+                    <Pressable style={s.cancelLink} onPress={pauseSeries} accessibilityRole="button">
                       <Text style={{ fontSize: 15, fontWeight: '700', color: paper.ink }}>⟳ 매주 반복 해지</Text>
                     </Pressable>
                   )}
@@ -1355,6 +1374,7 @@ export default function Schedule() {
                       { transform: [{ scale: pressed && cancelQuote.s === 'ok' ? 0.96 : 1 }] },
                     ]}
                     disabled={cancelQuote.s !== 'ok'}
+                    accessibilityRole="button"
                     accessibilityState={{ disabled: cancelQuote.s !== 'ok' }}
                     onPress={async () => {
                       // 보여주지 못한 가격은 약속하지 못한다 — 견적 없이는 커밋 없음 (§9c의 법)
@@ -1384,7 +1404,7 @@ export default function Schedule() {
                         : cancelQuote.s === 'err' ? '수수료를 확인한 뒤 취소할 수 있어요' : '수수료 확인 중…'}
                     </Text>
                   </Pressable>
-                  <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')}>
+                  <Pressable style={s.cancelLink} onPress={() => setSheetMode('detail')} accessibilityRole="button">
                     <Text style={{ fontSize: 16, fontWeight: '700', color: paper.text }}>돌아가기</Text>
                   </Pressable>
                 </>

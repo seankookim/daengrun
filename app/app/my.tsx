@@ -271,6 +271,8 @@ export default function My() {
                   style={s.idEdit}
                   disabled={!profile}
                   onPress={() => { if (profile) router.push(`/runner-profile/${profile.id}`); }}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !profile }}
                 >
                   {/* [2026-08-27] 역할 분기 은퇴 — **두 역할 모두 자기 프로필 화면으로 간다**.
                       예전엔 러너만 스토어프런트로 가고 보호자는 이 화면의 시트를 열었는데, 그래서
@@ -332,6 +334,7 @@ export default function My() {
         <Pressable
           onPress={() => router.push('/owner/fitness')}
           style={s.record}
+          accessibilityRole="button"
         >
           <HoloEdge height={2} opacity={0.85} />
           <View style={s.recordInner}>
@@ -422,7 +425,7 @@ export default function My() {
               </View>
               <View style={s.perf} />
               {/* [2026-08-10 density audit] "코스 패치도..." lead-in cut — the link alone says where it goes */}
-              <Pressable style={s.visaFoot} onPress={() => router.push('/cards')}>
+              <Pressable style={s.visaFoot} onPress={() => router.push('/cards')} accessibilityRole="link">
                 <Text style={s.visaFootG}>전체 보기 ›</Text>
               </Pressable>
             </View>
@@ -442,6 +445,7 @@ export default function My() {
                 if (m.path) router.push(m.path);
                 else Alert.alert(m.label, '준비 중이에요');
               }}
+              accessibilityRole="button"
             >
               {/* 도메인 잉크 — 좌측 액센트 틱 + 틴트 아이콘 칩 */}
               <View style={[s.drowTick, { backgroundColor: (m as any).ink }]} />
@@ -458,7 +462,7 @@ export default function My() {
         </View>
 
         {/* ————— ⑤ 큰 버튼 (여백엔 큰 버튼 — Sean 룰) ————— */}
-        <Pressable style={({ pressed }) => [s.btnRole, { transform: [{ scale: pressed ? 0.96 : 1 }] }]} onPress={() => router.dismissTo('/')}>
+        <Pressable style={({ pressed }) => [s.btnRole, { transform: [{ scale: pressed ? 0.96 : 1 }] }]} onPress={() => router.dismissTo('/')} accessibilityRole="button">
           <View>
             <Text style={s.btnRoleTitle}>역할 전환</Text>
             {/* [이모지 법 2026-08-11] ↔(U+2194)는 소스상 변이 셀렉터 없는 **타이포그래픽 글리프**라
@@ -474,6 +478,7 @@ export default function My() {
         <Pressable
           style={({ pressed }) => [s.signout, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
           onPress={async () => { await signOut(); router.dismissTo('/login'); }}
+          accessibilityRole="button"
         >
           <View style={s.signoutTick} />
           <View style={{ flex: 1 }}>

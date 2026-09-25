@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import {
 } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { haptic } from '../../src/lib/haptics';
-import { goBackOrHome } from '../../src/lib/nav';
+import { goBackOr, goBackOrHome } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
 import { kstCal, kstInstant, type KstCal } from '../../src/lib/kst';
 import { expectedDurationMs } from '../../src/lib/lateness';
@@ -231,7 +231,9 @@ export default function Reschedule() {
       Alert.alert(
         '변경 요청을 보냈어요',
         `${info.runnerName ?? '러너'}님이 수락하면 일정이 바뀌어요.\n수락 전까지는 기존 시간이 유지돼요.`,
-        [{ text: '확인', onPress: () => router.back() }],
+        // Sent: the schedule is where the pending request now shows. Opened from the schedule, so
+        // back is normally right; on a cold deep link a bare back() would NO-OP and strand the owner.
+        [{ text: '확인', onPress: () => goBackOr('/owner/schedule') }],
       );
     } catch (e) {
       Alert.alert('요청 실패', (e as Error).message); // 정직: 실패는 실패
