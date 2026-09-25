@@ -6,6 +6,7 @@ import { ScreenHead } from '../../src/components/ui';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { fetchMyProfile, fetchMyRunnerBio, fetchMyRunnerStatus, MyProfile, setMyHandle, updateMyProfile, updateRunnerBio } from '../../src/lib/api';
 import { goBackOrHome } from '../../src/lib/nav';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { paper } from '../../src/theme';
 
 // 프로필 편집 — 인스타의 편집 화면 모양 (Sean 2026-08-27, 스크린샷이 모델): 라벨 왼쪽 · 값 오른쪽,
@@ -111,8 +112,11 @@ export default function ProfileEdit() {
       // `router.back()`은 빈 스택에서 no-op이고 이 앱의 모든 라우트는 딥링크로 열린다 (nav.ts).
       goBackOrHome();
     } catch (e) {
-      // setMyHandle은 서버 문장을 이미 사람 말로 옮겨서 던진다 (api.ts) — 그대로 붙인다.
-      setSaveErr(`${STEP_FAIL[step]} — ${(e as Error).message}`);
+      // setMyHandle은 서버 문장을 이미 사람 말로 옮겨서 던진다 (api.ts) — 한글이라 fold를
+      // 그대로 통과한다. The profile and bio steps threw PostgREST's English raw into this strip;
+      // the fold draws the house sentence and the original goes to the log.
+      console.warn('[profile-edit] save:', step, rpcRaw(e));
+      setSaveErr(`${STEP_FAIL[step]} — ${foldRpcError(e).message}`);
     } finally {
       setSaving(false);
     }

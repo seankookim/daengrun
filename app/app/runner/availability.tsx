@@ -12,9 +12,11 @@ import {
   ExceptionKind, exceptionDateLabel, exceptionEffectLabel, extraIsShadowed, hhmm, kindLabel,
   MAX_NOTE_CHARS, MAX_RANGE_DAYS, sortExceptions, validateDraft, ymdOfCal,
 } from '../../src/lib/availability-exceptions';
+import { blackoutConflictMessage, blackoutConflicts, readBlackoutJobs, settleJobs } from '../../src/lib/blackout-conflict';
 import { useNumFont } from '../../src/lib/fonts';
 import { kstCal, kstDateLabel } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
+import { supabase } from '../../src/lib/supabase';
 import { layout, paper } from '../../src/theme';
 
 // 가용시간 설정 — 실편집기. runner_availability_rules 실저장.
@@ -288,12 +290,11 @@ export default function Availability() {
   // 로컬 검증은 서버 규칙의 **거울**이다 — 서버가 여전히 권위이고, 어긋나면 서버의 문장이 이긴다.
   const draftCheck = draft == null ? null : validateDraft(draft);
 
-  const submitException = async () => {
-    if (draft == null || draftCheck == null || !draftCheck.ok) return;
+  const commitException = async (d: NonNullable<typeof draft>) => {
     setExcBusy(true);
     setSheetErr(null);
     try {
-      await setAvailabilityException(draft, EXCEPTION_REFUSAL_KO);
+      await setAvailabilityException(d, EXCEPTION_REFUSAL_KO);
       setSheetKind(null);
       loadExceptions();
     } catch (e) {
@@ -302,6 +303,40 @@ export default function Availability() {
     } finally {
       setExcBusy(false);
     }
+  };
+
+  // 휴가 저장 전 — 이 기간에 이미 확정된 러닝을 센다 (fix/first-run-error-fold, part F). A blackout
+  // blocks NEW bookings only; nothing cancels a run a runner is already committed to, and an owner
+  // still expects them at the door. So the count is said BEFORE the save, and a read that failed
+  // says it failed — `readBlackoutJobs` throws on every way of not knowing (including an auth error
+  // `getUser()` RESOLVES rather than throws), `settleJobs` turns the throw into null, and
+  // `blackoutConflicts` answers null with `unknown`, never 0. The count is a KST calendar fact
+  // (blackout-conflict.ts; three-zone test). Not `fetchRunnerJobs()`: it returns [] for a missing
+  // user, which is a known zero wearing a failed read's clothes (header of blackout-conflict.ts).
+  const submitException = async () => {
+    if (draft == null || draftCheck == null || !draftCheck.ok) return;
+    if (draft.kind === 'blackout') {
+      const d = draft;
+      setExcBusy(true);
+      setSheetErr(null);
+      const jobs = await settleJobs(readBlackoutJobs({
+        getUser: () => supabase.auth.getUser(),
+        committedRows: (uid, statuses) => supabase.from('bookings')
+          .select('status, scheduled_at').eq('runner_id', uid).in('status', statuses),
+      }));
+      setExcBusy(false);
+      const msg = blackoutConflictMessage(blackoutConflicts(jobs, d.startsOn, d.endsOn));
+      if (msg != null) {
+        Alert.alert('휴가를 추가할까요?', msg, [
+          { text: '취소', style: 'cancel' },
+          { text: '계속', onPress: () => { void commitException(d); } },
+        ]);
+        return;
+      }
+      await commitException(d);
+      return;
+    }
+    await commitException(draft);
   };
 
   const confirmDeleteException = (row: AvailExceptionRow) => {
@@ -492,7 +527,7 @@ export default function Availability() {
           <Text style={{ fontSize: 20, fontWeight: '800', color: paper.ink }}>예외 일정</Text>
         </View>
         <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 8 }}>
-          휴가는 그 기간의 예약을 막고, 추가 근무는 그날 그 시간만 열어요
+          휴가는 그 기간의 새 예약을 막고, 추가 근무는 그날 그 시간만 열어요
         </Text>
 
         {excState === 'loading' && (
@@ -682,7 +717,7 @@ export default function Availability() {
           <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginBottom: 12 }}>
             {sheetKind === 'extra'
               ? '그날 그 시간에만 예약을 더 받아요 — 주간 설정은 그대로예요'
-              : `이 기간에는 예약을 받지 않아요 — 한 번에 ${MAX_RANGE_DAYS}일까지 정할 수 있어요`}
+              : '이 기간에는 새 예약을 받지 않아요 — 이미 확정된 러닝은 그대로 남아요'}
           </Text>
           {/* [D① 관할] 휴가는 **예약 슬롯**을 막는다. 열린 요청은 0056이 이 표를 읽지 않으므로
               그대로 도착하고, 그쪽은 홈의 온라인 스위치가 정한다 — 한 사실은 한 집에서만. */}

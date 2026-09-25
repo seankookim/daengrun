@@ -9,6 +9,7 @@ import { LocationPrimer, shouldShowPrimer } from '../../src/components/location-
 import { addAddress, addDog, fetchAddresses, updateMyDog } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { withParticle } from '../../src/lib/particle';
+import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { supabase } from '../../src/lib/supabase';
 import { layout, paper } from '../../src/theme';
 
@@ -141,7 +142,11 @@ export default function OnboardOwner() {
     try {
       after(await ensureSaved());
     } catch (e) {
-      setErr((e as Error)?.message ?? '알 수 없는 오류');
+      // The strip draws 「저장하지 못했어요 — {err}」: the fold, never the database's English (a
+      // new owner's very first save). The original goes to the log. `?? '알 수 없는 오류'` was dead
+      // on any Error and is gone — a message-less throw gets the fold's own sentence.
+      console.warn('[onboard-owner] save:', rpcRaw(e));
+      setErr(foldRpcError(e).message);
     } finally {
       setBusy(false);
     }
