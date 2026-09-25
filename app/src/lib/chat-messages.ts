@@ -102,3 +102,94 @@ export function gapClosedBy<T extends IdentifiedMessage>(afterId: number, page: 
  * grow two vocabularies for one state.
  */
 export const GAP_DOOR_LABEL = '빠진 메시지 불러오기';
+
+// ── the (created_at, id) ORDER — one comparator for every cursor ──────────────────────────────
+//
+// 🔴 THE DEFECT THIS CLOSES (codex client review, 2026-09-25 · #2). Both message reads paged on
+//    `created_at` ALONE with a strict predicate, and `olderCursor` picked the smallest ID while the
+//    query ordered by timestamp. Two consequences (the first MEASURED by the reviewer): 101 messages
+//    sharing one timestamp → the newest 100 load and the older page returns ZERO, so one message
+//    is unreachable forever; and a message whose id is larger but whose `created_at` is older
+//    (concurrent transactions need not commit in start order) was cursored past. Both reads now
+//    order by `(created_at, id)` and every paging cursor — the initial window, the older page and
+//    the gap fill — is that pair, compared the way the server compares it. The READ position
+//    (0223) stays a timestamp, but it is compared with the same microsecond-exact `compareInstant`.
+//
+// ⚠ WHY NOT `Date.parse`: it is MILLISECOND-precise and `created_at` is MICROSECOND-precise, so
+//   two messages 400µs apart compare EQUAL and the id then decides — which is the server's tie
+//   rule only when the timestamps are actually equal. A cursor built on that would ask the server
+//   for 「older than (T, id)」 with a T the server considers later than a held message, re-fetching
+//   it every page, or on a boundary, never moving. `parseInstant` keeps every digit the server
+//   sent, so the client's order IS the server's order.
+
+/** An instant as the server orders it: epoch milliseconds plus the sub-millisecond digits. */
+export type Instant = readonly [ms: number, subMsNanos: number];
+
+const FRACTION = /\.(\d+)(?=Z|[+-]\d\d(?::?\d\d)?$|$)/;
+
+/**
+ * Parse a server timestamp EXACTLY, or `null` when it is not one.
+ *
+ * The fractional second is split: the first three digits ride into `Date.parse` (which every
+ * engine accepts), the rest are kept as nanoseconds below the millisecond. A string with no
+ * fraction is `[ms, 0]`. Anything `Date.parse` rejects is `null` — a cursor that cannot be placed
+ * in time cannot be sent to the server as one.
+ */
+export function parseInstant(iso: string): Instant | null {
+  if (typeof iso !== 'string' || iso === '') return null;
+  const m = FRACTION.exec(iso);
+  let sub = 0;
+  let base = iso;
+  if (m) {
+    const padded = (m[1] + '000000000').slice(0, 9);
+    sub = Number(padded.slice(3));
+    base = iso.slice(0, m.index) + '.' + padded.slice(0, 3) + iso.slice(m.index + m[0].length);
+  }
+  const ms = Date.parse(base);
+  if (Number.isNaN(ms)) return null;
+  return [ms, sub];
+}
+
+/** `-1 | 0 | 1` in the server's order, or `null` when either side cannot be placed in time. */
+export function compareInstant(a: string, b: string): -1 | 0 | 1 | null {
+  const pa = parseInstant(a);
+  const pb = parseInstant(b);
+  if (pa === null || pb === null) return null;
+  if (pa[0] !== pb[0]) return pa[0] < pb[0] ? -1 : 1;
+  if (pa[1] !== pb[1]) return pa[1] < pb[1] ? -1 : 1;
+  return 0;
+}
+
+/** The pair every cursor is made of — the server's own `created_at`, verbatim, and the row id. */
+export interface MessageCursor {
+  createdAt: string;
+  id: number;
+}
+
+/**
+ * The server's ORDER on two messages: `created_at` first, `id` as the tie-breaker — exactly the
+ * `order by created_at, id` the reads use. `null` when either timestamp cannot be placed, so a
+ * caller never silently falls back to id-only order for a message it cannot date.
+ */
+export function compareMessageOrder(a: MessageCursor, b: MessageCursor): -1 | 0 | 1 | null {
+  const c = compareInstant(a.createdAt, b.createdAt);
+  if (c === null) return null;
+  if (c !== 0) return c;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+/**
+ * The PostgREST `or=` body for 「strictly older than this (created_at, id)」 — the row-order
+ * strict-less-than spelled out: `created_at < T OR (created_at = T AND id < I)`.
+ *
+ * Lives here, beside the comparator, so `app/test/chat-window.test.cjs` can pin the exact string
+ * the server receives; `api.ts` (which cannot be bundled by the tests) only forwards it to `.or()`.
+ *
+ * ⚠ The timestamp is DOUBLE-QUOTED: inside a PostgREST logical filter `.`, `:` and `,` are
+ *   reserved, and a timestamp contains the first two. The id is a bare integer.
+ */
+export function olderThanCursorFilter(before: MessageCursor): string {
+  const at = `"${before.createdAt}"`;
+  return `created_at.lt.${at},and(created_at.eq.${at},id.lt.${before.id})`;
+}

@@ -31,6 +31,7 @@ import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
 import { CHAT_PAGE_SIZE, toDisplayOrder } from './chat-window';
+import { MessageCursor, olderThanCursorFilter } from './chat-messages';
 // Star arithmetic — pure, pinned by `test/rating.test.cjs`. It lives outside this file because the
 // average it computes is printed beside a count computed here, and the two must not drift again;
 // see the [reviews-surfaced] block at the end of this file for what drifting cost.
@@ -4073,22 +4074,37 @@ export async function fetchMessages(threadId: string): Promise<ChatMsg[]> {
     .from('chat_messages')
     .select(CHAT_MSG_COLUMNS)
     .eq('thread_id', threadId)
+    // [0223 · codex #2] `id` is the tie-breaker, here and on every other read: the newest window
+    // must be a SUFFIX of one total order, or a page boundary can fall between two rows the
+    // server cannot tell apart by time alone.
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(CHAT_PAGE_SIZE);
   if (error) throw error;
   return toDisplayOrder((data ?? []).map((m: any) => mapMsg(m, user.user.id)));
 }
 
 /**
- * One page of messages OLDER than `beforeCreatedAt`, in display order (oldest → newest).
+ * One page of messages OLDER than the cursor, in display order (oldest → newest).
  *
- * `beforeCreatedAt` is the server's own `created_at` on the oldest message the screen holds
- * (`olderCursor`), never a device clock. Strict `<` — see `chat-window.ts`'s note on why `<=`
- * cannot guarantee the door makes progress.
+ * `before` is the `(created_at, id)` of the oldest message the screen holds (`olderCursor`) — the
+ * server's own values, never a device clock. The predicate is the row-order strict-less-than,
+ * spelled out for PostgREST: `created_at < T OR (created_at = T AND id < I)`.
+ *
+ * 🔴 [0223 · codex #2] It was `created_at < T` alone. MEASURED by the reviewer: 101 messages
+ *    sharing one timestamp → the newest 100 load and this read returns ZERO for the 101st, which
+ *    is then unreachable forever. With the pair no two rows compare equal, so a strict predicate
+ *    on it always makes progress and never skips a sibling.
+ *
+ * ⚠ The timestamp inside `.or()` is DOUBLE-QUOTED (`olderThanCursorFilter`): PostgREST treats
+ *   `.`, `:`, `,` and parentheses as reserved inside a logical filter, and a timestamp contains the
+ *   first two. It is the server's own string, verbatim, so the `created_at = T` arm matches to the
+ *   microsecond. `supabase-js` percent-encodes the offset's `+` (URLSearchParams), as it already
+ *   did for the plain `.lt()` this replaces.
  *
  * Same raw-rethrow law as `fetchMessages` above.
  */
-export async function fetchOlderMessages(threadId: string, beforeCreatedAt: string): Promise<ChatMsg[]> {
+export async function fetchOlderMessages(threadId: string, before: MessageCursor): Promise<ChatMsg[]> {
   const { data: user, error: authError } = await supabase.auth.getUser();
   if (authError) throw authError;
   if (!user.user) throw new Error('not signed in');
@@ -4096,8 +4112,9 @@ export async function fetchOlderMessages(threadId: string, beforeCreatedAt: stri
     .from('chat_messages')
     .select(CHAT_MSG_COLUMNS)
     .eq('thread_id', threadId)
-    .lt('created_at', beforeCreatedAt)
+    .or(olderThanCursorFilter(before))
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(CHAT_PAGE_SIZE);
   if (error) throw error;
   return toDisplayOrder((data ?? []).map((m: any) => mapMsg(m, user.user.id)));
@@ -4111,10 +4128,12 @@ export async function fetchOlderMessages(threadId: string, beforeCreatedAt: stri
 // plus the three RPCs below; the rules the SCREENS apply to these answers live in the pure
 // `chat-read.ts` (badge states, receipt placement, when a read may be recorded).
 //
-// ⚠ NONE of these three is registered in `rpc-skew.ts`'s `PENDING_DEPLOY`, and that is a decision
-//   rather than an omission. That list exists so a PostgREST sentence never reaches a Korean
-//   screen — and every failure surface here is SILENT by design (no badge, no receipt). There is
-//   no message to replace, so a list entry would buy nothing and the list is meant to shrink.
+// ⚠ None of 0212's three is registered in `rpc-skew.ts`'s `PENDING_DEPLOY` — every failure
+//   surface here is SILENT by design (no badge, no receipt), so there is no sentence to replace.
+//   `chat_mark_read_to` (0223) IS registered, for a different reason: this build ships before
+//   0223 reaches production, the call is refused with PGRST202 until then, and `markChatRead`
+//   must know that refusal by name to fall back to 0212's writer (see there). The entry comes out
+//   once the migration is on production.
 
 /** One row of `my_chat_unread()`. Shape mirrored by `chat-read.ts`'s `ChatUnreadRow`. */
 export interface ChatUnread {
@@ -4139,18 +4158,53 @@ export async function fetchChatUnread(): Promise<ChatUnread[]> {
   }));
 }
 
-/** Record that the caller has read this thread up to now; returns the STORED position.
+/**
+ * Record that the caller has read this thread UP TO one message — the newest PEER message a
+ * successful fetch put on the screen (`newestPeerMessageId`, chat-read.ts). Returns the STORED
+ * `last_read_at`, or `null` when nothing was recorded.
  *
- *  ⚠ The server's write is monotonic (`greatest` in 0212 §B's on-conflict arm), so a late or
- *  duplicated call can never move the position backwards and the caller does not have to order
- *  its calls. The returned value is what is stored, not what the call tried to write. */
-export async function markChatRead(threadId: string): Promise<string | null> {
-  // ⚠ `p_thread: threadId`, never the shorthand — `check-rpc-contracts`'s key regex requires the
-  // colon, and a shorthand key slips past the gate unchecked (the same note as elsewhere here).
-  const { data, error } = await supabase.rpc('chat_mark_read', { p_thread: threadId });
-  if (error) throw foldRpcError(error, { fn: 'chat_mark_read', empty: '읽음 표시를 하지 못했어요' });
-  const row = (data as any[] | null)?.[0];
-  return row?.last_read_at ?? null;
+ * 🔴 [0223 · codex #1] This called `chat_mark_read(p_thread)`, which records the server's `now()`.
+ *    The screen fired it on focus and on app return BEFORE its refresh had landed, so every peer
+ *    message that arrived during a suspension became 「읽음」 to the peer without ever being drawn —
+ *    and stayed so when the refresh then failed. Even after a successful refresh, `now()` is later
+ *    than the fetch, so a message committed in between was acknowledged unseen. The new writer
+ *    takes the MESSAGE, and the server records THAT message's `created_at` (monotonic, clamped at
+ *    its own clock).
+ *
+ * ⚠ THE SKEW WINDOW (this build before 0223's push). `chat_mark_read_to` is refused with PGRST202,
+ *   recognised BY NAME (`isPendingDeploy` — a typo or signature mismatch still throws). Then:
+ *   · `legacyFallback: true` → 0212's `chat_mark_read`. The screen passes true only when the
+ *     target is the newest peer message it holds and no reconnect hole is open, and it only ever
+ *     calls this right after a successful fetch — so `now()` over-reaches by one render and one
+ *     round trip, not by a suspension. That residual is the price of receipts and badges that
+ *     keep working until the push, and it ends there.
+ *   · `legacyFallback: false` → nothing is recorded (`null`): `now()` would read through the hole
+ *     or past a message no fetch has vouched for.
+ * Every other failure throws, folded.
+ */
+export async function markChatRead(
+  threadId: string,
+  upToMessageId: number,
+  opts: { legacyFallback: boolean },
+): Promise<string | null> {
+  // ⚠ Keys with the colon, never the shorthand — `check-rpc-contracts`'s key regex requires it,
+  // and a shorthand key slips past the gate unchecked (the same note as elsewhere here).
+  const { data, error } = await supabase.rpc('chat_mark_read_to', {
+    p_thread: threadId, p_up_to_message_id: upToMessageId,
+  });
+  if (!error) return lastReadAtOf(data);
+  if (!isPendingDeploy('chat_mark_read_to', error)) {
+    throw foldRpcError(error, { fn: 'chat_mark_read_to', empty: '읽음 표시를 하지 못했어요' });
+  }
+  if (!opts.legacyFallback) return null;
+  const legacy = await supabase.rpc('chat_mark_read', { p_thread: threadId });
+  if (legacy.error) throw foldRpcError(legacy.error, { fn: 'chat_mark_read', empty: '읽음 표시를 하지 못했어요' });
+  return lastReadAtOf(legacy.data);
+}
+
+function lastReadAtOf(data: unknown): string | null {
+  const at = (data as any[] | null)?.[0]?.last_read_at;
+  return typeof at === 'string' && at !== '' ? at : null;
 }
 
 /** The COUNTERPART's `last_read_at` for this thread — the one number 「읽음」 rests on.
@@ -4159,15 +4213,18 @@ export async function markChatRead(threadId: string): Promise<string | null> {
  *  the counterpart has never read, and the booking has no runner yet. `not_party` /
  *  `not_authenticated` also fold to null rather than throwing: a receipt is an ornament on a
  *  working screen, and a red failure line about one would be louder than the fact it describes
- *  (the same law as `fetchBookingPaymentState`). A transport failure still throws. */
+ *  (the same law as `fetchBookingPaymentState`). A transport failure still throws.
+ *
+ *  [0223] Since `chat_mark_read_to` the value is the `created_at` of the caller's message the
+ *  counterpart's screen acknowledged, verbatim — `readReceiptMessageId` compares it to the
+ *  microsecond. */
 export async function fetchChatReadState(threadId: string): Promise<string | null> {
   const { data, error } = await supabase.rpc('chat_thread_read_state', { p_thread: threadId });
   if (error) {
     if (/not_party|not_authenticated/.test(error.message ?? '')) return null;
     throw foldRpcError(error, { fn: 'chat_thread_read_state', empty: '읽음 상태를 불러오지 못했어요' });
   }
-  const row = (data as any[] | null)?.[0];
-  return row?.last_read_at ?? null;
+  return lastReadAtOf(data);
 }
 
 // Expo's installed core provides UUID v4 on native and web; load it only when sending.

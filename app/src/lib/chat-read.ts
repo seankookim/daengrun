@@ -7,6 +7,11 @@
 // `chat-window.ts` exists. This file is imported by `app/app/chat.tsx`, `app/app/runner/home.tsx`,
 // `app/app/owner/schedule.tsx` and `app/src/components/home-hero.tsx`, and it is executed by
 // `app/test/chat-read.test.cjs`.
+// It imports ONE module — `chat-messages.ts`, for the server's `(created_at, id)` order and its
+// microsecond-exact instant comparison — because 「which message is newest」 and 「is this message
+// at or before that position」 must be answered in the order the SERVER compares in, not in a
+// coarser one the device happens to have (`Date.parse` is millisecond-precise; `created_at` is
+// microsecond-precise).
 //
 // ═══ THE ONE LAW THIS FILE ENFORCES ═══
 // A badge is a CLAIM about how many messages are waiting. There are four states and only one of
@@ -19,6 +24,8 @@
 // badge is the app's way of saying 「nothing to act on」, which is true when the count is 0 and
 // honest when the count is unknown. What must never happen is a drawn ZERO, which would be the
 // screen asserting a number it does not have.
+
+import { compareInstant, compareMessageOrder } from './chat-messages';
 
 /** One row of `my_chat_unread()`. */
 export interface ChatUnreadRow {
@@ -113,37 +120,84 @@ export interface ReceiptMessage {
 }
 
 /**
- * Which message carries 「읽음」, given the counterpart's `last_read_at`.
+ * Which message carries 「읽음」, given the counterpart's read position.
  *
  * The rule: the NEWEST message the caller sent whose server timestamp is at or before the
- * counterpart's read position. One label per screen, under the last thing they have seen — the
+ * counterpart's `last_read_at`. One label per screen, under the last thing they have seen — the
  * grammar every messenger uses, and the only one that answers the question a sender actually has
  * (「did the 5분 늦어요 land?」) rather than decorating every bubble.
+ *
+ * [0223] Since `chat_mark_read_to`, the counterpart's `last_read_at` is the `created_at` of the
+ * message THEY acknowledged — the newest of the caller's messages their screen rendered — copied
+ * verbatim to the microsecond. So the comparison below must be microsecond-exact: two of the
+ * caller's messages 400µs apart are one instant to `Date.parse`, and a millisecond-coarse compare
+ * would put the receipt on the later one, which their screen never showed.
  *
  * 🔴 `null` WHENEVER THE ANSWER IS NOT KNOWN, and that is the honesty rule rather than a
  * convenience: `peerReadAt === null` means the counterpart has never read this thread, and a
  * receipt drawn then would be the app telling a runner their message was seen when the server
  * says nothing of the kind. An unparseable timestamp on either side is the same unknown.
  *
- * ⚠ Both sides are compared as EPOCH MILLISECONDS (`Date.parse`), which is timezone-free —
- * `check-device-clock`'s family of device-local reads is deliberately absent here.
+ * ⚠ Both sides are compared as server INSTANTS (`compareInstant`) — timezone-free, never a
+ * device-local getter — and ties between our own messages are broken in the server's
+ * `(created_at, id)` order, so array order cannot move the label.
  */
 export function readReceiptMessageId(
   msgs: readonly ReceiptMessage[],
   peerReadAt: string | null | undefined,
 ): number | null {
   if (!peerReadAt) return null;
-  const readMs = Date.parse(peerReadAt);
-  if (Number.isNaN(readMs)) return null;
-
   let best: ReceiptMessage | null = null;
   for (const m of msgs) {
     if (!m.mine) continue;
-    const t = Date.parse(m.createdAt);
-    // A message we cannot place in time cannot be said to have been read.
-    if (Number.isNaN(t)) continue;
-    if (t > readMs) continue;
-    if (best === null || m.id > best.id) best = m;
+    // A message we cannot place in time cannot be said to have been read — and an unparseable
+    // read position places nothing (`compareInstant` is null for either side).
+    const c = compareInstant(m.createdAt, peerReadAt);
+    if (c === null || c > 0) continue;
+    if (best === null) { best = m; continue; }
+    const vs = compareMessageOrder(m, best);
+    if (vs !== null && vs > 0) best = m;
+  }
+  return best === null ? null : best.id;
+}
+
+/**
+ * The one message a read may be recorded UP TO: the newest PEER message on screen that a
+ * SUCCESSFUL FETCH returned, below any open reconnect hole — or `null`, and then nothing is
+ * recorded, because a read is a claim about a message and there is none to point at.
+ *
+ * 「Newest」 is the server's order (`created_at`, then `id`) — the order `fetchMessages` pages in.
+ * The server records THIS message's `created_at` (`chat_mark_read_to`, 0223), and `my_chat_unread`
+ * / the receipt compare against it, so what the screen acknowledges is what the server counts.
+ *
+ * 🔴 `fetchedIds` — ONLY MESSAGES A FETCH RETURNED (codex client review, 2026-09-25 · #1). A read
+ *    position covers everything before it in time, so acknowledging message N claims every
+ *    earlier message was seen. A snapshot from `fetchMessages` is the newest window of ONE server
+ *    order, so every message below its newest was in it (or below the screen's hole, see next);
+ *    a message that arrived by REALTIME alone carries no such guarantee — the channel drops events
+ *    across a reconnect, and the ones it dropped sit below the one it delivered, undrawn. So a
+ *    realtime-only message waits for the next successful poll to vouch for it (≤15 s while live).
+ *    `null` = no restriction; the screen always passes its set.
+ *
+ * `ceilingId` is the reconnect hole's `afterId` (chat-messages.ts `snapshotGap`): while a hole is
+ * open the screen has NOT shown what sits in it, so the acknowledgement stops at the newest peer
+ * message at or below the hole and advances past it only once the fill closes. A position cannot
+ * say 「everything except a hole」, so the honest position is the one below it.
+ */
+export function newestPeerMessageId(
+  msgs: readonly ReceiptMessage[],
+  opts: { ceilingId?: number | null; fetchedIds?: ReadonlySet<number> | null } = {},
+): number | null {
+  const ceilingId = opts.ceilingId ?? null;
+  const fetchedIds = opts.fetchedIds ?? null;
+  let best: ReceiptMessage | null = null;
+  for (const m of msgs) {
+    if (m.mine) continue;
+    if (ceilingId !== null && m.id > ceilingId) continue;
+    if (fetchedIds !== null && !fetchedIds.has(m.id)) continue;
+    if (best === null) { best = m; continue; }
+    const c = compareMessageOrder(m, best);
+    if (c !== null && c > 0) best = m;
   }
   return best === null ? null : best.id;
 }
@@ -177,13 +231,23 @@ export type MarkReadReason =
  * `false` refuses for EVERY reason, 'open' and 'focus' included — a screen that is not in front
  * cannot have been read whatever brought us here.
  *
- * `open` and `focus` mark unconditionally (while active): the person IS looking at the thread, so
- * recording that is correct even when it moves the position by nothing — and `chat_mark_read` is
- * monotonic, so a redundant call is a no-op by construction rather than by luck.
+ * 🔴 `newestPeerMessageId === null` REFUSES FOR EVERY REASON (0223 · codex #1). A read is now
+ * recorded UP TO a message — the newest peer message a successful fetch put on screen
+ * (`newestPeerMessageId` above) — so with none there is nothing to record, and 「I opened the
+ * thread」 is not a message. This is what retires 0212's 「read up to now()」 on 'open' and
+ * 'focus': a screen that has rendered nothing of the peer's cannot have read anything of theirs.
  *
- * `message` is gated on there being a PEER message newer than the last one this screen marked
- * for. Without that gate the screen would call the RPC on every poll tick of a quiet thread, and
- * with it a conversation costs one call per arriving message.
+ * `open` and `focus` mark whenever there IS something to point at, even when it is the same
+ * message this screen already marked — the person IS looking at it, the server's write is
+ * monotonic so the repeat is a no-op by construction, and a mark whose network call failed is
+ * repaired by the next focus rather than being lost forever.
+ *
+ * `message` is gated on the newest peer message being a DIFFERENT one from the last this screen
+ * marked for. Without that gate the screen would call the RPC on every poll tick of a quiet
+ * thread. It is 「different」 and not 「greater」 on purpose: the newest message is chosen in the
+ * server's `(created_at, id)` order, in which a larger id can be OLDER (concurrent inserts), so a
+ * `>` on ids would refuse to acknowledge a genuinely newer message. The newest of a growing set
+ * only changes when a newer one is fetched, so 「different」 is exactly 「a newer one arrived」.
  */
 export function shouldMarkRead(s: {
   reason: MarkReadReason;
@@ -193,16 +257,16 @@ export function shouldMarkRead(s: {
   appActive: boolean;
   /** This screen holds navigation focus — `useFocusEffect`'s own ref, never a guess. */
   focused: boolean;
-  /** Highest peer message id on screen, or `null` when the peer has said nothing. */
+  /** `newestPeerMessageId(...)` above — the message the read would be recorded up to, or `null`. */
   newestPeerMessageId: number | null;
-  /** Highest peer message id this screen has already marked for, or `null`. */
+  /** The peer message id this screen last recorded a read up to, or `null`. */
   lastMarkedPeerMessageId: number | null;
 }): boolean {
   if (!s.ready) return false;
   if (!s.appActive) return false;
   if (!s.focused) return false;
-  if (s.reason !== 'message') return true;
   if (s.newestPeerMessageId === null) return false;
+  if (s.reason !== 'message') return true;
   if (s.lastMarkedPeerMessageId === null) return true;
-  return s.newestPeerMessageId > s.lastMarkedPeerMessageId;
+  return s.newestPeerMessageId !== s.lastMarkedPeerMessageId;
 }

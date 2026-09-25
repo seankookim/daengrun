@@ -20,6 +20,8 @@
 // left inside the screen is untestable by construction. This file is imported by chat.tsx and
 // executed by app/test/chat-window.test.cjs.
 
+import { compareMessageOrder, MessageCursor, parseInstant } from './chat-messages';
+
 /** The window the screen holds, and the size of one older page. */
 export const CHAT_PAGE_SIZE = 100;
 
@@ -30,26 +32,33 @@ export interface WindowedMessage {
 }
 
 /**
- * The cursor for the next older page: the `created_at` of the OLDEST message held.
+ * The cursor for the next older page: the OLDEST message held, as the pair the server pages by.
  *
- * Ordering is by `id` because that is the key the display and `mergeMessageSnapshot` already sort
- * by, and `chat_messages.id` is `generated always as identity` — unique, with no ties. The value
- * returned is still the `created_at`, because that is the column the server pages on
- * (`chat_messages (thread_id, created_at)` is the index that exists).
+ * 🔴 [2026-09-25 · codex #2] This returned the `created_at` of the smallest ID, and the older read
+ *    used a strict `created_at <` on it. Two holes — the first MEASURED by the reviewer, the second
+ *    READ: 101 messages sharing one timestamp made the 101st unreachable forever (the newest 100
+ *    load, 「older than T」 returns nothing); and 「smallest id」 is not 「oldest」 — concurrent inserts
+ *    need not commit in start order, so a message with a larger id and an older `created_at` was
+ *    cursored past. The cursor is now the
+ *    `(created_at, id)` pair, the oldest by the SERVER's order (`compareMessageOrder`), and the
+ *    read asks for rows strictly below that pair — which can always make progress, because no two
+ *    rows share a pair.
  *
- * ⚠ The one honest caveat, written down rather than hidden: the older page uses a STRICT
- * `created_at <` on this cursor, so two messages sharing one `created_at` exactly across a page
- * boundary would drop the sibling. `created_at` defaults to `now()`, which is transaction-start
- * time at microsecond resolution, and these rows are inserted one per transaction — so the
- * collision needs two independent sends in the same microsecond AND on the 100-row boundary.
- * Strict `<` is chosen over `<=` because `<=` cannot guarantee progress: a window entirely inside
- * one timestamp would return the same page forever and the door would be a button that does
- * nothing, which this app forbids outright.
+ * ⚠ A message whose timestamp cannot be parsed is skipped when choosing: a cursor the server
+ *   cannot place in time cannot be sent to it. `mapMsg` only produces one for a row with no
+ *   `created_at` string, which a real row never is.
  */
-export function olderCursor<T extends WindowedMessage>(held: T[]): string | null {
+export function olderCursor<T extends WindowedMessage>(held: T[]): MessageCursor | null {
   let oldest: T | null = null;
-  for (const m of held) if (oldest === null || m.id < oldest.id) oldest = m;
-  return oldest === null ? null : oldest.createdAt;
+  for (const m of held) {
+    if (oldest === null) {
+      if (parseInstant(m.createdAt) !== null) oldest = m;
+      continue;
+    }
+    const c = compareMessageOrder(m, oldest);
+    if (c !== null && c < 0) oldest = m;
+  }
+  return oldest === null ? null : { createdAt: oldest.createdAt, id: oldest.id };
 }
 
 /**

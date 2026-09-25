@@ -30,6 +30,14 @@ export const PENDING_DEPLOY: Record<string, string> = {
   //   0215 모양이 어딘가에 먼저 서 있어도 화면은 0221 이전 동작으로 접힐 뿐 깨지지 않는다(좁은
   //   방향). 지울 때의 확인은 같다 — 카탈로그를 읽고, 푸시 리포트를 읽지 않는다.
   runner_offered_slots: '0215→0221 후보 슬롯 달력 — db push 전까지 주간 그리드로 폴백',
+  // 2026-09-25: chat_mark_read_to (0223 §A) added — the writer that records a read UP TO a message
+  //   the screen rendered instead of 「up to now()」. It ships in this build before the migration is
+  //   pushed, so a PGRST202 window is real. In that window `markChatRead` (api.ts) falls back to
+  //   0212's `chat_mark_read` ONLY right after a successful refresh with no reconnect hole open,
+  //   and records nothing otherwise. When deployed, delete this line and the list pin in
+  //   test/rpc-skew.test.cjs together:
+  //   select count(*) from pg_proc where proname='chat_mark_read_to'  → 1
+  chat_mark_read_to: '0223 read-cursor writer — until db push, falls back to 0212 chat_mark_read after a successful refresh',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */
