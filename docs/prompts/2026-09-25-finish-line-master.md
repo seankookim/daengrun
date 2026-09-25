@@ -274,4 +274,11 @@ club v2 ships in the pilot at all.
   sealed handoff → record) · `36d7a4d` fix/runner-live-run (+77: incident_review in both runner readers, start_run no longer
   swallowed, homeward routing, receipt phases). **Trunk: harness 1557/0 · deno 383/0 · npm 4269/0 + 39 ✅.** Migrations above production:
   0203–0224 (twenty-one). Wave 3 building: custody-strand client half, 0225 server-stamped chat timestamps, header/primary sweep.
+- 20:20 — LANDED since 19:30: `1ceaa10` **0225** (server stamps `chat_messages.created_at` on every client insert; harness 1566) ·
+  `59c3fdc` ui/chrome-consistency-2 (16 more screens on ScreenHead, the six ops ink primaries now coral PaperBtn, +73 pins;
+  DESIGN.md updated `8d8e377`) · `2defc08` fix/custody-strand-client (both runner strips route start/end strands to screens that
+  can clear them; /ops/custody + /ops/sealed desks; five 0224 titles routed; +194) · `400b8b0` **0226** (Codex REJECT/3 on 0224
+  answered: per-row isolation of the new bells, edge refusal sentences for start_run/end_run, debt-episode dedupe). **Trunk:
+  harness 1573/0 · deno 393/0 · npm 4536/0 + 39 ✅.** Building: copy slice, nav/a11y sweep, 0227 recurring generator isolation.
+  Owed: Codex on the client wave (walled until 21:33, one-shot at 21:37) and on 0225/0226/0227.
 
