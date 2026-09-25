@@ -687,13 +687,24 @@ already announces that; a required label would duplicate the copy and the two wo
 is owed only where the visible content is a glyph (`‹`, `↻`) or absent (a dismiss backdrop) — a
 copy judgment no parser can make. Demanding one would have cried on ~478 correct buttons: the
 `check-definer-acl` 147-vs-82 failure, avoided before the fact rather than after.
-The 163 known sites across 33 files are frozen in `check-a11y-roles-baseline.txt` as **per-file
-counts, not `file:line`** — these are the churning screens, and a line-keyed ledger would go red on
-every unrelated edit that shifted a line, which is how a gate earns `--no-verify`. A count above
-its line fails (new debt); a count below it also fails (stale ledger, delete or lower the line), so
-the ledger can only shrink. ⚠ The blind spot is named rather than papered over: **fix one and add
-one bare in the SAME file and the count nets to zero and the gate is silent.** Escape hatch
-`// a11y-role-ok: <reason>` on the element's opening line; a bare marker is refused.
+⚠ **Updated 2026-09-25 (fix/client-review-2, `6a9fc32`) — the ledger is now PER-ELEMENT fingerprints,
+not per-file counts.** Each line of `check-a11y-roles-baseline.txt` is
+`file :: nearest named ancestor :: hash of the element's shape + first text :: ordinal`. A bare
+`<Pressable>` with no matching line fails (new debt) even if another element in the same file was
+fixed; a line with no element fails (stale — delete it), so the ledger still only shrinks. It is not
+line-keyed, so unrelated edits that shift lines stay green (measured: 40 lines of churn above every
+element in the heaviest file → exit 0). Why it changed: Codex MEASURED the old per-file ledger's named
+blind spot — remove a role in `owner/schedule.tsx` and add one to another bare Pressable in the same
+file, and v1 exited 0. v2 exits 1 on that exact mutation. **Re-emit with
+`node scripts/check-a11y-roles.mjs --rewrite-baseline`** when you rename a component or edit a
+still-bare element's text (its fingerprint moves); the rewrite REFUSES to grow the ledger. ⚠ The
+rewrite alone can still launder a fix+regress swap inside one fingerprint bucket (9 identical-shape
+buckets covering 21 elements at v2), so the orchestrator's landing resolver takes trunk's ledger,
+re-emits it on the merged tree and **refuses any fingerprint that is not already on trunk** —
+measured on its first use: a branch that edited a still-bare element's text was refused (+1), and
+the honest fix was to give that element its role, not to re-register it. Escape hatch
+`// a11y-role-ok: <reason>` on the element's opening line; a bare marker is refused. (The paragraph
+this replaces said 163 sites across 33 files as per-file counts; that was true 2026-09-23.)
 Control-tested against the crudest version before being trusted (the standing rule): parsed
 elements 641 = raw `grep -o '<Pressable'` 641, and the crude same-line grep's 440 vs this gate's
 163 is **277 multi-line elements whose role sits on a later line** — every delta accounted for in

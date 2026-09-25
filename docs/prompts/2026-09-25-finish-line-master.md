@@ -241,4 +241,24 @@ club v2 ships in the pilot at all.
   loses boundary siblings → **fix/chat-read-cursor** (+0223 if the RPC needs a cursor); the ops returns queue claims strand alerts are OFF on
   an empty page + the a11y gate's per-file ledger nets a fix against a regression → **fix/client-review-2** (per-element fingerprints)).
   Four builders running. The a11y blind spot I twice filed as prose is now a build — Codex measured it, which is the difference.
+- 17:0x — **gap sweep FINISHED**: 127 raw → 112 deduped → **91 confirmed / 21 refuted**; 10 slices, 16 letters (queue item 0-sweep),
+  18 dropped (`docs/reviews/2026-09-25-gap-sweep-final.md`; per-slice briefs in `scratchpad/briefs/`). Wave spawned: P1–P7 + 0221,
+  0222, chat-read-cursor, client-review-2.
+- 17:3x–18:0x — **the Fable account ran out of usage credits mid-wave**; six builders died (P2, P4, P7, 0222, chat-read-cursor with
+  partial work in place, and P3 after pushing). Sean 18:0x: *"continue everything with opus 5.5"* — the session is now Opus 5.5.
+- 18:13 — restart: a serialized landing queue (`scratchpad/land-queue.sh`) lands client-review-2 (per-element a11y fingerprints, so it
+  goes first) → 0221 → hero → request funnel → runner home/requests → schedule/report; `land.sh` gained a ledger resolver that takes
+  trunk's fingerprints, re-emits them on the merged tree and REFUSES any new fingerprint (a plain rewrite would launder a fix+regress
+  swap). Opus builders: 0222 and chat-read-cursor resumed IN PLACE in the dead builders' worktrees; P2 runner live run, P4 notification
+  landings, P7 custody strand sweep (0224/255) restarted fresh; P8 safety/settings chrome and P9 my/fitness floor started. P10
+  (alert/fold/copy) waits until the other slices land — it touches their files.
+- 18:40 — SIX LANDED (each on trunk, full chain, read back, worktree + branch removed): `6a9fc32` fix/client-review-2 (per-element
+  a11y fingerprints; ops returns no longer claims strand alerts are OFF on an empty page) · `e3bb860` **0221** offered slots = the
+  judge's merged union (harness 1536/0) · `c68eb78` owner hero late-state doors (arrived-and-resumable → meetup; the sealed handoff frame
+  stops saying 「인계할 시간」) · `ef38a55` owner request funnel (「직접 고르기」 → a real pick mode; 「주소부터」 in the CTA ladder; no 「AI」
+  ranking claim) · `e650209` owner schedule/report (terminal faces with a rebook door, real course trace, live-run report face) ·
+  `597f4c1` runner home/requests (failed jobs read shown, 지명 decline door, work gate read before accept, applicant status). The
+  ledger guard REFUSED the runner branch once (+1 fingerprint: a still-bare button whose text the branch changed); fixed honestly by
+  giving that button its role (`efd45f7`), not by re-registering it. Trunk: harness 1536/0 · deno 383/0 · npm 3889/0 + 39 ✅.
+  CLAUDE.md's a11y-gate paragraph corrected (it still described the per-file ledger).
 
