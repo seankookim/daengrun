@@ -5,14 +5,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { Row } from '../../src/components/ui';
 import {
-  fetchNotifications, fetchOpsGearClaimsPending, fetchOpsPayoutsDue, fetchOpsStalledHandoffs,
-  fetchOpsStrandedReturns, LiveNoti, markNotificationsRead, OpsGearClaim, OpsPayoutDue,
-  OpsStalledHandoff, OpsStrandedReturn,
+  fetchNotifications, fetchOpsGearClaimsPending, fetchOpsPayoutsDue, fetchOpsSealedUnsettled,
+  fetchOpsStalledHandoffs, fetchOpsStrandedCustody, fetchOpsStrandedReturns, LiveNoti,
+  markNotificationsRead, OpsGearClaim, OpsPayoutDue, OpsSealedUnsettled, OpsStalledHandoff,
+  OpsStrandedCustody, OpsStrandedReturn,
 } from '../../src/lib/api';
 import { kstCal, kstMonthDay } from '../../src/lib/kst';
 import { goBackOrHome } from '../../src/lib/nav';
 import { destinationForSystemRef } from '../../src/lib/notification-route';
 import { strandAgeLabel } from '../../src/lib/ops-console';
+import {
+  CUSTODY_DESK_CLASS, CUSTODY_EMPTY_KO, CUSTODY_EMPTY_SUB_KO, CUSTODY_FAILED_KO, CUSTODY_LOADING_KO,
+  CUSTODY_TITLE_KO, deskAccess, SEALED_DESK_CLASS, SEALED_EMPTY_KO, SEALED_EMPTY_SUB_KO,
+  SEALED_FAILED_KO, SEALED_LOADING_KO, SEALED_TITLE_KO,
+} from '../../src/lib/ops-custody';
 import { useOps } from '../../src/lib/ops-context';
 import { wonLabel } from '../../src/lib/ops-payout';
 // RAW server text for the log. Both strips render `e.message`, which is now the mapped Korean
@@ -21,6 +27,8 @@ import { rpcRaw } from '../../src/lib/rpc-error';
 import { colors, paper } from '../../src/theme';
 
 // 운영 콘솔 홈 — 네 대기열 + 운영 알림. 0186 §B + 0195 §C + [0206] §A/§B.
+// [0224 §F] + two READ-ONLY desks — 러닝 좌초 (`return_strand`) and 정산 미완료 (`payout_due`) — each
+// drawn and fetched only for the roster its read gates on (`deskAccess`, src/lib/ops-custody.ts).
 //
 // ⚠ EVERY SECTION LOADS INDEPENDENTLY AND FAILS INDEPENDENTLY, and that is not a nicety: an
 //   operator whose gear list is broken must still be able to pay people. A single combined
@@ -72,6 +80,15 @@ export default function OpsHome() {
   const [stall, setStall] = useState<OpsStalledHandoff[]>([]);
   const [stallErr, setStallErr] = useState<string | null>(null);
 
+  // [0224 §F] the two read-only desks behind the custody-strand and sealed-unsettled bells.
+  const [custodyPhase, setCustodyPhase] = useState<Phase>('loading');
+  const [custody, setCustody] = useState<OpsStrandedCustody[]>([]);
+  const [custodyErr, setCustodyErr] = useState<string | null>(null);
+
+  const [sealedPhase, setSealedPhase] = useState<Phase>('loading');
+  const [sealed, setSealed] = useState<OpsSealedUnsettled[]>([]);
+  const [sealedErr, setSealedErr] = useState<string | null>(null);
+
   const [alertPhase, setAlertPhase] = useState<Phase>('loading');
   const [alerts, setAlerts] = useState<LiveNoti[]>([]);
   const [alertErr, setAlertErr] = useState<string | null>(null);
@@ -121,6 +138,30 @@ export default function OpsHome() {
         console.warn('[ops] stalled_handoffs:', rpcRaw(e));
         setStallErr((e as Error)?.message || '멈춘 인계를 불러오지 못했어요');
         setStallPhase('error');
+      });
+  }, []);
+
+  const loadCustody = useCallback(() => {
+    setCustodyPhase('loading');
+    setCustodyErr(null);
+    fetchOpsStrandedCustody()
+      .then((rows) => { setCustody(rows); setCustodyPhase('ready'); })
+      .catch((e) => {
+        console.warn('[ops] stranded_custody:', rpcRaw(e));
+        setCustodyErr((e as Error)?.message || CUSTODY_FAILED_KO);
+        setCustodyPhase('error');
+      });
+  }, []);
+
+  const loadSealed = useCallback(() => {
+    setSealedPhase('loading');
+    setSealedErr(null);
+    fetchOpsSealedUnsettled()
+      .then((rows) => { setSealed(rows); setSealedPhase('ready'); })
+      .catch((e) => {
+        console.warn('[ops] sealed_unsettled:', rpcRaw(e));
+        setSealedErr((e as Error)?.message || SEALED_FAILED_KO);
+        setSealedPhase('error');
       });
   }, []);
 
@@ -182,10 +223,17 @@ export default function OpsHome() {
   // operator, and would make the section's error state indistinguishable from a real fault.
   const hasStrandDesk = kinds !== null && kinds.includes('return_strand');
   const hasStallDesk = kinds !== null && kinds.includes('handoff_unanswered');
+  // [0224 §F] the same rule for the two new desks, each on the roster ITS read gates on: the custody
+  // list on `return_strand`, the sealed list on `payout_due` (0224 §F — 「the people who were TOLD are
+  // the people who may look」). `deskAccess` is the pinned form (src/lib/ops-custody.ts).
+  const hasCustodyDesk = deskAccess(kinds, CUSTODY_DESK_CLASS) === 'held';
+  const hasSealedDesk = deskAccess(kinds, SEALED_DESK_CLASS) === 'held';
   useFocusEffect(useCallback(() => {
     if (hasStrandDesk) loadStrand();
     if (hasStallDesk) loadStall();
-  }, [hasStrandDesk, hasStallDesk, loadStrand, loadStall]));
+    if (hasCustodyDesk) loadCustody();
+    if (hasSealedDesk) loadSealed();
+  }, [hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, loadStrand, loadStall, loadCustody, loadSealed]));
 
   // [0213] THE ONE REFRESH PATH, and the only thing in this stack that re-asks `ops_me()`. Every
   // section plus the roster answer — an operator who pulls expects the whole screen re-asked, not
@@ -197,11 +245,14 @@ export default function OpsHome() {
     loadDue(); loadGear(); loadAlerts();
     if (hasStrandDesk) loadStrand();
     if (hasStallDesk) loadStall();
+    if (hasCustodyDesk) loadCustody();
+    if (hasSealedDesk) loadSealed();
     // Only the roster re-ask is awaited, because it is the one whose progress this screen has no
     // section phase for. A refresh that FAILS keeps the last known answer (see `_layout`): the
     // spinner stops and nothing claims the operator lost a desk.
     refresh().finally(() => setRefreshing(false));
-  }, [loadDue, loadGear, loadAlerts, loadStrand, loadStall, hasStrandDesk, hasStallDesk, refresh]);
+  }, [loadDue, loadGear, loadAlerts, loadStrand, loadStall, loadCustody, loadSealed,
+    hasStrandDesk, hasStallDesk, hasCustodyDesk, hasSealedDesk, refresh]);
 
   return (
     <>
@@ -377,6 +428,85 @@ export default function OpsHome() {
                 <View style={{ flex: 1, paddingRight: 10 }}>
                   <Text style={s.rowTitle}>멈춘 인계 {stall.length}건</Text>
                   <Text style={s.rowHint}>누르면 어떤 예약인지, 어느 쪽을 기다리는지 보여요</Text>
+                </View>
+                <Text style={s.chev}>›</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        {/* ── 러닝 좌초 [0224 §F] ────────────────────────────────────────────────────────
+            A READ-ONLY desk: whether an operator may start or end a run the runner never did is
+            Sean's letter (0224 §0c). Drawn only for the `return_strand` roster. The row here is a
+            count and a door to the list; there is no action anywhere. */}
+        {hasCustodyDesk && (
+          <>
+            <SectionHeader
+              title={CUSTODY_TITLE_KO}
+              count={custodyPhase === 'ready' ? custody.length : null}
+              hint="인계 후 시작되지 않았거나 종료되지 않은 러닝 · 보기 전용이에요"
+            />
+
+            {custodyPhase === 'loading' && <Text style={s.loading}>{CUSTODY_LOADING_KO}</Text>}
+
+            {custodyPhase === 'error' && <FailStrip message={custodyErr} onRetry={loadCustody} />}
+
+            {custodyPhase === 'ready' && custody.length === 0 && (
+              <View style={s.emptyCard}>
+                <Text style={s.emptyText}>{CUSTODY_EMPTY_KO}</Text>
+                <Text style={s.emptySub}>{CUSTODY_EMPTY_SUB_KO}</Text>
+              </View>
+            )}
+
+            {custodyPhase === 'ready' && custody.length > 0 && (
+              <Pressable
+                onPress={() => router.push('/ops/custody')}
+                accessibilityRole="button"
+                accessibilityLabel={`멈춘 러닝 ${custody.length}건 보기`}
+                style={({ pressed }) => [s.row, pressed && s.rowPressed]}
+              >
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={s.rowTitle}>멈춘 러닝 {custody.length}건</Text>
+                  <Text style={s.rowHint}>누르면 어떤 예약인지, 시작과 종료 중 무엇이 멈췄는지 보여요</Text>
+                </View>
+                <Text style={s.chev}>›</Text>
+              </Pressable>
+            )}
+          </>
+        )}
+
+        {/* ── 정산 미완료 [0224 §F] ──────────────────────────────────────────────────────
+            A READ-ONLY desk: settling a sealed row needs the pricing re-drive (0083 §0f), which is
+            not built. Drawn only for the `payout_due` roster. */}
+        {hasSealedDesk && (
+          <>
+            <SectionHeader
+              title={SEALED_TITLE_KO}
+              count={sealedPhase === 'ready' ? sealed.length : null}
+              hint="양측 반환 확인 후 정산이 멈춘 예약 · 보기 전용이에요"
+            />
+
+            {sealedPhase === 'loading' && <Text style={s.loading}>{SEALED_LOADING_KO}</Text>}
+
+            {sealedPhase === 'error' && <FailStrip message={sealedErr} onRetry={loadSealed} />}
+
+            {sealedPhase === 'ready' && sealed.length === 0 && (
+              <View style={s.emptyCard}>
+                <Text style={s.emptyText}>{SEALED_EMPTY_KO}</Text>
+                <Text style={s.emptySub}>{SEALED_EMPTY_SUB_KO}</Text>
+              </View>
+            )}
+
+            {sealedPhase === 'ready' && sealed.length > 0 && (
+              <Pressable
+                onPress={() => router.push('/ops/sealed')}
+                accessibilityRole="button"
+                accessibilityLabel={`정산 미완료 ${sealed.length}건 보기`}
+                style={({ pressed }) => [s.row, pressed && s.rowPressed]}
+              >
+                <View style={{ flex: 1, paddingRight: 10 }}>
+                  <Text style={s.rowTitle}>정산 미완료 {sealed.length}건</Text>
+                  <Text style={s.rowHint}>누르면 어떤 예약인지, 봉인 후 얼마나 지났는지 보여요</Text>
                 </View>
                 <Text style={s.chev}>›</Text>
               </Pressable>

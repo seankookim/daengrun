@@ -42,6 +42,8 @@ import { pricing } from '../theme';
 // 실시간 채널 3족(chat·bk·club-chat)은 geo.ts의 run 채널과 **같은** private+setAuth 경로를 쓴다 —
 // setAuth 함정(소켓 토큰 미무장 = 조용한 실패)의 사본이 둘이면 하나는 반드시 낡는다.
 import { armRealtime, hookTokenRefresh, REALTIME_PRIVATE } from './geo';
+// [0224] ⑫ work gate words — read through the pure module so an unknown word fails CLOSED.
+import { readExit, readWaitingOn, type ExitRead, type WaitingOnRead } from './work-gate-strip';
 // Edge Function 오류 본문에서 실제 메시지 추출 ("non-2xx" 무의미 문구 대체)
 /** Thrown when a lookup resolves to zero rows — a record that is absent or not ours, which RLS
  *  makes indistinguishable and which is NOT a failure. Screens must key on this to choose between
@@ -1873,7 +1875,13 @@ export async function confirmRunReturn(bookingId: string): Promise<ConfirmReturn
  *  both sides." The ENFORCEMENT is the accept path's (`transition-booking`), never this call —
  *  this exists so the runner can be told WHY and WHAT CLEARS IT, because a gate a runner cannot
  *  read is an unexplained suspension (⑫ memo). `waiting_on` is what keeps the sentence honest:
- *  「확인해주세요」 to someone who already stamped is a lie about their own action. */
+ *  「확인해주세요」 to someone who already stamped is a lie about their own action.
+ *
+ *  [0224 §E] `waiting_on` gained `start_run` / `end_run` (exits `runner_start_run` /
+ *  `runner_end_run`) for a STRANDED custody. Both fields are read through `readWaitingOn` /
+ *  `readExit` (work-gate-strip.ts): a word this build does not know becomes `'unknown'`, never a
+ *  known word, and `workGateStrip()` renders it as the neutral fail-closed face — never as the
+ *  return-seal sentence the old strip drew for anything that was not `owner`. */
 export interface RunnerWorkGate {
   gated: boolean;
   bookingId: string | null;
@@ -1881,8 +1889,8 @@ export interface RunnerWorkGate {
   runEndedAt: string | null;
   runnerConfirmed: boolean;
   ownerConfirmed: boolean;
-  waitingOn: 'both' | 'runner' | 'owner' | null;
-  exit: 'runner_confirm_return' | 'owner_confirm_return' | 'both_confirm_return' | null;
+  waitingOn: WaitingOnRead | null;
+  exit: ExitRead | null;
 }
 
 export async function fetchRunnerWorkGate(): Promise<RunnerWorkGate | null> {
@@ -1901,8 +1909,9 @@ export async function fetchRunnerWorkGate(): Promise<RunnerWorkGate | null> {
     runEndedAt: g.run_ended_at ?? null,
     runnerConfirmed: !!g.runner_confirmed,
     ownerConfirmed: !!g.owner_confirmed,
-    waitingOn: g.waiting_on ?? null,
-    exit: g.exit ?? null,
+    // [0224] fail CLOSED on a word this build cannot read — see the interface above.
+    waitingOn: readWaitingOn(g.waiting_on),
+    exit: readExit(g.exit),
   };
 }
 
@@ -7434,6 +7443,90 @@ export async function fetchOpsStalledHandoffs(): Promise<OpsStalledHandoff[]> {
     minutesStalled: r.minutes_stalled == null ? null : Number(r.minutes_stalled),
     escalatedAt: typeof r.escalated_at === 'string' ? r.escalated_at : null,
     opsAlertedAt: typeof r.ops_alerted_at === 'string' ? r.ops_alerted_at : null,
+  }));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// [0224 §F] THE TWO NEW OPS READS — the rows behind 「러닝 시작/종료 좌초 — 확인 필요」 and
+// 「정산 미완료 — 확인 필요」. READ ONLY, and that is 0224 §0c's ruling rather than a gap: whether an
+// operator may start or end a run the runner never did is Sean's letter, and settling a sealed
+// row needs the pricing re-drive 0083 §0f names, which is not built. Each is gated on the roster
+// that is actually paged — `ops_stranded_custody()` on `return_strand`, `ops_sealed_unsettled()`
+// on `payout_due` — so the console draws each section only when `ops_me().kinds` holds that class.
+// Both fold through `opsError` → `foldRpcError`, and both are on `PENDING_DEPLOY` (rpc-skew.ts)
+// until 0224 is pushed: production is at 0202, so the window where these answer PGRST202 is real.
+// ⚠ Neither carries money, a phone, an address or a memo (0224 §F's column list).
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** One stranded custody, from `ops_stranded_custody()` (0224 §F).
+ *  ⚠ `rawStatus` (`picked_up` | `active`) is NEVER rendered — gate on it, print `shape`'s sentence.
+ *  ⚠ `shape` is the server's own word for which run move is missing: `start_run` (never started)
+ *    or `end_run` (never stopped). Anything else is carried as-is and the screen says it cannot
+ *    read it rather than guessing.
+ *  ⚠ `dueAt` / `minutesOverdue` / `strandMinutes` are NULL while the threshold is NULL (the shipped
+ *    value) — the row is then listed only because a bell already rang. Absent, never zero. */
+export interface OpsStrandedCustody {
+  bookingId: string;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawStatus: string;
+  shape: string;
+  sinceAt: string | null;
+  dueAt: string | null;
+  minutesOverdue: number | null;
+  strandMinutes: number | null;
+  notifiedAt: string | null;
+}
+
+export async function fetchOpsStrandedCustody(): Promise<OpsStrandedCustody[]> {
+  const { data, error } = await supabase.rpc('ops_stranded_custody');
+  if (error) throw opsError(error, 'ops_stranded_custody');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    bookingId: String(r.booking_id),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawStatus: String(r.status),
+    shape: typeof r.shape === 'string' ? r.shape : '',
+    sinceAt: typeof r.since_at === 'string' ? r.since_at : null,
+    dueAt: typeof r.due_at === 'string' ? r.due_at : null,
+    // `Number(null)` is 0 — the null is tested BEFORE the cast (the fetchFitness law).
+    minutesOverdue: r.minutes_overdue == null ? null : Number(r.minutes_overdue),
+    strandMinutes: r.strand_minutes == null ? null : Number(r.strand_minutes),
+    notifiedAt: typeof r.notified_at === 'string' ? r.notified_at : null,
+  }));
+}
+
+/** One sealed-but-unsettled run, from `ops_sealed_unsettled()` (0224 §F) — arm ⓐ's candidate set:
+ *  both parties confirmed the return (`settlement_ready_at` set) and the booking is still `active`,
+ *  so the runner is owed money whose settlement died. `notifiedAt === null` = the bell has not rung
+ *  YET (it rings at SEAL_ALARM_AFTER, 6 h, and is retried while the roster is empty). */
+export interface OpsSealedUnsettled {
+  bookingId: string;
+  dogName: string | null;
+  ownerName: string | null;
+  runnerName: string | null;
+  rawStatus: string;
+  runEndedAt: string | null;
+  settlementReadyAt: string | null;
+  minutesSealed: number | null;
+  notifiedAt: string | null;
+}
+
+export async function fetchOpsSealedUnsettled(): Promise<OpsSealedUnsettled[]> {
+  const { data, error } = await supabase.rpc('ops_sealed_unsettled');
+  if (error) throw opsError(error, 'ops_sealed_unsettled');
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    bookingId: String(r.booking_id),
+    dogName: typeof r.dog_name === 'string' ? r.dog_name : null,
+    ownerName: typeof r.owner_name === 'string' ? r.owner_name : null,
+    runnerName: typeof r.runner_name === 'string' ? r.runner_name : null,
+    rawStatus: String(r.status),
+    runEndedAt: typeof r.run_ended_at === 'string' ? r.run_ended_at : null,
+    settlementReadyAt: typeof r.settlement_ready_at === 'string' ? r.settlement_ready_at : null,
+    minutesSealed: r.minutes_sealed == null ? null : Number(r.minutes_sealed),
+    notifiedAt: typeof r.notified_at === 'string' ? r.notified_at : null,
   }));
 }
 

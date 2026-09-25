@@ -30,6 +30,11 @@ import { homewardReturnOpen, PING_FAIL_LINE } from '../../src/lib/custody-ping-p
 import { useCustodyPing } from '../../src/lib/use-custody-ping';
 import { runnerJob } from '../../src/store';
 import { colors, layout, lilac, paper } from '../../src/theme';
+// ⑫ the work gate — the door decision is shared with 요청 (parity, fix/custody-strand-client) and the
+// strip's reading is shared with it too, so neither screen can name a cause or an exit the other
+// does not.
+import { workGateDoor, type WorkGateRead } from '../../src/lib/work-gate-door';
+import { workGateStrip, type WorkGateExitDoor } from '../../src/lib/work-gate-strip';
 
 // 러너 홈 — 테일러드 라일락 리페인트 (빕 퍼스트 × 정산 장부 × 클럽 엔진).
 // 컬러 월드 결정: DAWN DUAL — 코랄이 정체성·CTA(빕 토글·수락 문·라이브), 바이올렛이 구조·클럽.
@@ -495,6 +500,9 @@ export default function RunnerHome() {
   const acceptFront = () => {
     const rq = inbox[0];
     if (!rq || busyReq) return;
+    // [parity with 요청 · c2] The confirm Alert opens only when the gate is KNOWN open — the same
+    // `door.acceptOpen` that draws the door, so the picture and the handler cannot disagree.
+    if (!door.acceptOpen) return;
     // [honesty 2026-08-19] '실수령'은 확정 금액을 뜻하는데 이 값은 추정치다 (서버가 실거리·수수료율로
     // 확정 — api.ts:427). requests.tsx:76이 이미 교정한 문장을 같은 행동의 두 번째 문에도 맞춘다.
     Alert.alert('요청 수락', `${rq.dogName} · ${rq.when}\n예상 ${rq.payout.toLocaleString()}원 (실거리로 확정) — 수락할까요?`, [
@@ -568,16 +576,34 @@ export default function RunnerHome() {
   // (`transition-booking` refuses with the three `waiting_on` sentences); this read exists so the
   // screen can say WHY and offer THE EXIT instead of drawing a door that fails after the tap —
   // spec `screen-functionality-spec.md:123`: "show WHY and the action, not a dead accept button".
-  // ⚠ `null` = not known yet, or the read failed. It is NOT "not gated": drawing a live accept
-  // door on a failed gate read is exactly the silent-catch→happy-UI shape, and it would send the
-  // runner into a 409 they cannot explain. Unknown keeps the door but says the check is pending.
-  const [gate, setGate] = useState<RunnerWorkGate | null>(null);
-  const [gateKnown, setGateKnown] = useState(false);
+  // 🔴 [fix/custody-strand-client · parity with 요청] This used to be `gate` + `gateKnown`, and an
+  // unknown or FAILED read KEPT the front ticket's 수락 door live (「an unknown must not hide a working
+  // affordance」) — the exact rule 요청 reversed in fix/client-review-3 (Codex c2), because the tap
+  // then opens a confirm Alert the server refuses with a 409 the runner cannot account for. The two
+  // screens now read ONE state with four values (loading · failed · answered-with-nothing · a gate)
+  // through the SAME `workGateDoor()` (src/lib/work-gate-door.ts): only a read that answered
+  // 「not gated」 opens the door; a failed read says 「수락 가능 여부를 확인하지 못했어요」 + 다시 시도.
+  const [gateRead, setGateRead] = useState<WorkGateRead<RunnerWorkGate>>('loading');
   const loadGate = useCallback(() => {
+    // A known answer is kept while a focus re-read is in flight (a focus return must not flash the
+    // door shut); only a retry out of 'error' shows 'loading', so 다시 시도 visibly does something.
+    setGateRead((cur) => (cur === 'error' ? 'loading' : cur));
     fetchRunnerWorkGate()
-      .then((g) => { setGate(g); setGateKnown(true); })
-      .catch((e) => { console.warn('[rhome] gate:', e?.message ?? e); setGate(null); setGateKnown(false); });
+      .then((g) => setGateRead(g))
+      .catch((e) => { console.warn('[rhome] gate:', e?.message ?? e); setGateRead('error'); });
   }, []);
+  // ONE decision for the front ticket's 수락 door, its handler and the failed line — the 요청 idiom.
+  const door = workGateDoor(gateRead);
+  // [0224 · Codex s2] the strip's reading — a return, a stranded START or END, an open incident, or
+  // the neutral fail-closed face for a word this build cannot read (src/lib/work-gate-strip.ts).
+  const gateStrip = door.notice === 'gated' && gateRead !== null && typeof gateRead === 'object'
+    ? workGateStrip(gateRead) : null;
+  // The exit writes the store before it pushes, exactly as `openJob` does: /runner/meetup and
+  // /runner/run take no param and open whatever `runnerJob.bookingId` holds.
+  const goGateExit = (x: WorkGateExitDoor) => {
+    runnerJob.bookingId = x.bookingId;
+    router.push(x.href);
+  };
 
   // [0212] 채팅 미확인 — 아래 진행 중 잡의 채팅 행에 붙는 배지. 자체 상태이고 실패는 **배지 없음**
   // 이지 배지 0이 아니다; 판정은 chat-read.ts 가 소유한다.
@@ -1232,55 +1258,73 @@ export default function RunnerHome() {
             못했어요'라고 말하고 있었다 (한 화면이 스스로와 모순). 문 자체는 그대로 살아 있다. */}
         {/* ————— ⑫ R1c WORK-GATE STRIP — 이유 + 행동, 죽은 수락 없음 —————
             Lab `journey-v4-runner.html` §R1c. The gate's real reason is 「지난 러닝의 반환 봉인이
-            아직」 (`waiting_on: runner | owner | both`) or `incident_review` — NOT availability.
+            아직」 (`waiting_on: runner | owner | both`), `incident_review`, or [0224] a STRANDED
+            custody (`start_run` | `end_run`) — NOT availability.
             앰버 줄이 WHY, 코랄이 **그 출구**.
             ⚠ `waiting_on === 'owner'`이면 출구가 없다 — 러너는 이미 찍었고, 그 줄은 라일락(대기)에
             행동 없음이다. 「반환 봉인 찍기」를 거기 그리면 자기 행동에 대한 거짓말이 된다 (0092 §6이
             `waiting_on`을 나눠 돌려주는 이유 그 자체). */}
-        {gate?.gated && (
-          <Pressable
-            onPress={() => {
-              // The exit is a real route in every state it is drawn in — and it is only drawn
-              // when the runner has something to do.
-              if (gate.waitingOn === 'owner' || !gate.bookingId) return;
-              router.push({ pathname: '/runner/return-seal', params: { bid: gate.bookingId } });
-            }}
-            disabled={gate.waitingOn === 'owner' || !gate.bookingId}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: gate.waitingOn === 'owner' || !gate.bookingId }}
-            style={({ pressed }) => [
-              styles.gateStrip,
-              pressed && gate.waitingOn !== 'owner' && styles.pressed96,
-            ]}
-          >
-            <View style={[styles.gateDot, { backgroundColor: gate.waitingOn === 'owner' ? lilac.accent : paper.pending }]} />
+        {/* ⚠ [0224 · Codex s2] THE STRIP IS NOW A READING, NOT A RETURN SENTENCE. It drew
+            「반환 봉인 찍기 ›」 → /runner/return-seal for every gated answer that was not `owner`, and
+            0224 added two answers that are not about a return at all: `start_run` (the handoff is
+            done and the run never started) and `end_run` (the run never stopped). return-seal
+            refuses both (「아직 러닝이 끝나지 않았어요」) and so does `confirm_return_tx`
+            (`run_not_ended`) — the exit could not clear the block it explained. `workGateStrip()`
+            maps every word to its own sentence and its own exit (start → the meetup screen's
+            러닝 시작하기 · end → the run screen's stop · a return → the seal screen, only when the
+            run has actually ended), and an answer this build cannot read falls CLOSED to a
+            neutral sentence with no exit. A strip with no exit is drawn as a SENTENCE, not a
+            disabled button. */}
+        {gateStrip && (() => {
+          const g = gateStrip;
+          const dot = (
+            <View style={[styles.gateDot, {
+              backgroundColor: g.tone === 'act' ? paper.pending : g.tone === 'wait' ? lilac.accent : paper.dim,
+            }]} />
+          );
+          const lines = (
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.gateWhy}>
-                {/* [runner-journey-8] 「지난 러닝」 was keyed on `rawStatus` ALONE, and 0092:116
-                    holds a booking in `incident_review` whether or not the run has ended — so a
-                    runner whose CURRENT run was escalated mid-walk was told the run was past.
-                    `run_ended_at` is the fact that decides it (RunnerWorkGate carries it,
-                    api.ts:1868), exactly as `stageFor` keys the ticket's own word on it. */}
-                {gate.rawStatus === 'incident_review'
-                  ? gate.runEndedAt
-                    ? '지난 러닝이 담당자 확인 중이에요'
-                    : '진행 중인 러닝을 담당자가 확인하고 있어요'
-                  : gate.waitingOn === 'owner'
-                    ? '보호자 확인 대기 중이에요'
-                    : '지난 러닝의 반환 확인이 아직이에요'}
-              </Text>
-              <Text style={styles.gateSub}>
-                {gate.waitingOn === 'owner'
-                  ? '내 봉인은 끝났어요 — 보호자가 찍으면 새 요청을 받을 수 있어요'
-                  : gate.waitingOn === 'runner'
-                    ? '내 봉인 전 — 찍으면 보호자 확인만 남아요'
-                    : '둘 다 찍혀야 새 요청을 받아요'}
-              </Text>
+              <Text style={styles.gateWhy}>{g.why}</Text>
+              <Text style={styles.gateSub}>{g.sub}</Text>
             </View>
-            {gate.waitingOn !== 'owner' && !!gate.bookingId && (
-              <Text style={styles.gateExit}>반환 봉인 찍기 ›</Text>
-            )}
-          </Pressable>
+          );
+          const x = g.exit;
+          return x ? (
+            <Pressable
+              onPress={() => goGateExit(x)}
+              accessibilityRole="button"
+              accessibilityLabel={`${g.why} — ${x.a11y}`}
+              style={({ pressed }) => [styles.gateStrip, pressed && styles.pressed96]}
+            >
+              {dot}
+              {lines}
+              <Text style={styles.gateExit}>{x.label}</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.gateStrip} accessible accessibilityLabel={`${g.why} — ${g.sub}`}>
+              {dot}
+              {lines}
+            </View>
+          );
+        })()}
+        {/* [parity with 요청 · c2] The gate read FAILED: say so, in the house loud-fail grammar, with
+            a 다시 시도 that re-runs the read. The front ticket's 수락 door is shut by the same
+            `door` (below) — without this line it would be shut with no reason on screen. */}
+        {door.notice === 'failed' && door.lead !== null && (
+          <View style={[styles.jobsFail, { marginTop: 14 }]}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.jobsFailTxt}>{door.lead}</Text>
+            </View>
+            <Pressable
+              onPress={loadGate}
+              hitSlop={8}
+              style={styles.jobsFailBtn}
+              accessibilityRole="button"
+              accessibilityLabel={`${door.lead} — ${door.retry ?? ''}`}
+            >
+              <Text style={styles.jobsFailLink}>{door.retry}</Text>
+            </Pressable>
+          </View>
         )}
 
         <SectionHead
@@ -1392,12 +1436,16 @@ export default function RunnerHome() {
                       arm, 409 with the matching sentence), so a coral door here is a dead button
                       that fails AFTER the tap — the honesty law's own named case. The request
                       itself stays: it has not expired and the runner should still see it.
-                      ⚠ `gate === null` (unknown / read failed) keeps the door. An unknown must not
-                      hide a working affordance, and the tap's own 409 still carries the reason. */}
-                  {gate?.gated ? (
+                      ⚠ [fix/custody-strand-client] An unknown or FAILED gate read no longer keeps
+                      the door live — it follows `workGateDoor()`, the rule 요청 already ships
+                      (see the gate state's comment). */}
+                  {door.notice === 'gated' ? (
                     <View style={[styles.door, styles.doorBlocked]}>
+                      {/* [0224 · Codex s2] the reading's own sentence — a return, a stranded start
+                          or end, an open incident, or the neutral face; never 「반환 확인이
+                          끝나면」 for a gate that is not about a return. */}
                       <Text style={styles.doorBlockedTxt}>
-                        반환 확인이 끝나면 여기서 수락할 수 있어요
+                        {gateStrip?.doorBlocked ?? door.doorReason}
                       </Text>
                       {/* ⚠ [2026-09-25] 「응답 기한 전까지」였다. 이 앱에 응답 기한이라는 개념은
                           없다 — 기한 컬럼도 정책 숫자도 없고, expire_unmatched_bookings(0080 ⓐ)가
@@ -1407,25 +1455,18 @@ export default function RunnerHome() {
                           있으므로, 이 줄도 그 시각을 가리킨다. */}
                       <Text style={styles.doorBlockedSub}>시작 시각 전까지 요청은 남아 있어요</Text>
                     </View>
-                  ) : !gateKnown ? (
-                    // 🔴 [cold review #9] THE GATE READ FAILED, and silence here is the
-                    // silent-catch→happy-UI shape. The door stays live (an unknown must not hide a
-                    // working affordance, and the server refuses for real if the gate is in fact
-                    // shut), but the screen SAYS the check did not answer — otherwise the only
-                    // feedback is a 409 the runner cannot account for. This is the sentence the
-                    // state's own comment promised and the first version never rendered.
-                    <Pressable
-                      onPress={acceptFront}
-                      disabled={busyReq}
-                      accessibilityRole="button"
-                      accessibilityState={{ busy: busyReq, disabled: busyReq }}
-                      style={({ pressed }) => [styles.door, liveOwnsCoral ? styles.doorGhost : styles.doorCoral, pressed && styles.pressed96]}
-                    >
-                      <Text style={[styles.doorName, { color: liveOwnsCoral ? lilac.head : '#fff', fontSize: 17 }]}>{busyReq ? '전송 중…' : '수락 ›'}</Text>
-                      <Text style={[styles.doorSub, { color: liveOwnsCoral ? lilac.dim : '#fff' }]}>
-                        인계 확인 상태를 못 읽었어요
-                      </Text>
-                    </Pressable>
+                  ) : !door.acceptOpen ? (
+                    // 🔴 [parity with 요청 · c2] THE GATE IS NOT KNOWN OPEN — still loading, or the
+                    // read failed. This used to keep a LIVE coral door with the subline 「인계 확인
+                    // 상태를 못 읽었어요」 (「an unknown must not hide a working affordance」); 요청
+                    // reversed that rule in fix/client-review-3 because the tap opens a confirm the
+                    // server refuses with a 409. Home now reads the same `workGateDoor()`: the door
+                    // position is a SENTENCE (the reason the door is shut), and the failed read's
+                    // 다시 시도 is the loud strip above the queue — one retry control, not two.
+                    <View style={[styles.door, styles.doorBlocked]}>
+                      <Text style={styles.doorBlockedTxt}>{door.doorReason}</Text>
+                      <Text style={styles.doorBlockedSub}>시작 시각 전까지 요청은 남아 있어요</Text>
+                    </View>
                   ) : (
                   <Pressable
                     onPress={acceptFront}

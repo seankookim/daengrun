@@ -240,8 +240,16 @@ t('[runner-journey-8] incident_review has a STAGE label and an action',
   /incident_review:\s*\{\s*label:/.test(home.code), 'STAGE has no incident_review entry');
 t('[runner-journey-8] openJob routes incident_review by run_ended_at, not by the status word',
   /st === 'incident_review'[\s\S]{0,200}runEndedAt/.test(home.code), 'the route ignores the fact');
+// ⚠ [0224 · fix/custody-strand-client] This pin read the strip's copy out of home.tsx. Its pinned
+// behaviour MOVED, deliberately: 0224 added two `waiting_on` words the hand-written strip read as a
+// return (Codex s2), so the strip's reading now lives in ONE pure module both runner screens draw —
+// `src/lib/work-gate-strip.ts`. The property is unchanged (「지난 러닝」 keyed on `run_ended_at`, never on
+// the status alone) and is followed to where the code now is; home is pinned to DRAW that module.
+// The behaviour itself — both incident arms, by value — is owned by work-gate-strip.test.cjs P1.
+const strip = read('src/lib/work-gate-strip.ts');
 t('🔴 [runner-journey-8] the gate strip keys 지난 러닝 on run_ended_at, never on the status alone',
-  /rawStatus === 'incident_review'[\s\S]{0,160}gate\.runEndedAt/.test(home.code),
+  /incident\s*\?\s*\(ended \? '지난 러닝이 담당자 확인 중이에요' : '진행 중인 러닝을 담당자가 확인하고 있어요'\)/.test(strip.code)
+  && /const ended = g\.runEndedAt != null;/.test(strip.code) && home.code.includes('workGateStrip(gateRead)'),
   'a live run is being called a past one');
 
 t('🔴 [ui-consistency-7] runner/home.tsx holds no copy of the hairline hex — the token owns it',
@@ -278,9 +286,20 @@ t('🔴 [runner-journey-6] accept() refuses to open the confirm dialog while gat
   /if \(!door\.acceptOpen\) return;/.test(requests.code), 'the tap still fails AFTER the dialog');
 t('[runner-journey-6] a gated accept door is disabled in state as well as in paint',
   /disabled=\{busyAny !== null \|\| !door\.acceptOpen\}/.test(requests.code), 'the door is live under the grey');
-t('[runner-journey-6] the blocked sentence is drawn once, above the list, not per card',
-  (requests.code.match(/반환 확인이 끝나면 여기서 수락할 수 있어요/g) || []).length === 1,
-  'the reason is repeated per card');
+// ⚠ [0224 · fix/custody-strand-client] This counted the literal return sentence in requests.tsx.
+// The sentence moved into `work-gate-strip.ts` (one reading per `waiting_on` word — 0224 added two
+// that are not about a return), so the screen now draws `{g.requestsWhy}`. Same property, followed
+// to the code: the strip's reason is drawn ONCE, above the list, and never inside a card.
+{
+  const rr = requests.code.indexOf('const renderRequest');
+  const rrEnd = rr >= 0 ? requests.code.indexOf('\n  };\n', rr) : -1;
+  const card = rr >= 0 && rrEnd > rr ? requests.code.slice(rr, rrEnd) : '';
+  t('[runner-journey-6] the blocked sentence is drawn once, above the list, not per card',
+    (requests.code.match(/>\{g\.requestsWhy\}</g) || []).length === 1
+    && !requests.code.includes('반환 확인이 끝나면 여기서 수락할 수 있어요')
+    && card.length > 200 && !/gateStrip|requestsWhy/.test(card),
+    'the reason is repeated per card');
+}
 t('🔴 [runner-journey-6] the gate strip does not invent an 응답 기한 (no such concept exists)',
   !requests.code.includes('응답 기한'), 'the retired concept is back');
 t('⚠ and runner/home.tsx dropped it too — the same sentence was still shipping there',

@@ -38,6 +38,15 @@ export const PENDING_DEPLOY: Record<string, string> = {
   //   test/rpc-skew.test.cjs together:
   //   select count(*) from pg_proc where proname='chat_mark_read_to'  → 1
   chat_mark_read_to: '0223 read-cursor writer — until db push, falls back to 0212 chat_mark_read after a successful refresh',
+  // 2026-09-25: ops_stranded_custody + ops_sealed_unsettled (0224 §F) added — the two read-only
+  //   console lists behind the custody-strand and sealed-unsettled bells, written in this build
+  //   before 0224 is pushed (production is at 0202), so a PGRST202 window is real. In that window
+  //   each console section folds to PENDING_DEPLOY_KO in its failure strip rather than printing
+  //   PostgREST's English. No fallback: there is no older read of the same rows. When deployed,
+  //   delete these two lines and the list pin in test/rpc-skew.test.cjs together:
+  //   select count(*) from pg_proc where proname in ('ops_stranded_custody','ops_sealed_unsettled')  → 2
+  ops_stranded_custody: '0224 §F custody-strand console list — until db push, the section shows the version-mismatch sentence',
+  ops_sealed_unsettled: '0224 §F sealed-unsettled console list — until db push, the section shows the version-mismatch sentence',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */

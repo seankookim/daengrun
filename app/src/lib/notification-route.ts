@@ -159,11 +159,22 @@ export const OPS_PAYOUT_DUE_TITLE = '지급 대기 — 확인 필요';
 export const OPS_HANDOFF_STUCK_TITLE = '인계 확인 멈춤 — 확인 필요';
 export const OPS_RETURN_STRAND_TITLE = '반환 좌초 — 확인 필요';
 export const OPS_GEAR_CLAIM_TITLE = '굿즈 수령 신청 — 확인 필요';
+// [0224] three more bells, all with a BOOKING ref. `_sweep_custody_strands` (0224 §C) writes the
+// first two to the `return_strand` roster; `sweep_run_end_recovery` arm ⓐ (0224 §D ①) writes the
+// third to `payout_due`. Each lands on its READ-ONLY console list, carrying the booking so the list
+// can mark the row the bell was about (the /ops/handoffs idiom) — there is no per-booking ops
+// action behind either: ending a custody is Sean's letter and settling a sealed row needs the
+// pricing re-drive (0224 §0c). `app/test/notification-route.test.cjs` reads each string out of
+// 0224 (comments stripped).
+export const OPS_CUSTODY_START_STRAND_TITLE = '러닝 시작 좌초 — 확인 필요';
+export const OPS_CUSTODY_END_STRAND_TITLE = '러닝 종료 좌초 — 확인 필요';
+export const OPS_SEALED_UNSETTLED_TITLE = '정산 미완료 — 확인 필요';
 
 /** Every `system` title with a console destination. `app/test/notification-route.test.cjs` reads
  *  each string out of the migration that writes it, so the two spellings cannot drift. */
 export const OPS_SYSTEM_TITLES = [
   OPS_PAYOUT_DUE_TITLE, OPS_HANDOFF_STUCK_TITLE, OPS_RETURN_STRAND_TITLE, OPS_GEAR_CLAIM_TITLE,
+  OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE,
 ];
 
 /** Where a `system` (ops roster) notification lands, or `null` when this product has no screen
@@ -186,6 +197,12 @@ export function destinationForSystemRef(
     case OPS_RETURN_STRAND_TITLE: return `/ops/returns/${refId}`;
     // ref = the gear_claims row, which is what `/ops/gear/[claim]` takes.
     case OPS_GEAR_CLAIM_TITLE: return `/ops/gear/${refId}`;
+    // [0224] ref = the stranded booking. BOTH shapes land on the one custody list (0224 §F reads
+    // them together), which reads `bid` to mark the row.
+    case OPS_CUSTODY_START_STRAND_TITLE:
+    case OPS_CUSTODY_END_STRAND_TITLE: return { pathname: '/ops/custody', params: { bid: refId } };
+    // [0224] ref = the sealed-but-unsettled booking → its list, which reads `bid` the same way.
+    case OPS_SEALED_UNSETTLED_TITLE: return { pathname: '/ops/sealed', params: { bid: refId } };
     default: return null;
   }
 }
@@ -279,6 +296,29 @@ export const CHECKIN_TITLE = '예약 시간이 지났어요';
 export const CHECKIN_CASE_TITLE = '확인이 필요해요';
 export const CHECKIN_CLOSED_TITLE = '지연 예약이 정리됐어요';
 
+// ── [0224] THE CUSTODY-STRAND FAMILY — a dog in custody with no run moving ────────────────────
+// `_sweep_custody_strands` (0224 §C pass 1) writes one title per SHAPE to BOTH parties, kind
+// `booking`, ref = the booking, once per shape: 「러닝 시작이 멈춰 있어요」 (the handoff finished and
+// the run never started — status `picked_up`) and 「러닝 종료가 멈춰 있어요」 (the run started and
+// was never stopped — `active` with no `run_ended_at`). Marketplace only (0224 §B excludes club
+// rows), so no club probe. `app/test/notification-route.test.cjs` reads both out of 0224.
+//
+// RUNNER → `/runner/home`, and NOT straight to `/runner/meetup` / `/runner/run`, for one measured
+// reason: those two screens take no `bid` and open whatever `runnerJob.bookingId` holds (store.ts),
+// which push.ts never writes — so a cold start opens `fetchCurrentRunnerJobId`'s pick (an `active`
+// row outranks `picked_up`, api.ts FLIGHT_RANK, so a runner with a returning run and a stranded
+// start would land on the wrong booking) and a warm start opens whatever was last touched. Home is
+// the one runner surface that resolves THIS booking without the store: the ⑫ strip names the
+// server's own `booking_id` and its exit writes the store before it pushes (work-gate-strip.ts —
+// 「러닝 시작하기 ›」 → meetup, 「러닝 종료하러 가기 ›」 → run), and the in-flight ticket's `openJob`
+// does the same. The bell and the strip fire on the SAME predicate (`_custody_strand`, 0224 §B).
+// OWNER → the live-run family's rule: `/owner/live` when this IS the owner's current booking (it
+// draws `picked_up` and `active`, live.tsx LIVE_STATUS — the last-known position and the chat door
+// are what an owner told 「러너에게도 알렸어요」 can use), else the bid-scoped report.
+export const CUSTODY_START_STRAND_TITLE = '러닝 시작이 멈춰 있어요';
+export const CUSTODY_END_STRAND_TITLE = '러닝 종료가 멈춰 있어요';
+export const CUSTODY_STRAND_TITLES = [CUSTODY_START_STRAND_TITLE, CUSTODY_END_STRAND_TITLE];
+
 // ── Runner destinations, by EXACT title ────────────────────────────────────────────────
 // Replaces `title.includes('요청') ? requests : calendar`, which sent the runner to the wrong
 // screen at the one moment that matters most: the owner taps 인계하기, the server sends
@@ -331,6 +371,10 @@ export const RUNNER_ROUTES: Record<string, string> = {
   // calendar is a DECISION for it rather than the default it happened to fall into: the booking
   // is cancelled and the schedule is what changed.
   '예약 취소됨': '/runner/calendar',
+  // [0224] the custody-strand pair — home, where the ⑫ strip and the ticket name THIS booking's
+  // exit without the store. See CUSTODY_STRAND_TITLES above for why not meetup/run directly.
+  [CUSTODY_START_STRAND_TITLE]: '/runner/home',
+  [CUSTODY_END_STRAND_TITLE]: '/runner/home',
 };
 
 /** Runner destinations that open ONE booking and therefore carry its id. The bare pathname is a
@@ -510,7 +554,8 @@ export function needsClubProbe(title: string, role?: Role): boolean {
  *  meetup family and the live-run family: both open a screen that takes NO bid and shows whatever
  *  is in flight, so both are right only when this notification IS that booking. */
 export function needsCurrentBookingProbe(role: Role, title: string): boolean {
-  return role !== 'runner' && (OWNER_MEETUP_TITLES.includes(title) || isOwnerLiveRunTitle(title));
+  return role !== 'runner'
+    && (OWNER_MEETUP_TITLES.includes(title) || isOwnerLiveRunTitle(title) || CUSTODY_STRAND_TITLES.includes(title));
 }
 
 export function destinationForBookingRef(
@@ -576,7 +621,8 @@ export function destinationForBookingRef(
   // for the same reason. An old inbox row (or an unknown answer) goes to the bid-scoped report,
   // which is where a finished run's record is. push.ts writes `draft.bookingId` before it pushes
   // this destination, as every other `/owner/live` caller does (see its comment there).
-  if (isOwnerLiveRunTitle(title)) {
+  // [0224] the custody-strand pair rides the same rule — see CUSTODY_STRAND_TITLES.
+  if (isOwnerLiveRunTitle(title) || CUSTODY_STRAND_TITLES.includes(title)) {
     return f.isCurrentOwnerBooking === true ? '/owner/live' : { pathname: '/owner/report', params: { bid: refId } };
   }
   // 반복 러닝 ① — the cron's freshly inserted booking, which is PRE-run. The owner default below

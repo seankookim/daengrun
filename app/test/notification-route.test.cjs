@@ -21,6 +21,8 @@ const {
   SOS_CLUB_PROBE_TITLE, RETURN_DONE_TITLE, RUNNER_CLUB_PROBE_TITLES, RUNNER_BID_TITLES,
   CHECKIN_TITLE, CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE, OWNER_PRERUN_ROUTES, OWNER_PAYMENT_TITLES,
   OWNER_LIVE_RUN_TITLES, KM_MILESTONE_TITLE, isOwnerLiveRunTitle,
+  CUSTODY_START_STRAND_TITLE, CUSTODY_END_STRAND_TITLE, CUSTODY_STRAND_TITLES,
+  OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -481,8 +483,12 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
       && destinationForSystemRef({ refId: '', title: x }) === null));
   t('every listed ops title has a destination (the table is complete — an entry with no route would be the hole this closes)',
     OPS_SYSTEM_TITLES.every((x) => destinationForSystemRef({ refId: BID, title: x }) !== null));
-  t('OPS_SYSTEM_TITLES is exactly the four ops titles and carries no customer title',
-    OPS_SYSTEM_TITLES.length === 4
+  // [0224] FOUR → SEVEN, moved in the slice that moved it (the house law: update, say why, name the
+  // owner). 0224 added three ops bells with console lists behind them — 러닝 시작/종료 좌초 →
+  // /ops/custody, 정산 미완료 → /ops/sealed. Each is read out of 0224 and routed by the `0224-R*`
+  // pins at the end of this file, which own the new titles.
+  t('OPS_SYSTEM_TITLES is exactly the seven ops titles and carries no customer title',
+    OPS_SYSTEM_TITLES.length === 7
     && OPS_SYSTEM_TITLES.every((x) => !HANDOFF_TITLES.includes(x) && !RETURN_TITLES.includes(x)
                                       && !LIVE_TITLES.includes(x) && x !== CHAT_TITLE));
 
@@ -983,6 +989,131 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     t('on7 · opening a console bell marks that row read, seal cleared inside the resolution',
       /markNotificationsRead\(\[n\.id\]\)\s*\.then\(\(\) => setAlerts\(/.test(ops));
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [0224] THE FIVE CUSTODY-STRAND / SEALED-UNSETTLED TITLES — each lands where its reader can act
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// Every expected string is read out of its WRITER — the LATEST migration declaring the function,
+// comments stripped — never retyped here (a pin that reads its expected value out of the file it
+// tests can only ever agree with it). Absence fails LOUDLY: a writer that moved or was renamed
+// reddens rather than reading as 「nothing to compare」.
+{
+  const REPO = path.resolve(__dirname, '../..');
+  const MIG = path.join(REPO, 'supabase/migrations');
+  const stripSql = (x) => x.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const migFiles = fs.readdirSync(MIG).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+  const DECL = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-zA-Z0-9_]+)\s*\(/gi;
+  const latestFn = (fn) => {
+    let hit = null;
+    for (const f of migFiles) {
+      const src = stripSql(fs.readFileSync(path.join(MIG, f), 'utf8'));
+      const marks = [];
+      let m;
+      DECL.lastIndex = 0;
+      while ((m = DECL.exec(src))) marks.push({ name: m[1], at: m.index });
+      marks.forEach((mk, i) => {
+        if (mk.name !== fn) return;
+        const next = i + 1 < marks.length ? marks[i + 1].at : src.length;
+        const close = src.indexOf('$$;', mk.at);
+        hit = { file: f, body: src.slice(mk.at, close > mk.at && close < next ? close + 3 : next) };
+      });
+    }
+    return hit;
+  };
+  const constOf = (body, name) => ((body.match(new RegExp(name + "\\s+constant text := '([^']+)'")) || [])[1]) || null;
+
+  const sweep = latestFn('_sweep_custody_strands');
+  t('0224-R0 · some migration declares _sweep_custody_strands (absence must fail LOUDLY)', !!sweep);
+  const sb = sweep ? sweep.body : '';
+  if (sweep) console.log(`  (_sweep_custody_strands read from ${sweep.file})`);
+  const recov = latestFn('sweep_run_end_recovery');
+  const rb = recov ? recov.body : '';
+  if (recov) console.log(`  (sweep_run_end_recovery read from ${recov.file})`);
+
+  // ── the five strings, each against its writer ──
+  const W = {
+    start: constOf(sb, 'c_start_title'), end: constOf(sb, 'c_end_title'),
+    startOps: constOf(sb, 'c_start_ops_title'), endOps: constOf(sb, 'c_end_ops_title'),
+    seal: constOf(rb, 'c_seal_ops_title'),
+  };
+  t('0224-R1 · the client\'s CUSTODY_START_STRAND_TITLE is _sweep_custody_strands\' c_start_title',
+    W.start !== null && W.start === CUSTODY_START_STRAND_TITLE, `sql: ${W.start} client: ${CUSTODY_START_STRAND_TITLE}`);
+  t('0224-R1 · the client\'s CUSTODY_END_STRAND_TITLE is its c_end_title',
+    W.end !== null && W.end === CUSTODY_END_STRAND_TITLE, `sql: ${W.end} client: ${CUSTODY_END_STRAND_TITLE}`);
+  t('0224-R1 · OPS_CUSTODY_START_STRAND_TITLE is its c_start_ops_title',
+    W.startOps !== null && W.startOps === OPS_CUSTODY_START_STRAND_TITLE, `sql: ${W.startOps}`);
+  t('0224-R1 · OPS_CUSTODY_END_STRAND_TITLE is its c_end_ops_title',
+    W.endOps !== null && W.endOps === OPS_CUSTODY_END_STRAND_TITLE, `sql: ${W.endOps}`);
+  t('0224-R1 · OPS_SEALED_UNSETTLED_TITLE is sweep_run_end_recovery\'s c_seal_ops_title',
+    W.seal !== null && W.seal === OPS_SEALED_UNSETTLED_TITLE, `sql: ${W.seal}`);
+
+  // ── the RECIPIENTS, which decide which table each title is routed by ──
+  // The party titles are kind `booking` to the owner and the runner; the ops titles are kind
+  // `system` to a roster. A title that changed kind would be routed by the wrong table.
+  t('0224-R1 · both party titles are inserted as kind booking to the OWNER and to the RUNNER',
+    /values \(v_b\.owner_id, 'booking', c_start_title,/.test(sb) && /values \(v_b\.runner_id, 'booking', c_start_title,/.test(sb)
+    && /values \(v_b\.owner_id, 'booking', c_end_title,/.test(sb) && /values \(v_b\.runner_id, 'booking', c_end_title,/.test(sb));
+  t('0224-R1 · both custody ops titles are kind system to the return_strand roster',
+    /'system'::noti_kind, c_start_ops_title,/.test(sb) && /'system'::noti_kind, c_end_ops_title,/.test(sb)
+    && /c_ops_class constant text := 'return_strand'/.test(sb));
+  t('0224-R1 · the sealed ops title is kind system to the payout_due roster',
+    /'system'::noti_kind, c_seal_ops_title,/.test(rb) && /c_seal_ops_class constant text := 'payout_due'/.test(rb));
+
+  // ── RUNNER → home (the strip and the ticket name this booking without the store) ──
+  for (const title of CUSTODY_STRAND_TITLES) {
+    const d = dest({ title, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null });
+    t(`0224-R2 · ${title} · runner → /runner/home (never the calendar default, never a store-read screen)`,
+      d === '/runner/home', show(d));
+    t(`0224-R2 · ${title} · runner pays for NO current-booking probe`, !needsCurrentBookingProbe('runner', title));
+  }
+  t('0224-R2 · the pair is exactly the two party titles', CUSTODY_STRAND_TITLES.length === 2
+    && CUSTODY_STRAND_TITLES.includes(CUSTODY_START_STRAND_TITLE) && CUSTODY_STRAND_TITLES.includes(CUSTODY_END_STRAND_TITLE));
+
+  // ── OWNER → live when current, the bid-scoped report otherwise ──
+  for (const title of CUSTODY_STRAND_TITLES) {
+    t(`0224-R3 · ${title} · owner, CURRENT booking → /owner/live`,
+      dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/live');
+    t(`0224-R3 · ${title} · owner, NOT current → the bid-scoped report`,
+      isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: false })));
+    t(`0224-R3 · ${title} · owner, current UNKNOWN → the report, never a guess at live`,
+      isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null })));
+    t(`0224-R3 · ${title} · owner asks the current-booking probe (live takes no bid)`,
+      needsCurrentBookingProbe('owner', title));
+    t(`0224-R3 · ${title} needs no club probe (0224 §B excludes club rows)`,
+      !needsClubProbe(title) && !needsClubProbe(title, 'runner') && !refMayBeClubSession(title));
+  }
+
+  // ── OPS → the two new console lists, carrying the booking ──
+  for (const title of [OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE]) {
+    const d = destinationForSystemRef({ refId: BID, title });
+    t(`0224-R4 · ${title} → /ops/custody carrying the bid`,
+      !!d && d.pathname === '/ops/custody' && d.params && d.params.bid === BID, show(d));
+  }
+  {
+    const d = destinationForSystemRef({ refId: BID, title: OPS_SEALED_UNSETTLED_TITLE });
+    t(`0224-R4 · ${OPS_SEALED_UNSETTLED_TITLE} → /ops/sealed carrying the bid`,
+      !!d && d.pathname === '/ops/sealed' && d.params && d.params.bid === BID, show(d));
+  }
+  t('0224-R4 · the three ops titles are in OPS_SYSTEM_TITLES',
+    [OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE].every((x) => OPS_SYSTEM_TITLES.includes(x)));
+  t('0224-R4 · no ref → no destination (the booking IS the content)',
+    [OPS_CUSTODY_START_STRAND_TITLE, OPS_CUSTODY_END_STRAND_TITLE, OPS_SEALED_UNSETTLED_TITLE]
+      .every((x) => destinationForSystemRef({ refId: null, title: x }) === null));
+
+  // ── the destinations EXIST and READ `bid` (a param nothing reads is 0193 codex A4's defect) ──
+  // Comments stripped (line and block) before matching — a comment naming `bid` is not a read.
+  const stripAll = (x) => x.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+  for (const [route, file] of [['/ops/custody', 'app/app/ops/custody.tsx'], ['/ops/sealed', 'app/app/ops/sealed.tsx']]) {
+    const full = path.join(REPO, file);
+    const exists = fs.existsSync(full);
+    t(`0224-R5 · ${route} is a real screen (${file})`, exists);
+    const src = exists ? stripAll(fs.readFileSync(full, 'utf8')) : '';
+    t(`0224-R5 · ${route} reads the bid param and marks a row with it`,
+      /useLocalSearchParams<\{ bid\?: string \}>\(\)/.test(src) && /const marked = r\.bookingId === highlightId;/.test(src)
+      && /marked && s\.rowMarked/.test(src));
+  }
+  t('0224-R5 · /runner/home is a real screen', fs.existsSync(path.join(REPO, 'app/app/runner/home.tsx')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
