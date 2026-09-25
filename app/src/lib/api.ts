@@ -6318,10 +6318,15 @@ export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: 
 // `alter table` inherits the table's privileges. Verified against the migration set, 2026-09-22.
 export interface LiveNoti { id: string; title: string; body: string | null; when: string; dateLabel: string; timeLabel: string; unread: boolean; kind: string; refId: string | null; createdAt: string; handoffCycleId: string | null }
 
-export async function fetchNotifications(): Promise<LiveNoti[]> {
-  const { data, error } = await supabase
+// [ops-notifications-8] `kind` narrows the read SERVER-side. The ops console asks for `system` only:
+// filtering the newest 20 rows of every kind on the client let an operator's own customer traffic
+// push an ops bell out of the window. No option ⇒ the /alerts inbox's read, unchanged.
+export async function fetchNotifications(opts?: { kind?: string }): Promise<LiveNoti[]> {
+  let q = supabase
     .from('notifications')
-    .select('id, title, body, created_at, read_at, kind, ref_id, handoff_cycle_id')
+    .select('id, title, body, created_at, read_at, kind, ref_id, handoff_cycle_id');
+  if (opts?.kind) q = q.eq('kind', opts.kind);
+  const { data, error } = await q
     .order('created_at', { ascending: false })
     .limit(20);
   if (error) throw error;
@@ -6466,6 +6471,21 @@ export async function markAllNotificationsRead(): Promise<void> {
   const { error } = await supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
+    .is('read_at', null);
+  if (error) throw error;
+}
+
+// [ops-notifications-7] Opening a notification marks THOSE rows read — before this, only 모두 읽음
+// wrote `read_at`, so the NEW seal and both home bells outlived every tap. RLS `noti self update`
+// (0002:139, `profile_id = auth.uid()`) scopes the write to the caller's own rows, exactly as it
+// does for markAll. `read_at is null` keeps an already-read row's first-read time. Callers clear
+// their local seal only after this resolves, so a failed write is never drawn as read.
+export async function markNotificationsRead(ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .in('id', [...ids])
     .is('read_at', null);
   if (error) throw error;
 }

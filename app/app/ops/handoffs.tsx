@@ -74,9 +74,15 @@ export default function OpsStalledHandoffs() {
           <View style={{ width: 40 }} />
         </Row>
 
+        {/* [ops-notifications-9] The old lead ended 「양측에 직접 연락해 확인해주세요」 — an
+            instruction this screen gives the operator nothing to carry out: OpsStalledHandoff
+            holds display names only, by 0206's privacy floor. Whether the desk should carry a
+            contact means is Sean's call; until then the lead says only what is TRUE. Every row
+            here has `handoff_escalated_at` set (0206 §B's `where`), and the sweep sets that column
+            in the same step that tells BOTH parties the handoff is stalled (0201 arm ⓓ). */}
         <Text style={s.lead}>
-          한쪽만 인계를 확인한 채 멈춰 있는 예약이에요. 이 화면은 보기 전용이에요 — 멈춘 인계를
-          어떻게 처리할지는 아직 정해진 규칙이 없어서, 양측에 직접 연락해 확인해주세요.
+          한쪽만 인계를 확인한 채 멈춰 있는 예약이에요. 이 화면은 보기 전용이에요 — 양측에는 인계가
+          멈췄다는 알림이 이미 갔고, 멈춘 인계를 어떻게 처리할지는 아직 정해진 규칙이 없어요.
         </Text>
 
         {phase === 'loading' && <Text style={s.loading}>멈춘 인계를 불러오는 중이에요…</Text>}

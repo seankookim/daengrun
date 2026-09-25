@@ -18,6 +18,9 @@ const {
   OPS_GEAR_CLAIM_TITLE, destinationForSystemRef,
   RECURRING_CREATED_TITLE, RECURRING_PAUSED_TITLE, REFLESS_BOOKING_DESTINATIONS,
   destinationForRefLessBookingTitle, PAYOUT_STUCK_TITLE,
+  SOS_CLUB_PROBE_TITLE, RETURN_DONE_TITLE, RUNNER_CLUB_PROBE_TITLES, RUNNER_BID_TITLES,
+  CHECKIN_TITLE, CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE, OWNER_PRERUN_ROUTES, OWNER_PAYMENT_TITLES,
+  OWNER_LIVE_RUN_TITLES, KM_MILESTONE_TITLE, isOwnerLiveRunTitle,
 } = require('./notification-route.build.cjs');
 
 let pass = 0, fail = 0;
@@ -26,9 +29,16 @@ const t = (name, cond, detail = '') => {
   else { fail++; console.log('FAIL ' + name + (detail ? ' - ' + detail : '')); }
 };
 const INCIDENT = '사고 신고 접수';
+// [contract-gaps-1] The SOS title is the WRITER's constant, read out of api.ts (comment lines
+// stripped) — never retyped here. push.ts passes that same constant as `titles.sos`.
+const API_SRC = fs.readFileSync(path.resolve(__dirname, '../src/lib/api.ts'), 'utf8')
+  .split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+const SOS = (API_SRC.match(/export const SOS_TITLE = '([^']+)'/) || [])[1];
+t('api.ts declares SOS_TITLE (absence must fail LOUDLY, never route against undefined)',
+  typeof SOS === 'string' && SOS.length > 0, String(SOS));
 const BID = 'b0000000-0000-0000-0000-000000000001';
 const SID = 's0000000-0000-0000-0000-000000000002';
-const dest = (f) => destinationForBookingRef({ refId: BID, ...f }, { incident: INCIDENT });
+const dest = (f) => destinationForBookingRef({ refId: BID, ...f }, { incident: INCIDENT, sos: SOS });
 const show = (d) => JSON.stringify(d);
 const isReport = (d) => d && d.pathname === '/owner/report' && d.params && d.params.bid === BID;
 const isChat = (d) => d && d.pathname === '/chat' && d.params && d.params.bid === BID;
@@ -91,10 +101,15 @@ t('club · an unlisted title · owner → the report (untouched)',
 // ⚠ [0193 · codex A6] `RETURN_ASK_TITLE` JOINED THIS SET, and it is the one title in the return
 // family a club can also write (`session_confirm_return`, 0069:124-126). The other three are
 // written only by the 1:1 door and still pay for no probe.
-t('needsClubProbe: the two handoff titles, the sweep\'s escalation title and the SHARED return ask — and nothing else',
-  HANDOFF_TITLES.every(needsClubProbe) && needsClubProbe(ESCALATION_TITLE) && needsClubProbe(RETURN_ASK_TITLE)
+// ⚠ [gap sweep 2026-09-25] Two titles joined, and the pin's sentence moved with them rather than
+// being left to over-claim: SOS for BOTH roles (contract-gaps-1 — a club delegation has no 1:1
+// thread) and 「반환 완료」 for the RUNNER only (contract-gaps-2 — the owner's copy of that string
+// names the report). Both new members are pinned in their own sections below.
+t('needsClubProbe: the two handoff titles, the sweep\'s escalation title, the SHARED return ask and SOS — and nothing else for a role-less ask',
+  HANDOFF_TITLES.every((x) => needsClubProbe(x)) && needsClubProbe(ESCALATION_TITLE) && needsClubProbe(RETURN_ASK_TITLE)
+  && needsClubProbe(SOS)
   && !needsClubProbe(RETURN_SEALED_TITLE) && !needsClubProbe(RETURN_STUCK_TITLE)
-  && !needsClubProbe(RETURN_ESCALATION_TITLE)
+  && !needsClubProbe(RETURN_ESCALATION_TITLE) && !needsClubProbe(RETURN_DONE_TITLE)
   && !needsClubProbe(CHAT_TITLE) && !needsClubProbe('지명 러닝 요청') && !needsClubProbe('러너 도착'));
 
 // ── [0182] the sweep's escalation: a club party lands on the club screen; a 1:1 party on report / calendar, never a CTA ──
@@ -117,9 +132,12 @@ t('ESCALATION_TITLE is NOT in HANDOFF_TITLES nor OWNER_MEETUP_TITLES (the club s
   t('migration 0182 declares the escalation title the client routes on', !!m, 'no c_esc_title in 0182');
   t('the client\'s ESCALATION_TITLE equals the sweep\'s c_esc_title', !!m && m[1] === ESCALATION_TITLE, m ? `sweep: ${m[1]} client: ${ESCALATION_TITLE}` : '');
 }
-t('needsCurrentBookingProbe: owner meetup titles only, never for the runner',
+// ⚠ [ops-notifications-3] the live-run family joined the meetup family here (both open a screen
+// that takes no bid); its own arms are pinned in the live-run section below.
+t('needsCurrentBookingProbe: owner meetup (and live-run) titles only, never for the runner',
   OWNER_MEETUP_TITLES.every((x) => needsCurrentBookingProbe('owner', x)) && !needsCurrentBookingProbe('runner', '인계 확인 요청')
-  && !needsCurrentBookingProbe('owner', CHAT_TITLE));
+  && !needsCurrentBookingProbe('owner', CHAT_TITLE) && !needsCurrentBookingProbe('owner', SOS)
+  && !needsCurrentBookingProbe('owner', CHECKIN_TITLE));
 
 // ── the family is the edge's, not this file's opinion: read transition-booking's confirm_handoff arm ──
 // (comment lines stripped first — a comment quoting a title must not satisfy a check for the code
@@ -610,6 +628,361 @@ t('③ the feed rule is a SUFFIX, not a prefix or a substring: the server compos
     /if \(kind === 'booking'\) return !!refId \|\| destinationForRefLessBookingTitle\(title\) !== null;/.test(push));
   t('safety KEEPS the bare !!refId (every safety writer passes an id; a ref-less safety destination would be a guess)',
     /if \(kind === 'safety'\) return !!refId;/.test(push));
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// [gap sweep 2026-09-25 · fix/notification-landings-ops-inbox] EVERY TAP OPENS A SCREEN THAT CAN
+// DO WHAT THE BODY ASKS
+// ══════════════════════════════════════════════════════════════════════════════════════════
+// Each title below used to fall off the end of this table — the runner to `/runner/calendar`, the
+// owner to the POST-run report — and each is pinned against its WRITER, never against the router
+// (a pin that reads its expected string out of the file it tests can only ever agree with it).
+// Comments are stripped first: a comment quoting a title must not satisfy a check for the code
+// that writes it. SQL writers are read from the LATEST migration that declares the function — a
+// superseded declaration that still carries the string would make a pin green over a deployed
+// function that moved on; absence fails loudly rather than reading as 「nothing to compare」.
+{
+  const REPO = path.resolve(__dirname, '../..');
+  const MIG = path.join(REPO, 'supabase/migrations');
+  const stripSql = (s) => s.split('\n').filter((l) => !l.trim().startsWith('--')).join('\n');
+  const stripTs = (s) => s.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*')).join('\n');
+  const readTs = (rel) => stripTs(fs.readFileSync(path.join(REPO, rel), 'utf8'));
+  const migFiles = fs.readdirSync(MIG).filter((f) => /^\d{4}_.*\.sql$/.test(f)).sort();
+  const migSrc = new Map(migFiles.map((f) => [f, stripSql(fs.readFileSync(path.join(MIG, f), 'utf8'))]));
+  const DECL = /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?([a-zA-Z0-9_]+)\s*\(/gi;
+  /** The LATEST declaration of `fn` — { file, body } — or null. The body runs to the next
+   *  function declaration in the same file (or its end). */
+  const latestFn = (fn) => {
+    let hit = null;
+    for (const f of migFiles) {
+      const src = migSrc.get(f);
+      const marks = [];
+      let m;
+      DECL.lastIndex = 0;
+      while ((m = DECL.exec(src))) marks.push({ name: m[1], at: m.index });
+      marks.forEach((mk, i) => {
+        if (mk.name !== fn) return;
+        // the body ends at its own closing `$$;` — a trailing `comment on function … is '…'`
+        // string must not be read as code (it often names the very values a pin looks for)
+        const next = i + 1 < marks.length ? marks[i + 1].at : src.length;
+        const close = src.indexOf('$$;', mk.at);
+        hit = { file: f, body: src.slice(mk.at, close > mk.at && close < next ? close + 3 : next) };
+      });
+    }
+    return hit;
+  };
+  const writer = (fn) => {
+    const w = latestFn(fn);
+    t(`some migration declares ${fn} (absence must fail LOUDLY)`, !!w, fn);
+    if (w) console.log(`  (${fn} read from ${w.file})`);
+    return w ? w.body : '';
+  };
+  // The kinds every newly routed title is written with — the hasNotificationRoute half, below.
+  const routedKinds = [];
+
+  // ── contract-gaps-1 · SOS → the thread, both roles; a club delegation → its session ─────────
+  {
+    const sosAt = API_SRC.indexOf('export async function sendSOS');
+    t('cg1 · api.ts still declares sendSOS', sosAt >= 0);
+    const send = sosAt >= 0 ? API_SRC.slice(sosAt, API_SRC.indexOf('\n}\n', sosAt)) : '';
+    t('cg1 · api.ts sendSOS still writes the SOS row — kind booking, title SOS_TITLE, the booking as ref, to the counterparty',
+      /profile_id: target, kind: 'booking',\s*title: SOS_TITLE,[\s\S]*?ref_id: bookingId/.test(send), send.slice(0, 200));
+    routedKinds.push(['SOS', 'booking']);
+    t('cg1 · the club-probe copy equals the writer\'s SOS_TITLE (this module imports nothing, so it holds a copy — and the copy may not drift)',
+      SOS_CLUB_PROBE_TITLE === SOS, `route: ${SOS_CLUB_PROBE_TITLE} api: ${SOS}`);
+    for (const role of ['owner', 'runner']) {
+      for (const cur of [true, false, null]) {
+        const d = dest({ title: SOS, role, clubSessionId: null, isCurrentOwnerBooking: cur });
+        t(`cg1 · 1:1 · SOS · ${role} (current=${cur}) → /chat with the bid — the one surface where the other party can be reached`,
+          isChat(d), show(d));
+      }
+      t(`cg1 · club · SOS · ${role} → the club session screen (a club delegation has no 1:1 thread)`,
+        dest({ title: SOS, role, clubSessionId: SID, isCurrentOwnerBooking: true }) === `/club/session/${SID}`,
+        show(dest({ title: SOS, role, clubSessionId: SID, isCurrentOwnerBooking: true })));
+      t(`cg1 · unknown club (probe failed) · SOS · ${role} → the thread, never a stall`,
+        isChat(dest({ title: SOS, role, clubSessionId: undefined, isCurrentOwnerBooking: null })));
+    }
+    t('cg1 · SOS needs the club probe (both roles) and is on neither the session-ref list nor the meetup/live families',
+      needsClubProbe(SOS, 'owner') && needsClubProbe(SOS, 'runner') && !refMayBeClubSession(SOS)
+      && !OWNER_MEETUP_TITLES.includes(SOS) && !isOwnerLiveRunTitle(SOS));
+    const push = readTs('app/src/lib/push.ts');
+    t('cg1 · push.ts imports SOS_TITLE from api.ts (the writer\'s constant, not a copy)',
+      /import \{[^}]*\bSOS_TITLE\b[^}]*\} from '\.\/api'/.test(push));
+    t('cg1 · push.ts hands it to the table as titles.sos',
+      /\{ incident: INCIDENT_NOTI_TITLE, sos: SOS_TITLE \}/.test(push));
+    t('cg1 · push.ts puts SOS on the owner fast path (no club_sessions round trip before an emergency tap)',
+      /title === INCIDENT_NOTI_TITLE \|\| title === SOS_TITLE/.test(push));
+    t('cg1 · push.ts asks the club probe WITH the role (「반환 완료」 is a runner-only probe)',
+      /needsClubProbe\(title, role\)/.test(push));
+  }
+
+  // ── ops-notifications-3 · the live-run family → /owner/live while it IS the run ─────────────
+  {
+    const startRun = readTs('supabase/functions/transition-booking/start_run.ts');
+    const ms = startRun.match(/notify\(bk\.owner_id, "([^"]+)", `\$\{bk\.km\}km 러닝이 시작됐어요/);
+    t('on3 · start_run.ts still writes the run-start push to the OWNER', !!ms, 'no owner run-start notify in start_run.ts');
+    t('on3 · …and its title is in the live-run family', !!ms && OWNER_LIVE_RUN_TITLES.includes(ms[1]), ms ? ms[1] : '');
+    const edge = readTs('supabase/functions/transition-booking/index.ts');
+    t('on3/on4 · the edge\'s notify() writes kind booking with the BOOKING as ref (every owner title from it is a booking tap)',
+      /\.insert\(\{ profile_id, kind: "booking", title, body, ref_id: booking_id, \.\.\.extra \}\)/.test(edge));
+    const evStart = API_SRC.indexOf('const EVENT_NOTI');
+    const evBlock = evStart >= 0 ? API_SRC.slice(evStart, API_SRC.indexOf('};', evStart)) : '';
+    const events = [...evBlock.matchAll(/\(d\) => \['([^']+)'/g)].map((m) => m[1]);
+    t('on3 · api.ts EVENT_NOTI was found and has the four run events', events.length === 4, JSON.stringify(events));
+    t('on3 · every EVENT_NOTI title is in the live-run family', events.every((x) => OWNER_LIVE_RUN_TITLES.includes(x)),
+      JSON.stringify(events.filter((x) => !OWNER_LIVE_RUN_TITLES.includes(x))));
+    t('on3 · the family is EXACTLY the run-start title plus the EVENT_NOTI titles (no member the writers do not write)',
+      !!ms && OWNER_LIVE_RUN_TITLES.length === events.length + 1
+      && OWNER_LIVE_RUN_TITLES.every((x) => x === ms[1] || events.includes(x)), JSON.stringify(OWNER_LIVE_RUN_TITLES));
+    t('on3 · addRunEvent writes them to the OWNER as kind booking with the booking as ref',
+      /profile_id: \(bk as any\)\.owner_id, kind: 'booking', title, body, ref_id: bookingId/.test(API_SRC));
+    const km = API_SRC.match(/title: `\$\{km\}([^`]+)`, body: `\$\{dog\}가 \$\{km\}km를 달렸어요/);
+    t('on3 · notifyKmMilestone still composes its title from the km', !!km, 'no composed milestone title in api.ts');
+    t('on3 · every composed milestone is recognised (the pattern is the writer\'s own template, filled)',
+      !!km && [1, 2, 3, 5, 10, 21].every((n) => isOwnerLiveRunTitle(`${n}${km[1]}`)), km ? km[1] : '');
+    t('on3 · the milestone pattern is anchored — a title merely containing 돌파 is not a live-run push',
+      !KM_MILESTONE_TITLE.test('기록 돌파') && !KM_MILESTONE_TITLE.test('3km 돌파 기념') && !isOwnerLiveRunTitle('돌파'));
+    routedKinds.push(['live-run', 'booking']);
+    for (const title of [...OWNER_LIVE_RUN_TITLES, '3km 돌파']) {
+      t(`on3 · ${title} · owner, the CURRENT booking → /owner/live (not a finished-looking report)`,
+        dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/live');
+      t(`on3 · ${title} · owner, NOT current or unknown → the bid-scoped report (an old inbox row is a finished run)`,
+        isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: false }))
+        && isReport(dest({ title, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null })));
+      t(`on3 · ${title} needs the current-booking probe for the owner, never for the runner`,
+        needsCurrentBookingProbe('owner', title) && !needsCurrentBookingProbe('runner', title));
+    }
+    t('on3 · the live-run family is disjoint from the meetup family and from both club lists',
+      !OWNER_LIVE_RUN_TITLES.some((x) => OWNER_MEETUP_TITLES.includes(x) || CLUB_PROBE_TITLES.includes(x)
+        || refMayBeClubSession(x)));
+    t('on3 · the runner\'s own 러닝 시작 route is untouched (/runner/run)',
+      dest({ title: '러닝 시작', role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/run');
+    const push = readTs('app/src/lib/push.ts');
+    t('on3 · push.ts admits the live-run family on the owner fast path',
+      /OWNER_MEETUP_TITLES\.includes\(title\) \|\| isOwnerLiveRunTitle\(title\)/.test(push));
+    // `/owner/live` opens `draft.bookingId` when it is set, so a stale store opens another booking.
+    t('on3 · push.ts writes draft.bookingId = refId before pushing /owner/live (every other caller of that route does)',
+      /if \(dest === '\/owner\/live'\) draft\.bookingId = refId;/.test(push)
+      && /import \{ draft, session \} from '\.\.\/store'/.test(push));
+  }
+
+  // ── ops-notifications-2 · the check-in question → the screens that mount <CheckinAnswer> ────
+  {
+    const open = writer('open_checkin');
+    t('on2 · open_checkin asks with the client\'s CHECKIN_TITLE, kind booking, the booking as ref',
+      new RegExp(`'booking', '${CHECKIN_TITLE}',[\\s\\S]{0,120}?, p_booking`).test(open), CHECKIN_TITLE);
+    t('on2 · …to BOTH parties', /from \(values \(b\.owner_id\), \(b\.runner_id\)\) as p\(profile_id\)/.test(open));
+    routedKinds.push([CHECKIN_TITLE, 'booking']);
+    t('on2 · runner → /runner/home (its CheckinAnswer; the calendar has none)',
+      dest({ title: CHECKIN_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/home');
+    t('on2 · owner → /owner/schedule, even when it IS the current booking (not the report, not meetup)',
+      dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/schedule'
+      && dest({ title: CHECKIN_TITLE, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/owner/schedule');
+    const screens = ['app/app/runner/home.tsx', 'app/app/owner/schedule.tsx'].map((f) => [f, readTs(f)]);
+    for (const [f, src] of screens) {
+      t(`on2 · ${f} still mounts <CheckinAnswer (the reason it is the destination)`, /<CheckinAnswer\b/.test(src));
+    }
+  }
+
+  // ── ops-notifications-4 · pre-run owner titles → radar / schedule, never the post-run report ─
+  {
+    const edge = readTs('supabase/functions/transition-booking/index.ts');
+    const fromEdge = ['러너 매칭 완료', '러너 재탐색 중', '일정 변경 수락 ✓', '일정 변경 거절']
+      .filter((x) => edge.includes(`notify(bk.owner_id, "${x}"`));
+    t('on4 · the edge writes each of its four pre-run titles to the OWNER', fromEdge.length === 4, JSON.stringify(fromEdge));
+    const exp = writer('expire_unmatched_bookings');
+    const mExp = exp.match(/select e\.owner_id, 'booking', '([^']+)'/);
+    t('on4 · expire_unmatched_bookings still tells the OWNER, with a booking ref', !!mExp && /e\.id\s*from e_match e/.test(exp));
+    const res = writer('expire_reschedule_requests');
+    const mRes = res.match(/select owner_id, 'booking', '([^']+)'/);
+    const mResR = res.match(/select runner_id, 'booking', '([^']+)'/);
+    t('on4 · expire_reschedule_requests tells the owner AND the runner the same title', !!mRes && !!mResR && mRes[1] === mResR[1]);
+    const written = [...fromEdge, mExp && mExp[1], mRes && mRes[1]].filter(Boolean);
+    t('on4 · OWNER_PRERUN_ROUTES is EXACTLY the six titles those writers send (no key nobody writes, none missing)',
+      written.length === 6 && Object.keys(OWNER_PRERUN_ROUTES).length === 6
+      && written.every((x) => OWNER_PRERUN_ROUTES[x] !== undefined),
+      `written=${JSON.stringify(written)} keys=${JSON.stringify(Object.keys(OWNER_PRERUN_ROUTES))}`);
+    routedKinds.push(['pre-run', 'booking']);
+    {
+      const d = dest({ title: '러너 재탐색 중', role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true });
+      t('on4 · 러너 재탐색 중 → /owner/radar carrying the bid (the nominate list is the useful action)',
+        !!d && d.pathname === '/owner/radar' && d.params && d.params.bid === BID, show(d));
+    }
+    for (const x of written.filter((y) => y !== '러너 재탐색 중')) {
+      t(`on4 · ${x} → /owner/schedule (bare — schedule reads no param)`,
+        dest({ title: x, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true }) === '/owner/schedule');
+    }
+    t('on4 · 매칭 만료 is NOT radar (radar alerts and bounces on `expired`)',
+      dest({ title: '매칭 만료', role: 'owner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/owner/schedule');
+    t('on4 · the shared 일정 변경 요청 만료 keeps the RUNNER on the calendar (the owner map sits after the runner branch)',
+      !!mResR && dest({ title: mResR[1], role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/calendar');
+  }
+
+  // ── contract-gaps-2 · six runner titles that fell to the calendar ───────────────────────────
+  {
+    const sweep = writer('sweep_run_end_recovery');
+    t('cg2 · sweep_run_end_recovery tells the RUNNER 「정산을 확인하고 있어요」 with the booking as ref',
+      /values \(r\.runner_id, 'booking', '정산을 확인하고 있어요',[\s\S]{0,200}?r\.id\)/.test(sweep));
+    const settle = writer('club_incident_settle');
+    t('cg2 · club_incident_settle tells the RUNNER 「케이스 정산 결정」',
+      /values \(b\.runner_id, 'booking', '케이스 정산 결정',/.test(settle));
+    t('cg2 · …after writing the ledger row /runner/earnings draws', /insert into ledger_items/.test(settle));
+    for (const x of ['정산을 확인하고 있어요', '케이스 정산 결정']) {
+      t(`cg2 · ${x} · runner → /runner/earnings (bare — the ledger is the whole list)`,
+        dest({ title: x, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/earnings');
+    }
+    const resolve = writer('_resolve_checkin');
+    t('cg2 · _resolve_checkin writes the case title as kind SAFETY and the closing title as kind booking',
+      new RegExp(`case when v_terminal = 'incident_review' then 'safety' else 'booking' end::noti_kind,\\s*`
+        + `case when v_terminal = 'incident_review' then '${CHECKIN_CASE_TITLE}'\\s*else '${CHECKIN_CLOSED_TITLE}' end`).test(resolve));
+    t('cg2 · …to BOTH parties, with the booking as ref',
+      /p_booking\s*from \(values \(b\.owner_id\), \(b\.runner_id\)\) as p\(profile_id\)/.test(resolve));
+    routedKinds.push([CHECKIN_CASE_TITLE, 'safety'], [CHECKIN_CLOSED_TITLE, 'booking']);
+    for (const x of [CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE]) {
+      t(`cg2 · ${x} · runner → /chat WITH the bid (a cold start has no store; the thread is where the other party is)`,
+        isChat(dest({ title: x, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null })));
+      t(`cg2 · ${x} is a bid-scoped runner title`, RUNNER_BID_TITLES.includes(x));
+    }
+    // the reason chat is safe for these two endings: both terminals are in the WRITE predicate
+    // chat_threads' insert policy uses, so ensureThread is not refused and 'preaccept' cannot fire.
+    const active = writer('is_booking_party_active');
+    t('cg2 · no_show and incident_review are both in is_booking_party_active (chat does not refuse the thread)',
+      /'no_show'/.test(active) && /'incident_review'/.test(active));
+    const fin = writer('_club_finalize_return');
+    t('cg2 · _club_finalize_return tells the RUNNER 「반환 완료」 with the CLUB booking as ref',
+      new RegExp(`\\(v_runner, 'booking', '${RETURN_DONE_TITLE}', '[^']*', sd\\.booking_id\\)`).test(fin));
+    t('cg2 · …and writes no ledger row (so /runner/earnings would be a second screen that does not show it)',
+      !/insert into ledger_items/.test(fin));
+    t('cg2 · the owner\'s copy of 반환 완료 names the REPORT — which is why the probe is runner-only',
+      new RegExp(`\\(sd\\.owner_profile_id, 'booking', '${RETURN_DONE_TITLE}', '[^']*리포트`).test(fin));
+    routedKinds.push([RETURN_DONE_TITLE, 'booking']);
+    t('cg2 · 반환 완료 · runner, a club booking → the club session screen',
+      dest({ title: RETURN_DONE_TITLE, role: 'runner', clubSessionId: SID, isCurrentOwnerBooking: null }) === `/club/session/${SID}`);
+    t('cg2 · 반환 완료 · runner, probe failed or not a club → the calendar (loud, never a stall)',
+      dest({ title: RETURN_DONE_TITLE, role: 'runner', clubSessionId: undefined, isCurrentOwnerBooking: null }) === '/runner/calendar'
+      && dest({ title: RETURN_DONE_TITLE, role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/calendar');
+    t('cg2 · 반환 완료 · OWNER, even a club booking → still the report its own sentence names',
+      isReport(dest({ title: RETURN_DONE_TITLE, role: 'owner', clubSessionId: SID, isCurrentOwnerBooking: null })));
+    t('cg2 · the runner-only probe: asked for the runner, not for the owner, not for a role-less ask',
+      needsClubProbe(RETURN_DONE_TITLE, 'runner') && !needsClubProbe(RETURN_DONE_TITLE, 'owner')
+      && !needsClubProbe(RETURN_DONE_TITLE) && RUNNER_CLUB_PROBE_TITLES.includes(RETURN_DONE_TITLE)
+      && !CLUB_PROBE_TITLES.includes(RETURN_DONE_TITLE) && !refMayBeClubSession(RETURN_DONE_TITLE));
+    const cancel = readTs('supabase/functions/transition-booking/cancel_owner.ts');
+    const mc = cancel.match(/lateShare > 0 \? "[^"]+" : "([^"]+)"/);
+    t('cg2 · cancel_owner.ts still names the uncompensated runner title', !!mc);
+    t('cg2 · …and the runner lands on the calendar for it BY ENTRY, not by falling off the table',
+      !!mc && RUNNER_ROUTES[mc[1]] === '/runner/calendar'
+      && dest({ title: mc[1], role: 'runner', clubSessionId: null, isCurrentOwnerBooking: null }) === '/runner/calendar');
+    routedKinds.push(['예약 취소됨', 'booking']);
+  }
+
+  // ── ops-notifications-12 · the money gate → /payments, with the way back ────────────────────
+  {
+    const charge = readTs('supabase/functions/_shared/charge.ts');
+    // EVERY notifyOwner in charge.ts, not the one the finding cited — a first-match regex here
+    // found the relink rung's title the finding had missed, which is the point of reading them all.
+    const calls = [...charge.matchAll(/notifyOwner\(\s*db,\s*ownerId,\s*row\.booking_id,\s*"([^"]+)",\s*`([^`]*)`/g)]
+      .map((m) => ({ title: m[1], body: m[2] }));
+    t('on12 · charge.ts still tells the owner from its failure rungs', calls.length > 0, 'no notifyOwner call in charge.ts');
+    t('on12 · every one of those bodies names 설정 > 결제 관리 (the screen this route opens)',
+      calls.length > 0 && calls.every((c) => c.body.includes('결제 관리')), JSON.stringify(calls.map((c) => c.title)));
+    t('on12 · …as kind booking with the booking as ref',
+      /\.insert\(\{ profile_id: ownerId, kind: "booking", title, body, ref_id: bookingId \}\)/.test(charge));
+    const stale = writer('sweep_stale_payment_intents');
+    const ms = stale.match(/select b\.owner_id, 'booking', '([^']+)',\s*'[^']*결제 관리[^']*', b\.id/);
+    t('on12 · sweep_stale_payment_intents still tells the owner, naming 결제 관리, with the booking as ref', !!ms);
+    const written = [...calls.map((c) => c.title), ms && ms[1]].filter(Boolean);
+    t('on12 · OWNER_PAYMENT_TITLES is EXACTLY the titles those writers send (both directions)',
+      written.length === OWNER_PAYMENT_TITLES.length && written.every((x) => OWNER_PAYMENT_TITLES.includes(x))
+      && OWNER_PAYMENT_TITLES.every((x) => written.includes(x)),
+      `written=${JSON.stringify(written)} table=${JSON.stringify(OWNER_PAYMENT_TITLES)}`);
+    routedKinds.push(['payment', 'booking']);
+    const report = readTs('app/app/owner/report.tsx');
+    const label = (report.match(/returnTo: `\/owner\/report\?bid=\$\{bid \?\? ''\}`, returnLabel: '([^']+)'/) || [])[1];
+    t('on12 · report.tsx still hands /payments a returnTo + returnLabel (the pair this route reuses)', !!label);
+    for (const x of OWNER_PAYMENT_TITLES) {
+      const d = dest({ title: x, role: 'owner', clubSessionId: null, isCurrentOwnerBooking: true });
+      t(`on12 · ${x} · owner → /payments with returnTo the booking's report and report.tsx's own label`,
+        !!d && d.pathname === '/payments' && d.params && d.params.returnTo === `/owner/report?bid=${BID}`
+        && d.params.returnLabel === label, show(d));
+    }
+    const pay = readTs('app/app/payments.tsx');
+    t('on12 · payments.tsx admits /owner/report as a return path (otherwise the back button would go home)',
+      /if \(path === '\/owner\/report'\) return href;/.test(pay));
+  }
+
+  // ── the owner tables do not overlap each other or the older families ────────────────────────
+  {
+    const sets = {
+      prerun: Object.keys(OWNER_PRERUN_ROUTES), payment: OWNER_PAYMENT_TITLES, live: OWNER_LIVE_RUN_TITLES,
+      checkin: [CHECKIN_TITLE], meetup: OWNER_MEETUP_TITLES, recurring: [RECURRING_CREATED_TITLE],
+      fixed: [CHAT_TITLE, SOS, INCIDENT, RUN_STOP_TITLE],
+    };
+    const names = Object.keys(sets);
+    const clashes = [];
+    for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+      for (const x of sets[names[i]]) if (sets[names[j]].includes(x)) clashes.push(`${x}: ${names[i]}/${names[j]}`);
+    }
+    // the live family is ALSO a pattern — no member of another table may match the milestone shape
+    for (const n of names.filter((y) => y !== 'live')) {
+      for (const x of sets[n]) if (isOwnerLiveRunTitle(x)) clashes.push(`${x}: ${n}/live-pattern`);
+    }
+    t('the owner tables are pairwise disjoint (arm ORDER in destinationForBookingRef must never decide a destination)',
+      clashes.length === 0, JSON.stringify(clashes));
+    t('none of the newly routed titles is on the club session-ref list (every one of their writers emits a booking id)',
+      ![...Object.keys(OWNER_PRERUN_ROUTES), ...OWNER_PAYMENT_TITLES, ...OWNER_LIVE_RUN_TITLES, CHECKIN_TITLE,
+        CHECKIN_CASE_TITLE, CHECKIN_CLOSED_TITLE, '정산을 확인하고 있어요', '케이스 정산 결정', RETURN_DONE_TITLE, SOS]
+        .some(refMayBeClubSession));
+  }
+
+  // ── the synchronous twin: every title routed above is also DRAWN as a button ────────────────
+  // hasNotificationRoute lives in push.ts (router + store + supabase), so it is pinned the way the
+  // file already pins it: its booking and safety arms answer `!!refId` (source, comments stripped),
+  // and every writer above was just read passing a ref of one of those two kinds. The composition is
+  // the claim: a routed title the inbox would draw as plain text is a live destination hidden.
+  {
+    const push = readTs('app/src/lib/push.ts');
+    t('twin · every newly routed title is written as kind booking or safety, with a ref',
+      routedKinds.length > 0 && routedKinds.every(([, k]) => k === 'booking' || k === 'safety'), JSON.stringify(routedKinds));
+    t('twin · hasNotificationRoute answers true for a booking row with a ref and a safety row with a ref',
+      /if \(kind === 'booking'\) return !!refId \|\|/.test(push) && /if \(kind === 'safety'\) return !!refId;/.test(push));
+  }
+
+  // ── the inbox read writes (ops-notifications-5/7/8) ──────────────────────────────────────────
+  // Source pins, block comments stripped too (JSX comments are `{/* … */}`): the property is 「the
+  // screen CALLS the write and flips its seal inside the resolution」, which no pure module owns.
+  {
+    const stripAll = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+    const read = (rel) => stripAll(fs.readFileSync(path.join(REPO, rel), 'utf8'));
+    // api.ts keeps the LINE stripper: it is 7k lines of code where a `/*` inside a string would
+    // let a block stripper eat real code, and its comments here are line comments.
+    const api = API_SRC;
+    t('on8 · fetchNotifications takes an optional kind and narrows SERVER-side with it',
+      /export async function fetchNotifications\(opts\?: \{ kind\?: string \}\)/.test(api)
+      && /if \(opts\?\.kind\) q = q\.eq\('kind', opts\.kind\);/.test(api));
+    const mark = api.slice(api.indexOf('export async function markNotificationsRead'));
+    t('on7 · markNotificationsRead writes read_at for exactly the given ids, only where still unread',
+      /\.update\(\{ read_at: [^}]+\}\)\s*\.in\('id', \[\.\.\.ids\]\)\s*\.is\('read_at', null\)/.test(mark.slice(0, 600))
+      && /if \(error\) throw error;/.test(mark.slice(0, 600)));
+    const alerts = read('app/app/alerts.tsx');
+    t('on7 · alerts.tsx marks EVERY row of the opened cycle (newest + the collapsed re-asks), unread ones only',
+      /\[c\.newest, \.\.\.c\.older\]\.filter\(\(r\) => r\.unread\)\.map\(\(r\) => r\.id\)/.test(alerts));
+    t('on7 · …and clears the seal only inside the write\'s resolution (a failed write is never drawn as read)',
+      /markNotificationsRead\(ids\)\s*\.then\(\(\) => \{[\s\S]{0,200}?setLiveNotis\(/.test(alerts)
+      && /\.catch\(\(e\) => console\.warn\('\[alerts\] mark read:'/.test(alerts));
+    t('on7 · both doors (row and ticker) open the CYCLE', /openNoti\(c\)/.test(alerts) && /openNoti\(latestUnreadCycle\)/.test(alerts));
+    t('on7 · 모두 읽음 is kept', /markAllNotificationsRead\(\)/.test(alerts));
+    const ops = read('app/app/ops/index.tsx');
+    t('on8 · the console reads kind=system from the server', /fetchNotifications\(\{ kind: 'system' \}\)/.test(ops));
+    t('on5 · the console no longer filters to the four titles with a screen (OPS_SYSTEM_TITLES is not consulted)',
+      !/OPS_SYSTEM_TITLES/.test(ops));
+    t('on5 · a bell with no console door is drawn as a card carrying its BODY; one with a door stays a button',
+      /destinationForSystemRef\(\{ refId: n\.refId, title: n\.title \}\) !== null \? \(\s*<Pressable/.test(ops)
+      && /<View key=\{n\.id\}[^>]*>[\s\S]{0,300}?\{n\.body \? <Text/.test(ops));
+    t('on7 · opening a console bell marks that row read, seal cleared inside the resolution',
+      /markNotificationsRead\(\[n\.id\]\)\s*\.then\(\(\) => setAlerts\(/.test(ops));
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

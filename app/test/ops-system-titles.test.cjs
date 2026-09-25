@@ -264,6 +264,51 @@ t('the ledger holds no duplicates',
     `urgent@${urgent} ledgered@${ledgered} other@${other}`);
 }
 
+// ═══ [gap sweep 2026-09-25 · ops-notifications-5] the CONSOLE's table agrees with the ledger ═══
+// `OPS_SYSTEM_TITLES` (notification-route.ts) is the set of `system` titles with a console screen.
+// Since the console stopped filtering to it and draws every `system` row, the one thing that can
+// still go wrong is a console title that is NOT a ledgered ops title — a button for a title no
+// writer sends, or one the classifier files as `booking` so the ops bell is not an ops bell at all.
+// The module is compiled from the REAL source (esbuild, the idiom of every other route test) rather
+// than read by regex, so the array is the one the console and push.ts actually import. esbuild is
+// reached through `npx` exactly as the other runners reach it (it is not a dependency in
+// node_modules, so `require('esbuild')` would fail); with no outfile it writes the bundle to stdout.
+{
+  const ROUTE_TS = path.resolve(__dirname, '../src/lib/notification-route.ts');
+  let route = null;
+  try {
+    const bundle = require('child_process').execFileSync(
+      'npx', ['esbuild', ROUTE_TS, '--bundle', '--platform=node', '--format=cjs', '--log-level=error'],
+      { encoding: 'utf8', cwd: __dirname },
+    );
+    const m = new module.constructor();
+    m._compile(bundle, ROUTE_TS + '.build.cjs');
+    route = m.exports;
+  } catch (e) {
+    route = null;
+    console.log('  (notification-route.ts did not compile: ' + (e && e.message) + ')');
+  }
+  const consoleTitles = route && Array.isArray(route.OPS_SYSTEM_TITLES) ? route.OPS_SYSTEM_TITLES : null;
+  t('notification-route.ts compiled and exports OPS_SYSTEM_TITLES (a missing module must fail LOUDLY)',
+    Array.isArray(consoleTitles) && consoleTitles.length > 0, String(consoleTitles));
+  for (const title of consoleTitles || []) {
+    t(`every console title is a LEDGERED ops title: 「${title}」`,
+      ledger.includes(title),
+      'OPS_SYSTEM_TITLES names a title _noti_ops_titles() does not hold — either no writer sends it '
+      + '(a console button for nothing) or the classifier files it as `booking` (an ops bell an operator '
+      + 'can mute as customer traffic). Fix the title, or ledger it in a new migration.');
+  }
+  // …and the complement: every ledgered title the console has no screen for routes NOWHERE, which is
+  // what makes ops/index.tsx draw it as a card carrying its body rather than as a button.
+  if (route && typeof route.destinationForSystemRef === 'function') {
+    const REF = 'b0000000-0000-0000-0000-000000000001';
+    const wrong = ledger.filter((title) =>
+      (route.destinationForSystemRef({ refId: REF, title }) !== null) !== (consoleTitles || []).includes(title));
+    t('a ledgered title has a console destination IF AND ONLY IF it is in OPS_SYSTEM_TITLES (the rest are drawn as cards, never as dead buttons)',
+      wrong.length === 0, JSON.stringify(wrong));
+  }
+}
+
 // ═══ `notifyOps` really does write `kind: "system"` — the premise of the ops.ts half ════════════
 t('every `_shared/ops.ts` title above is written as kind="system" by notifyOps',
   /kind:\s*"system"/.test(opsSrc),
