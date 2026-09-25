@@ -55,6 +55,8 @@ npx supabase gen types typescript --linked > app/src/lib/db-types.ts
 
 ## Phase 2 (다음 백엔드 세션)
 
+> ⚠ **Corrected 2026-09-26 — this is the early pre-Toss plan, kept as history; all of it has shipped.** `create-booking-hold`, `transition-booking` and `settle-run` exist under `supabase/functions/`, and payments are live Toss code rather than a simulation: `confirm-payment` (widget confirm, `handler.ts:132`), `register-billing-key` (billing key, `handler.ts:359`) and `collect-charges` (charge ladder via `_shared/charge.ts:233`). Production charging is still gated by `TOSS_SECRET_KEY` and `ops_flags.payments_live_since` — see `docs/payments.md:3`.
+
 - Edge Functions: `create_booking_hold` (원자적 슬롯 홀드), `transition_booking`, `settle_run` (사유별 정산 계산), `roll_drop` (5/10회 판정 + 확률)
 - 가용성 조회 뷰 (rules − exceptions − bookings − holds − travel buffer)
 - Realtime: chat_messages, bookings.status 구독

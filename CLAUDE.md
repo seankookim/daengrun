@@ -748,6 +748,7 @@ the same discipline as reading an artifact instead of a tool's report. **Do that
 documenting a fix and failing to make it would otherwise look identical. Mutation-verified six ways,
 and the arm that matters is the control: **a comment quoting the removed code does NOT redden it.**
 
+⚠ **Corrected 2026-09-26: the ledger is EMPTY — 0 entries since 2026-08-28** (`app/scripts/check-device-clock-baseline.txt:32`; the gate prints 「기준선 0건」). The 12 below is the 2026-08-27 opening count, and the Intl-fallback question was deleted by converging on `kst.ts`, not answered (baseline `:11-20`).
 The 12 known sites are frozen in `check-device-clock-baseline.txt`; a stale entry also fails, so the
 ledger shrinks honestly. Ten of the twelve are ONE open question — the Intl-fallback family — which
 source cannot settle and which needs a single Hermes measurement **on a non-Seoul device**; the
