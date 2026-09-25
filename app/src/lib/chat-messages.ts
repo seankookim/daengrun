@@ -337,3 +337,26 @@ export function coverageHole(cov: Coverage): { afterId: number; cursor: MessageC
   if (upper === null) return null;
   return { afterId: cov[0].hi.id, cursor: upper };
 }
+
+/**
+ * Should THIS snapshot start the automatic fill? Its budget is per HOLE, not per poll.
+ *
+ * [codex wave 4 review · low] Asking 「is a hole open?」 on every snapshot turned the bounded fill
+ * into an unbounded one spread over poll ticks: a thread that moved on by 5 000 messages was
+ * backfilled with no tap — 50 pages across 17 ticks, measured on these helpers — and the door
+ * flipped to its busy word on every tick. The design is 「fill a little on our own, then hand the
+ * rest to a door the reader taps」, so the screen fills automatically once for each LOWEST hole it
+ * meets (identified by `afterId`, the message the door is drawn under — it does not move while a
+ * fill reads down from above) and leaves a standing hole to the door. A new lowest hole — the old
+ * one closed, or none was open — earns one more automatic fill.
+ *
+ * `remember` is what the caller keeps for the next snapshot: the hole's `afterId`, or `null` once
+ * no hole is open (so a later hole at any position is new).
+ */
+export function autoFillDecision(
+  hole: { afterId: number } | null,
+  lastAutoFilledAfterId: number | null,
+): { fill: boolean; remember: number | null } {
+  if (hole === null) return { fill: false, remember: null };
+  return { fill: hole.afterId !== lastAutoFilledAfterId, remember: hole.afterId };
+}

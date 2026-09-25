@@ -20,7 +20,7 @@
 //   · drop the `ceiling` arm from `newestPeerMessageId`.
 const {
   mergeMessageSnapshot, snapshotGap, windowSpan, olderPageSpan, addCoverage, coverageCeiling,
-  coverageHole, compareMessageOrder,
+  coverageHole, compareMessageOrder, autoFillDecision,
 } = require('./chat-coverage.messages.build.cjs');
 const { newestPeerMessageId } = require('./chat-coverage.read.build.cjs');
 const { CHAT_PAGE_SIZE, pageIsLast } = require('./chat-coverage.window.build.cjs');
@@ -208,6 +208,45 @@ t('a message that cannot be placed against the ceiling is excluded, never let th
     { ceiling: { createdAt: at(50), id: 50 } }) === 1);
 t('control — with no ceiling the same list names its newest (the arm above is doing the work)',
   newestPeerMessageId(tie) === 6);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ④ THE AUTOMATIC FILL IS BOUNDED PER HOLE, NOT PER POLL (codex wave 4 review · low)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// The reviewer's probe, on these helpers: a thread that moved on by 5 000 messages closed with no
+// tap after 17 poll ticks and 50 pages fetched automatically, because every snapshot asked only
+// 「is a hole open?」. `tick` below is chat.tsx's absorbSnapshot: merge, cover, then ask the rule.
+// The MUTATION this section exists for: `fill: hole !== null` (the per-poll rule) reddens ④b/④c.
+{
+  const MAX = 3; // chat.tsx GAP_FILL_MAX_PAGES — chat-window.test.cjs pins the constant itself
+  const run = (rule) => {
+    const s = screen();
+    const srv = server(5100);
+    s.open(server(100).newest());                 // 1–100, a full window: older pages exist
+    let remembered = null;
+    let autoPages = 0;
+    for (let tick = 0; tick < 17; tick += 1) {
+      s.snapshot(srv.newest());                   // 5001–5100 every tick: the thread is quiet now
+      const d = rule(coverageHole(s.cov), remembered);
+      remembered = d.remember;
+      if (d.fill) autoPages += s.fill(srv.older, MAX);
+    }
+    return { s, autoPages, remembered };
+  };
+  const fixed = run(autoFillDecision);
+  const perPoll = run((hole) => ({ fill: hole !== null, remember: null }));
+  t('④a control — the per-poll rule reproduces the review: the whole backfill runs with no tap',
+    coverageHole(perPoll.s.cov) === null && perPoll.autoPages === 50, `pages=${perPoll.autoPages}`);
+  t('🔴 ④b the automatic fill spends ONE budget on the hole — then stops',
+    fixed.autoPages === MAX, `pages=${fixed.autoPages}`);
+  const door = coverageHole(fixed.s.cov);
+  t('🔴 ④c …and the hole is still open for the DOOR, with the read held below it',
+    door !== null && door.afterId === 100 && fixed.s.target() === 100, `${show(door)} target=${fixed.s.target()}`);
+  t('④d a NEW lowest hole earns one more automatic fill; no hole forgets the last one',
+    autoFillDecision({ afterId: 7 }, 3).fill === true
+    && autoFillDecision({ afterId: 7 }, 7).fill === false
+    && autoFillDecision({ afterId: 7 }, 7).remember === 7
+    && autoFillDecision(null, 7).fill === false && autoFillDecision(null, 7).remember === null);
+}
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');
 process.exit(fail ? 1 : 0);

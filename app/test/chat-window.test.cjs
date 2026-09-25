@@ -464,6 +464,28 @@ t('[c1] every successful older read — the fill AND the older door — joins th
   })());
 t('[c1] coverage is reset with the thread — in BOTH reset lists (the load effect and retryLoad)',
   (CHAT.match(/coverage\.current = \[\];/g) || []).length === 2);
+// [codex wave 4 review · A3] The OPEN path seeds the coverage. Without it the first stretch is
+// missing, every later snapshot is the LOWEST stretch, and a poll that jumped past the window
+// (open on 51–150, poll returns 400–499) has no hole and a ceiling of 499 — the c1 defect back,
+// with 151–399 never fetched. chat-coverage's driver seeds in its own `open`, so only this pin can
+// see the line in chat.tsx. Anchored between the first read and the first merge of that read.
+t('🔴 [c1] the open path seeds coverage from the FIRST window, before that window is drawn',
+  (() => {
+    const read = CHAT.indexOf('const history = await fetchMessages(c.threadId);');
+    const seed = CHAT.indexOf('coverage.current = addCoverage([], windowSpan(history, pageIsLast(history.length, CHAT_PAGE_SIZE)));');
+    const draw = CHAT.indexOf('setMsgs((current) => mergeMessageSnapshot(current, history));');
+    return read > 0 && seed > read && draw > seed;
+  })());
+// [codex wave 4 review · low] The automatic fill is bounded per HOLE, not per poll: absorbSnapshot
+// asks `autoFillDecision` (chat-coverage.test.cjs ④ executes it) and starts a fill ONLY on its
+// answer. An unconditional `runFill(opCtx)` there re-arms the fill every tick.
+t('🔴 [gap] the snapshot starts the automatic fill only on autoFillDecision\'s answer — never unconditionally',
+  typeof absorbBody === 'string'
+  && /const auto = autoFillDecision\(coverageHole\(coverage\.current\), autoFilledAfter\.current\);\s*autoFilledAfter\.current = auto\.remember;\s*if \(auto\.fill\) runFill\(opCtx\);/.test(absorbBody)
+  && (absorbBody.match(/runFill\(/g) || []).length === 1,
+  String(absorbBody));
+t('[gap] the auto-fill memory is a thread fact — reset in BOTH reset lists',
+  (CHAT.match(/autoFilledAfter\.current = null;/g) || []).length === 2);
 t('[c3] the mid-thread door carries a role and the shared busy word (busy is a LABEL SWAP)',
   /accessibilityLabel=\{gapBusy \? OLDER_DOOR_BUSY_LABEL : GAP_DOOR_LABEL\}/.test(CHAT)
   && /accessibilityState=\{\{ busy: gapBusy \}\}/.test(CHAT));

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Monogram, Row } from '../src/components/ui';
 import { announce, useAnnounceOnChange } from '../src/lib/a11y-announce';
 import {
-  addCoverage, Coverage, CoverageSpan, coverageCeiling, coverageHole, GAP_DOOR_LABEL,
+  addCoverage, autoFillDecision, Coverage, CoverageSpan, coverageCeiling, coverageHole, GAP_DOOR_LABEL,
   mergeMessageSnapshot, MessageCursor, olderPageSpan, windowSpan,
 } from '../src/lib/chat-messages';
 import {
@@ -41,6 +41,10 @@ const QUICK = ['네 좋아요!', '조금 늦을 것 같아요', '지금 어디�
 // and hands the rest to a door. Bounded on purpose: a thread that moved on by thousands of
 // messages must not turn one poll tick into an unbounded backfill, and a door the reader taps is
 // honest about there being more, where a spinner that never ends is not.
+// ⚠ The bound is per HOLE, not per poll tick (`autoFillDecision`): the automatic fill runs once for
+//   each lowest hole the screen meets, and a hole still open after it belongs to the door. Asking
+//   「is a hole open?」 on every snapshot re-armed the fill each tick, which is the same unbounded
+//   backfill spread over time (codex wave 4 review, measured on the helpers).
 const GAP_FILL_MAX_PAGES = 3;
 
 export default function Chat() {
@@ -161,6 +165,9 @@ export default function Chat() {
    *  reads backward from. Always `coverageHole(coverage.current)` — set only by `noteCoverage`. */
   const [gapDoor, setGapDoor] = useState<{ afterId: number; cursor: MessageCursor } | null>(null);
   const [gapBusy, setGapBusy] = useState(false);
+  /** The `afterId` of the hole the automatic fill last ran for (`autoFillDecision`), or null once no
+   *  hole is open. A thread fact — reset in both reset lists. */
+  const autoFilledAfter = useRef<number | null>(null);
 
   /** Record that a fetch returned these messages. True when it vouched for an id not seen before. */
   const noteFetched = useCallback((page: readonly ChatMsg[]): boolean => {
@@ -234,7 +241,10 @@ export default function Chat() {
     if (noteFetched(snapshot)) setAckTick((n) => n + 1);
     setMsgs((current) => mergeMessageSnapshot(current, snapshot));
     noteCoverage(windowSpan(snapshot, pageIsLast(snapshot.length, CHAT_PAGE_SIZE)));
-    runFill(opCtx);
+    // (a) once per lowest hole — a hole still open after that is the door's (GAP_FILL_MAX_PAGES).
+    const auto = autoFillDecision(coverageHole(coverage.current), autoFilledAfter.current);
+    autoFilledAfter.current = auto.remember;
+    if (auto.fill) runFill(opCtx);
   }, [noteFetched, noteCoverage, runFill]);
 
   /** (b) the door. It exists while a hole is open; a tap reads the next pages of the fill. */
@@ -252,7 +262,7 @@ export default function Chat() {
     // 되돌린다. retryLoad와 같은 리셋 목록이어야 한다: 하나가 늘면 둘 다 늘어야 한다.
     setCtx(null); setMsgs([]); setLink('connecting'); setPollErr(false); setState('loading');
     setOlderBusy(false); setOlderExhausted(false); setPeerReadAt(null);
-    setGapDoor(null); setGapBusy(false); gapFilling.current = false;
+    setGapDoor(null); setGapBusy(false); gapFilling.current = false; autoFilledAfter.current = null;
     fetchedIds.current = new Set(); coverage.current = []; focusAckDue.current = false;
     (async () => {
       try {
@@ -590,6 +600,7 @@ export default function Chat() {
     setGapDoor(null);
     setGapBusy(false);
     gapFilling.current = false;
+    autoFilledAfter.current = null;
     fetchedIds.current = new Set();
     coverage.current = [];
     focusAckDue.current = false;
