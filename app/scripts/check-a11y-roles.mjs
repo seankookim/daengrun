@@ -22,6 +22,8 @@
 //    Same source-vs-runtime division as `check-device-clock` beside the KST suite, and the same
 //    warning: **neither is evidence for the other.** This gate proves a prop is written in the
 //    source. It does not prove VoiceOver reads it well; only a device does that.
+//    ⚠ `app/test/a11y-gate.test.cjs` tests THIS SCRIPT (in a lab of fixture files), which is a
+//      third and different proposition again: that the gate still fails on the trees it must.
 //
 // ── WHAT IT COUNTS, AND WHAT IT DELIBERATELY DOES NOT ─────────────────────────────────────────
 // Babel-parsed, so a JSX element is found as an ELEMENT, never as a substring of a line. That
@@ -48,20 +50,58 @@
 //   the same reason `toLocaleDateString` stays in `check-device-clock`: the gate's job is the next
 //   one, and a pattern added after the fact protects nothing retroactively.
 //
-// ── THE BASELINE IS PER-FILE COUNTS, NOT `file:line` ──────────────────────────────────────────
-// `check-device-clock` freezes `path:line`, which is right for a dozen frozen sites in files
-// nobody edits. Here there are 150+ sites in the screens under the heaviest daily churn, and a
-// line-keyed ledger would go red every time an unrelated edit shifted a line — producing exactly
-// the noisy gate the rule above warns about. Counts do not drift.
+// ── THE LEDGER IS PER-ELEMENT FINGERPRINTS (v2, 2026-09-25) ───────────────────────────────────
+// 🔴 **v1 KEYED THE LEDGER ON PER-FILE COUNTS AND THAT WAS A REAL HOLE, MEASURED BY A COLD
+//    REVIEWER RATHER THAN REASONED.** Codex, 2026-09-25 (`docs/reviews/2026-09-25-client-since-
+//    da47510-codex-verdict.md` #4): removing the role from `owner/schedule.tsx`'s 다시 시도 button
+//    made v1 exit 1 — and ALSO adding a role to a different bare Pressable in the same file made
+//    **that same regression exit 0**, because the file's count nets to zero. Re-measured here
+//    before the rewrite, in a lab copy: v1 on the balanced mutation printed
+//    「162건 기준선 그대로」 and exited 0. An accessible control had regressed and the gate said
+//    nothing. v1's own header NAMED this blind spot and declined to close it; naming it did not
+//    stop it being the thing that bites.
 //
-// 🔴 AND THE ONE THING A COUNT CANNOT SEE, stated here rather than papered over: fixing one
-//    Pressable and adding one bare Pressable IN THE SAME FILE nets to zero and this gate stays
-//    silent. That is a real blind spot with a real shape, and it is NOT closed by anything below.
-//    (It is not worth writing an unfalsifiable check to "document" it — a limitation is prose.)
-//    The two-sided arm still holds the ledger honest overall: a count ABOVE its baseline is new
-//    debt and fails; a count BELOW it is a stale ledger and also fails, with a one-word fix, so
-//    the file can only shrink and cannot silently absorb a regression on a screen someone just
-//    fixed. A file absent from the baseline must be at zero.
+// A ledger line is now ONE ELEMENT:
+//
+//     <path> :: <nearest named ancestor> :: <8-hex shape hash> :: <n>
+//
+// · **nearest named ancestor** — the innermost `function` / `const` / class member / object
+//   property NAME the element sits inside (`<module>` when there is none). Not a line number, so
+//   it survives the unrelated edits that churn these screens daily.
+// · **shape hash** — sha1 over the element's own opening tag: tag name, its attribute names, a
+//   normalised descriptor of each attribute's value (`style={s.row}` → `style={s.row}`,
+//   `onPress={() => open(b)}` → `onPress={fn}`), and the first visible text inside it
+//   (`다시 시도`), truncated. It identifies the element by what it IS, not by where it sits.
+// · **n** — 1-based, among elements that share all three fields above. Two genuinely identical
+//   bare Pressables in one ancestor are told apart only by this ordinal, which is the one place
+//   the balanced mutation survives (see NAMED GAP below).
+//
+// The rule, and each half is separately load-bearing:
+//   · a bare element whose fingerprint is NOT in the ledger FAILS — new debt, even if another
+//     fingerprint in the same file was fixed in the same commit. This is the half v1 lacked.
+//   · a ledger fingerprint with NO element FAILS — stale line, delete it. So the ledger can only
+//     shrink, and cannot silently absorb a regression on a screen someone just fixed.
+//
+// ⚠ **THE STABILITY TRADE-OFF, STATED PLAINLY BECAUSE IT IS REAL.** The fingerprint is stable
+//   against line churn and against edits ELSEWHERE in the file. It is NOT stable against three
+//   things, and each of them moves a fingerprint and therefore reddens the gate as one stale line
+//   plus one new line:
+//     ① renaming the component / variable the element sits in,
+//     ② editing the visible copy of a role-less element, or its props,
+//     ③ moving the element into a different named ancestor.
+//   That is the deliberate cost of being able to see a single element at all. The repair is
+//   `node scripts/check-a11y-roles.mjs --rewrite-baseline` **in the same commit as the rename**,
+//   and the rewrite REFUSES to grow the ledger (it exits 1 and prints the additions), so re-emitting
+//   cannot be used to absorb new debt. Including the element's text is what makes a row of
+//   otherwise-identical chips distinguishable, which is exactly where the fix-one/add-one hole
+//   would otherwise reopen; that is why the copy sensitivity is paid rather than avoided.
+//
+// ⚠ **NAMED GAP, not closed and not pinned (a limitation is prose):** two bare tappables with the
+//   SAME tag, SAME attribute shape, SAME first text, in the SAME named ancestor are one bucket
+//   distinguished only by ordinal — so fixing one of them while adding another identical bare one
+//   still nets to zero and stays silent. `--rewrite-baseline` prints the bucket count on every
+//   run, and the hole is exactly as wide as those buckets: measured at the v2 rewrite, **9 buckets
+//   covering 21 of the 162 elements**. Strictly narrower than v1's, which was all 162; not zero.
 //
 // Escape hatch, for a Pressable that genuinely must not be a button to a screen reader (a
 // gesture-catcher, a decorative press-scale wrapper): `// a11y-role-ok: <reason>` on the line the
@@ -69,11 +109,13 @@
 // ledger of debt turns into a list nobody reads.
 //
 // Run: `node scripts/check-a11y-roles.mjs` from `app/`.
+// Re-emit: `node scripts/check-a11y-roles.mjs --rewrite-baseline` (keeps the file's prose header).
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const parser = require('@babel/parser');
@@ -81,8 +123,10 @@ const parser = require('@babel/parser');
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ROOTS = [join(root, 'app'), join(root, 'src')];
 const BASELINE_FILE = join(root, 'scripts', 'check-a11y-roles-baseline.txt');
+const REWRITE = process.argv.includes('--rewrite-baseline');
 
 const IS_TAPPABLE = /^(Pressable|Touchable[A-Za-z]*)$/;
+const SEP = ' :: ';
 
 function walk(dir, acc = []) {
   for (const e of readdirSync(dir)) {
@@ -94,29 +138,140 @@ function walk(dir, acc = []) {
   return acc;
 }
 
-// Plain recursive walk — @babel/traverse is not a dependency of this repo's scripts and the AST
-// is small enough that it does not need to be.
-function eachJsxOpening(node, fn) {
-  if (!node || typeof node !== 'object') return;
-  if (Array.isArray(node)) { for (const c of node) eachJsxOpening(c, fn); return; }
-  if (node.type === 'JSXOpeningElement') fn(node);
-  for (const k of Object.keys(node)) {
-    if (k === 'loc' || k === 'leadingComments' || k === 'trailingComments' || k === 'innerComments') continue;
-    eachJsxOpening(node[k], fn);
+// ── the nearest NAMED ancestor ────────────────────────────────────────────────────────────────
+// Only names that a human would use to point at the code: a declared function, a `const` holding
+// a component or a render helper, a class member, an object property. Anonymous arrows (a
+// `.map()` callback, an `onPress`) deliberately contribute nothing, so an element inside a list
+// row is attributed to the component that renders the list.
+function nameFromNode(node) {
+  switch (node.type) {
+    case 'ExportDefaultDeclaration':
+      return node.declaration?.id?.name ?? 'default';
+    case 'FunctionDeclaration':
+    case 'FunctionExpression':
+    case 'ClassDeclaration':
+    case 'ClassExpression':
+      return node.id?.name ?? null;
+    case 'VariableDeclarator':
+      return node.id?.type === 'Identifier' ? node.id.name : null;
+    case 'ClassMethod':
+    case 'ClassProperty':
+    case 'ObjectMethod':
+    case 'ObjectProperty':
+      if (node.key?.type === 'Identifier') return node.key.name;
+      if (node.key?.type === 'StringLiteral') return node.key.value;
+      return null;
+    default:
+      return null;
   }
 }
 
-const baselineRaw = readFileSync(BASELINE_FILE, 'utf8').split('\n')
-  .map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
-const baseline = new Map();
-for (const line of baselineRaw) {
-  const m = /^(\S+)\s+(\d+)$/.exec(line);
-  if (!m) { console.error(`❌ 기준선 파일의 형식이 틀렸다: ${line}`); process.exit(1); }
-  baseline.set(m[1], Number(m[2]));
+// Plain recursive walk — @babel/traverse is not a dependency of this repo's scripts and the AST
+// is small enough that it does not need to be. Carries the enclosing name down.
+function eachJsxElement(node, scope, fn) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { for (const c of node) eachJsxElement(c, scope, fn); return; }
+  if (typeof node.type !== 'string') return;
+  const next = nameFromNode(node) ?? scope;
+  if (node.type === 'JSXElement') fn(node, next);
+  for (const k of Object.keys(node)) {
+    if (k === 'loc' || k === 'leadingComments' || k === 'trailingComments' || k === 'innerComments') continue;
+    eachJsxElement(node[k], next, fn);
+  }
 }
 
-const bare = [];           // `a11y-role-ok` with no reason
-const sites = new Map();   // rel path -> [line, …] of role-less tappables
+// ── the shape of one element, as a string a hash can be taken of ──────────────────────────────
+function exprDesc(e) {
+  if (!e || typeof e.type !== 'string') return '?';
+  switch (e.type) {
+    case 'Identifier': return e.name;
+    case 'ThisExpression': return 'this';
+    case 'StringLiteral': return JSON.stringify(e.value);
+    case 'NumericLiteral': return String(e.value);
+    case 'BooleanLiteral': return String(e.value);
+    case 'NullLiteral': return 'null';
+    case 'MemberExpression':
+      return `${exprDesc(e.object)}.${e.computed ? '[]' : (e.property?.name ?? '?')}`;
+    case 'ArrowFunctionExpression':
+    case 'FunctionExpression': return 'fn';
+    case 'CallExpression':
+    case 'OptionalCallExpression': return `${exprDesc(e.callee)}()`;
+    case 'ArrayExpression': return `[${e.elements.length}]`;
+    case 'ObjectExpression': return `{${e.properties.length}}`;
+    case 'ConditionalExpression': return '?:';
+    case 'TemplateLiteral': return 'tpl';
+    case 'UnaryExpression': return `${e.operator}${exprDesc(e.argument)}`;
+    case 'LogicalExpression': return `${exprDesc(e.left)}${e.operator}${exprDesc(e.right)}`;
+    case 'BinaryExpression': return `${exprDesc(e.left)}${e.operator}${exprDesc(e.right)}`;
+    case 'TSAsExpression': return exprDesc(e.expression);
+    case 'JSXElement': return `<${e.openingElement?.name?.name ?? '?'}>`;
+    default: return e.type;
+  }
+}
+
+function attrDesc(a) {
+  if (a.type === 'JSXSpreadAttribute') return '{...}';
+  const n = a.name?.type === 'JSXNamespacedName'
+    ? `${a.name.namespace?.name}:${a.name.name?.name}`
+    : (a.name?.name ?? '?');
+  const v = a.value;
+  if (v == null) return n;                                    // bare boolean prop
+  if (v.type === 'StringLiteral') return `${n}=${JSON.stringify(v.value)}`;
+  if (v.type === 'JSXExpressionContainer') return `${n}={${exprDesc(v.expression)}}`;
+  return `${n}=?`;
+}
+
+// The first visible text INSIDE the element — what a sighted user reads on the control, and the
+// strongest available discriminator between two structurally identical chips.
+function firstText(node, depth = 0) {
+  if (!node || depth > 6) return '';
+  for (const c of node.children ?? []) {
+    if (c.type === 'JSXText') {
+      const t = c.value.replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    } else if (c.type === 'JSXExpressionContainer') {
+      const t = exprDesc(c.expression);
+      if (t && t !== '?') return t;
+    } else if (c.type === 'JSXElement' || c.type === 'JSXFragment') {
+      const t = firstText(c, depth + 1);
+      if (t) return t;
+    }
+  }
+  return '';
+}
+
+function shapeHash(el) {
+  const open = el.openingElement;
+  const attrs = (open.attributes ?? []).map(attrDesc).sort();
+  const canon = [open.name.name, attrs.join('|'), firstText(el).slice(0, 24)].join(' ');
+  return createHash('sha1').update(canon).digest('hex').slice(0, 8);
+}
+
+// ── the ledger ────────────────────────────────────────────────────────────────────────────────
+const V2_LINE = new RegExp(`^(\\S+)${SEP}(\\S+)${SEP}([0-9a-f]{8})${SEP}(\\d+)$`);
+const V1_LINE = /^(\S+)\s+(\d+)$/;
+
+const baselineText = readFileSync(BASELINE_FILE, 'utf8');
+const headerLines = [];
+const ledger = new Set();
+const v1Lines = [];
+let seenData = false;
+for (const raw of baselineText.split('\n')) {
+  const line = raw.trim();
+  if (!seenData && (line === '' || line.startsWith('#'))) { headerLines.push(raw); continue; }
+  if (line === '') continue;
+  seenData = true;
+  if (V2_LINE.test(line)) { ledger.add(line); continue; }
+  if (V1_LINE.test(line)) { v1Lines.push(line); continue; }
+  console.error(`❌ 기준선 파일의 형식이 틀렸다: ${line}`);
+  process.exit(1);
+}
+const v1Total = v1Lines.reduce((a, l) => a + Number(V1_LINE.exec(l)[2]), 0);
+
+// ── the scan ──────────────────────────────────────────────────────────────────────────────────
+const bare = [];            // `a11y-role-ok` with no reason
+const found = [];           // { key, rel, line } for every role-less tappable
+const buckets = new Map();  // key without ordinal -> running count
 let scanned = 0, tappable = 0, spreadExempt = 0, markerExempt = 0, parseFailed = 0;
 
 for (const dir of ROOTS) {
@@ -135,37 +290,61 @@ for (const dir of ROOTS) {
       console.error(`❌ 파싱 실패 ${rel}: ${String(e.message).split('\n')[0]}`);
       continue;
     }
-    eachJsxOpening(ast.program, (el) => {
-      if (el.name?.type !== 'JSXIdentifier' || !IS_TAPPABLE.test(el.name.name)) return;
+    eachJsxElement(ast.program, '<module>', (el, ancestor) => {
+      const open = el.openingElement;
+      if (open.name?.type !== 'JSXIdentifier' || !IS_TAPPABLE.test(open.name.name)) return;
       tappable++;
-      const attrs = el.attributes ?? [];
+      const attrs = open.attributes ?? [];
       if (attrs.some((a) => a.type === 'JSXSpreadAttribute')) { spreadExempt++; return; }
       if (attrs.some((a) => a.type === 'JSXAttribute' && (a.name?.name === 'accessibilityRole' || a.name?.name === 'role'))) return;
-      const ln = el.loc.start.line;
+      const ln = open.loc.start.line;
       const text = lines[ln - 1] ?? '';
       if (/\/\/\s*a11y-role-ok:\s*\S/.test(text)) { markerExempt++; return; }
       if (/\/\/\s*a11y-role-ok\s*:?\s*$/.test(text)) { bare.push(`${rel}:${ln}`); return; }
-      if (!sites.has(rel)) sites.set(rel, []);
-      sites.get(rel).push(ln);
+      const stem = `${rel}${SEP}${ancestor}${SEP}${shapeHash(el)}`;
+      const n = (buckets.get(stem) ?? 0) + 1;
+      buckets.set(stem, n);
+      found.push({ key: `${stem}${SEP}${n}`, rel, line: ln });
     });
   }
 }
 
-const over = [];   // file now carries MORE role-less tappables than its baseline
-const under = [];  // file carries FEWER — the ledger is stale and must shrink
-for (const [rel, lns] of sites) {
-  const allowed = baseline.get(rel) ?? 0;
-  if (lns.length > allowed) over.push({ rel, now: lns.length, allowed, lines: lns });
-}
-for (const [rel, allowed] of baseline) {
-  const now = sites.get(rel)?.length ?? 0;
-  if (now < allowed) under.push({ rel, now, allowed });
+const observed = new Map();
+for (const f of found) observed.set(f.key, f);
+
+// ── --rewrite-baseline: emit fingerprints for what is there now, and REFUSE to grow ───────────
+if (REWRITE) {
+  if (parseFailed) { console.error('\n❌ 파싱 실패가 있어 기준선을 다시 쓸 수 없다.'); process.exit(1); }
+  const oldCount = v1Lines.length ? v1Total : ledger.size;
+  const keys = [...observed.keys()].sort();
+  const added = keys.filter((k) => !ledger.has(k));
+  const removed = [...ledger].filter((k) => !observed.has(k));
+  const dupes = [...buckets.entries()].filter(([, n]) => n > 1);
+  console.log(`기준선 재작성: 기존 ${oldCount}건 → 새로 ${keys.length}건 (추가 ${added.length} · 삭제 ${removed.length})`);
+  console.log(`중복 버킷(순번으로만 구분되는 요소): ${dupes.length}개, 요소 ${dupes.reduce((a, [, n]) => a + n, 0)}건`);
+  for (const k of added) console.log(`   + ${k}`);
+  for (const k of removed) console.log(`   - ${k}`);
+  if (keys.length > oldCount) {
+    console.error(`\n❌ 대장은 늘어날 수 없다 (${oldCount} → ${keys.length}). 새 빚은 재작성이 아니라 고쳐서 없앤다.`);
+    process.exit(1);
+  }
+  writeFileSync(BASELINE_FILE, `${headerLines.join('\n').replace(/\n+$/, '')}\n\n${keys.join('\n')}\n`, 'utf8');
+  console.log(`✅ ${BASELINE_FILE} 재작성 완료 — ${keys.length}건.`);
+  process.exit(0);
 }
 
-const total = [...sites.values()].reduce((a, b) => a + b.length, 0);
+if (v1Lines.length) {
+  console.error(`\n❌ 기준선이 v1 형식(파일별 개수) ${v1Lines.length}줄로 남아 있다 — 요소별 지문으로 옮겨야 한다:`);
+  console.error('   node scripts/check-a11y-roles.mjs --rewrite-baseline');
+  process.exit(1);
+}
 
-if (parseFailed === 0 && bare.length === 0 && over.length === 0 && under.length === 0) {
-  console.log(`✅ a11y 역할 — 새 사이트 없음 (역할 없는 탭 요소 ${total}건 기준선 그대로 · 전체 탭 요소 ${tappable}건 · 스프레드 면제 ${spreadExempt} · 마커 면제 ${markerExempt} · 파일 ${scanned}개)`);
+// ── the two-sided check ───────────────────────────────────────────────────────────────────────
+const newDebt = found.filter((f) => !ledger.has(f.key));
+const stale = [...ledger].filter((k) => !observed.has(k));
+
+if (parseFailed === 0 && bare.length === 0 && newDebt.length === 0 && stale.length === 0) {
+  console.log(`✅ a11y 역할 — 새 사이트 없음 (역할 없는 탭 요소 ${found.length}건 지문 그대로 · 전체 탭 요소 ${tappable}건 · 스프레드 면제 ${spreadExempt} · 마커 면제 ${markerExempt} · 파일 ${scanned}개)`);
   process.exit(0);
 }
 
@@ -173,18 +352,17 @@ if (bare.length) {
   console.error(`\n❌ 이유 없는 a11y-role-ok ${bare.length}건 — 면제는 이유를 적어야 한다:`);
   for (const k of bare) console.error(`   ${k}`);
 }
-if (over.length) {
-  console.error(`\n❌ accessibilityRole 없는 탭 요소가 늘었다 (${over.length}개 파일):`);
-  for (const f of over) {
-    console.error(`   ${f.rel} — 기준선 ${f.allowed} → 현재 ${f.now}`);
-    for (const ln of f.lines) console.error(`       ${f.rel}:${ln}`);
-  }
+if (newDebt.length) {
+  console.error(`\n❌ 대장에 없는, accessibilityRole 없는 탭 요소 ${newDebt.length}건:`);
+  for (const f of newDebt) console.error(`   ${f.rel}:${f.line}   ${f.key}`);
   console.error(`\n   고치는 법: <Pressable> 에 accessibilityRole="button" 을 단다. 보이는 글자가`);
   console.error(`   없으면(‹ · ↻ · 백드롭) accessibilityLabel 도 함께 — 라벨은 한국어다.`);
   console.error(`   바쁨/비활성 버튼은 accessibilityState={{ busy, disabled }} 까지 (DESIGN.md 버튼 매트릭스).`);
+  console.error(`   요소를 옮기거나 이름을 바꿔서 지문이 움직인 것뿐이라면 같은 커밋에서`);
+  console.error(`   --rewrite-baseline 으로 다시 뽑는다 (대장은 늘어날 수 없다).`);
 }
-if (under.length) {
-  console.error(`\n❌ 기준선이 낡았다 ${under.length}건 — 고쳤으면 숫자를 낮춰라 (대장은 정직하게 줄어든다):`);
-  for (const f of under) console.error(`   ${f.rel} — 기준선 ${f.allowed} → 현재 ${f.now}${f.now === 0 ? ' (줄 삭제)' : ''}`);
+if (stale.length) {
+  console.error(`\n❌ 대장이 낡았다 ${stale.length}건 — 고쳤으면 그 줄을 지워라 (대장은 정직하게 줄어든다):`);
+  for (const k of stale) console.error(`   ${k}`);
 }
 process.exit(1);

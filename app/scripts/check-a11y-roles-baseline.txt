@@ -1,16 +1,53 @@
 # check-a11y-roles.mjs baseline — `<Pressable>` elements under app/ + src/ that carry no
 # `accessibilityRole`. Opened 2026-09-23 with 163 across 33 files, immediately after the HIG
 # a11y sweep gave roles to 28 taps on seven screens (alerts · owner/home · runner/home ·
-# runner/return-seal · cards · runner/requests · owner/live). Format: `<path> <count>`.
-# A file not listed here must be at ZERO. The ledger can only shrink: a count above its line is
-# new debt and fails, a count below it is a stale line and also fails.
+# runner/return-seal · cards · runner/requests · owner/live).
 #
-# ── THE CONTROL TEST, run before this gate was trusted ────────────────────────────────────────
+# ── FORMAT v2 (2026-09-25) — ONE LINE IS ONE ELEMENT ──────────────────────────────────────────
+#   <path> :: <nearest named ancestor> :: <8-hex shape hash> :: <n>
+#
+# v1 keyed this ledger on PER-FILE COUNTS, and that was a hole a cold reviewer measured rather
+# than a hole anyone reasoned about. Codex, 2026-09-25 (`docs/reviews/2026-09-25-client-since-
+# da47510-codex-verdict.md` #4): removing the role from `owner/schedule.tsx`'s 다시 시도 button
+# made v1 exit 1 — and ALSO adding a role to a different bare Pressable in the same file made
+# THAT SAME REGRESSION EXIT 0, because the count nets to zero. Re-measured in a lab copy before
+# the rewrite: v1 printed 「162건 기준선 그대로」 and exited 0 on a tree where an accessible
+# control had just stopped announcing itself. v1's header NAMED this blind spot and declined to
+# close it; naming it did not stop it being the thing that bit.
+#
+# A fingerprint identifies an element by WHAT IT IS — its enclosing named function/const, its tag,
+# its attribute names and normalised attribute values, and the first visible text inside it — and
+# never by its line, so it survives the unrelated edits that churn these screens daily. Both
+# halves of the rule are load-bearing: a bare element with no ledger line FAILS (new debt, even if
+# something else in the same file was fixed in the same commit), and a ledger line with no element
+# FAILS (stale — delete it). So the ledger can only shrink.
+#
+# ⚠ THE TRADE-OFF, PAID DELIBERATELY: a fingerprint MOVES when the component it sits in is
+#   renamed, when a role-less element's own copy or props are edited, or when it moves to another
+#   named ancestor. That reddens the gate as one stale line + one new line. The repair is
+#   `node scripts/check-a11y-roles.mjs --rewrite-baseline` IN THE SAME COMMIT, and the rewrite
+#   REFUSES to grow this file (it exits 1 and prints every addition), so re-emitting cannot be
+#   used to absorb new debt. Including the element's visible text is what makes a row of otherwise
+#   identical chips distinguishable — exactly where the fix-one/add-one hole would reopen — which
+#   is why the copy sensitivity is paid rather than avoided.
+#
+# ⚠ NAMED GAP, not closed and deliberately not pinned (a limitation is prose): two bare tappables
+#   with the same tag, the same attribute shape, the same first text, inside the same named
+#   ancestor form ONE bucket separated only by the trailing ordinal — so fixing one of them while
+#   adding another identical bare one still nets to zero. Measured at the v2 rewrite (the figure
+#   `--rewrite-baseline` prints): 9 such buckets covering 21 of the 162 elements, so the hole is
+#   exactly 21 elements wide. Strictly narrower than v1's, which was all 162; not zero.
+#
+# ⚠ The migration from v1 was mechanical and is CHECKABLE: the emitted ledger's per-file counts
+#   are IDENTICAL to v1's 33 lines, file for file (162 → 162, `diff` clean). Nothing was absorbed
+#   and nothing was dropped in the format change.
+#
+# ── THE CONTROL TEST, re-run at the v2 rewrite (2026-09-25) ───────────────────────────────────
 # The standing rule is that a new detector's first obligation is to disagree with the crudest
-# version of itself and to explain every difference in BOTH directions. Measured 2026-09-23:
+# version of itself and to explain every difference in BOTH directions.
 #
-#   population   `grep -ro '<Pressable' app src --include=*.tsx`  →  641 occurrences
-#                Babel-parsed JSX elements                        →  641 elements
+#   population   `grep -ro '<Pressable' app src --include=*.tsx`  →  643 occurrences
+#                Babel-parsed JSX elements                        →  643 elements
 #                exact agreement, so the gate is looking at the same population the eye sees.
 #                Also measured, and each is why a whole class of miss is absent rather than
 #                merely unobserved: `<Pressable` inside a comment → 0 · `<Pressable` in a `.ts`
@@ -18,66 +55,185 @@
 #                `< Pressable` → 0 · `<Touchable*` anywhere → 0 · elements carrying a
 #                `{...spread}` (which this gate exempts, since the role could be inside it) → 0.
 #
-#   answer       crude `grep -n '<Pressable' | grep -v accessibilityRole`   →  440
-#                this gate                                                  →  163
+#   answer       crude `grep -n '<Pressable' | grep -v accessibilityRole`   →  441
+#                this gate                                                  →  162
 #
-#   the 277 the crude version ADDS are every one of them a multi-line element whose
-#   `accessibilityRole` sits on a LATER line — 641 elements, 478 with a role, of which 201 write
-#   it on the opening line and 277 on a line of their own. This codebase formats nearly every
-#   Pressable with more than two props across lines, so the crude version is wrong about 63% of
-#   its own hits. Worked per-file, both directions:
-#       app/club/session/[sid].tsx   35 elements · crude 35 · gate 23 · +12 all later-line roles
-#       app/runner/home.tsx          31 elements · crude 21 · gate  3 · +18 all later-line roles
-#   the crude version DROPS nothing at all: 0 of the gate's 163 are invisible to it, because a
-#   role-less element has no `accessibilityRole` anywhere to accidentally match. That asymmetry
-#   is the whole reason this is parsed rather than grepped — a gate that cried 277 times on
-#   correctly-labelled buttons would be `--no-verify`'d within a day and then protect nothing
-#   while everyone believes it is on.
+#   the 279 the crude version ADDS are every one of them a multi-line element whose
+#   `accessibilityRole` sits on a LATER line: 643 elements, 481 with a role, of which 202 write it
+#   on the opening line and 279 on a line of their own (162 + 279 = 441, the crude number exactly).
+#   This codebase formats nearly every Pressable with more than two props across lines, so the
+#   crude version is wrong about 63% of its own hits. The crude version DROPS nothing at all:
+#   0 of the gate's 162 are invisible to it, because a role-less element has no
+#   `accessibilityRole` anywhere to accidentally match. That asymmetry is the whole reason this is
+#   parsed rather than grepped — a gate that cried 279 times on correctly-labelled buttons would
+#   be `--no-verify`'d within a day and then protect nothing while everyone believes it is on.
 #
 # ── WHAT A LINE HERE IS AND IS NOT ────────────────────────────────────────────────────────────
-# It is debt, not amnesty, and it is NOT a claim that these 163 all need a role. Some genuinely
+# It is debt, not amnesty, and it is NOT a claim that these 162 all need a role. Some genuinely
 # should not have one — a decorative press-scale wrapper, a gesture catcher. Those want the
 # escape hatch (`// a11y-role-ok: <reason>` on the element's opening line, reason required), which
-# removes them from the count permanently and says why. Nobody has triaged these 163 yet; a line
-# here means only "this file had N role-less taps on the day the gate opened."
-#
-# ⚠ The one thing a per-file COUNT cannot see, and it is not closed: fixing one Pressable while
-#   adding a bare one in the same file nets to zero and this gate stays silent. `path:line` keys
-#   would catch it and would also go red on every unrelated edit that shifted a line in these
-#   churning screens — the noisy-gate failure above, paid daily. Counts were chosen deliberately.
-#
-# The 33 files below, biggest first in debt. The club world and owner/schedule carry a third of it.
+# removes them from the count permanently and says why. Nobody has triaged these 162 yet; a line
+# here means only "this element had no role on the day it was written down."
 
-app/chat.tsx 1
-app/club/[id].tsx 6
-app/club/console/[sid].tsx 16
-app/club/receipt/[bid].tsx 1
-app/club/run/[sid].tsx 5
-app/club/session/[sid].tsx 23
-app/community.tsx 5
-app/dev/club-lab.tsx 1
-app/dev/pay-lab.tsx 5
-app/my.tsx 6
-app/owner/course-map.tsx 1
-app/owner/fitness.tsx 1
-app/owner/report.tsx 2
-app/owner/request.tsx 4
-app/owner/schedule.tsx 16
-app/runner-profile/[id].tsx 5
-app/runner/calendar.tsx 3
-app/runner/home.tsx 3
-app/runner/meetup.tsx 1
-app/runner/requests.tsx 6
-app/runner/review.tsx 6
-app/runner/rewards.tsx 3
-app/runner/run.tsx 11
-app/safety.tsx 7
-app/settings.tsx 6
-app/shop.tsx 2
-app/shot/[bid].tsx 1
-src/components/CourseStrip.tsx 1
-src/components/checkin-answer.tsx 3
-src/components/club-acks.tsx 1
-src/components/club-ui.tsx 1
-src/components/clubcard.tsx 8
-src/lib/media.tsx 1
+app/chat.tsx :: Chat :: 6f729935 :: 1
+app/club/[id].tsx :: ClubPage :: 1dc6feb0 :: 1
+app/club/[id].tsx :: ClubPage :: 5458a8bc :: 1
+app/club/[id].tsx :: ClubPage :: bbb2ab77 :: 1
+app/club/[id].tsx :: ClubPage :: bbb2ab77 :: 2
+app/club/[id].tsx :: ClubPage :: bbb2ab77 :: 3
+app/club/[id].tsx :: ClubPage :: bbb2ab77 :: 4
+app/club/console/[sid].tsx :: HostConsole :: 0a18ea90 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 3909bff8 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 3f3af5c2 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 8a291971 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 92f1f7f1 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 95db01c7 :: 1
+app/club/console/[sid].tsx :: HostConsole :: 95db01c7 :: 2
+app/club/console/[sid].tsx :: HostConsole :: 9845aa2b :: 1
+app/club/console/[sid].tsx :: HostConsole :: 9aaf7397 :: 1
+app/club/console/[sid].tsx :: HostConsole :: c1484e0a :: 1
+app/club/console/[sid].tsx :: HostConsole :: c4b7d333 :: 1
+app/club/console/[sid].tsx :: HostConsole :: cc54a529 :: 1
+app/club/console/[sid].tsx :: HostConsole :: d2eeccde :: 1
+app/club/console/[sid].tsx :: HostConsole :: f15cf06f :: 1
+app/club/console/[sid].tsx :: HostConsole :: fb354cad :: 1
+app/club/console/[sid].tsx :: HostConsole :: fb354cad :: 2
+app/club/receipt/[bid].tsx :: ClubReceipt :: 165e6362 :: 1
+app/club/run/[sid].tsx :: ClubRun :: 028745c2 :: 1
+app/club/run/[sid].tsx :: ClubRun :: 3ab171bd :: 1
+app/club/run/[sid].tsx :: ClubRun :: 96d36d62 :: 1
+app/club/run/[sid].tsx :: ClubRun :: 9cf43b6c :: 1
+app/club/run/[sid].tsx :: ClubRun :: f801eb53 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 19229b42 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 1d8adfa7 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 2b6f33e1 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 517ba660 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 58d9a453 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 6049ab81 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 7e02a544 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 87cef021 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 995889e1 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 99b7501a :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: 9ad59e1e :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: ae42849c :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: f196edf9 :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: f9dcdd4c :: 1
+app/club/session/[sid].tsx :: ClubSessionShell :: f9dcdd4c :: 2
+app/club/session/[sid].tsx :: ClubSessionShell :: f9dcdd4c :: 3
+app/club/session/[sid].tsx :: caseLink :: dc5eed2e :: 1
+app/club/session/[sid].tsx :: renderDogCard :: 0636d2df :: 1
+app/club/session/[sid].tsx :: renderDogCard :: 8f215c15 :: 1
+app/club/session/[sid].tsx :: renderDogCard :: c474233d :: 1
+app/club/session/[sid].tsx :: renderDogCard :: d4ce9eb5 :: 1
+app/club/session/[sid].tsx :: renderDogCard :: dc1ea049 :: 1
+app/club/session/[sid].tsx :: renderMsg :: 458f3f2d :: 1
+app/community.tsx :: Community :: 22320048 :: 1
+app/community.tsx :: Community :: 22320048 :: 2
+app/community.tsx :: Community :: 24c44062 :: 1
+app/community.tsx :: Community :: b8a1af3a :: 1
+app/community.tsx :: Community :: d94028aa :: 1
+app/dev/club-lab.tsx :: LabBtn :: 7c2fe02f :: 1
+app/dev/pay-lab.tsx :: ChargeLab :: 247ed83a :: 1
+app/dev/pay-lab.tsx :: PayLab :: 14c39445 :: 1
+app/dev/pay-lab.tsx :: PayLab :: 5b9d086c :: 1
+app/dev/pay-lab.tsx :: PayLab :: 8feca5dc :: 1
+app/dev/pay-lab.tsx :: PayLab :: 9c424264 :: 1
+app/my.tsx :: My :: 0716f1a1 :: 1
+app/my.tsx :: My :: 34d5911f :: 1
+app/my.tsx :: My :: 82c0dffe :: 1
+app/my.tsx :: My :: dca78e5d :: 1
+app/my.tsx :: My :: f9dc1ca5 :: 1
+app/my.tsx :: My :: fc525d80 :: 1
+app/owner/course-map.tsx :: CourseMap :: 127f3766 :: 1
+app/owner/fitness.tsx :: FitnessHub :: da1028ea :: 1
+app/owner/report.tsx :: HaulOverlay :: 0485e3c7 :: 1
+app/owner/report.tsx :: HaulOverlay :: 31310302 :: 1
+app/owner/request.tsx :: Request :: 3525c8d7 :: 1
+app/owner/request.tsx :: Request :: 4339364e :: 1
+app/owner/request.tsx :: Request :: d6a7c89a :: 1
+app/owner/request.tsx :: Request :: d6c2dedc :: 1
+app/owner/schedule.tsx :: Schedule :: 0069f5b1 :: 1
+app/owner/schedule.tsx :: Schedule :: 0233dc44 :: 1
+app/owner/schedule.tsx :: Schedule :: 34ca49c6 :: 1
+app/owner/schedule.tsx :: Schedule :: 4833ace8 :: 1
+app/owner/schedule.tsx :: Schedule :: 6b0fdef9 :: 1
+app/owner/schedule.tsx :: Schedule :: 7c0d1bc4 :: 1
+app/owner/schedule.tsx :: Schedule :: 8f2de88a :: 1
+app/owner/schedule.tsx :: Schedule :: b0dc003e :: 1
+app/owner/schedule.tsx :: Schedule :: bcab90fc :: 1
+app/owner/schedule.tsx :: Schedule :: cdef511f :: 1
+app/owner/schedule.tsx :: Schedule :: d37610c6 :: 1
+app/owner/schedule.tsx :: Schedule :: e929f47f :: 1
+app/owner/schedule.tsx :: renderGroup :: 322958a2 :: 1
+app/owner/schedule.tsx :: renderGroup :: 3257a5a6 :: 1
+app/owner/schedule.tsx :: renderGroup :: 6b21f214 :: 1
+app/owner/schedule.tsx :: renderGroup :: 74fc6321 :: 1
+app/runner-profile/[id].tsx :: GearCell :: e20aed29 :: 1
+app/runner-profile/[id].tsx :: PatchCell :: 934e0e0a :: 1
+app/runner-profile/[id].tsx :: RunnerProfileScreen :: 4844af55 :: 1
+app/runner-profile/[id].tsx :: RunnerProfileScreen :: d78cbfc9 :: 1
+app/runner-profile/[id].tsx :: RunnerProfileScreen :: f78b3b17 :: 1
+app/runner/calendar.tsx :: RunnerCalendar :: 166d58ff :: 1
+app/runner/calendar.tsx :: RunnerCalendar :: 850184f3 :: 1
+app/runner/calendar.tsx :: renderTicket :: 721326be :: 1
+app/runner/home.tsx :: RunnerHome :: 43ed60ec :: 1
+app/runner/home.tsx :: RunnerHome :: fa928917 :: 1
+app/runner/home.tsx :: SectionHead :: 72dc108c :: 1
+app/runner/meetup.tsx :: Meetup :: b9c7bc1c :: 1
+app/runner/requests.tsx :: Requests :: 4b36383e :: 1
+app/runner/requests.tsx :: Requests :: 4b36383e :: 2
+app/runner/requests.tsx :: Requests :: 91b91182 :: 1
+app/runner/requests.tsx :: Requests :: 91b91182 :: 2
+app/runner/requests.tsx :: renderRequest :: 08b84b46 :: 1
+app/runner/requests.tsx :: renderRequest :: 3de39dba :: 1
+app/runner/review.tsx :: RunnerReview :: 394b0ea9 :: 1
+app/runner/review.tsx :: RunnerReview :: 6befab72 :: 1
+app/runner/review.tsx :: RunnerReview :: 7fbef2b3 :: 1
+app/runner/review.tsx :: RunnerReview :: 90172d32 :: 1
+app/runner/review.tsx :: RunnerReview :: 90172d32 :: 2
+app/runner/review.tsx :: RunnerReview :: e250bc76 :: 1
+app/runner/rewards.tsx :: Rewards :: c8a0690e :: 1
+app/runner/rewards.tsx :: Rewards :: cfffdade :: 1
+app/runner/rewards.tsx :: Rewards :: f99d28a5 :: 1
+app/runner/run.tsx :: ActiveRun :: 1c376e97 :: 1
+app/runner/run.tsx :: ActiveRun :: 44a48e7b :: 1
+app/runner/run.tsx :: ActiveRun :: 72f7f237 :: 1
+app/runner/run.tsx :: ActiveRun :: 8e792129 :: 1
+app/runner/run.tsx :: ActiveRun :: 922d4269 :: 1
+app/runner/run.tsx :: ActiveRun :: a2b86648 :: 1
+app/runner/run.tsx :: ActiveRun :: c2e4ebe4 :: 1
+app/runner/run.tsx :: ActiveRun :: e21b6102 :: 1
+app/runner/run.tsx :: ActiveRun :: e26e1512 :: 1
+app/runner/run.tsx :: ActiveRun :: f04918fa :: 1
+app/runner/run.tsx :: EndOption :: ecea2faf :: 1
+app/safety.tsx :: Safety :: 24454501 :: 1
+app/safety.tsx :: Safety :: 73d34dab :: 1
+app/safety.tsx :: Safety :: 758e95f6 :: 1
+app/safety.tsx :: Safety :: 8a6fbc30 :: 1
+app/safety.tsx :: Safety :: c62ee4e1 :: 1
+app/safety.tsx :: Safety :: cfec1bd8 :: 1
+app/safety.tsx :: Safety :: de9e37a2 :: 1
+app/settings.tsx :: Settings :: 4f70e09b :: 1
+app/settings.tsx :: Settings :: 5eaaf004 :: 1
+app/settings.tsx :: Settings :: 854dae51 :: 1
+app/settings.tsx :: Settings :: b954d24e :: 1
+app/settings.tsx :: Settings :: bb51ef93 :: 1
+app/settings.tsx :: Settings :: dd04ca94 :: 1
+app/shop.tsx :: Shop :: 538ef4f2 :: 1
+app/shop.tsx :: Shop :: fd4a2b08 :: 1
+app/shot/[bid].tsx :: ShotStudio :: 4fa5f40d :: 1
+src/components/CourseStrip.tsx :: CourseStrip :: e8ceaf2f :: 1
+src/components/checkin-answer.tsx :: CheckinAnswer :: 5cbb9c6d :: 1
+src/components/checkin-answer.tsx :: CheckinAnswer :: 5cbb9c6d :: 2
+src/components/checkin-answer.tsx :: CheckinAnswer :: 73cf15e5 :: 1
+src/components/club-acks.tsx :: AckStack :: 6e925b45 :: 1
+src/components/club-ui.tsx :: SealSlide :: fff613dc :: 1
+src/components/clubcard.tsx :: ClubBanner :: 89af2557 :: 1
+src/components/clubcard.tsx :: ClubBanner :: f4f153de :: 1
+src/components/clubcard.tsx :: ClubSearchBar :: 566f9716 :: 1
+src/components/clubcard.tsx :: ClubSearchBar :: aed299b6 :: 1
+src/components/clubcard.tsx :: DemandStrip :: 882f2abe :: 1
+src/components/clubcard.tsx :: DemandTicket :: c37da3ce :: 1
+src/components/clubcard.tsx :: OwnerDemand :: 45fe9469 :: 1
+src/components/clubcard.tsx :: OwnerDemand :: 6fd5f000 :: 1
+src/lib/media.tsx :: MediaImage :: 86d59bf5 :: 1

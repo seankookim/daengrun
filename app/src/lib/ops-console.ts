@@ -47,16 +47,59 @@ export function strandStateLabel(
   return '양쪽 확인이 모두 들어왔어요 — 목록을 새로고침해주세요';
 }
 
-/** The deadline the SWEEP is currently using, from `ops_flags.return_strand_minutes`.
- *  🔴 NULL is the SHIPPED value and means the strand arm does nothing at all (0193 §A · 0201:714),
- *    so new strands stop being announced. An operator looking at this list has to know that, or
- *    they will read an empty list as 「nothing is stranded」. */
-export function strandDeadlineNote(strandMinutes: number | null): string {
-  if (strandMinutes === null || !Number.isFinite(strandMinutes)) {
+/** The deadline the SWEEP is currently using, from `ops_flags.return_strand_minutes` — and
+ *  whether we have OBSERVED it at all.
+ *
+ *  🔴 **THREE STATES, BECAUSE THE SERVER ONLY EVER ANSWERS TWO OF THEM** (codex, 2026-09-25,
+ *     finding #3). `ops_stranded_returns()` (0206 §A) carries `strand_minutes` on every ROW and
+ *     has nowhere to put it when there are no rows — so an EMPTY successful response is
+ *     `unknown`, not `off`. The two are not interchangeable and the difference is the whole
+ *     point of the screen: `off` means new strands stop being announced and an empty list is
+ *     therefore NOT good news; `unknown` means an enabled threshold with nothing stranded looks
+ *     exactly the same from here. Flattening `unknown` into `off` printed a CONFIGURATION CLAIM
+ *     the client never measured — the honesty law, on the one screen whose job is to stop an
+ *     operator trusting an empty list.
+ *  ⚠ There is no second door to ask through: no shipped RPC returns `return_strand_minutes`
+ *    except this one (measured across every migration on trunk — `ops_me()` returns `is_ops` and
+ *    `kinds` only), so `unknown` is genuinely unknown to the client and the screen says nothing
+ *    about the setting rather than guessing. Giving it a door is a server slice. */
+export type StrandDeadline =
+  | { state: 'unknown' }
+  | { state: 'off' }
+  | { state: 'minutes'; minutes: number };
+
+/** The screen's own decision, here rather than in the route module so that it can be pinned at
+ *  all (`app/test/*.cjs` cannot import a `.tsx`). Takes the LIST, because 「did we observe the
+ *  setting」 is a fact about the list and not about any one row. */
+export function strandDeadlineFrom(
+  rows: readonly { strandMinutes: number | null }[],
+): StrandDeadline {
+  if (rows.length === 0) return { state: 'unknown' };
+  const m = rows[0].strandMinutes;
+  // A row-bearing response that says NULL is the server telling us the arm is off — those rows
+  // are in the list because a bell already rang for them (0206 §A's admission is a disjunction).
+  if (m === null || !Number.isFinite(m)) return { state: 'off' };
+  return { state: 'minutes', minutes: Math.max(0, Math.floor(m)) };
+}
+
+/** The sentence, or `null` for 「say nothing」 — the screen omits the line entirely on `unknown`.
+ *  🔴 `off` is the SHIPPED value of the flag (0193 §A · 0201:714) and means the strand arm does
+ *    nothing at all, so an operator has to be told or they will read an empty list as 「nothing is
+ *    stranded」. That sentence is only ever printed on a null the SERVER returned. */
+export function strandDeadlineNote(deadline: StrandDeadline): string | null {
+  if (deadline.state === 'unknown') return null;
+  if (deadline.state === 'off') {
     return '좌초 알림이 꺼져 있어요 — 새로 좌초되는 예약은 알림이 오지 않아요 (이미 알림이 간 건만 보여요)';
   }
-  return `러닝 종료 후 ${Math.max(0, Math.floor(strandMinutes))}분이 지나면 좌초로 봅니다`;
+  return `러닝 종료 후 ${deadline.minutes}분이 지나면 좌초로 봅니다`;
 }
+
+/** What an EMPTY list is allowed to claim, which is less than it looks. The queue being empty is
+ *  a fact; 「so nothing is stranded」 is not, because the threshold is unobservable from an empty
+ *  response and a switched-off arm produces the same emptiness. Said in words instead of left to
+ *  an operator's inference. */
+export const STRAND_EMPTY_UNKNOWN_KO =
+  '이 목록만으로는 좌초 알림이 켜져 있는지 알 수 없어요 — 마감 시간은 목록에 뜬 예약에서만 읽을 수 있어요';
 
 /** Has the roster actually been paged about this row yet? `null` ⇒ not yet — it is in the list
  *  because it is past the deadline, and the next sweep tick will ring it. */
