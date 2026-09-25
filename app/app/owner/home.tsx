@@ -187,8 +187,10 @@ export default function OwnerHome() {
   // 메모리에 들고 있으면서 하나만 쓰고 나머지를 버렸다 — 새 읽기 0개, 새 필드 0개.
   // 빈 배열이면 레일 자체가 렌더되지 않는다: 예약이 하나뿐인 계정에서 레일은 히어로를 되풀이할 뿐이다.
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
-  // [owner-journey-1] An `incident_review` booking with nothing for the owner to stamp. Only the
-  // empty hero reads it, to stop saying 「비어 있어요」 while a case is open (heroPick().review).
+  // [owner-journey-1] An `incident_review` booking with nothing for the owner to stamp. The empty
+  // hero reads it, to stop saying 「비어 있어요」 while a case is open (heroPick().review).
+  // [owner-return-frame fix] It can also be an `active` return the owner stamped that is not the
+  // hero; every other frame then draws its waiting line (`reviewWait` below).
   const [reviewRow, setReviewRow] = useState<Booking | null>(null);
   // [honesty 2026-08-11] fitErr와 같은 모델 — 예약 로드 실패가 "예정된 러닝이 없어요"로
   // 분장하던 것 교정. 로딩/실패/실빈을 히어로가 구분해 말한다.

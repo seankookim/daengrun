@@ -400,6 +400,89 @@ t('owed · a status the server refuses (completed, refund_pending) → no door e
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑫-bis [owner-return-frame fix · R1 review #1, #2] AN OWNER-STAMPED `active` RETURN AND THE REVIEW ROW
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// #1: the first cut ranked an owner-stamped `active` row like `active` on the premise that it lasts
+// "a few minutes". 0226 ⓑ-② keeps a one-stamp row `active` with no status move, ever (0226:286,
+// :360) — so if the runner never stamps, it held the hero over every later booking indefinitely.
+// It now ranks LAST: the hero only when nothing else is in flight. Every ⚔ fixture below sits where
+// the old rank (0) and the new one (4) DISAGREE — a row that ranks between them (tomorrow's
+// confirmed, a pending search). The unstamped CONTROL twin is where they agree.
+// #2: `review` picked the newest incident_review, so a newer unrelated case hid a stamped return
+// from every frame. A stamped return is now preferred, and never the hero's own row.
+{
+  const STAMP = iso(NOW - 10 * 60_000);
+  const TOMORROW = row({ id: 'tmrw', status: 'confirmed', rawStatus: 'confirmed', matched: true, scheduledAt: iso(NOW + 24 * H) });
+  const SEARCH = row({ id: 'srch', status: 'pending', rawStatus: 'matching', matched: false, scheduledAt: iso(NOW + 2 * H) });
+  // The reviewer's probe: ended 72h ago, the owner stamped, the runner never did.
+  const A_ST = row({ id: 'a-st', status: 'active', rawStatus: 'active', matched: true,
+    runEndedAt: iso(NOW - 72 * H), scheduledAt: iso(NOW - 74 * H), ownerReturnAt: STAMP, runnerReturnAt: null });
+  const A_BOTH = { ...A_ST, id: 'a-both', runnerReturnAt: STAMP };
+  const A_OWED = { ...A_ST, id: 'a-owed', ownerReturnAt: null };
+  {
+    const p = heroPick([A_ST, TOMORROW], NOW);
+    t('orf-4 · ⚔ owner-stamped ACTIVE (72h, runner never stamped) + a booking tomorrow → the hero is TOMORROW\'s booking',
+      !!p.next && p.next.id === 'tmrw' && heroState(p.next) === 'confirmed', `${p.next && p.next.id}/${heroState(p.next)}`);
+    t('orf-4 · …the stamped return is the review row, with the report\'s waiting sentence',
+      !!p.review && p.review.id === 'a-st' && ownerReturnWaitLine(p.review) === OWNER_RETURN_WAIT_KO,
+      JSON.stringify(p.review && p.review.id));
+    t('orf-4 · …and it ranks below every live rank, including pending', heroRank(A_ST) === 4, String(heroRank(A_ST)));
+  }
+  {
+    const p = heroPick([A_ST, SEARCH], NOW);
+    t('orf-4 · ⚔ owner-stamped active + a pending search → the search is the hero, the return the review row',
+      !!p.next && p.next.id === 'srch' && !!p.review && p.review.id === 'a-st', `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+  {
+    const p = heroPick([A_BOTH, TOMORROW], NOW);
+    t('orf-4 · ⚔ both-stamped active (sealed, not settled) + tomorrow → tomorrow is the hero; the review line says both stamped',
+      !!p.next && p.next.id === 'tmrw' && !!p.review && p.review.id === 'a-both'
+      && ownerReturnWaitLine(p.review) === RETURN_BOTH_STAMPED_KO, `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+  {
+    const p = heroPick([A_ST], NOW);
+    t('orf-4 · owner-stamped active ALONE → still the hero, in the returning frame with the wait line; not also the review row',
+      !!p.next && p.next.id === 'a-st' && heroState(p.next) === 'returning'
+      && ownerReturnWaitLine(p.next) === OWNER_RETURN_WAIT_KO && p.review === null,
+      `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+  {
+    // CONTROL twin — unstamped, the owed return still outranks tomorrow (ranked like active).
+    const p = heroPick([A_OWED, TOMORROW], NOW);
+    t('orf-4 · CONTROL · unstamped active return + tomorrow → the owed return is the hero, no review row',
+      !!p.next && p.next.id === 'a-owed' && heroState(p.next) === 'returning' && p.review === null
+      && heroRank(A_OWED) === 0, `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+
+  // #2 — two incident_review rows: a stamped return (older slot) and an unrelated case (newer slot).
+  const IR_ST = row({ id: 'ir-st', status: 'pending', rawStatus: 'incident_review', matched: true,
+    runEndedAt: iso(NOW - 2 * H), scheduledAt: iso(NOW - 4 * H), ownerReturnAt: STAMP, runnerReturnAt: null });
+  const IR_CASE = row({ id: 'ir-case', status: 'pending', rawStatus: 'incident_review', matched: true,
+    runEndedAt: null, scheduledAt: iso(NOW - 1 * H) });
+  const IR_CASE_OLD = { ...IR_CASE, id: 'ir-case-old', scheduledAt: iso(NOW - 30 * H) };
+  {
+    const p = heroPick([IR_ST, IR_CASE, TOMORROW], NOW);
+    t('orf-5 · ⚔ stamped return (4h) + a NEWER unrelated case (1h) + tomorrow → review is the stamped return',
+      !!p.next && p.next.id === 'tmrw' && !!p.review && p.review.id === 'ir-st'
+      && ownerReturnWaitLine(p.review) === OWNER_RETURN_WAIT_KO, `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+  {
+    const p = heroPick([IR_CASE, A_ST, SEARCH], NOW);
+    t('orf-5 · ⚔ a stamped ACTIVE return behind a search also wins the review row over a newer unrelated case',
+      !!p.next && p.next.id === 'srch' && !!p.review && p.review.id === 'a-st', `${p.next && p.next.id}/${p.review && p.review.id}`);
+  }
+  {
+    // CONTROLS — with no stamped return the old rule is untouched: the newest case wins.
+    const p = heroPick([IR_CASE_OLD, IR_CASE, TOMORROW], NOW);
+    t('orf-5 · CONTROL · two unrelated cases → the newest one, as before',
+      !!p.review && p.review.id === 'ir-case' && ownerReturnWaitLine(p.review) === null, JSON.stringify(p.review && p.review.id));
+    const q = heroPick([IR_CASE], NOW);
+    t('orf-5 · CONTROL · an unrelated case alone is still the empty frame\'s review row',
+      q.next === null && !!q.review && q.review.id === 'ir-case');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
 // ⑪ SOURCE — the screens CALL these rules (no .cjs suite can import a route module)
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // Comments are stripped first (block, JSX-block and line): this slice's own comments quote the
@@ -489,20 +572,49 @@ t('orf-src · home-hero.tsx: the returning chip is coral only without a wait, an
   /state === 'returning' \? \(returnWait \? \{ c: WAIT_BLUE, t: '확인 대기' \} : \{ c: paper\.action, t: '내 차례' \}\)/.test(hero)
   && /\{returnWait \?\? `\$\{returnSentence\(runner, name\)\} · 받으셨으면 확인해주세요`\}/.test(hero)
   && /const returnWait = state === 'returning' \? next\?\.returnWait \?\? null : null;/.test(hero));
-t('orf-src · home-hero.tsx: the in-flight frames carry a stamped case as one quiet line (pending dot, a role)',
-  /\{inFlight && reviewWait && onOpenReview \? \(\s*<Pressable onPress=\{onOpenReview\} style=\{s\.alertRow\} accessibilityRole="button"/.test(hero));
+// [owner-return-frame fix · R1 review #2] Was: the line existed in the in-flight frames only, so
+// `active`, `handoff` and `returning` (which return early) dropped it. It is now ONE element defined
+// above the early returns and drawn by all four non-empty return paths.
+t('orf-src · home-hero.tsx: the stamped-return line is one element (pending dot, a role), gated off only in the empty frame',
+  /const reviewWaitRow = state !== 'none' && reviewWait && onOpenReview \? \(\s*<Pressable onPress=\{onOpenReview\} style=\{s\.alertRow\} accessibilityRole="button"/.test(hero)
+  && count(hero, /reviewWait && onOpenReview/g) === 1);
+t('orf-src · home-hero.tsx: …drawn in the active, handoff and returning frames AND the shared frame (4 sites)',
+  count(hero, /\{reviewWaitRow\}/g) === 4
+  && /\{errRow\}\{lateStrip\}\{liveWidget\}\{reviewWaitRow\}/.test(hero)
+  && /시작하면 실시간 보기가 열려요<\/Text>\s*\{reviewWaitRow\}/.test(hero)
+  && /받으셨으면 확인해주세요`\}<\/Text>\s*\{reviewWaitRow\}/.test(hero),
+  `sites=${count(hero, /\{reviewWaitRow\}/g)}`);
 t('orf-src · home.tsx hands the hero both wait lines, computed from the real rows',
   /returnWait: ownerReturnWaitLine\(liveNext\),/.test(home)
   && /reviewWait=\{reviewRow \? ownerReturnWaitLine\(reviewRow\) : null\}/.test(home));
 {
   const sel = (api.match(/const MY_BOOKING_SELECT =\s*'([^']*)'/) || [])[1] || '';
-  const mapper = (api.match(/function mapMyBooking\(r: any\): Booking \{[\s\S]*?\n\}\n/) || [])[0] || '';
+  const mapper = (api.match(/function mapMyBooking\(r: any\): OwnerBooking \{[\s\S]*?\n\}\n/) || [])[0] || '';
   t('orf-src · api.ts: the owner booking select carries BOTH return stamps (exact column names)',
     /(^|[\s,])owner_confirmed_return_at(,|$)/.test(sel) && /(^|[\s,])runner_confirmed_return_at(,|$)/.test(sel), sel.slice(0, 60));
   t('orf-src · api.ts: mapMyBooking maps them (the runner reader\'s identical line elsewhere does not count)',
     mapper.length > 0
     && /ownerReturnAt: r\.owner_confirmed_return_at \?\? null,/.test(mapper)
     && /runnerReturnAt: r\.runner_confirmed_return_at \?\? null,/.test(mapper), `mapper=${mapper.length}`);
+}
+// [owner-return-frame fix · R1 review #3] The stamps' type is a local intersection, not a
+// `declare module '../store'` augmentation — the augmentation made babel-preset-expo keep a runtime
+// require("../store") in api.ts (measured: trunk 0, augmented 1, intersection 0). Comment-stripped,
+// so the comment that explains this cannot satisfy or redden it.
+t('orf-src · api.ts: no module augmentation of ../store; the mapper returns the local OwnerBooking',
+  !/declare module ['"]\.\.\/store['"]/.test(api)
+  && /export type OwnerBooking = Booking & \{/.test(api) && /function mapMyBooking\(r: any\): OwnerBooking \{/.test(api));
+// [owner-return-frame fix · R1 review #4] 「the same sentence on two screens」 was held only by
+// literals typed into this file. report.tsx hard-codes the two sentences, so a copy edit there
+// would bring the contradiction c1 is about back silently. Pin them against the exported constants,
+// in their arms (owner stamped → wait; both stamped → both-stamped), comment-stripped.
+{
+  const report = stripTs(readApp('app/owner/report.tsx'));
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  t('orf-src · report.tsx: the owner-stamped arm says OWNER_RETURN_WAIT_KO, exactly',
+    new RegExp(`: mine\\s*\\?\\s*'${esc(OWNER_RETURN_WAIT_KO)}'`).test(report));
+  t('orf-src · report.tsx: the both-stamped arm says RETURN_BOTH_STAMPED_KO, exactly',
+    new RegExp(`\\{done\\s*\\?\\s*'${esc(RETURN_BOTH_STAMPED_KO)}'`).test(report));
 }
 
 // CONTROL — the stripper is what keeps prose out. Appending a comment that QUOTES the retired

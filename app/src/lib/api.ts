@@ -30,20 +30,6 @@ import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
 // [R1 c4] The has_bank_account read — pure and pinned (`test/payout-status.test.cjs`), so the
 // unknown-is-not-false rule is held by a test rather than by this one mapper line.
 import { bankAccountFlag } from './payout-status';
-
-// [owner-return-frame, R1 c1] The owner's booking rows now carry both return stamps (mapMyBooking
-// below). Declared here, beside the only mapper that fills them, as an augmentation of store.ts's
-// `Booking`: this slice was scoped away from store.ts. Both are optional, so every other producer
-// of a `Booking` still type-checks and simply does not carry them — which the predicates in
-// `home-hero-route.ts` read as 「owner has not stamped」, the pre-existing behaviour.
-declare module '../store' {
-  interface Booking {
-    /** bookings.owner_confirmed_return_at — the owner's half of the two-stamp return. */
-    ownerReturnAt?: string | null;
-    /** bookings.runner_confirmed_return_at — the runner's half. */
-    runnerReturnAt?: string | null;
-  }
-}
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
@@ -6625,7 +6611,23 @@ const MY_BOOKING_SELECT =
   // 임베드가 모호하지 않다 — E1(PGRST201)이 여기서는 발생할 수 없다.
   'id, scheduled_at, km, pace_label, total_price, status, arrived_at, owner_confirmed_handoff_at, runner_confirmed_handoff_at, run_ended_at, owner_confirmed_return_at, runner_confirmed_return_at, runner_id, owner_id, series_id, route_id, club_session_id, routes!bookings_route_id_fkey(name), dogs(name, collar), runners(profiles(name)), runs(started_at)';
 
-function mapMyBooking(r: any): Booking {
+// [owner-return-frame, R1 c1] The owner's booking rows carry both return stamps. The type lives
+// here, beside the only mapper that fills them, because this slice was scoped away from store.ts.
+// ⚠ [owner-return-frame fix, R1 review #3] It is a local intersection, NOT a `declare module
+// '../store'` augmentation: measured with babel-preset-expo (the check-babel-routes options), the
+// augmentation made Metro keep a runtime `require("../store")` in this module that trunk does not
+// have, while dropping the augmentation itself. The intersection is type-only, so the emitted
+// module has no store require again. Both fields are optional, so a `Booking` from any other
+// reader simply lacks them — which `home-hero-route.ts` reads as 「owner has not stamped」, the
+// pre-existing behaviour. The follow-up that may touch store.ts should move them onto `Booking`.
+export type OwnerBooking = Booking & {
+  /** bookings.owner_confirmed_return_at — the owner's half of the two-stamp return. */
+  ownerReturnAt?: string | null;
+  /** bookings.runner_confirmed_return_at — the runner's half. */
+  runnerReturnAt?: string | null;
+};
+
+function mapMyBooking(r: any): OwnerBooking {
   const { dateLabel, timeLabel } = kstParts(r.scheduled_at);
   const routeName = r.routes?.name ?? '코스 미지정';
   return {

@@ -198,6 +198,9 @@ export function ownerReturnWaitLine(
 // Most actionable first: active > handoff > confirmed > pending (a stale 「매칭 중」 must never hide
 // a confirmed run whose handoff is owed).
 const RANK: Record<string, number> = { active: 0, handoff: 1, confirmed: 2, pending: 3 };
+/** [owner-return-frame fix] An `active` return the owner has already stamped: below every rank
+ *  above, so it never holds the hero over a live or upcoming booking (see heroRank). */
+const RANK_STAMPED_RETURN = 4;
 const SIX_HOURS = 6 * 3_600_000;
 
 /** Where a row ranks for the hero, or null when it may not be the hero at all.
@@ -211,11 +214,20 @@ const SIX_HOURS = 6 * 3_600_000;
  *  owner can do nothing about and pushed their next real booking to the rail. It drops through to
  *  the `incident_review → null` arm below and comes back as `heroPick().review`, which home shows
  *  as a quiet, non-primary line (see `home-hero.tsx`) rather than the hero.
- *  An `active` row the owner has stamped still ranks as `active` through its display word: that is
- *  the ordinary few minutes before the runner stamps and the booking completes, and the hero shows
- *  it in the waiting frame (`ownerReturnWaitLine`), not the coral one. */
+ *  ⚠ [owner-return-frame fix, R1 review #1] The same DECISION covers an `active` row the owner has
+ *  stamped, with one difference. It is NOT "the few minutes before the runner stamps": 0226 ⓑ-②
+ *  keeps a one-stamp row `active` with "No status move, ever" and sends ONE alarm at STRAND_AFTER
+ *  (0226:286, :360), so if the runner never stamps it stays `active` indefinitely — an inaction
+ *  path, and ranking it like `active` held the hero over every later booking for as long as it
+ *  lasted. A both-stamped `active` row (sealed, not settled — the stranded state report.tsx names)
+ *  is the same shape and takes the same arm. So it ranks LAST (`RANK_STAMPED_RETURN`, below `pending`): the hero only while nothing
+ *  else is in flight, where it shows the waiting frame (`ownerReturnWaitLine`), not the coral one.
+ *  Behind another booking it is `heroPick().review`, the same quiet line as the stamped case.
+ *  It is not `null` like the stamped `incident_review`, because on its own it is the owner's most
+ *  recent run and still open; the stamped case alone keeps the empty frame's review line. */
 export function heroRank(b: InflightRow): number | null {
   if (ownerReturnOwed(b)) return RANK.active;
+  if (returnOwed(b) && b.rawStatus === 'active') return RANK_STAMPED_RETURN;
   if (b.rawStatus === 'no_show' || b.rawStatus === 'incident_review') return null;
   return b.status in RANK ? RANK[b.status] : null;
 }
@@ -225,9 +237,12 @@ export interface HeroPick<T> {
   next: T | null;
   /** The rail: up to two FUTURE confirmed/pending bookings other than the hero's. */
   upcoming: T[];
-  /** The most recent `incident_review` row with nothing owed BY THE OWNER (never stamped-for, or
-   *  already stamped by them) — the one fact that makes 「비어 있어요」 false while the hero is
-   *  otherwise empty. */
+  /** A row with nothing owed BY THE OWNER that home must still point at: an `incident_review`
+   *  (never stamped-for, or already stamped by them), or an `active` return the owner stamped that
+   *  is not the hero. Never the hero's own row. A return the owner stamped wins over any other case
+   *  (then newest first), because it is the one with a sentence to show (`ownerReturnWaitLine`) —
+   *  otherwise a newer unrelated case would hide it from every frame. In the empty frame it is the
+   *  one fact that makes 「비어 있어요」 false. */
   review: T | null;
 }
 
@@ -253,9 +268,14 @@ export function heroPick<T extends InflightRow>(rows: T[], now: number = Date.no
     .slice(0, 2);
   // [owner-return-frame] `ownerReturnOwed`, not `returnOwed`: a case the owner has already stamped
   // is a case to point at, not a hero (see heroRank's DECISION note).
+  // [owner-return-frame fix, R1 review #1/#2] A stamped `active` return behind another booking is
+  // pointed at too, and a stamped return is preferred over an unrelated case.
+  const stampedReturn = (b: T) => returnOwed(b) && !ownerReturnOwed(b);
+  const newest = (b: T) => (b.scheduledAt ? Date.parse(b.scheduledAt) : 0);
   const review = rows
-    .filter((b) => b.rawStatus === 'incident_review' && !ownerReturnOwed(b))
-    .sort((x, y) => (y.scheduledAt ? Date.parse(y.scheduledAt) : 0) - (x.scheduledAt ? Date.parse(x.scheduledAt) : 0))[0] ?? null;
+    .filter((b) => b.id !== next?.id
+      && ((b.rawStatus === 'incident_review' && !ownerReturnOwed(b)) || stampedReturn(b)))
+    .sort((x, y) => Number(stampedReturn(y)) - Number(stampedReturn(x)) || newest(y) - newest(x))[0] ?? null;
   return { next, upcoming, review };
 }
 

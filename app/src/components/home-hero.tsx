@@ -113,12 +113,16 @@ interface Props {
    *  owner to stamp exists (`heroPick().review`). Only the EMPTY frame reads it: there, 「비어
    *  있음 · 오늘은 아직 / 비어 있어요」 would be false while a case is open, so the chip and the
    *  headline give way to one quiet line that opens that booking on 내 일정. This is not a new
-   *  frame — the none frame's options and invitation stay exactly as they were. */
+   *  frame — the none frame's options and invitation stay exactly as they were.
+   *  [owner-return-frame fix] The other frames also read it, but only beside `reviewWait`. */
   onOpenReview?: (() => void) | null;
   /** [owner-return-frame, R1 c1] Non-null when the review row is a return the OWNER has already
    *  stamped (`ownerReturnWaitLine`). That case no longer holds the hero (heroRank's DECISION note
-   *  in home-hero-route.ts), so the in-flight frames carry it as one quiet line opening it on
-   *  내 일정 — the owner's next booking is the hero, and the pending return does not vanish. */
+   *  in home-hero-route.ts), so every frame except the empty one carries it as one quiet line
+   *  opening it on 내 일정 — the owner's next booking is the hero, and the pending return does not
+   *  vanish. [owner-return-frame fix, R1 review #2] That line was drawn only in the three in-flight
+   *  frames; `active`, `handoff` and `returning` return early and dropped it. The empty frame has
+   *  its own review line (`reviewLine`) and does not draw this one twice. */
   reviewWait?: string | null;
 }
 
@@ -346,9 +350,21 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
     </View>
   ) : null;
 
+  // [owner-return-frame fix, R1 review #2] A return the owner already stamped, pending on the runner
+  // or on ops: not the hero (their next booking is), but not gone from home either. ONE element,
+  // drawn by every frame but `none` (which has `reviewLine`), so no early return can drop it. Same
+  // quiet alert-row grammar as the empty frame's review line, in the pending colour.
+  const reviewWaitRow = state !== 'none' && reviewWait && onOpenReview ? (
+    <Pressable onPress={onOpenReview} style={s.alertRow} accessibilityRole="button"
+      accessibilityLabel={`반환 확인 · ${reviewWait} — 내 일정에서 보기`}>
+      <View style={[s.dot, { backgroundColor: paper.pending }]} />
+      <Text style={[s.alertMain, { flex: 1 }]}>반환 확인 · {reviewWait} ›</Text>
+    </Pressable>
+  ) : null;
+
   // ── active: 라이브 위젯이 존을 대체 ───────────────────────────────────────
   if (state === 'active') {
-    return <View style={s.wrapTight}>{errRow}{lateStrip}{liveWidget}</View>;
+    return <View style={s.wrapTight}>{errRow}{lateStrip}{liveWidget}{reviewWaitRow}</View>;
   }
 
   const when = next ? [next.dateLabel, next.timeLabel].filter(Boolean).join(' ') : '';
@@ -402,6 +418,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         </View>
         <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
         <Text style={s.sub}>{runner}가 곧 러닝을 시작해요 · 시작하면 실시간 보기가 열려요</Text>
+        {reviewWaitRow}
         <View style={s.opts}>
           {/* 금색 = 세리머니(여권·도장·영수증). 봉인된 인계 기록이 정확히 그것이고, 미트업의
               SEALED 블록이 정직한 착지점이다. `dot` 과 `leash` 는 뺐다 — 맥박은 '지금 하라'는
@@ -443,6 +460,7 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         </View>
         <Phrase top={phrase.top} bottom={phrase.bottom} df={df} />
         <Text style={s.sub}>{returnWait ?? `${returnSentence(runner, name)} · 받으셨으면 확인해주세요`}</Text>
+        {reviewWaitRow}
         <View style={s.opts}>
           {/* [copy-hierarchy-8] 반환 확인하기 — the push and the report's gate name this act 반환 확인;
               the retired label borrowed the PICKUP's word for the return.
@@ -531,16 +549,8 @@ export function HomeHero({ state, next, dogName, dialKm, loadState, onRetry, rel
         </>
       )}
       <Text style={s.sub}>{subline}</Text>
-      {/* [owner-return-frame, R1 c1] A return the owner already stamped, pending on the runner or on
-          ops: not the hero any more (their next booking is), but not gone from home either. Same
-          quiet alert-row grammar as the empty frame's review line; `none` already has that line. */}
-      {inFlight && reviewWait && onOpenReview ? (
-        <Pressable onPress={onOpenReview} style={s.alertRow} accessibilityRole="button"
-          accessibilityLabel={`반환 확인 · ${reviewWait} — 내 일정에서 보기`}>
-          <View style={[s.dot, { backgroundColor: paper.pending }]} />
-          <Text style={[s.alertMain, { flex: 1 }]}>반환 확인 · {reviewWait} ›</Text>
-        </Pressable>
-      ) : null}
+      {/* [owner-return-frame] The stamped-return line (defined above the early returns). */}
+      {reviewWaitRow}
 
       <View style={s.opts}>
         {state === 'none' && (
