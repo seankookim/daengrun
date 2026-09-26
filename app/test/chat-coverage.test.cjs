@@ -17,8 +17,10 @@
 // THE MUTATIONS THAT REDDEN THIS FILE: merge every stretch into one (coverage = 「everything I have
 //   seen」) · read the ceiling off the HIGHEST stretch instead of the lowest · let a realtime arrival
 //   join the coverage · merge stretches that merely touch · let an older page vouch past its cursor
-//   · drop the `ceiling` arm from `newestPeerMessageId` · [⑤ forward-dated] drop the admitted-count
-//   arm of `shouldMarkRead`'s 'message' reason · let a realtime-only arrival join the count.
+//   · drop the `ceiling` arm from `newestPeerMessageId` · [⑤ forward-dated] drop the
+//   highest-admitted-id arm of `shouldMarkRead`'s 'message' reason · let a realtime-only arrival
+//   raise it · go back to a COUNT of admitted messages (an older page re-marks; a reload mutes).
+//   ⑦ turns red on the reviewed commit 4a968214, where that fact was a count.
 const {
   mergeMessageSnapshot, snapshotGap, windowSpan, olderPageSpan, addCoverage, coverageCeiling,
   coverageHole, compareMessageOrder, autoFillDecision,
@@ -27,9 +29,9 @@ const readMod = require('./chat-coverage.read.build.cjs');
 const { newestPeerMessageId, shouldMarkRead } = readMod;
 // Written first and measured against the base, where this export did not exist: a FAIL row there,
 // never a crash that hides every other row.
-const admittedPeerCount = (...a) =>
-  (typeof readMod.admittedPeerCount === 'function' ? readMod.admittedPeerCount(...a) : NaN);
-const { CHAT_PAGE_SIZE, pageIsLast } = require('./chat-coverage.window.build.cjs');
+const highestAdmittedPeerId = (...a) =>
+  (typeof readMod.highestAdmittedPeerId === 'function' ? readMod.highestAdmittedPeerId(...a) : NaN);
+const { CHAT_PAGE_SIZE, pageIsLast, olderCursor } = require('./chat-coverage.window.build.cjs');
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -82,6 +84,18 @@ const screen = () => {
     }
     return pages;
   };
+  // 「이전 메시지 더 보기」 — chat.tsx loadOlder: olderCursor → fetch → noteFetched → merge → olderPageSpan.
+  s.olderPage = (srv) => {
+    const cursor = olderCursor(s.msgs);
+    const page = srv.older(cursor);
+    vouch(page);
+    s.msgs = mergeMessageSnapshot(s.msgs, page);
+    s.cov = addCoverage(s.cov, olderPageSpan(page, cursor, pageIsLast(page.length, CHAT_PAGE_SIZE)));
+    return page;
+  };
+  // The load effect re-running for the SAME thread (retryLoad, or `isRunner` changing): it empties
+  // msgs, fetchedIds and coverage — and NOT the acknowledgement's refs, which only a bid change resets.
+  s.reload = (history) => { s.msgs = []; s.fetched = new Set(); s.cov = []; s.open(history); };
   s.target = () => {
     const ceiling = coverageCeiling(s.cov);
     return ceiling === null ? null : newestPeerMessageId(s.msgs, { ceiling, fetchedIds: s.fetched });
@@ -260,7 +274,7 @@ t('control — with no ceiling the same list names its newest (the arm above is 
 // A pre-0225 client dated a message in the future. In the server's `(created_at, id)` order it
 // stays the newest, so every newest-window snapshot ends at it and the acknowledgement target is
 // it — before and after a real message lands. `ack` below is chat.tsx's acknowledgement effect:
-// target and admitted count under the coverage ceiling, `shouldMarkRead`, then remember both.
+// target and highest admitted peer id under the coverage ceiling, `shouldMarkRead`, then remember both.
 {
   const FWD = '2099-01-01T00:00:00.000000Z';
   const fwdRow = { id: 6, createdAt: FWD, mine: false, body: 'forward-dated' };
@@ -269,19 +283,19 @@ t('control — with no ceiling the same list names its newest (the arm above is 
     return { newest: () => all.slice(-CHAT_PAGE_SIZE) };
   };
   const acker = (s) => {
-    const a = { marked: [], lastTarget: null, lastCount: null, opened: false };
+    const a = { marked: [], lastTarget: null, lastHigh: null, opened: false };
     a.ack = () => {
       const ceiling = coverageCeiling(s.cov);
       const opts = { ceiling, fetchedIds: s.fetched };
       const target = ceiling === null ? null : newestPeerMessageId(s.msgs, opts);
-      const count = ceiling === null ? 0 : admittedPeerCount(s.msgs, opts);
+      const high = ceiling === null ? null : highestAdmittedPeerId(s.msgs, opts);
       const ok = shouldMarkRead({
         reason: a.opened ? 'message' : 'open', ready: true, appActive: true, focused: true,
         newestPeerMessageId: target, lastMarkedPeerMessageId: a.lastTarget,
-        admittedPeerCount: count, lastMarkedAdmittedPeerCount: a.lastCount,
+        highestAdmittedPeerId: high, lastMarkedHighestAdmittedPeerId: a.lastHigh,
       });
       if (!ok || target === null) return null;
-      a.opened = true; a.lastTarget = target; a.lastCount = count; a.marked.push(target);
+      a.opened = true; a.lastTarget = target; a.lastHigh = high; a.marked.push(target);
       return target;
     };
     return a;
@@ -295,7 +309,7 @@ t('control — with no ceiling the same list names its newest (the arm above is 
 
   s.realtime(peer(7));                       // a real message, delivered by realtime only
   t('🔴 ⑤ a realtime-only arrival is NOT acknowledged — no fetch vouched for it (client-review-4 holds)',
-    a.ack() === null && admittedPeerCount(s.msgs, { ceiling: coverageCeiling(s.cov), fetchedIds: s.fetched }) === 6);
+    a.ack() === null && highestAdmittedPeerId(s.msgs, { ceiling: coverageCeiling(s.cov), fetchedIds: s.fetched }) === 6);
 
   s.snapshot(fwdServer(7).newest());         // the poll returns it
   t('⑤ control — the poll does not move the target: it is still the forward-dated row',
@@ -310,8 +324,8 @@ t('control — with no ceiling the same list names its newest (the arm above is 
     a.marked.every((id) => s.fetched.has(id)
       && compareMessageOrder(s.msgs.find((m) => m.id === id), coverageCeiling(s.cov)) <= 0));
 
-  // CONTROL — an ordinary thread moves its target on every arrival, so the count arm is not what
-  // acknowledges there; it adds no call to a quiet thread either.
+  // CONTROL — an ordinary thread moves its target on every arrival, so the highest-id arm is not
+  // what acknowledges there; it adds no call to a quiet thread either.
   const n = screen();
   n.open(server(5).newest());
   const na = acker(n);
@@ -321,10 +335,90 @@ t('control — with no ceiling the same list names its newest (the arm above is 
   n.snapshot(server(6).newest());
   t('⑤ control — an ordinary thread: the arrival moves the target, a quiet poll calls nothing',
     moved === 6 && na.ack() === null && show(na.marked) === show([5, 6]), show(na.marked));
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // ⑦ [executing review of 4a968214 · findings 1 and 2] the second fact must mean 「an ARRIVAL was
+  //   fetched」. With a COUNT, an older page re-marked the forward row — and the server stores that
+  //   mark as ITS now() (0228:106 `least(v_at, now())`), covering arrivals no fetch returned; and a
+  //   same-thread reload shrank the count below the remembered one, muting the next arrival.
+  //   ⑤'s 「every mark named a fetched message」 asserts which id was NAMED; `honest` below asserts
+  //   what the server STORES for it — the sentence the invariant actually needs.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  {
+    const FID = 151;
+    const fRow = { id: FID, createdAt: FWD, mine: false, body: 'forward-dated' };
+    const fSrv = (last) => {
+      const all = range(1, last).map((m) => (m.id === FID ? fRow : m)).sort((x, y) => compareMessageOrder(x, y));
+      return {
+        all,
+        newest: () => all.slice(-CHAT_PAGE_SIZE),
+        older: (cursor) => all.filter((m) => compareMessageOrder(m, cursor) < 0).slice(-CHAT_PAGE_SIZE),
+      };
+    };
+    /** After a mark of `targetId`, every message the server's stored position covers — from the
+     *  oldest message this screen ever fetched upward — was returned by a fetch. (Below that is the
+     *  history the reader scrolled past, which any position covers; client-review-4 is about the
+     *  NEW side: a hole, or an arrival above coverage.) `seen` = every id this screen fetched. */
+    const honest = (seen, srv, targetId) => {
+      const tm = srv.all.find((m) => m.id === targetId);
+      const covered = tm.createdAt === FWD
+        ? srv.all.filter((m) => m.createdAt !== FWD)                 // clamped to now: all that exists
+        : srv.all.filter((m) => compareMessageOrder(m, tm) <= 0);    // an ordinary target's own instant
+      const floor = srv.all.find((m) => seen.has(m.id));             // srv.all is in server order
+      return floor !== undefined && covered
+        .filter((m) => compareMessageOrder(m, floor) >= 0)
+        .every((m) => m.mine || seen.has(m.id));
+    };
+
+    let srv = fSrv(150 + 1);                   // real 1–150 and the forward row, id 151
+    const f = screen();
+    f.open(srv.newest());
+    const fa = acker(f);
+    const opened = fa.ack();
+    t('⑦ fixture — the window is 52–150 plus the forward row on top; opening marks it, honestly',
+      opened === FID && f.msgs.length === 100 && f.msgs[0].id === 52 && honest(f.fetched, srv, FID),
+      show({ opened, n: f.msgs.length, first: f.msgs[0].id, honest: honest(f.fetched, srv, FID) }));
+    srv = fSrv(160);                           // 152–160 commit; realtime drops 152–159, delivers 160
+    f.realtime(peer(160));
+    t('⑦ the realtime-only arrival marks nothing', fa.ack() === null, show(fa.marked));
+    const page = f.olderPage(srv);             // 「이전 메시지 더 보기」 before the next poll
+    t('⑦ control — the older page connected (1–51, one stretch, no hole) and the target is still the forward row',
+      page.length === 51 && page[0].id === 1 && coverageHole(f.cov) === null && f.target() === FID,
+      show({ n: page.length, hole: coverageHole(f.cov), target: f.target() }));
+    t('⑦ control — the hole is real: a mark NOW would have the server store a position over 152–159, never fetched',
+      honest(f.fetched, srv, FID) === false);
+    t('🔴 ⑦ an OLDER page re-marks NOTHING under the forward target (4a968214 marked here)',
+      fa.ack() === null && show(fa.marked) === show([FID]), show(fa.marked));
+    f.snapshot(srv.newest());                  // the poll returns 152–160
+    t('⑦ the poll that fetches 152–160 re-marks — and then everything the server stores was fetched',
+      fa.ack() === FID && fa.marked.length === 2 && honest(f.fetched, srv, FID), show(fa.marked));
+
+    // finding 2 — the load effect re-runs for the SAME thread; the acknowledgement's refs are kept.
+    const seenBefore = new Set(f.fetched);
+    f.reload(srv.newest());
+    const onReload = fa.ack();
+    srv = fSrv(161);
+    f.snapshot(srv.newest());                  // a real arrival, fetched
+    const onArrival = fa.ack();
+    t('🔴 ⑦ after a same-thread reload the next FETCHED arrival is still acknowledged (4a968214 went silent)',
+      onReload === null && onArrival === FID && honest(new Set([...seenBefore, ...f.fetched]), srv, FID),
+      show({ onReload, onArrival, marked: fa.marked }));
+
+    // An ordinary thread: the same older page was an extra RPC per tap under a count — a monotonic
+    // no-op on the server, but a call the screen had no reason to make.
+    const o = screen();
+    const osrv = server(150);
+    o.open(osrv.newest());
+    const oa = acker(o);
+    oa.ack();
+    o.olderPage(osrv);
+    t('🔴 ⑦ an ordinary thread: an older page makes no RPC either',
+      oa.ack() === null && show(oa.marked) === show([150]), show(oa.marked));
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
-// ⑥ SOURCE — chat.tsx hands the count to the judgment and remembers it at the mark
+// ⑥ SOURCE — chat.tsx hands the highest admitted id to the judgment and remembers it at the mark
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // ⑤ proves the helpers compose; it cannot prove the route calls them that way (no test can import
 // a route module). These read the acknowledgement effect's SOURCE, comments stripped (this slice's
@@ -349,9 +443,9 @@ t('control — with no ceiling the same list names its newest (the arm above is 
     }
     return out;
   };
-  const FIX = "// admittedPeerCount: admitted,\nconst x = 'admittedPeerCount: admitted,';\n/* admittedPeerCount: admitted, */";
+  const FIX = "// highestAdmittedPeerId: highest,\nconst x = 'highestAdmittedPeerId: highest,';\n/* highestAdmittedPeerId: highest, */";
   t('⑥ control — the stripper drops commented code and keeps strings (a comment must not satisfy a pin)',
-    strip(FIX).split('admittedPeerCount: admitted,').length - 1 === 1 && FIX.split('admittedPeerCount: admitted,').length - 1 === 3);
+    strip(FIX).split('highestAdmittedPeerId: highest,').length - 1 === 1 && FIX.split('highestAdmittedPeerId: highest,').length - 1 === 3);
   const CHAT = strip(fs.readFileSync(path.join(__dirname, '..', 'app', 'chat.tsx'), 'utf8'));
   const callAt = CHAT.indexOf('if (!shouldMarkRead({');
   const effEnd = CHAT.indexOf('}, [ctx, state, msgs, gapDoor, ackTick, recordRead]);');
@@ -359,17 +453,17 @@ t('control — with no ceiling the same list names its newest (the arm above is 
   const call = eff.slice(eff.indexOf('if (!shouldMarkRead({'), eff.indexOf('})) return;'));
   t('⑥ control — the acknowledgement effect and its one judgment call were found',
     eff.length > 0 && call.length > 0 && CHAT.split('shouldMarkRead({').length - 1 === 1, `${callAt}..${effEnd}`);
-  t('🔴 ⑥ the count is computed under the TARGET\'s own options — the ceiling and the fetched set',
-    /admittedPeerCount\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(eff)
+  t('🔴 ⑥ the highest id is computed under the TARGET\'s own options — the ceiling and the fetched set',
+    /highestAdmittedPeerId\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(eff)
     && /newestPeerMessageId\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(eff));
-  t('🔴 ⑥ the judgment receives both counts',
-    call.includes('admittedPeerCount: admitted,') && call.includes('lastMarkedAdmittedPeerCount: lastMarkedAdmitted.current,'),
+  t('🔴 ⑥ the judgment receives both ids',
+    call.includes('highestAdmittedPeerId: highest,') && call.includes('lastMarkedHighestAdmittedPeerId: lastMarkedHighest.current,'),
     JSON.stringify(call));
   const tail = eff.slice(eff.indexOf('})) return;'));
-  t('🔴 ⑥ the count is remembered at the mark, beside the target, before the record',
-    tail.indexOf('lastMarkedAdmitted.current = admitted;') > tail.indexOf('if (target === null) return;')
+  t('🔴 ⑥ the highest id is remembered at the mark, beside the target, before the record',
+    tail.indexOf('lastMarkedHighest.current = highest;') > tail.indexOf('if (target === null) return;')
     && tail.indexOf('if (target === null) return;') > 0
-    && tail.indexOf('lastMarkedAdmitted.current = admitted;') < tail.indexOf('recordRead(ctx.threadId, target);'));
+    && tail.indexOf('lastMarkedHighest.current = highest;') < tail.indexOf('recordRead(ctx.threadId, target);'));
 }
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

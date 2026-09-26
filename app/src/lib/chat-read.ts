@@ -182,7 +182,7 @@ export interface PeerAckOptions {
 
 /** May this message be acknowledged at all? A peer's, at or below the hole, at or below the top of
  *  verified fetched coverage (placeable against it), and returned by a fetch. The ONE admission
- *  rule behind `newestPeerMessageId` and `admittedPeerCount`. */
+ *  rule behind `newestPeerMessageId` and `highestAdmittedPeerId`. */
 function admitsPeer(m: ReceiptMessage, opts: PeerAckOptions): boolean {
   if (m.mine) return false;
   const ceilingId = opts.ceilingId ?? null;
@@ -241,19 +241,39 @@ export function newestPeerMessageId(
 }
 
 /**
- * How many peer messages the acknowledgement may cover — every one `newestPeerMessageId` would
- * consider, under the SAME options. The screen hands it to `shouldMarkRead` beside the target.
+ * The HIGHEST ID among the peer messages the acknowledgement may cover — every one
+ * `newestPeerMessageId` would consider, under the SAME options — or `null` when there is none. The
+ * screen hands it to `shouldMarkRead` beside the target, and 'message' re-marks when it ROSE.
  *
  * 🔴 WHY THE TARGET ALONE IS NOT ENOUGH (0235 §0c · R2 finding 2 — the client half, named there
  *    and built here). A pre-0225 client wrote its own `created_at`, so a thread can hold a peer row
  *    dated in the FUTURE. In the server's `(created_at, id)` order that row is the newest message
  *    until its date passes, so the target names it before AND after a real message arrives — and
  *    'message' re-marked only when the target CHANGED. The real message was drawn and never
- *    acknowledged while the screen stayed up: unread on the server, its 0228 nudge unreleased, every
- *    later push deduped silent, until the next open/focus. The same sentence has a second site with
- *    no forward date at all: an id/time inversion (concurrent inserts) lands a fetched message
- *    BELOW the unchanged target. In both, the fact that changed is 「one more peer message may now be
- *    acknowledged」 — this count.
+ *    acknowledged while the screen stayed up (unread on the server until the next open/focus). The
+ *    same sentence has a second site with no forward date at all: an id/time inversion (concurrent
+ *    inserts) lands a fetched message BELOW the unchanged target.
+ *
+ * 🔴 WHY THE HIGHEST ID AND NOT A COUNT (executing review of this slice, finding 1 — measured on the
+ *    compiled helpers). The fact that has to change is 「a message ARRIVED and a fetch vouched for
+ *    it」, not 「the admitted set grew」. A count also grows when 「이전 메시지 더 보기」 or the gap fill
+ *    returns OLD messages — and under a forward-dated target that re-mark is not a no-op: the server
+ *    stores ITS now() (0228:106 `least(v_at, now())`), which covers every message committed until
+ *    the call, including a burst the realtime channel dropped and no fetch returned. Measured: a
+ *    thread with a forward row, realtime delivering only the last of nine arrivals, then an older
+ *    page — the count re-marked, the base did not. An arrival is always the newest id the thread has
+ *    (ids come from one identity sequence, 0001 `generated always as identity`), so an older page,
+ *    which only returns messages older than the oldest one held, does not raise this value; a gap
+ *    fill raises it only when it reaches the coverage ceiling, and that moves the ceiling and the
+ *    target too.
+ *    It is also monotonic across a same-thread reload (finding 2): the refreshed window holds the
+ *    highest ids again, so a count that had grown past one window can no longer mute the next
+ *    arrival.
+ *    ⚠ What a highest id cannot see, reasoned and not measured: a LOWER id that commits after a
+ *    higher one was fetched (id/commit inversion). It never needs this arm. Its `created_at` (its
+ *    transaction's start) precedes the sequence value it took, which precedes the higher id's, which
+ *    was fetched before the last mark — so the last mark's position is already after it: the
+ *    server's own clamp (forward target) or the target's `created_at` (an ordinary one) covers it.
  *
  * ⚠ WHY NOT RE-ORDER THE TARGET BY `min(created_at, now)` (the other fix 0235 §0c named). A row
  *   clamped to now still sorts at or above every real message (whose `created_at` is before now),
@@ -261,20 +281,37 @@ export function newestPeerMessageId(
  *   clamp moves nothing here. It would also put a device clock into the server's order, which every
  *   cursor and coverage pin in this module refuses (`compareMessageOrder` is server instants only).
  *
- * ⚠ The count admits exactly what the target may — a message a FETCH returned, at or below the
- *   coverage ceiling (client-review-4's invariant). A realtime-only arrival is not counted, so it
- *   triggers nothing until a poll vouches for it. That matters more here than anywhere: the server
- *   records an acknowledged forward-dated row as ITS now() (0223 §0d ③ clamp), so a re-mark covers
- *   everything committed until the call — a mark triggered by a realtime arrival would cover the
- *   dropped burst below it. Triggered by a fetch, the mark runs on the commit that renders it.
+ * ⚠ It admits exactly what the target may — a message a FETCH returned, at or below the coverage
+ *   ceiling (client-review-4's invariant). A realtime-only arrival does not raise it, so it
+ *   triggers nothing until a poll vouches for it; a re-mark triggered by a realtime arrival would
+ *   have the server's now() cover the dropped burst below it.
+ *
+ * ⚠ What this does NOT fix, READ from the migrations and recorded so nobody claims it: in a
+ *   forward-dated thread 0228's nudge release (`not exists … created_at > v_at`) still sees the
+ *   forward row itself, so the 「새 메시지」 nudge stays unreleased until that row's date whatever
+ *   the client does; `my_chat_unread` (0212: `created_at > last_read_at`) does count the arrival
+ *   read once this re-mark lands. The forward row itself stays unread — 0225 §0e's product decision.
+ *
+ * 🔴 OPEN, measured on the compiled helpers and NOT closed here: under a forward-dated row, FETCHED
+ *   COVERAGE cannot see a hole. Every newest window ends at that row, so two windows always overlap
+ *   there and `addCoverage` merges them, although arrivals land BELOW it (between the newest real
+ *   message and it). With 150 arrivals between two polls: no hole, no door, 51 messages never
+ *   fetched — and this arm re-marks (highest id 151 → 301), so the server's now() covers them. An
+ *   ordinary thread measures a hole and no mark. The same gap reaches 'focus' on the base, where
+ *   the forward row is re-marked on every return. The fix belongs to coverage (a stretch whose top
+ *   is a forward row is not closed against later inserts) or to the server (0225 §0e); neither is
+ *   this slice's.
  */
-export function admittedPeerCount(
+export function highestAdmittedPeerId(
   msgs: readonly ReceiptMessage[],
   opts: PeerAckOptions = {},
-): number {
-  let n = 0;
-  for (const m of msgs) if (admitsPeer(m, opts)) n += 1;
-  return n;
+): number | null {
+  let high: number | null = null;
+  for (const m of msgs) {
+    if (!admitsPeer(m, opts)) continue;
+    if (high === null || m.id > high) high = m.id;
+  }
+  return high;
 }
 
 // ── when to record that the caller has read ───────────────────────────────────────────────────
@@ -325,11 +362,13 @@ export type MarkReadReason =
  * only changes when a newer one is fetched, so 「different」 is exactly 「a newer one arrived」 —
  * EXCEPT when the newest cannot move: a forward-dated peer row pins it (0235 §0c), and a message
  * fetched below it (an id/time inversion) does not move it either. So 'message' ALSO fires when the
- * admitted count (`admittedPeerCount`) GREW since the last mark. Under an unchanged target the
- * re-mark names the same message: for an ordinary target the server's write is a monotonic no-op
- * that re-runs 0228's release for the new arrival; for a forward-dated one the server clamps to its
- * now(), which is what acknowledges the arrival at all. Both counts must be KNOWN — an absent one
- * is not zero, and a count that did not grow states nothing new.
+ * highest admitted peer id (`highestAdmittedPeerId`) ROSE since the last mark — an arrival a fetch
+ * vouched for, never an older page (see that function for why not a count). Under an unchanged
+ * target the re-mark names the same message: for an ordinary target the server's write is a
+ * monotonic no-op; for a forward-dated one the server clamps to its now(), which is what
+ * acknowledges the arrival at all. Both ids must be KNOWN — an absent one is not zero — and one
+ * that did not rise states nothing new. Here 「greater」 is right, unlike the target's gate: it asks
+ * whether an id the thread never had before was fetched, not which message is newest in time.
  */
 export function shouldMarkRead(s: {
   reason: MarkReadReason;
@@ -343,10 +382,10 @@ export function shouldMarkRead(s: {
   newestPeerMessageId: number | null;
   /** The peer message id this screen last recorded a read up to, or `null`. */
   lastMarkedPeerMessageId: number | null;
-  /** `admittedPeerCount(...)` now, under the target's own options. Absent = unknown. */
-  admittedPeerCount?: number | null;
-  /** The admitted count when this screen last recorded a read. Absent = unknown. */
-  lastMarkedAdmittedPeerCount?: number | null;
+  /** `highestAdmittedPeerId(...)` now, under the target's own options. Absent = unknown. */
+  highestAdmittedPeerId?: number | null;
+  /** That id when this screen last recorded a read. Absent = unknown. */
+  lastMarkedHighestAdmittedPeerId?: number | null;
 }): boolean {
   if (!s.ready) return false;
   if (!s.appActive) return false;
@@ -355,7 +394,7 @@ export function shouldMarkRead(s: {
   if (s.reason !== 'message') return true;
   if (s.lastMarkedPeerMessageId === null) return true;
   if (s.newestPeerMessageId !== s.lastMarkedPeerMessageId) return true;
-  const n = s.admittedPeerCount ?? null;
-  const last = s.lastMarkedAdmittedPeerCount ?? null;
-  return n !== null && last !== null && n > last;
+  const high = s.highestAdmittedPeerId ?? null;
+  const last = s.lastMarkedHighestAdmittedPeerId ?? null;
+  return high !== null && last !== null && high > last;
 }
