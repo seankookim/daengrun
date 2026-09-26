@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- 0238 — no client can silence a SHIPPED ops bell or fake its instant on an ops list
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
--- Suite: 269_ops_bell_keys_suite.sql (tag `obk`) — 0238-A1 · A2 · F1 · F2 · F3 · G1 · G2 · G3 · G4 · S1
+-- Suite: 269_ops_bell_keys_suite.sql (tag `obk`) — 0238-A1 · A2 · F1 · F2 · F3 · G1 · G2 · G3 · G4 · D1 · S1
 -- Found by the executing review of 0233/0234 (fix round `4e40bad`, 0233 §C ⚠ BELL IDENTITY); this file
 -- applies the same identity to every SHIPPED site that sentence covers.
 --
@@ -37,7 +37,10 @@
 -- — a row counts only when it is kind `system` (ⓟ can only write `booking`) AND is addressed to
 -- someone who is or was seated at the class that bell rings (ⓢ can only re-address nothing; it keeps
 -- the forger's own `profile_id`, and `ops_recipients` has no client write door — 0208). Active OR
--- not: a deactivated operator's bell was still delivered. The class is the BELL's, not the reader's
+-- not: a deactivated operator's bell was still delivered (269 `0238-D1` pins it: 「active only」 would
+-- re-ring a really-rung booking and drop its instant, measured at every site in §0g″). The class
+-- conjunct is load-bearing on its own — an operator seated only on the OTHER class can rewrite their
+-- own row to kind `system` (§0g″). The class is the BELL's, not the reader's
 -- gate by coincidence: arm ⓐ / `ops_sealed_unsettled` → `payout_due`; arm ⓕ, arm ⓖ,
 -- `ops_stranded_returns`, `ops_stranded_custody` → `return_strand` (each function's own constant).
 -- Eleven sites in five functions. Each function is copied BY SCRIPT from its LATEST body on this stack
@@ -61,8 +64,14 @@
 --     sweep_run_end_recovery (ⓐ-ops, ⓕ ×2) · _sweep_custody_strands (×3) · ops_sealed_unsettled ·
 --     ops_stranded_custody (×2) · ops_stranded_returns (×2)
 --   ALREADY FIXED (4e40bad): _sweep_prerun_incidents (×2) · ops_prerun_cases · ops_open_incidents
---   NOT an ops bell keyed on (ref_id, title) — each keys on ONE recipient's own row, so the only
---   client who can forge a matching row through ⓢ is that recipient, silencing their own copy:
+--   NOT an ops bell keyed on (ref_id, title) — each keys on ONE recipient's own row. Through ⓢ only
+--   that recipient can forge a matching row (silencing their own copy); ⚠ [fix round] through ⓟ the
+--   booking COUNTERPARTY can too, wherever the recipient is a party of `ref_id` and the key admits a
+--   `booking` row — measured: an owner's party insert addressed to the RUNNER, titled
+--   「시간을 비워둔 보상이 기록됐어요」 on a picked_up booking, landed (1 row), which is exactly
+--   `sweep_cancel_money_gaps`' runner one-shot key (ref_id + runner + title, 0232:249-251); the same
+--   shape reaches `notify_chat_message`'s 「새 메시지」 debounce (profile_id + ref_id + title + unread,
+--   0090:74-80). Party-facing, outside this slice's sentence — added to §0e's open item:
 --     ops_payouts_stuck_sweep (0210: per operator, `kind='system'`, 20 h window — the forger can only
 --       be the operator it is for: 0233 §C's named residual, unchanged) · _club_note_fee_mint_failure
 --       (0118: per `club_fee_mint_failed` recipient) · club_assignment_recovery · club_chat_report ·
@@ -101,6 +110,11 @@
 --       notifications」). No other shipped pin moved. The follow-up therefore owns three suites.
 --   (3) It changes what a field client may do to a table every build writes, which deserves its own
 --       codex pass and its own deploy note rather than riding a sweep fix.
+--   ⚠ [fix round] The forecast above was measured on the first cut (nine behavioural pins). 269 now
+--   has ten (`0238-D1` shares the same staging, whose ⓢ forgeries would abort), so the follow-up
+--   owns ten of 269's pins — inferred from the shared staging, NOT re-measured. And the follow-up is
+--   worth more than first stated: it is the only thing that closes the former-operator residual
+--   (§0e), which deactivation does not.
 -- RECOMMENDED FOLLOW-UP, one slice: the column grant above + 264 B4 (ii) / 265 L3 / 269's ⓢ forgeries
 -- flipped to assert the refusal (the ⓟ arms stay: party insert is untouched) + a pin that a client
 -- can still mark read (its own row, `read_at` only) and cannot
@@ -120,11 +134,20 @@
 --     column (e.g. `server_written boolean`, stamped by a BEFORE INSERT trigger from `current_user
 --     not in ('authenticated','anon')` and never client-updatable) that every one-shot keys on — a
 --     schema change across every writer, for its own slice. Recorded as an open item for Sean.
---   · A seated operator of a class can still forge on their OWN row through ⓢ (0233 §C's residual) —
---     closed by §0d's follow-up, not here.
---   · Per-recipient bells (§0c's third group) can be silenced only by their own recipient — through
---     ⓢ, and through ⓟ by a counterparty only where the key omits `profile_id` (none of that group
---     does). Named, not changed.
+--   · A profile that IS OR WAS seated on a class can still forge on their OWN row through ⓢ (0233
+--     §C's residual) — ⚠ [fix round] and that includes a DEACTIVATED (former) operator: `active =
+--     false` is `ops_roster_set`'s only removal and it does not revoke this. Measured (executing
+--     review, re-measured by the fixer on the fixed tree): a former `return_strand` operator rewrote
+--     their own row into a 「반환 좌초 — 확인 필요」 look-alike; the bell to the ACTIVE operator rang 0
+--     (silenced), the control rang 1, and `ops_stranded_returns` showed notified_at 2000-01-01. The
+--     only revocation today is deleting that account (0115:590). Closed by §0d's follow-up (a former
+--     operator could no longer re-kind / re-title / re-ref their row) — a reason to prioritise it.
+--   · Per-recipient bells (§0c's third group) can be silenced by their own recipient through ⓢ AND
+--     — corrected in the fix round; the first cut said 「none of that group」 — by the booking
+--     COUNTERPARTY through ⓟ wherever the recipient is a party of `ref_id` (measured on
+--     `sweep_cancel_money_gaps`' runner notice; `notify_chat_message`'s 「새 메시지」 debounce has the
+--     same shape). Party-facing, not ops bells, not changed here; they join the PARTY-addressed item
+--     above on the writer-provenance open item for Sean.
 --   · Arm ⓓ/ⓔ's ops escalation is keyed on `handoff_escalated_at` / `handoff_ops_alerted_at` (bookings
 --     columns, no client write door) — not forgeable, not touched.
 --
@@ -168,6 +191,42 @@
 --      strands could observe it; this suite does not build one. S1's per-function site count is its
 --      only guard.
 --
+-- ═══ §0g″ FIX ROUND — the executing review's four findings (APPROVE-WITH-FIXES) ═══════════════════
+-- No function body moves; 269 grows and this header's prose is corrected (§0b, §0c, §0d, §0e).
+-- ① (medium) The CLASS conjunct was observable only through S1's source regex — the suite had no
+--    fixture where 「any roster」 and 「this class's roster」 disagree (review: class deleted at all 11
+--    sites → 1631/1, S1 only). 269 now plants a third look-alike in every behavioural pin: the OTHER
+--    class's operator rewrites their own row through ⓢ (opsP forges the three return_strand titles,
+--    opsR the payout_due title), with a FIXTURE arm asserting each forger has no row of the other
+--    class. Measured, same lab discipline as §0g′ (control 1633/0 first; plant asserted, `&&`-gated):
+--      class deleted at all 11 → 1623/10 (every behavioural pin but D1, plus S1)
+--      C1 → A1 + A2 + S1   C2, C3 → F1 + F2 + S1   C4 → G1 + G2 + G3 + S1   C5 → G1 + G3 + S1
+--      C6 → G2 + G3 + S1   C7 → G3 + S1            C8 → G4 + S1             C9 → A2 + S1
+--      C10 → F2 + S1       C11 → F3 + S1
+--    All 11 single-site class deletions redden a behavioural pin of their own site.
+-- ② (medium) A deactivated (former) operator can still self-forge — prose only (§0e), no code: it is
+--    the mandated idiom's own residual and §0d's follow-up is what closes it.
+-- ③ (low) 「Active OR not」 was pinned by S1's spelling alone (review: `and orr.active` at all 11 →
+--    1631/1, S1 only). New 269 `0238-D1`: after tick 1, EVERY seat of both classes is deactivated
+--    and a second operator is seated; tick 3 must not re-ring a really-rung booking (a fresh control
+--    of each shape must ring the new operator), the lists must keep notified_at, and the admissions
+--    must still list the really-rung rows with every deadline off. ⚠ Its first draft deactivated only
+--    this suite's two operators and stayed GREEN under the all-sites plant — other suites commit
+--    their own active operators, tick 1 rang them too, and their rows kept 「active only」 satisfied
+--    (26 other active seats, measured). The fixture now deactivates every earlier seat and a FIXTURE
+--    arm fails on any left active (planting the narrow draft back → D1 red on that arm alone).
+--    Measured (A = `and orr.active` appended inside the identity):
+--      A at all 11 → 1631/2 (D1 + S1)       A1 → D1 + S1       A7, A8, A9, A10, A11 → D1 + S1 each
+--      A2+A3 → D1 + S1   A4+A5 → D1 + S1   A4+A6 → D1 + S1
+--      A2, A3, A4, A5, A6 ALONE → S1 ALONE — the same named GAP as W2: narrowing ONE half of a
+--      candidate / in-lock re-check pair is hidden by the other half (a rung row either never becomes
+--      a candidate or is skipped at the re-check), so only the pair is observable here.
+-- ④ (low) 「per-recipient keys are forgeable only by their recipient」 was false — corrected in §0c
+--    and §0e (a counterparty through ⓟ; measured on `sweep_cancel_money_gaps`' runner notice).
+-- §0g′'s 22 kind / recipient deletions were RE-RUN on the fix-round suite (not carried over): each
+-- reddens exactly the pins §0g′'s table names, unchanged (the new arms add no red to them, and D1
+-- stays green under all 22 — they widen the identity, D1 guards against narrowing it).
+
 -- ═══ §0h DOCTRINE ════════════════════════════════════════════════════════════════════════════
 -- `set search_path = public, pg_temp` in every definer body (carried verbatim) · every ACL restated
 -- here · `exists` is never NULL, so the added conjuncts cannot collapse a plpgsql `if`.
