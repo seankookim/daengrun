@@ -164,13 +164,13 @@ function toGeoPoint(loc: any): GeoPoint {
 // one-shot OS sheet (a declined system prompt is only recoverable through Settings).
 export async function getTrackPermission(): Promise<'undetermined' | 'granted' | 'denied' | 'unavailable'> {
   let Location: any;
-  try { Location = require('expo-location'); } catch { return 'unavailable'; }
+  try { Location = require('expo-location'); } catch { return 'unavailable'; } // module absent in this binary
   try {
     const perm = await Location.getForegroundPermissionsAsync();
     if (perm?.granted) return 'granted';
     if (perm?.canAskAgain === false) return 'denied';
     return perm?.status === 'undetermined' ? 'undetermined' : 'denied';
-  } catch { return 'unavailable'; }
+  } catch { return 'unavailable'; } // the check itself failed: claim nothing about the grant
 }
 
 // Ask for the foreground grant and NOTHING else — onboarding needs the OS sheet on its own.
@@ -179,7 +179,7 @@ export async function getTrackPermission(): Promise<'undetermined' | 'granted' |
 // vocabulary as getTrackPermission so one caller state variable covers check and request.
 export async function requestTrackPermission(): Promise<'undetermined' | 'granted' | 'denied' | 'unavailable'> {
   let Location: any;
-  try { Location = require('expo-location'); } catch { return 'unavailable'; }
+  try { Location = require('expo-location'); } catch { return 'unavailable'; } // module absent in this binary
   try {
     const perm = await Location.requestForegroundPermissionsAsync();
     if (perm?.granted) return 'granted';
@@ -187,7 +187,7 @@ export async function requestTrackPermission(): Promise<'undetermined' | 'grante
     // The sheet was shown, so 'undetermined' here means the OS gave us no answer at all —
     // report the weaker claim rather than inventing a denial.
     return perm?.status === 'undetermined' ? 'undetermined' : 'denied';
-  } catch { return 'unavailable'; }
+  } catch { return 'unavailable'; } // the request itself failed: claim nothing about the grant
 }
 
 // One-shot current position for the address-pin picker's default center (0065 slice).
@@ -199,12 +199,12 @@ export async function getOneShotPosition(): Promise<{ lat: number; lng: number }
   const perm = await getTrackPermission();
   if (perm !== 'granted') return null;
   let Location: any;
-  try { Location = require('expo-location'); } catch { return null; }
+  try { Location = require('expo-location'); } catch { return null; } // null = next centre in the chain
   try {
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy?.Balanced ?? 3 });
     if (typeof loc?.coords?.latitude !== 'number' || typeof loc?.coords?.longitude !== 'number') return null;
     return { lat: loc.coords.latitude, lng: loc.coords.longitude };
-  } catch { return null; }
+  } catch { return null; } // null = next centre in the chain (see header), never an error state
 }
 
 // Start tracking. Never returns null again — the caller is told which mode it got so it can
@@ -219,7 +219,7 @@ export async function startTracking(
   // screen's callback wired to the sink.
   const noop = async () => { liveSub = null; };
   let Location: any;
-  try { Location = require('expo-location'); } catch { return { mode: 'unavailable', stop: noop }; }
+  try { Location = require('expo-location'); } catch { return { mode: 'unavailable', stop: noop }; } // module absent: the caller names this mode
 
   try {
     const perm = await Location.requestForegroundPermissionsAsync();
@@ -294,9 +294,10 @@ export async function startTracking(
     );
     return {
       mode: 'foreground',
-      stop: async () => { liveSub = null; try { sub.remove(); } catch { /* no-op */ } },
+      stop: async () => { liveSub = null; try { sub.remove(); } catch { /* best-effort cleanup: the watcher is dropped either way */ } },
     };
   } catch {
+    // Neither path started: report 'unavailable' so the run screen can say tracking is off.
     liveSub = null;
     return { mode: 'unavailable', stop: noop };
   }
@@ -434,6 +435,10 @@ export function publishPos(bookingId: string, pos: LivePos): void {
   const now = Date.now();
   if (now - pubLastAt < PUB_MIN_MS) return;
   pubLastAt = now;
+  // Fire-and-forget: the next fix follows within PUB_MIN_MS and the runner cannot act on a dropped
+  // frame. What tells the OWNER that frames stopped arriving is owner/live.tsx's 90 s staleness
+  // clock (「N분째 위치가 갱신되지 않았어요」) — NOT subscribePos's LiveLinkState, which reports only
+  // the owner's own channel status and stays 'live' while this send fails.
   pubCh.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
 }
 
@@ -493,6 +498,8 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
       if (now - lastAt < PUB_MIN_MS) return; // same 3s throttle as the 1:1 publisher
       lastAt = now;
       for (const c of chs) {
+        // Fire-and-forget, same reasoning as publishPos: the next fix follows, and the owner learns of
+        // missing frames from owner/live.tsx's 90 s staleness clock, not from this send.
         if (c.joined) c.ch.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
       }
     },
@@ -568,6 +575,8 @@ function retirePack(topic: string, w: PackWatcher): void {
   if (w.teardown) return;
   w.dropped = true;
   w.teardown = Promise.resolve(supabase.removeChannel(w.ch))
+    // A failed leave is swallowed on purpose: `teardown` only sequences the next open on this topic,
+    // the `.finally` retires the row either way, and nobody on screen can act on a failed leave.
     .then(() => undefined, () => undefined)
     .finally(() => { if (packWatchers.get(topic) === w) packWatchers.delete(topic); });
 }

@@ -15,6 +15,7 @@ import { Monogram, Row, ScreenHead, Skeleton } from '../../src/components/ui';
 import { MediaImage } from '../../src/lib/media';
 import { checkSlot, confirmRunReturn, CoursePatch, fetchMyReturnResolution, fetchPatchPop, fetchProfileGaps, fetchReturnSeal, fetchRunEarning, fetchRunReportOrNull, fetchRunStandings, fetchStampPop, ProfileGap, ReturnResolution, ReturnSeal, RunEarning, RunReport, RunStandings, StampInfo } from '../../src/lib/api';
 import { bookingStateLabel, reportShowsInProgress } from '../../src/lib/booking-state-copy';
+import { alertFail } from '../../src/lib/alert-fail';
 import { haptic } from '../../src/lib/haptics';
 import { kstAmPm, kstCal, kstClock, kstKey, kstMonthDay } from '../../src/lib/kst';
 import { withParticle } from '../../src/lib/particle';
@@ -216,7 +217,7 @@ async function readMyReview(bookingId: string): Promise<MyReview | null | undefi
       .eq('author_id', u.user.id)
       .eq('target_kind', 'runner')
       .maybeSingle();   // 0행 = null · 2행 이상/전송 실패 = throw (fetchRunReportOrNull과 같은 규율)
-    if (error) return undefined;
+    if (error) { console.warn('[o-report] my review read:', error.message); return undefined; }
     if (!data) return null;
     return {
       rating: data.rating ?? null,
@@ -224,7 +225,10 @@ async function readMyReview(bookingId: string): Promise<MyReview | null | undefi
       createdAt: data.created_at,
       visibility: data.visibility,
     };
-  } catch {
+  } catch (e) {
+    // Transport/session failure is 「could not check」, never 「none」 — the caller turns this
+    // `undefined` into the section's failure strip (see load()).
+    console.warn('[o-report] my review read:', (e as Error)?.message ?? e);
     return undefined;
   }
 }
@@ -446,6 +450,13 @@ export default function Report() {
       .then((r) => { if (r) setReport(r); else setNotFound(true); })
       .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); setErr(true); });
     // 실패해도 직전 실값은 지우지 않는다 — 세터는 성공에서만 돈다.
+    // ⚠ KNOWN OPEN, NOT FIXED (silent-catch-triage review, 2026-09-26): this `.catch` cannot fire
+    // for the common failures. api.ts fetchRunStandings reads only `data` from the bookings query and
+    // never checks `error`, and postgrest-js RESOLVES `{ data: null, error }` on a transport failure
+    // or a 401. The function therefore returns null, which reads here as 「no standing」, so the
+    // standings strip below never shows for those failures. The fix belongs in api.ts
+    // (`if (error) throw error;`), which is outside this slice. This screen cannot tell a
+    // failure-null from a real null.
     fetchRunStandings(bid).then(setStandings)
       .catch((e) => { console.warn('[o-report] standings:', e?.message ?? e); setStandingsErr(true); });
     // 실패 시 loaded 를 세우지 않는다 — 섹션은 그리지 않되, 아래 스트립이 왜 없는지 말한다 (거짓 0 금지)
@@ -456,7 +467,16 @@ export default function Report() {
     // 내가 이 러닝에 남긴 후기 — 없으면 null(=사실), 못 읽으면 known을 세우지 않는다(=모름).
     setMyReview(null);
     setMyReviewKnown(false);
-    readMyReview(bid).then((r) => { if (r !== undefined) { setMyReview(r); setMyReviewKnown(true); } })
+    // [silent-catch-triage 2026-09-26] readMyReview NEVER throws — every failure path (no session,
+    // RLS, transport) RETURNS `undefined`. The old handler dropped that value on the floor and put
+    // the #17 flag in a `.catch` that could not fire, so a failed read drew neither stars nor the
+    // strip: the slot vanished and 「못 읽었다」 looked like 「후기 칸이 없다」. The failure branch is
+    // HERE, on the value; the `.catch` below only covers a throw from the setters themselves.
+    readMyReview(bid).then((r) => {
+      if (r === undefined) { setReviewErr(true); return; }
+      setMyReview(r);
+      setMyReviewKnown(true);
+    })
       .catch((e) => { console.warn('[o-report] review:', e?.message ?? e); setReviewErr(true); });
     // ⑫ [0188] 반환 확인 — the owner's half of the two-stamp return. `null` is UNKNOWN here (not
     // read yet, or the read failed) and the section then says so rather than drawing a hollow
@@ -489,13 +509,14 @@ export default function Report() {
     if (!bid || !report || report.run?.endReason !== 'completed') return;
     const routeId = report.routeId;
     Promise.all([
+      // Celebration-only reads: a failure means no pop, which claims nothing (see the note above).
       routeId ? fetchPatchPop(bid, routeId).catch(() => null) : Promise.resolve(null),
-      fetchStampPop(bid).catch(() => [] as StampInfo[]),
+      fetchStampPop(bid).catch(() => [] as StampInfo[]), // same — no pop, nothing asserted
     ]).then(([patch, stamps]) => {
       if (!patch && stamps.length === 0) return; // 둘 다 비면 오버레이 자체가 마운트되지 않는다
       setHaul({ patch, stamps });
       haptic('success');
-    }).catch(() => {});
+    }).catch(() => {}); // best-effort celebration; the wall and the stamp list below still hold the facts
   }, [bid, report]);
 
   // ═══ 프로필 빈칸 넛지 — 첫 러닝 리포트에서만 읽는다 (랩 ①, Sean 콘솔 판정 #18) ═══
@@ -668,7 +689,13 @@ export default function Report() {
           (bLine ? `\n${bLine}` : '') +
           `\n\n반려견 피트니스, 도그스하이`,
       });
-    } catch { /* 사용자 취소 */ }
+    } catch (e) {
+      // [silent-catch-triage 2026-09-26] This catch used to be empty, labelled 사용자 취소, but RN's
+      // Share.share does not reject on a cancel — iOS resolves with `dismissedAction`, Android
+      // resolves regardless. A rejection is a real failure, and swallowing it made the ↗ key a
+      // button that did nothing. Say so, through the house fold (never the native English).
+      alertFail('공유 실패', e);
+    }
   };
 
   return (
