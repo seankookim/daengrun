@@ -40,6 +40,10 @@
 --        is still the real bell's instant (never 2000); for an incident opened while the roster was
 --        EMPTY it stays NULL — the console never says 「sent」 for a page nobody got. Each forged row
 --        is observable through exactly one conjunct (recipient · kind). Rolled back after measuring.
+--        ⚠ [0239] The door this pin staged through is now CLOSED (`authenticated` may UPDATE only
+--        `read_at`): each client rewrite is asserted REFUSED (42501) and the same look-alike is then
+--        written by the table owner, so both conjuncts stay observable. The client-refusal is the
+--        moved half; 270 `0239-C1` / `0239-D1` own it.
 --   · S1 **DEPLOYED SHAPE.** Definers with in-body search_path and effective ACLs both ways; the read
 --        takes zero arguments, its roster gate precedes its first read and names `incident_opened`;
 --        in `open_incident_tx` (comment-stripped) the bell follows the insert and sits inside its own
@@ -148,7 +152,7 @@ declare
   f_id jsonb; f_rows int; f_inc int; f_err text; g_id jsonb; g_rows int;
   e_id jsonb; e_rows int; e_list jsonb; e_err text;
   v_saved uuid[];
-  l3_err text; l3_upd_sx int; l3_upd_op int; l3_upd_sx2 int; l3_real timestamptz; l3_list jsonb;
+  l3_err text; l3_upd_sx int; l3_upd_op int; l3_upd_sx2 int; l3_refused text; l3_real timestamptz; l3_list jsonb;
   l3_empty uuid; l3_nid uuid; l3_nid_op uuid; l3_nid2 uuid; bL uuid;
 begin
   perform set_config('request.jwt.claim.sub', '', true);
@@ -374,27 +378,57 @@ begin
       l3_empty := (t_iod_open(oo, bL, 'equipment', 'normal')->>'id')::uuid;
       update ops_recipients set active = true where event_class = 'incident_opened' and profile_id = opsI;
       -- each forger's OWN pre-existing row (written as the table owner, like any product row)
-      insert into notifications (profile_id, kind, title, body) values (sx,   'booking', 'iod l3 a', 'x') returning id into l3_nid;
-      insert into notifications (profile_id, kind, title, body) values (sx,   'booking', 'iod l3 b', 'x') returning id into l3_nid2;
-      insert into notifications (profile_id, kind, title, body) values (opsI, 'booking', 'iod l3 c', 'x') returning id into l3_nid_op;
+      -- [0239] seeded READ: on an unread row 0239's WITH CHECK (`read_at is not null`) would also
+      -- refuse the client rewrites below, and the grant — the wall they are about — would be unobservable.
+      insert into notifications (profile_id, kind, title, body, read_at) values (sx,   'booking', 'iod l3 a', 'x', now()) returning id into l3_nid;
+      insert into notifications (profile_id, kind, title, body, read_at) values (sx,   'booking', 'iod l3 b', 'x', now()) returning id into l3_nid2;
+      insert into notifications (profile_id, kind, title, body, read_at) values (opsI, 'booking', 'iod l3 c', 'x', now()) returning id into l3_nid_op;
+      -- [0239] `noti self update` no longer lets a client write anything but `read_at` (0239 §A).
+      -- Each of the three forges below is first attempted AS THE CLIENT and asserted REFUSED
+      -- (42501) — this pin used to assert they LANDED — and the same look-alike is then written by
+      -- the table owner, so notified_at's two conjuncts (recipient · kind) stay observable here.
+      -- 270 `0239-C1` / `0239-D1` own the refusal itself.
+      l3_refused := '';
       -- the STRANGER, as an authenticated client under RLS: kind system, the incident, 2000-01-01
-      perform set_config('request.jwt.claim.sub', sx::text, true);
-      set local role authenticated;
-      if current_user <> 'authenticated' then raise exception 'l3: role did not take'; end if;
+      begin
+        perform set_config('request.jwt.claim.sub', sx::text, true);
+        set local role authenticated;
+        if current_user <> 'authenticated' then raise exception 'l3: role did not take'; end if;
+        update notifications set kind = 'system', title = T_N, ref_id = inc_n, created_at = '2000-01-01'
+         where id = l3_nid;
+        l3_refused := l3_refused || 'sx:LANDED ';
+        reset role;
+      exception when insufficient_privilege then l3_refused := l3_refused || 'sx:' || sqlstate || ' ';
+      end;
+      begin
+        perform set_config('request.jwt.claim.sub', sx::text, true);
+        set local role authenticated;
+        update notifications set kind = 'system', title = T_N, ref_id = l3_empty, created_at = '2000-01-01'
+         where id = l3_nid2;
+        l3_refused := l3_refused || 'sx2:LANDED ';
+        reset role;
+      exception when insufficient_privilege then l3_refused := l3_refused || 'sx2:' || sqlstate || ' ';
+      end;
+      -- a SEATED operator, same door, but the row stays kind booking (only the kind conjunct sees it)
+      begin
+        perform set_config('request.jwt.claim.sub', opsI::text, true);
+        set local role authenticated;
+        update notifications set title = T_N, ref_id = inc_n, created_at = '2000-01-01' where id = l3_nid_op;
+        l3_refused := l3_refused || 'op:LANDED ';
+        reset role;
+      exception when insufficient_privilege then l3_refused := l3_refused || 'op:' || sqlstate || ' ';
+      end;
+      reset role;
+      perform set_config('request.jwt.claim.sub', '', true);
+      -- the same three look-alikes, written by the table owner
       update notifications set kind = 'system', title = T_N, ref_id = inc_n, created_at = '2000-01-01'
        where id = l3_nid;
       get diagnostics l3_upd_sx = row_count;
       update notifications set kind = 'system', title = T_N, ref_id = l3_empty, created_at = '2000-01-01'
        where id = l3_nid2;
       get diagnostics l3_upd_sx2 = row_count;
-      reset role;
-      -- a SEATED operator, same door, but the row stays kind booking (only the kind conjunct sees it)
-      perform set_config('request.jwt.claim.sub', opsI::text, true);
-      set local role authenticated;
       update notifications set title = T_N, ref_id = inc_n, created_at = '2000-01-01' where id = l3_nid_op;
       get diagnostics l3_upd_op = row_count;
-      reset role;
-      perform set_config('request.jwt.claim.sub', '', true);
       l3_list := t_iod_list_as(opsI);
       raise exception 'iod_l3_rollback';
     exception when others then
@@ -403,9 +437,12 @@ begin
     reset role;
     perform set_config('request.jwt.claim.sub', '', true);
     if l3_err is not null then v_bad := v_bad || ' staging raised: ' || l3_err; end if;
-    -- the fixture world starts where production starts: the forging door is OPEN
+    -- [0239] the client door is CLOSED (it was open before 0239 — the fixture world starts where
+    -- production starts, and production now refuses); the owner-written look-alikes must land
+    if l3_refused is distinct from 'sx:42501 sx2:42501 op:42501 '
+      then v_bad := v_bad || ' 🔴 a client forge through noti self update was not refused (' || coalesce(l3_refused, 'NULL') || ')'; end if;
     if l3_upd_sx is distinct from 1 or l3_upd_sx2 is distinct from 1 or l3_upd_op is distinct from 1
-      then v_bad := v_bad || ' FIXTURE: a forging update did not land (' || coalesce(l3_upd_sx::text, 'NULL') || '/'
+      then v_bad := v_bad || ' FIXTURE: a look-alike did not land (' || coalesce(l3_upd_sx::text, 'NULL') || '/'
                    || coalesce(l3_upd_sx2::text, 'NULL') || '/' || coalesce(l3_upd_op::text, 'NULL') || ') — the pin would prove nothing'; end if;
     if l3_real is null then v_bad := v_bad || ' FIXTURE: the belled incident has no real bell row'; end if;
     if l3_empty is null then v_bad := v_bad || ' FIXTURE: the unpaged incident was not opened'; end if;
@@ -418,7 +455,7 @@ begin
       elsif (l3_list->'rows'->l3_empty::text->>'notified_at') is not null
         then v_bad := v_bad || ' 🔴 an UNPAGED incident shows notified_at=' || (l3_list->'rows'->l3_empty::text->>'notified_at'); end if;
     end if;
-    if v_bad = '' then call _pass('iod','0234-L3 notified_at은 벨이 쓴 행만 — 낯선 사람이 noti self update로 자기 행을 system·이 사고·2000-01-01로 바꾸고(1행 반영 확인), 운영자가 자기 행을 kind booking 그대로 바꿔도 울린 사고의 notified_at은 실제 벨 시각, 명부가 비었을 때 열린 사고는 NULL 유지 (측정 후 롤백)');
+    if v_bad = '' then call _pass('iod','0234-L3 notified_at은 벨이 쓴 행만 — 낯선 사람·운영자의 noti self update 위조는 42501 거부(0239), 같은 흉내 행(system·이 사고·2000-01-01 / kind booking 그대로)을 소유자가 심어도 울린 사고의 notified_at은 실제 벨 시각, 명부가 비었을 때 열린 사고는 NULL 유지 (측정 후 롤백)');
     else v_msg := v_bad; call _fail('iod','0234-L3 notified_at is the bell''s own row', v_msg); end if;
   exception when others then reset role; call _fail('iod','0234-L3 notified_at is the bell''s own row', sqlerrm); end;
 

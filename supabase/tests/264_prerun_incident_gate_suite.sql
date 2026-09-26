@@ -35,7 +35,9 @@
 --        booking's RUNNER inserts a `kind='booking'` row with the bell's title on their own booking
 --        (0114 `noti party insert`); a signed-in STRANGER rewrites one of their own rows to kind
 --        `system`, the bell's title, another booking's id and `created_at` 2000-01-01 (0002 `noti self
---        update`); a SEATED operator who is also a booking's OWNER inserts a `kind='booking'` look-alike
+--        update`) — [0239] that CLIENT rewrite is now asserted REFUSED (42501, 0239's column grant) and
+--        the same row is then written by the table owner, so the recipient conjunct stays
+--        observable; a SEATED operator who is also a booking's OWNER inserts a `kind='booking'` look-alike
 --        dated 2000-01-01. One real tick: each of the three bookings still gets exactly one `system`
 --        row to the seated operator — like an untouched CONTROL booking — and `ops_prerun_cases()`
 --        reports the REAL bell's instant for each, never 2000. Each forged row is observable through
@@ -167,7 +169,7 @@ declare
   v_ids uuid[]; v_keys text[]; r record; p_a int; p_b int; v_oid oid; fn text;
   b3_first int; b3_second int; b3_third int; b3_err text; b3_roster0 int;
   r9 uuid; r10 uuid; r11 uuid; r12 uuid; bAI uuid; bAU uuid; bAR uuid; bCtl uuid;
-  b4_err text; b4_ins_r int; b4_ins_o int; b4_upd int; b4_nid uuid; b4_n jsonb; b4_cases jsonb; b4_pre int;
+  b4_err text; b4_ins_r int; b4_ins_o int; b4_upd int; b4_refused text; b4_nid uuid; b4_n jsonb; b4_cases jsonb; b4_pre int;
 begin
   perform set_config('request.jwt.claim.sub', '', true);
   oo   := t_user('pig_owner', 'owner');
@@ -384,12 +386,27 @@ begin
       get diagnostics b4_ins_r = row_count;
       reset role;
       -- (ii) a STRANGER rewrites one of their own rows (noti self update)
-      insert into notifications (profile_id, kind, title, body) values (sx, 'booking', 'pig b4', 'x') returning id into b4_nid;
-      perform set_config('request.jwt.claim.sub', sx::text, true);
-      set local role authenticated;
+      -- [0239] That door is CLOSED: `authenticated` may UPDATE only `read_at` (0239 §A). The client
+      -- attempt is now asserted REFUSED (42501) — this arm used to assert it LANDED — and the same
+      -- look-alike is then written by the table owner, so the recipient conjunct of the bell
+      -- identity stays observable here (a look-alike can still reach the table through `noti party
+      -- insert` or a future door). 270 `0239-C1` / `0239-D1` own the refusal itself.
+      -- [0239] seeded READ: on an unread row 0239's WITH CHECK (`read_at is not null`) would also
+      -- refuse the rewrite, and the grant — the wall this arm is about — would be unobservable.
+      insert into notifications (profile_id, kind, title, body, read_at) values (sx, 'booking', 'pig b4', 'x', now()) returning id into b4_nid;
+      begin
+        perform set_config('request.jwt.claim.sub', sx::text, true);
+        set local role authenticated;
+        update notifications set kind = 'system', title = T_OPS, ref_id = bAU, created_at = '2000-01-01' where id = b4_nid;
+        b4_refused := 'LANDED';
+        reset role;
+      exception when insufficient_privilege then
+        b4_refused := sqlstate;
+      end;
+      reset role;
+      perform set_config('request.jwt.claim.sub', '', true);
       update notifications set kind = 'system', title = T_OPS, ref_id = bAU, created_at = '2000-01-01' where id = b4_nid;
       get diagnostics b4_upd = row_count;
-      reset role;
       -- (iii) a SEATED operator who owns a booking, party insert, dated 2000-01-01
       perform set_config('request.jwt.claim.sub', opsR::text, true);
       set local role authenticated;
@@ -415,8 +432,11 @@ begin
     perform set_config('request.jwt.claim.sub', '', true);
     if b4_err is not null then v_bad := v_bad || ' staging raised: ' || b4_err; end if;
     if b4_ins_r is distinct from 1 or b4_upd is distinct from 1 or b4_ins_o is distinct from 1
-      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(b4_ins_r::text, 'NULL') || '/'
+      then v_bad := v_bad || ' FIXTURE: a look-alike did not land (' || coalesce(b4_ins_r::text, 'NULL') || '/'
                    || coalesce(b4_upd::text, 'NULL') || '/' || coalesce(b4_ins_o::text, 'NULL') || ') — the pin would prove nothing'; end if;
+    -- [0239] the stranger's CLIENT rewrite must be refused by privilege (before 0239 it landed)
+    if b4_refused is distinct from '42501'
+      then v_bad := v_bad || ' 🔴 the stranger''s client rewrite through noti self update was not refused (' || coalesce(b4_refused, 'NULL') || ')'; end if;
     if b4_pre is distinct from 0 then v_bad := v_bad || ' FIXTURE: a real bell existed before the tick (' || coalesce(b4_pre::text, 'NULL') || ')'; end if;
     if (b4_n->>bCtl::text) is distinct from '1' then v_bad := v_bad || ' CONTROL: the untouched booking got ' || coalesce(b4_n->>bCtl::text, 'NULL') || ' (1) — the tick proves nothing'; end if;
     if (b4_n->>bAI::text) is distinct from '1' then v_bad := v_bad || ' 🔴 the runner''s booking-kind look-alike silenced the bell (' || coalesce(b4_n->>bAI::text, 'NULL') || ')'; end if;
@@ -431,7 +451,7 @@ begin
           then v_bad := v_bad || ' 🔴 ' || v_txt || ' notified_at=' || (b4_cases->'rows'->v_txt->>'notified_at') || ' — a look-alike row was read as the bell'; end if;
       end loop;
     end if;
-    if v_bad = '' then call _pass('pig','0233-B4 클라이언트는 벨을 끄거나 시각을 꾸밀 수 없다 — 러너의 booking 종류 흉내(파티 insert), 낯선 사람이 자기 행을 system·다른 예약·2000-01-01로 바꾼 행(self update), 명부 운영자이자 보호자의 booking 종류 흉내(2000-01-01) 모두 1행 반영 확인 후, 한 tick에 세 예약 모두 대조군처럼 운영자 system 1행, ops_prerun_cases의 notified_at은 실제 벨 시각 (측정 후 롤백)');
+    if v_bad = '' then call _pass('pig','0233-B4 클라이언트는 벨을 끄거나 시각을 꾸밀 수 없다 — 러너의 booking 종류 흉내(파티 insert), 낯선 사람의 self update 위조는 42501 거부(0239) 후 같은 흉내 행(system·다른 예약·2000-01-01)을 소유자가 심고, 명부 운영자이자 보호자의 booking 종류 흉내(2000-01-01) 모두 1행 반영 확인 후, 한 tick에 세 예약 모두 대조군처럼 운영자 system 1행, ops_prerun_cases의 notified_at은 실제 벨 시각 (측정 후 롤백)');
     else v_msg := v_bad; call _fail('pig','0233-B4 bell identity', v_msg); end if;
   exception when others then reset role; call _fail('pig','0233-B4 bell identity', sqlerrm); end;
 

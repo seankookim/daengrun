@@ -27,6 +27,14 @@
 --     executing review: 1631/1). A FIXTURE arm asserts each forger really is off the other class.
 -- Every forging write is asserted to have LANDED (exactly one row) before anything is read — a pin
 -- over a fixture where the forge was refused would be green for the wrong reason.
+-- ⚠ [0239] ⓢ is CLOSED: `authenticated` may UPDATE only `read_at` (0239 §A). `t_obk_forge_self`
+-- therefore first attempts the rewrite AS THE CLIENT and requires it to be REFUSED (42501), and only
+-- then writes the same look-alike as the table owner — so the look-alike still LANDS (exactly one
+-- row, the same assertion as before) and every conjunct of the identity stays observable, while
+-- a client rewrite that LANDED returns -1 and fails every pin's FIXTURE arm. The STRANGER and
+-- CROSS-CLASS shapes are now 「what any door that re-opens would write」, not 「what ⓢ writes today」.
+-- ⓟ is untouched by 0239 and still stages through the client. 270 `0239-C1` / `0239-D1` own the
+-- refusal itself.
 --
 --   · A1 **arm ⓐ's operator bell 「정산 미완료 — 확인 필요」 (payout_due).** A sealed-unsettled booking
 --        carrying either look-alike still gets exactly ONE `system` row to the seated operator on the
@@ -79,6 +87,10 @@
 --     the bell to the active operator and put 2000-01-01 on `ops_stranded_returns`). D1 pins the
 --     other side of the same choice (a former operator's REAL ring still counts). Closed only by
 --     0238 §0d's follow-up (no client re-kind / re-title / re-ref). No pin claims it closed.
+--     ⚠ [0239] CLOSED by that follow-up: 0239 revokes client UPDATE on every column but `read_at`.
+--     270 `0239-D1` pins it end to end (a former `return_strand` operator's forge is refused, the
+--     active operator is belled once, notified_at is the real bell), with a control showing the same
+--     look-alike planted by the owner still silences — so the door is the only wall, by design.
 --   · Party-addressed one-shots (「정산을 확인하고 있어요」, 「반환 확인이 멈춰 있어요」, 「러닝 시작이 /
 --     종료가 멈춰 있어요」) are NOT ops bells and are NOT changed by 0238 — see its header §0c.
 --
@@ -144,20 +156,35 @@ begin
 end $$;
 
 -- ⓢ: `p_uid` rewrites one of their OWN rows (seeded here as the server would) to kind system, the
--- bell's title, `p_booking` and 2000-01-01, AS authenticated. Returns the rows the UPDATE changed.
+-- bell's title, `p_booking` and 2000-01-01.
+-- [0239] First AS authenticated — that rewrite must now be REFUSED (42501, 0239's column grant); a
+-- client rewrite that LANDS returns -1, which fails every pin's FIXTURE arm (the door re-opened).
+-- Then the SAME rewrite as the table owner, so the look-alike exists and the identity's recipient /
+-- class conjuncts stay observable. Returns the rows the owner's UPDATE changed (1 when refused+planted).
 create or replace function t_obk_forge_self(p_uid uuid, p_booking uuid, p_title text) returns int
 language plpgsql as $$
-declare v int; v_id uuid;
+declare v int; v_id uuid; v_landed boolean := false;
 begin
-  insert into notifications (profile_id, kind, title, body) values (p_uid, 'booking', 'obk seed', 'x')
+  -- [0239] seeded READ: on an unread row 0239's WITH CHECK (`read_at is not null`) would also refuse
+  -- the client rewrite, and the grant — the wall this helper tests — would be unobservable.
+  insert into notifications (profile_id, kind, title, body, read_at) values (p_uid, 'booking', 'obk seed', 'x', now())
   returning id into v_id;
-  perform set_config('request.jwt.claim.sub', p_uid::text, true);
-  set local role authenticated;
+  begin
+    perform set_config('request.jwt.claim.sub', p_uid::text, true);
+    set local role authenticated;
+    update notifications set kind = 'system', title = p_title, ref_id = p_booking, created_at = '2000-01-01'
+     where id = v_id;
+    v_landed := true;
+    reset role;
+  exception when insufficient_privilege then
+    v_landed := false;
+  end;
+  reset role;
+  perform set_config('request.jwt.claim.sub', '', true);
+  if v_landed then return -1; end if;
   update notifications set kind = 'system', title = p_title, ref_id = p_booking, created_at = '2000-01-01'
    where id = v_id;
   get diagnostics v = row_count;
-  reset role;
-  perform set_config('request.jwt.claim.sub', '', true);
   return v;
 end $$;
 
@@ -377,9 +404,9 @@ begin
     v_bad := '';
     if stage_err is not null then v_bad := v_bad || ' staging raised: ' || stage_err; end if;
     if (forged->>'aOp') is distinct from '1' or (forged->>'aSt') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(forged->>'aOp', 'NULL') || '/' || coalesce(forged->>'aSt', 'NULL') || ') — the pin would prove nothing'; end if;
+      then v_bad := v_bad || ' FIXTURE: a forge was not staged (ⓟ must land 1; ⓢ must be client-refused then owner-planted 1, -1 = the client rewrite LANDED) (' || coalesce(forged->>'aOp', 'NULL') || '/' || coalesce(forged->>'aSt', 'NULL') || ') — the pin would prove nothing'; end if;
     if (forged->>'aXc') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: the cross-class forge did not land (' || coalesce(forged->>'aXc', 'NULL') || ')'; end if;
+      then v_bad := v_bad || ' FIXTURE: the cross-class forge was not client-refused then owner-planted (-1 = the client rewrite LANDED) (' || coalesce(forged->>'aXc', 'NULL') || ')'; end if;
     if (w->>'xcSeat') is distinct from '2' or (w->>'xcOff') is distinct from '0'
       then v_bad := v_bad || ' FIXTURE: the cross-class forgers are not where the class conjunct alone decides (own-class seats ' || coalesce(w->>'xcSeat', 'NULL') || '/2, other-class rows ' || coalesce(w->>'xcOff', 'NULL') || '/0)'; end if;
     if (w->>'aReal1') is distinct from '1' then v_bad := v_bad || ' FIXTURE: tick 1 did not ring the real-bell booking (' || coalesce(w->>'aReal1', 'NULL') || ')'; end if;
@@ -419,9 +446,9 @@ begin
     v_bad := '';
     if stage_err is not null then v_bad := v_bad || ' staging raised: ' || stage_err; end if;
     if (forged->>'fOp') is distinct from '1' or (forged->>'fSt') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(forged->>'fOp', 'NULL') || '/' || coalesce(forged->>'fSt', 'NULL') || ')'; end if;
+      then v_bad := v_bad || ' FIXTURE: a forge was not staged (ⓟ must land 1; ⓢ must be client-refused then owner-planted 1, -1 = the client rewrite LANDED) (' || coalesce(forged->>'fOp', 'NULL') || '/' || coalesce(forged->>'fSt', 'NULL') || ')'; end if;
     if (forged->>'fXc') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: the cross-class forge did not land (' || coalesce(forged->>'fXc', 'NULL') || ')'; end if;
+      then v_bad := v_bad || ' FIXTURE: the cross-class forge was not client-refused then owner-planted (-1 = the client rewrite LANDED) (' || coalesce(forged->>'fXc', 'NULL') || ')'; end if;
     if (w->>'xcSeat') is distinct from '2' or (w->>'xcOff') is distinct from '0'
       then v_bad := v_bad || ' FIXTURE: the cross-class forgers are not where the class conjunct alone decides (own-class seats ' || coalesce(w->>'xcSeat', 'NULL') || '/2, other-class rows ' || coalesce(w->>'xcOff', 'NULL') || '/0)'; end if;
     if (w->>'fReal1') is distinct from '1' then v_bad := v_bad || ' FIXTURE: tick 1 did not ring the real-bell strand (' || coalesce(w->>'fReal1', 'NULL') || ')'; end if;
@@ -461,7 +488,7 @@ begin
     v_bad := '';
     if stage_err is not null then v_bad := v_bad || ' staging raised: ' || stage_err; end if;
     if (forged->>'fNbOp') is distinct from '1' or (forged->>'fNbSt') is distinct from '1' or (forged->>'fNbXc') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(forged->>'fNbOp', 'NULL') || '/' || coalesce(forged->>'fNbSt', 'NULL') || '/' || coalesce(forged->>'fNbXc', 'NULL') || ')'; end if;
+      then v_bad := v_bad || ' FIXTURE: a forge was not staged (ⓟ must land 1; ⓢ must be client-refused then owner-planted 1, -1 = the client rewrite LANDED) (' || coalesce(forged->>'fNbOp', 'NULL') || '/' || coalesce(forged->>'fNbSt', 'NULL') || '/' || coalesce(forged->>'fNbXc', 'NULL') || ')'; end if;
     if (w->>'xcSeat') is distinct from '2' or (w->>'xcOff') is distinct from '0'
       then v_bad := v_bad || ' FIXTURE: the cross-class forgers are not where the class conjunct alone decides (own-class seats ' || coalesce(w->>'xcSeat', 'NULL') || '/2, other-class rows ' || coalesce(w->>'xcOff', 'NULL') || '/0)'; end if;
     if lRetNull is null or lRetNull ? 'raised' then v_bad := v_bad || ' list: ' || coalesce(lRetNull::text, 'NULL');
@@ -484,7 +511,7 @@ begin
       v_txt := case k when 'gs' then '0238-G1 custody start bell identity' else '0238-G2 custody end bell identity' end;
       if stage_err is not null then v_bad := v_bad || ' staging raised: ' || stage_err; end if;
       if (forged->>(k || 'Op')) is distinct from '1' or (forged->>(k || 'St')) is distinct from '1' or (forged->>(k || 'Xc')) is distinct from '1'
-        then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(forged->>(k || 'Op'), 'NULL') || '/' || coalesce(forged->>(k || 'St'), 'NULL') || '/' || coalesce(forged->>(k || 'Xc'), 'NULL') || ')'; end if;
+        then v_bad := v_bad || ' FIXTURE: a forge was not staged (ⓟ must land 1; ⓢ must be client-refused then owner-planted 1, -1 = the client rewrite LANDED) (' || coalesce(forged->>(k || 'Op'), 'NULL') || '/' || coalesce(forged->>(k || 'St'), 'NULL') || '/' || coalesce(forged->>(k || 'Xc'), 'NULL') || ')'; end if;
       if (w->>'xcSeat') is distinct from '2' or (w->>'xcOff') is distinct from '0'
         then v_bad := v_bad || ' FIXTURE: the cross-class forgers are not where the class conjunct alone decides (own-class seats ' || coalesce(w->>'xcSeat', 'NULL') || '/2, other-class rows ' || coalesce(w->>'xcOff', 'NULL') || '/0)'; end if;
       if (w->>(k || 'Real1')) is distinct from '1' then v_bad := v_bad || ' FIXTURE: tick 1 did not ring the real-bell custody (' || coalesce(w->>(k || 'Real1'), 'NULL') || ')'; end if;
@@ -527,7 +554,7 @@ begin
     v_bad := '';
     if stage_err is not null then v_bad := v_bad || ' staging raised: ' || stage_err; end if;
     if (forged->>'gNbOp') is distinct from '1' or (forged->>'gNbSt') is distinct from '1' or (forged->>'gNbXc') is distinct from '1'
-      then v_bad := v_bad || ' FIXTURE: a forging write did not land (' || coalesce(forged->>'gNbOp', 'NULL') || '/' || coalesce(forged->>'gNbSt', 'NULL') || '/' || coalesce(forged->>'gNbXc', 'NULL') || ')'; end if;
+      then v_bad := v_bad || ' FIXTURE: a forge was not staged (ⓟ must land 1; ⓢ must be client-refused then owner-planted 1, -1 = the client rewrite LANDED) (' || coalesce(forged->>'gNbOp', 'NULL') || '/' || coalesce(forged->>'gNbSt', 'NULL') || '/' || coalesce(forged->>'gNbXc', 'NULL') || ')'; end if;
     if (w->>'xcSeat') is distinct from '2' or (w->>'xcOff') is distinct from '0'
       then v_bad := v_bad || ' FIXTURE: the cross-class forgers are not where the class conjunct alone decides (own-class seats ' || coalesce(w->>'xcSeat', 'NULL') || '/2, other-class rows ' || coalesce(w->>'xcOff', 'NULL') || '/0)'; end if;
     if lCusNull is null or lCusNull ? 'raised' then v_bad := v_bad || ' list: ' || coalesce(lCusNull::text, 'NULL');
