@@ -294,7 +294,7 @@ export async function startTracking(
     );
     return {
       mode: 'foreground',
-      stop: async () => { liveSub = null; try { sub.remove(); } catch { /* no-op */ } },
+      stop: async () => { liveSub = null; try { sub.remove(); } catch { /* best-effort cleanup: the watcher is dropped either way */ } },
     };
   } catch {
     // Neither path started: report 'unavailable' so the run screen can say tracking is off.
@@ -435,8 +435,10 @@ export function publishPos(bookingId: string, pos: LivePos): void {
   const now = Date.now();
   if (now - pubLastAt < PUB_MIN_MS) return;
   pubLastAt = now;
-  // Fire-and-forget: the next fix follows within PUB_MIN_MS, the runner cannot act on a dropped
-  // frame, and the owner's map reports link health through subscribePos's LiveLinkState.
+  // Fire-and-forget: the next fix follows within PUB_MIN_MS and the runner cannot act on a dropped
+  // frame. What tells the OWNER that frames stopped arriving is owner/live.tsx's 90 s staleness
+  // clock (「N분째 위치가 갱신되지 않았어요」) — NOT subscribePos's LiveLinkState, which reports only
+  // the owner's own channel status and stays 'live' while this send fails.
   pubCh.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
 }
 
@@ -496,7 +498,8 @@ export function createPosPublisher(bookingIds: string[]): { publish: (pos: LiveP
       if (now - lastAt < PUB_MIN_MS) return; // same 3s throttle as the 1:1 publisher
       lastAt = now;
       for (const c of chs) {
-        // Fire-and-forget, same reasoning as publishPos: the next fix follows, link health is shown owner-side.
+        // Fire-and-forget, same reasoning as publishPos: the next fix follows, and the owner learns of
+        // missing frames from owner/live.tsx's 90 s staleness clock, not from this send.
         if (c.joined) c.ch.send({ type: 'broadcast', event: 'pos', payload: pos }).catch(() => {});
       }
     },
@@ -572,6 +575,8 @@ function retirePack(topic: string, w: PackWatcher): void {
   if (w.teardown) return;
   w.dropped = true;
   w.teardown = Promise.resolve(supabase.removeChannel(w.ch))
+    // A failed leave is swallowed on purpose: `teardown` only sequences the next open on this topic,
+    // the `.finally` retires the row either way, and nobody on screen can act on a failed leave.
     .then(() => undefined, () => undefined)
     .finally(() => { if (packWatchers.get(topic) === w) packWatchers.delete(topic); });
 }

@@ -450,6 +450,13 @@ export default function Report() {
       .then((r) => { if (r) setReport(r); else setNotFound(true); })
       .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); setErr(true); });
     // 실패해도 직전 실값은 지우지 않는다 — 세터는 성공에서만 돈다.
+    // ⚠ KNOWN OPEN, NOT FIXED (silent-catch-triage review, 2026-09-26): this `.catch` cannot fire
+    // for the common failures. api.ts fetchRunStandings reads only `data` from the bookings query and
+    // never checks `error`, and postgrest-js RESOLVES `{ data: null, error }` on a transport failure
+    // or a 401. The function therefore returns null, which reads here as 「no standing」, so the
+    // standings strip below never shows for those failures. The fix belongs in api.ts
+    // (`if (error) throw error;`), which is outside this slice. This screen cannot tell a
+    // failure-null from a real null.
     fetchRunStandings(bid).then(setStandings)
       .catch((e) => { console.warn('[o-report] standings:', e?.message ?? e); setStandingsErr(true); });
     // 실패 시 loaded 를 세우지 않는다 — 섹션은 그리지 않되, 아래 스트립이 왜 없는지 말한다 (거짓 0 금지)
