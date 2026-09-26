@@ -156,7 +156,7 @@ export default function OwnerReview() {
             accessibilityState={{ checked: privateFlag }}
           >
             <View style={[s.check, privateFlag && { backgroundColor: paper.ink, borderColor: paper.ink }]}>
-              {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' }}>✓</Text>}
+              {privateFlag && <Text style={{ fontSize: 11.5, fontWeight: '900', color: '#fff' /* floor-exempt: glyph — ✓ in the private-note checkbox */ }}>✓</Text>}
             </View>
             <Text style={{ flex: 1, fontSize: 15, color: paper.text, lineHeight: 19.5 }}>
               도그스하이 팀에게만 전달 (프로필에 공개되지 않아요 — 불편했던 점을 솔직하게)

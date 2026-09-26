@@ -364,7 +364,7 @@ export function StoryShareCard({
               a text-shadow guess rather than a number. On the floor it is 4.74:1.
               (Latin serial — the letterspaced-kicker exemption to the 15pt floor.) */}
           {data.trace && data.trace.length > 1 && (
-            <Text {...FIXED_TYPE} style={{ fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK, textAlign: 'right', paddingTop: 10 }}>
+            <Text {...FIXED_TYPE} style={{ fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK, textAlign: 'right', paddingTop: 10 /* floor-exempt: latin-kicker — 'START · END' */ }}>
               START · END
             </Text>
           )}
@@ -418,7 +418,7 @@ export function StoryShareCard({
               {...FIXED_TYPE}
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={{ flexShrink: 0, marginLeft: 'auto', paddingLeft: 10, fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK }}
+              style={{ flexShrink: 0, marginLeft: 'auto', paddingLeft: 10, fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: SCRIM_LABEL_INK /* floor-exempt: wordmark — latin 'DOGS HIGH', AT-hidden */ }}
             >
               DOGS HIGH
             </Text>

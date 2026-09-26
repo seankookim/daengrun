@@ -11,6 +11,7 @@ import { resolveMediaUrl } from '../../src/lib/media';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
+import { alertFail } from '../../src/lib/alert-fail';
 import { colors, paper } from '../../src/theme';
 import { pathFrom, RunShareCard, StoryShareCard } from '../../src/components/run-share-card';
 import Constants from 'expo-constants';
@@ -82,9 +83,10 @@ function IconChip({ size, df }: { size: number; df: any }) {
           not a sentence (5.8/7.7pt at size 24), so the 14pt detail floor does not apply. Taking the
           exception requires a declaration: they are hidden from assistive tech as decoration, and
           not one character of data ever enters here.
-          ⚠ The accessible name comes from `Lockup` (:79), THIS FILE's local brand device that wraps
-          this chip — not from any shared component. It renders visible 「도그스하이 DOGS HIGH」 with
-          no a11y hiding, so a screen reader reads the brand once from the wrapper while the tiny
+          ⚠ The accessible name comes from `Lockup` (below), THIS FILE's local brand device that
+          wraps this chip — not from any shared component. [2026-09-26] Its wrapper View now carries
+          accessibilityLabel 「도그스하이 DOGS HIGH」 (its own wordmark Text is hidden too, logo
+          clause 2), so a screen reader reads the brand once from the wrapper while the tiny
           mark inside stays silent. That is what makes hiding these two lines correct rather than a
           gap. [2026-08-20] This line used to say "바깥 BrandLockup" — the claim was right but the
           NAME was not: `BrandLockup` was a different, shared component (src/components/brandmark),
@@ -108,19 +110,31 @@ function BrandTape({ width, rotate, df }: { width: number; rotate: string; df: a
           코덱스는 "반복은 한글을 글리프로 만들지 않는다"며 14pt를 요구했고 그 지적은 옳다 —
           그래서 '반복하니까 괜찮다'가 아니라 '이건 워드마크다'로 예외를 세우고 선언한다.
           데이터는 없고(브랜드 이름뿐), 스크린리더에는 장식으로 감춘다. */}
-      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" numberOfLines={1} style={[{ fontSize: 13, color: paper.ink, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 }, df]}>
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" numberOfLines={1} style={[{ fontSize: 13, color: paper.ink, fontWeight: '900', letterSpacing: 2, paddingLeft: 6 /* floor-exempt: wordmark — the repeating brand tape, AT-hidden, no data */ }, df]}>
         도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH · 도그스하이 · DOGS HIGH
       </Text>
     </View>
   );
 }
 
+// The lockup is logo artwork (DESIGN.md §3 names "IconChip and its lockup"), so its small 12.5pt
+// form may sit under the 15pt floor — but only while all three logo clauses hold. Clause 2 did not:
+// the wordmark Text was the element a screen reader landed on. It is now hidden from assistive tech
+// and the wrapper carries the one accessible name, which is exactly the clause's shape (「any needed
+// label on the parent」). Raising it to 15 instead was rejected on an ESTIMATE, not a device
+// measurement: chip + gap + the letterspaced lockup at 15 comes to roughly 230pt against a ~243pt
+// inner card width on a 375pt phone (CARD_W = W − 96, 18pt insets), and less room on a 320pt one.
 function Lockup({ df, small, light = true }: { df: any; small?: boolean; light?: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: small ? 6 : 8 }}>
+    <View
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="도그스하이 DOGS HIGH"
+      style={{ flexDirection: 'row', alignItems: 'center', gap: small ? 6 : 8 }}
+    >
       <IconChip size={small ? 24 : 32} df={df} />
-      <Text style={[{
-        fontSize: small ? 12.5 : 15.5, color: light ? '#fff' : paper.ink, fontWeight: '900', letterSpacing: 2,
+      <Text accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[{
+        fontSize: small ? 12.5 : 15.5, color: light ? '#fff' : paper.ink, fontWeight: '900', letterSpacing: 2, // floor-exempt: wordmark — the lockup, AT-hidden (the wrapper carries the label), no data
         ...(light ? { textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } } : {}),
       }, df]}>
         도그스하이 <Text style={{ color: light ? colors.neon : colors.clubInk }}>DOGS HIGH</Text>
@@ -296,6 +310,8 @@ export default function ShotStudio() {
     fetchRunReportOrNull(bid)
       .then((r) => { if (r) setReport(r); else setNotFound(true); })
       .catch((e) => { console.warn('[shot] run report:', e?.message ?? e); setErr(true); });
+    // catch-ok: best-effort decoration — standings only add the optional 「역대 최장 · 최고 페이스」 line;
+    // on failure the card omits that line (it never prints a record claim it could not check).
     fetchRunStandings(bid).then(setStandings).catch(() => {});
   }, [bid]);
   useEffect(() => { load(); }, [load]);
@@ -328,6 +344,7 @@ export default function ShotStudio() {
     const paths = run?.photos ?? [];
     if (paths.length === 0) { setRunPhotos([]); setPhotoSignFails(0); return; }
     let live = true;
+    // catch-ok: a failed signature becomes null, and nulls are COUNTED into photoSignFails, which the sheet prints.
     Promise.all(paths.map((p) => resolveMediaUrl(p).catch(() => null))).then((rs) => {
       if (!live) return;
       setRunPhotos(rs.filter((x): x is string => !!x));
@@ -498,7 +515,18 @@ export default function ShotStudio() {
     setBusy(true);
     haptic('success');
     const uri = await capture();
-    if (uri) { try { await Share.share({ url: uri }); } catch { /* 취소 */ } }
+    // On iOS, RN's Share.share RESOLVES a dismissal (action 'dismissedAction') and rejects only on a
+    // real error — so the old `catch { /* 취소 */ }` was not swallowing a cancel, it was swallowing
+    // the failure, right after a success haptic, with the button simply going quiet.
+    // ⚠ iOS ONLY. On Android, Share.js forwards only { title, message }: the `url` below is DROPPED,
+    // the native module opens an empty text chooser and resolves 'sharedAction' — so an Android
+    // image share (here and savePng's fallback) shares nothing and never reaches this catch. That
+    // predates this change and no catch can see it; the fix is a follow-up (a file share, e.g.
+    // expo-sharing, or an explicit Android failure). Also open: haptic('success') above fires
+    // before capture, so a failure alert can follow a success haptic.
+    if (uri) {
+      try { await Share.share({ url: uri }); } catch (e) { alertFail('공유 실패', e); }
+    }
     setBusy(false);
   };
 
@@ -518,7 +546,10 @@ export default function ShotStudio() {
           : '이미지가 사진첩에 저장됐어요');
       } catch {
         // 미디어 라이브러리 미탑재/거부 → 공유 시트의 '이미지 저장'으로 폴백
-        try { await Share.share({ url: uri }); } catch { /* 취소 */ }
+        // Same as shareNow: on iOS a dismissal resolves, so reaching this catch means the save AND
+        // its fallback both failed — say so instead of returning to an unchanged screen. (Android
+        // drops the url and resolves; see shareNow's note.)
+        try { await Share.share({ url: uri }); } catch (e) { alertFail('저장 실패', e); }
       }
     }
     setBusy(false);
@@ -1090,7 +1121,7 @@ export default function ShotStudio() {
                   accessibilityState={{ selected: photos[sheetKey] === url }}
                 >
                   <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} />
-                  {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: paper.ink }}>✓</Text></View>}
+                  {photos[sheetKey] === url && <View style={s.wphTick}><Text style={{ fontSize: 11, fontWeight: '900', color: paper.ink /* floor-exempt: glyph — ✓ on the 19pt selected-photo tick */ }}>✓</Text></View>}
                 </Pressable>
               ))}
             </View>
@@ -1140,7 +1171,7 @@ const s = StyleSheet.create({
   },
   errBtnTxt: { fontSize: 15, fontWeight: '800', color: '#e6efe0' },
   checker: { position: 'absolute', top: 0, left: 0, right: 0, borderRadius: 20, backgroundColor: '#3f443f', opacity: 0.6 },
-  hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
+  hudL: { fontSize: 9.5, letterSpacing: 2, color: '#e6efe0', fontWeight: '700', textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } }, // floor-exempt: latin-kicker — 'DISTANCE' / 'PACE' / 'TIME' over the card's stat values
   hudV: { fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 3, textShadowColor: 'rgba(0,0,0,.55)', textShadowRadius: 8, textShadowOffset: { width: 0, height: 1 } },
   recordT: { fontSize: 15, fontWeight: '900', color: colors.neon, textAlign: 'center', marginTop: 12, textShadowColor: 'rgba(0,0,0,.5)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 1 } },
   noTrace: { position: 'absolute', left: 0, right: 0, textAlign: 'center', fontSize: 15, color: '#8fa093' },

@@ -148,6 +148,8 @@ export default function Community() {
   const [feedError, setFeedError] = useState<string | null>(null);
   // 컴포즈 바의 내 아바타 — 실프로필 (없으면 모노그램 폴백)
   const [me, setMe] = useState<MyProfile | null>(null);
+  // catch-ok: best-effort decoration — on failure the compose bar's avatar falls back to the generic
+  // 「나」 monogram (the same face a profile with no photo gets); nothing on screen claims the fetch worked.
   useEffect(() => { fetchMyProfile().then(setMe).catch(() => {}); }, []);
 
   // 레일 데이터 — 지금 로드된 피드에서 파생. 작성자당 1개(최신 포스트), 최대 12개.
@@ -184,7 +186,8 @@ export default function Community() {
     setPosts((cur) => cur.map((x) => (x.id === p.id
       ? { ...x, likedByMe: liked, likes: p.likes + (liked ? 1 : -1) }
       : x)));
-    // 낙관적 반영 — 실패 시 해당 포스트만 원상 롤백 (전체 리로드로 화면을 흔들지 않는다)
+    // Optimistic — on failure only this post rolls back (no full reload shaking the screen). Not a
+    // swallow: the heart and count visibly return to the server's state, which IS the failure signal.
     toggleFeedLike(p.id, p.likedByMe).catch(() => {
       setPosts((cur) => cur.map((x) => (x.id === p.id
         ? { ...x, likedByMe: p.likedByMe, likes: p.likes }
@@ -243,16 +246,22 @@ export default function Community() {
     if (!body || sending) return;
     setSending(true);
     setCommentInput('');
+    // Only the SEND may report a send failure. The refetch used to share this try, so a list reload
+    // that failed after the comment had posted showed 「댓글 실패」 and put the draft back — and a
+    // resend posted it twice (review 2026-09-26; pinned by FFS-C4 in test/font-floor-sweep).
     try {
       await addComment(postId, body);
-      setComments(await fetchComments(postId));
-      setPosts((cur) => cur.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)));
     } catch (e) {
       Alert.alert('댓글 실패', (e as Error).message);
       setCommentInput(body);
-    } finally {
       setSending(false);
+      return;
     }
+    // Posted: count it, and reload the list through loadComments, whose failure is the list's own
+    // 「댓글을 불러오지 못했어요 — 다시 시도」 face rather than a send failure.
+    setPosts((cur) => cur.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)));
+    setSending(false);
+    loadComments(postId);
   };
 
   const remove = (p: FeedPost) => {
@@ -412,7 +421,7 @@ export default function Community() {
                   <Text style={[s.stamp, nf]}>{rv.when}</Text>
                 </Row>
                 {rv.rating != null && (
-                  <Text style={{ fontSize: 14, color: lilac.amber, marginTop: 5, letterSpacing: 2 }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
+                  <Text style={{ fontSize: 14, color: lilac.amber, marginTop: 5, letterSpacing: 2 /* floor-exempt: glyph — the ★☆ rating row, symbols only */ }}>{'★'.repeat(rv.rating)}{'☆'.repeat(Math.max(0, 5 - rv.rating))}</Text>
                 )}
                 {!!rv.note && <Text style={{ fontSize: 15, color: lilac.text, marginTop: 6, lineHeight: 21 }}>{rv.note}</Text>}
                 {rv.tags.length > 0 && (
@@ -803,7 +812,7 @@ export default function Community() {
 const s = StyleSheet.create({
   // 마스트헤드 — [FIX3] 키커·모노그램 12pt 밴드 승급, 박스 22로 성장 (모노그램 = 홀로 아티팩트, 라운드 유지)
   mono: { width: 22, height: 22, borderRadius: 6, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 },
+  monoTxt: { fontSize: 12, fontWeight: '600', color: lilac.head, letterSpacing: 0.5 }, // floor-exempt: glyph — the masthead monogram's single latin 'D' inside a 22pt holo tile
   kickerLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase' },
   kickerRule: { flex: 1, height: 1, backgroundColor: '#EEEEEE' }, // [페이퍼 크롬] 인라인 룰은 뉴트럴
   // [§3c 화면 타이틀 2026-08-11] 38 → 30. 탭 화면 타이틀이 30/38/40 세 값으로 갈라져 있었고
@@ -811,22 +820,13 @@ const s = StyleSheet.create({
   // 크기·굵기·행간은 앱 공통, 색은 화면의 월드를 따른다 (§2). lineHeight 37 = 1.23× (BUG A).
   h1: { fontSize: 30, fontWeight: '900', color: lilac.head, letterSpacing: -0.4, lineHeight: 37 },
   lede: { fontSize: 15, color: lilac.text, marginTop: 8, lineHeight: 20, maxWidth: 265 },
-  liveBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#F6C3B4', borderRadius: 0, backgroundColor: lilac.card, paddingVertical: 4, paddingHorizontal: 8, alignSelf: 'center' }, // [페이퍼 크롬] 샤프 (코랄 틴트 보더 = LIVE 신호 생존)
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: lilac.coral },
-  liveTxt: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.coralDeep },
   rankBtn: { flexDirection: 'column', alignItems: 'center', gap: 2, backgroundColor: lilac.card, borderRadius: 0, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: '#EEEEEE', alignSelf: 'flex-start', marginTop: 4 }, // [페이퍼 크롬] 샤프·뉴트럴, 섀도 은퇴
   rankTxt: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase' },
 
-  // 클럽 스트립 (홀로 엣지) — [FIX3] 높이 72 → 80 · [페이퍼 크롬] 코너만 샤프 (나이트 표면·홀로는 아티팩트)
-  clubStrip: { height: 80, borderRadius: 0, overflow: 'hidden', backgroundColor: lilac.head, marginHorizontal: GUTTER, marginTop: 13 },
-  clubScrim: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(28,24,55,.40)' },
-  clubKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.5, color: 'rgba(255,255,255,.82)', textTransform: 'uppercase', marginBottom: 4 },
-  clubName: { fontSize: 14.5, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
-  clubPill: { backgroundColor: lilac.glassEdge, borderRadius: 0, paddingVertical: 6, paddingHorizontal: 10, alignItems: 'flex-end' }, // 사진 위 판독 플레이트 — 필 유지, 샤프
-  clubPillN: { fontSize: 14, fontWeight: '700', color: lilac.head, lineHeight: 18 },
-  clubGo: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.accent, marginTop: 3, textTransform: 'uppercase' },
-  holoTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, zIndex: 3 },
-  holoBottom: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, zIndex: 3 },
+  // [2026-09-26] The club strip's styles (clubStrip…clubGo, holoTop/Bottom) and the LIVE badge's
+  // (liveBadge/liveDot/liveTxt) are deleted: their JSX retired on 2026-08-12 (the club banner became
+  // a story circle, see the render) and four of them still carried sub-15 sizes — dead exports that
+  // only instruct the next reader to write under the floor (DESIGN.md §3, the type.label lesson).
 
   tabCount: { fontSize: 15, fontWeight: '600', letterSpacing: 1 },
 
@@ -847,7 +847,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 0, paddingVertical: 9, paddingHorizontal: 6,
   },
   pillCell: { flex: 1, alignItems: 'center' },
-  pillK: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim, letterSpacing: 0.6 },
+  pillK: { fontSize: 14, lineHeight: 18, fontWeight: '700', color: lilac.dim, letterSpacing: 0.6 }, // floor-exempt: latin-kicker — 'KM' / 'PACE' / 'TIME' over the stat values
   pillV: { fontSize: 19, lineHeight: 24, fontWeight: '800', color: lilac.head },
 
   // 스토리 레일 — IG 문법 그대로 (Sean: "feel free to copy"). 링 3px · 흰 갭 2px · 얼굴 원.
@@ -889,13 +889,13 @@ const s = StyleSheet.create({
   // 기록 소인 (골드) — 화면당 1개 · [FIX3] 텍스트 승급분만큼 56 → 68 원형 성장
   seal: { position: 'absolute', right: 10, bottom: 10, width: 68, height: 68, borderRadius: 34, backgroundColor: lilac.goldSoft, borderWidth: 1.4, borderColor: lilac.gold, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-8deg' }] },
   sealB: { fontSize: 15, fontWeight: '700', color: lilac.head, lineHeight: 18 },
-  sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 },
+  sealS: { fontSize: 11.5, fontWeight: '600', letterSpacing: 1, color: lilac.head, textTransform: 'uppercase', marginTop: 2 }, // floor-exempt: latin-kicker — 'RECORD' inside the gold seal
 
   // 하이라인 스탯 표 — [FIX3] 키 12pt · [BUG A] 값 lineHeight 명시 · [페이퍼 크롬] 카드 내부 룰 = 뉴트럴
   statTable: { marginHorizontal: GUTTER + 2, marginTop: 9, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE' },
   statCell: { flex: 1, paddingVertical: 9 },
   statDiv: { borderLeftWidth: 1, borderLeftColor: '#EEEEEE', paddingLeft: 11 },
-  statK: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 },
+  statK: { fontSize: 12, fontWeight: '600', letterSpacing: 1, color: lilac.dim, textTransform: 'uppercase', marginBottom: 4 }, // floor-exempt: latin-kicker — 'KM' / 'PACE' / 'TIME'
   statV: { fontSize: 17, fontWeight: '600', color: lilac.head, fontVariant: ['tabular-nums'], lineHeight: 21 },
 
   // 기록 조판 블록 (사진 없음) — [BUG A] 큰 Oswald 숫자 lineHeight 46 (≥1.2×38)
@@ -911,11 +911,11 @@ const s = StyleSheet.create({
   // 클럽 리캡 = 밤의 창 (나이트 라일락) — [FIX3] 키커·키 12pt · [BUG A] 숫자 lineHeight 명시
   recapCard: { backgroundColor: '#1C1837', paddingLeft: 16, paddingRight: 14, paddingVertical: 13, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#EEEEEE', overflow: 'hidden' }, // 밤의 창은 아티팩트 — 크롬 엣지만 뉴트럴
   recapEdge: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3 },
-  recapKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.8, color: '#CFC4FF', textTransform: 'uppercase' },
+  recapKick: { fontSize: 12, fontWeight: '600', letterSpacing: 1.8, color: '#CFC4FF', textTransform: 'uppercase' }, // floor-exempt: latin-kicker — 'HIGH CLUB — RECAP'
   recapNumCell: { flex: 1 },
   recapDiv: { borderLeftWidth: 1, borderLeftColor: 'rgba(207,196,255,.18)', paddingLeft: 12 },
   recapNum: { fontSize: 19, fontWeight: '600', color: '#fff', fontVariant: ['tabular-nums'], lineHeight: 23 },
-  recapK: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 },
+  recapK: { fontSize: 12, fontWeight: '600', letterSpacing: 1.2, color: lilac.dim, textTransform: 'uppercase', marginTop: 4 }, // floor-exempt: latin-kicker — 'TEAMS' / 'DOGS' / 'FINISHED'
 
   // 액션 행 — [IG 개편] 칩 보더 은퇴, 좌측 정렬 조용한 타깃 (minHeight 44 · 누른 발자국 = 코랄)
   act: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8 },
