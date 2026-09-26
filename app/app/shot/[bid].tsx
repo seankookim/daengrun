@@ -515,9 +515,15 @@ export default function ShotStudio() {
     setBusy(true);
     haptic('success');
     const uri = await capture();
-    // RN's Share.share RESOLVES a dismissal (iOS: action 'dismissedAction') and rejects only on a real
-    // error — so the old `catch { /* 취소 */ }` was not swallowing a cancel, it was swallowing the
-    // failure, right after a success haptic, with the button simply going quiet.
+    // On iOS, RN's Share.share RESOLVES a dismissal (action 'dismissedAction') and rejects only on a
+    // real error — so the old `catch { /* 취소 */ }` was not swallowing a cancel, it was swallowing
+    // the failure, right after a success haptic, with the button simply going quiet.
+    // ⚠ iOS ONLY. On Android, Share.js forwards only { title, message }: the `url` below is DROPPED,
+    // the native module opens an empty text chooser and resolves 'sharedAction' — so an Android
+    // image share (here and savePng's fallback) shares nothing and never reaches this catch. That
+    // predates this change and no catch can see it; the fix is a follow-up (a file share, e.g.
+    // expo-sharing, or an explicit Android failure). Also open: haptic('success') above fires
+    // before capture, so a failure alert can follow a success haptic.
     if (uri) {
       try { await Share.share({ url: uri }); } catch (e) { alertFail('공유 실패', e); }
     }
@@ -540,8 +546,9 @@ export default function ShotStudio() {
           : '이미지가 사진첩에 저장됐어요');
       } catch {
         // 미디어 라이브러리 미탑재/거부 → 공유 시트의 '이미지 저장'으로 폴백
-        // Same as shareNow: a dismissal resolves, so reaching this catch means the save AND its
-        // fallback both failed — say so instead of returning to an unchanged screen.
+        // Same as shareNow: on iOS a dismissal resolves, so reaching this catch means the save AND
+        // its fallback both failed — say so instead of returning to an unchanged screen. (Android
+        // drops the url and resolves; see shareNow's note.)
         try { await Share.share({ url: uri }); } catch (e) { alertFail('저장 실패', e); }
       }
     }

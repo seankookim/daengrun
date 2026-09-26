@@ -49,7 +49,9 @@ const HANGUL = /[ᄀ-ᇿ㄰-㆏가-힣]/;
 const DYNAMIC_OK = {
   // BADGE = min(76, PATCH_CELL_W - 6); PATCH_CELL_W is ≥ 95 on every width the grid supports
   // (cards.tsx:31-39), so this is 20 — the locked patch's km numeral, PatchBadge's own 0.26 ratio.
-  'app/cards.tsx::pLockKm': 'Math.round(BADGE * 0.26) = 20 at BADGE 76',
+  // Keyed by position AND expression (review 2026-09-26, font-floor-sweep FFS-F3): a key by position
+  // alone stayed green when a coefficient shrank. font-floor-sweep also EVALUATES this one.
+  'app/cards.tsx::pLockKm = Math.round(BADGE * 0.26)': '20 at BADGE 76',
 };
 
 let pass = 0, fail = 0;
@@ -160,7 +162,8 @@ function analyze(src, file) {
         }
       }
     }
-    sites.push({ line: n.loc.start.line, sizes, dynamic, owner, marker: markerAt.get(n.loc.start.line) || null });
+    sites.push({ line: n.loc.start.line, sizes, dynamic, owner, marker: markerAt.get(n.loc.start.line) || null,
+      expr: dynamic ? src.slice(n.value.start, n.value.end).replace(/\s+/g, ' ').trim() : null });
     return true;
   });
 
@@ -172,7 +175,7 @@ function analyze(src, file) {
   const subLines = new Set(sub.map((s) => s.line));
   const stale = [...markerAt.keys()].filter((l) => !subLines.has(l)).map((l) => `${file}:${l}`);
   // F3 — computed sizes, named
-  const dynamic = sites.filter((s) => s.dynamic).map((s) => `${file}::${s.owner.key || `line${s.line}`}`);
+  const dynamic = sites.filter((s) => s.dynamic).map((s) => `${file}::${s.owner.key || `line${s.line}`} = ${s.expr}`);
 
   // F2 — an exempt style must not render literal Hangul (a wordmark must be hidden from AT)
   const leaks = [];
@@ -256,7 +259,7 @@ export const X = ({ on }) => <Text style={{ fontSize: on ? 16 : 14 }}>이번 주
 const s = StyleSheet.create({ a: { fontSize: 15 }, // floor-exempt: glyph — was 12 before the raise
   b: { fontSize: Math.round(76 * 0.26) } });`), 'fx7');
   t('MFF-X7 a marker left on a line that is no longer sub-floor is stale, and a computed size is surfaced, not skipped',
-    r.stale.length === 1 && r.dynamic.length === 1 && r.dynamic[0] === 'fx7::b', JSON.stringify({ stale: r.stale, dyn: r.dynamic }));
+    r.stale.length === 1 && r.dynamic.length === 1 && r.dynamic[0] === 'fx7::b = Math.round(76 * 0.26)', JSON.stringify({ stale: r.stale, dyn: r.dynamic }));
 }
 
 // ── MFF-F: the five screens ──────────────────────────────────────────────────────────────────

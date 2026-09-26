@@ -246,16 +246,22 @@ export default function Community() {
     if (!body || sending) return;
     setSending(true);
     setCommentInput('');
+    // Only the SEND may report a send failure. The refetch used to share this try, so a list reload
+    // that failed after the comment had posted showed 「댓글 실패」 and put the draft back — and a
+    // resend posted it twice (review 2026-09-26; pinned by FFS-C4 in test/font-floor-sweep).
     try {
       await addComment(postId, body);
-      setComments(await fetchComments(postId));
-      setPosts((cur) => cur.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)));
     } catch (e) {
       Alert.alert('댓글 실패', (e as Error).message);
       setCommentInput(body);
-    } finally {
       setSending(false);
+      return;
     }
+    // Posted: count it, and reload the list through loadComments, whose failure is the list's own
+    // 「댓글을 불러오지 못했어요 — 다시 시도」 face rather than a send failure.
+    setPosts((cur) => cur.map((x) => (x.id === postId ? { ...x, commentCount: x.commentCount + 1 } : x)));
+    setSending(false);
+    loadComments(postId);
   };
 
   const remove = (p: FeedPost) => {
