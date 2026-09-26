@@ -1199,7 +1199,7 @@ const s = StyleSheet.create({
     position: 'absolute', left: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: 'rgba(255,255,255,0.92)', paddingVertical: 5, paddingHorizontal: 8,
   },
-  legendSwatch: { fontSize: 14, fontWeight: '800', lineHeight: 18 },
+  legendSwatch: { fontSize: 14, fontWeight: '800', lineHeight: 18 }, // floor-exempt: glyph — the ━ line swatch; its Korean label is legendTxt at 15
   legendTxt: { fontSize: 15, color: paper.text, lineHeight: 18 },
   // 라이브 캠 슬롯 — null이면 렌더되지 않는다 (자리만 예약)
   streamSlot: { marginTop: 12, borderWidth: 1, borderColor: paper.line, paddingVertical: 8, paddingHorizontal: 12 },
@@ -1237,7 +1237,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: paper.critical, alignItems: 'center', justifyContent: 'center',
   },
   stopBtnPressed: { backgroundColor: paper.criticalWash },
-  stopGlyph: { fontSize: 14, fontWeight: '900', color: paper.critical },
+  stopGlyph: { fontSize: 14, fontWeight: '900', color: paper.critical }, // floor-exempt: glyph — ■ stop mark, the button is labelled 러닝 종료 요청
   // ---------- 종료 시트 ----------
   sheetBackdrop: { flex: 1, backgroundColor: '#00000055' },
   stopSheet: { backgroundColor: paper.canvas, borderTopWidth: 1, borderColor: paper.line, padding: 16, paddingBottom: 40 },

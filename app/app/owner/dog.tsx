@@ -287,7 +287,7 @@ export default function DogProfileScreen() {
             <Row style={{ gap: 14, paddingTop: 16 }}>
               <Pressable onPress={pickPhoto} disabled={uploading} accessibilityRole="button" accessibilityLabel="반려견 사진 변경">
                 <Avatar url={dog.photoUrl} char={(name || '멍')[0]} bg={paper.ink} size={88} />
-                <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' }}>{uploading ? '…' : '✎'}</Text></View>
+                <View style={s.camBadge}><Text style={{ fontSize: 14, color: '#fff' /* floor-exempt: glyph — ✎ / … on the photo badge */ }}>{uploading ? '…' : '✎'}</Text></View>
               </Pressable>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Row style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -298,7 +298,7 @@ export default function DogProfileScreen() {
                     </Pressable>
                   ))}
                   <Pressable onPress={onAddDog} style={[s.dogChip, { borderStyle: 'dashed' }]} accessibilityRole="button" accessibilityLabel="반려견 추가">
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink }}>＋</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: paper.ink /* floor-exempt: glyph — ＋ add-dog chip, labelled 반려견 추가 */ }}>＋</Text>
                   </Pressable>
                 </Row>
                 <Text style={{ fontSize: 15, lineHeight: 19, color: paper.dim, marginTop: 8 }}>사진을 탭해서 변경 — 러너가 픽업 때 알아봐요</Text>
@@ -352,7 +352,7 @@ export default function DogProfileScreen() {
                   accessibilityState={{ selected: collar === k }}
                   accessibilityLabel={`칼라 컬러 ${collarLabels[k]}`}
                 >
-                  {collar === k && <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' }}>✓</Text>}
+                  {collar === k && <Text style={{ fontSize: 14, fontWeight: '900', color: '#fff' /* floor-exempt: glyph — ✓ in the selected collar dot */ }}>✓</Text>}
                 </Pressable>
               ))}
             </Row>

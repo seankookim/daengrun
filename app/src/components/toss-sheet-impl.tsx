@@ -183,7 +183,7 @@ const msgOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: paper.canvas },
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 14 },
-  kicker: { fontSize: 11.5, fontWeight: '800', letterSpacing: 2.6, color: paper.faint },
+  kicker: { fontSize: 11.5, fontWeight: '800', letterSpacing: 2.6, color: paper.faint }, // floor-exempt: latin-kicker — 'PAYMENT'
   close: { fontSize: 20, lineHeight: 24, color: paper.ink },
   headline: { fontSize: 18, lineHeight: 24, fontWeight: '800', color: paper.ink, paddingHorizontal: 18, marginTop: 10 },
   amount: { fontSize: 30, lineHeight: 38, fontWeight: '900', color: paper.ink, paddingHorizontal: 18, marginTop: 2, fontVariant: ['tabular-nums'] },
