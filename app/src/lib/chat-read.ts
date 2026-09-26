@@ -141,6 +141,18 @@ export interface ReceiptMessage {
  * ⚠ Both sides are compared as server INSTANTS (`compareInstant`) — timezone-free, never a
  * device-local getter — and ties between our own messages are broken in the server's
  * `(created_at, id)` order, so array order cannot move the label.
+ *
+ * ⚠ A FORWARD-DATED message of mine (a pre-0225 client's date) is not receipted until its date,
+ *   and that is kept on purpose (0235 §0c named it; the decision is recorded here). When the
+ *   counterpart acknowledged it, the server clamped their position to ITS now() — after that the
+ *   position is one timestamp, still before my row, and the server's own durable model (their
+ *   badge, `my_chat_unread`) counts the row UNREAD until its date. The client cannot recover which
+ *   message a clamped position acknowledged: clamping my row to the position would receipt it for
+ *   ANY position, including one written before I sent it; clamping it to the device's now leaves it
+ *   after every past position, and puts a device clock into a server comparison. Silence on that
+ *   row is this function's unknown — the same honesty rule as above — never a claim. Knowing it
+ *   needs a server fact (the acknowledged message's id, or the forward-dated rows rewritten — the
+ *   latter is 0225 §0e's product decision).
  */
 export function readReceiptMessageId(
   msgs: readonly ReceiptMessage[],
@@ -159,6 +171,30 @@ export function readReceiptMessageId(
     if (vs !== null && vs > 0) best = m;
   }
   return best === null ? null : best.id;
+}
+
+/** The options both acknowledgement facts are computed under — one set, so they cannot disagree. */
+export interface PeerAckOptions {
+  ceilingId?: number | null;
+  ceiling?: { createdAt: string; id: number } | null;
+  fetchedIds?: ReadonlySet<number> | null;
+}
+
+/** May this message be acknowledged at all? A peer's, at or below the hole, at or below the top of
+ *  verified fetched coverage (placeable against it), and returned by a fetch. The ONE admission
+ *  rule behind `newestPeerMessageId` and `admittedPeerCount`. */
+function admitsPeer(m: ReceiptMessage, opts: PeerAckOptions): boolean {
+  if (m.mine) return false;
+  const ceilingId = opts.ceilingId ?? null;
+  const ceiling = opts.ceiling ?? null;
+  const fetchedIds = opts.fetchedIds ?? null;
+  if (ceilingId !== null && m.id > ceilingId) return false;
+  if (ceiling !== null) {
+    const c = compareMessageOrder(m, ceiling);
+    if (c === null || c > 0) return false;
+  }
+  if (fetchedIds !== null && !fetchedIds.has(m.id)) return false;
+  return true;
 }
 
 /**
@@ -192,29 +228,53 @@ export function readReceiptMessageId(
  */
 export function newestPeerMessageId(
   msgs: readonly ReceiptMessage[],
-  opts: {
-    ceilingId?: number | null;
-    ceiling?: { createdAt: string; id: number } | null;
-    fetchedIds?: ReadonlySet<number> | null;
-  } = {},
+  opts: PeerAckOptions = {},
 ): number | null {
-  const ceilingId = opts.ceilingId ?? null;
-  const ceiling = opts.ceiling ?? null;
-  const fetchedIds = opts.fetchedIds ?? null;
   let best: ReceiptMessage | null = null;
   for (const m of msgs) {
-    if (m.mine) continue;
-    if (ceilingId !== null && m.id > ceilingId) continue;
-    if (ceiling !== null) {
-      const c = compareMessageOrder(m, ceiling);
-      if (c === null || c > 0) continue;
-    }
-    if (fetchedIds !== null && !fetchedIds.has(m.id)) continue;
+    if (!admitsPeer(m, opts)) continue;
     if (best === null) { best = m; continue; }
     const c = compareMessageOrder(m, best);
     if (c !== null && c > 0) best = m;
   }
   return best === null ? null : best.id;
+}
+
+/**
+ * How many peer messages the acknowledgement may cover — every one `newestPeerMessageId` would
+ * consider, under the SAME options. The screen hands it to `shouldMarkRead` beside the target.
+ *
+ * 🔴 WHY THE TARGET ALONE IS NOT ENOUGH (0235 §0c · R2 finding 2 — the client half, named there
+ *    and built here). A pre-0225 client wrote its own `created_at`, so a thread can hold a peer row
+ *    dated in the FUTURE. In the server's `(created_at, id)` order that row is the newest message
+ *    until its date passes, so the target names it before AND after a real message arrives — and
+ *    'message' re-marked only when the target CHANGED. The real message was drawn and never
+ *    acknowledged while the screen stayed up: unread on the server, its 0228 nudge unreleased, every
+ *    later push deduped silent, until the next open/focus. The same sentence has a second site with
+ *    no forward date at all: an id/time inversion (concurrent inserts) lands a fetched message
+ *    BELOW the unchanged target. In both, the fact that changed is 「one more peer message may now be
+ *    acknowledged」 — this count.
+ *
+ * ⚠ WHY NOT RE-ORDER THE TARGET BY `min(created_at, now)` (the other fix 0235 §0c named). A row
+ *   clamped to now still sorts at or above every real message (whose `created_at` is before now),
+ *   so the target would STILL be the forward-dated row and still not change on an arrival — the
+ *   clamp moves nothing here. It would also put a device clock into the server's order, which every
+ *   cursor and coverage pin in this module refuses (`compareMessageOrder` is server instants only).
+ *
+ * ⚠ The count admits exactly what the target may — a message a FETCH returned, at or below the
+ *   coverage ceiling (client-review-4's invariant). A realtime-only arrival is not counted, so it
+ *   triggers nothing until a poll vouches for it. That matters more here than anywhere: the server
+ *   records an acknowledged forward-dated row as ITS now() (0223 §0d ③ clamp), so a re-mark covers
+ *   everything committed until the call — a mark triggered by a realtime arrival would cover the
+ *   dropped burst below it. Triggered by a fetch, the mark runs on the commit that renders it.
+ */
+export function admittedPeerCount(
+  msgs: readonly ReceiptMessage[],
+  opts: PeerAckOptions = {},
+): number {
+  let n = 0;
+  for (const m of msgs) if (admitsPeer(m, opts)) n += 1;
+  return n;
 }
 
 // ── when to record that the caller has read ───────────────────────────────────────────────────
@@ -262,7 +322,14 @@ export type MarkReadReason =
  * thread. It is 「different」 and not 「greater」 on purpose: the newest message is chosen in the
  * server's `(created_at, id)` order, in which a larger id can be OLDER (concurrent inserts), so a
  * `>` on ids would refuse to acknowledge a genuinely newer message. The newest of a growing set
- * only changes when a newer one is fetched, so 「different」 is exactly 「a newer one arrived」.
+ * only changes when a newer one is fetched, so 「different」 is exactly 「a newer one arrived」 —
+ * EXCEPT when the newest cannot move: a forward-dated peer row pins it (0235 §0c), and a message
+ * fetched below it (an id/time inversion) does not move it either. So 'message' ALSO fires when the
+ * admitted count (`admittedPeerCount`) GREW since the last mark. Under an unchanged target the
+ * re-mark names the same message: for an ordinary target the server's write is a monotonic no-op
+ * that re-runs 0228's release for the new arrival; for a forward-dated one the server clamps to its
+ * now(), which is what acknowledges the arrival at all. Both counts must be KNOWN — an absent one
+ * is not zero, and a count that did not grow states nothing new.
  */
 export function shouldMarkRead(s: {
   reason: MarkReadReason;
@@ -276,6 +343,10 @@ export function shouldMarkRead(s: {
   newestPeerMessageId: number | null;
   /** The peer message id this screen last recorded a read up to, or `null`. */
   lastMarkedPeerMessageId: number | null;
+  /** `admittedPeerCount(...)` now, under the target's own options. Absent = unknown. */
+  admittedPeerCount?: number | null;
+  /** The admitted count when this screen last recorded a read. Absent = unknown. */
+  lastMarkedAdmittedPeerCount?: number | null;
 }): boolean {
   if (!s.ready) return false;
   if (!s.appActive) return false;
@@ -283,5 +354,8 @@ export function shouldMarkRead(s: {
   if (s.newestPeerMessageId === null) return false;
   if (s.reason !== 'message') return true;
   if (s.lastMarkedPeerMessageId === null) return true;
-  return s.newestPeerMessageId !== s.lastMarkedPeerMessageId;
+  if (s.newestPeerMessageId !== s.lastMarkedPeerMessageId) return true;
+  const n = s.admittedPeerCount ?? null;
+  const last = s.lastMarkedAdmittedPeerCount ?? null;
+  return n !== null && last !== null && n > last;
 }

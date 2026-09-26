@@ -17,12 +17,18 @@
 // THE MUTATIONS THAT REDDEN THIS FILE: merge every stretch into one (coverage = 「everything I have
 //   seen」) · read the ceiling off the HIGHEST stretch instead of the lowest · let a realtime arrival
 //   join the coverage · merge stretches that merely touch · let an older page vouch past its cursor
-//   · drop the `ceiling` arm from `newestPeerMessageId`.
+//   · drop the `ceiling` arm from `newestPeerMessageId` · [⑤ forward-dated] drop the admitted-count
+//   arm of `shouldMarkRead`'s 'message' reason · let a realtime-only arrival join the count.
 const {
   mergeMessageSnapshot, snapshotGap, windowSpan, olderPageSpan, addCoverage, coverageCeiling,
   coverageHole, compareMessageOrder, autoFillDecision,
 } = require('./chat-coverage.messages.build.cjs');
-const { newestPeerMessageId } = require('./chat-coverage.read.build.cjs');
+const readMod = require('./chat-coverage.read.build.cjs');
+const { newestPeerMessageId, shouldMarkRead } = readMod;
+// Written first and measured against the base, where this export did not exist: a FAIL row there,
+// never a crash that hides every other row.
+const admittedPeerCount = (...a) =>
+  (typeof readMod.admittedPeerCount === 'function' ? readMod.admittedPeerCount(...a) : NaN);
 const { CHAT_PAGE_SIZE, pageIsLast } = require('./chat-coverage.window.build.cjs');
 
 let pass = 0, fail = 0;
@@ -246,6 +252,124 @@ t('control — with no ceiling the same list names its newest (the arm above is 
     && autoFillDecision({ afterId: 7 }, 7).fill === false
     && autoFillDecision({ afterId: 7 }, 7).remember === 7
     && autoFillDecision(null, 7).fill === false && autoFillDecision(null, 7).remember === null);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑤ A FORWARD-DATED PEER ROW — the screen re-marks on a fetched arrival (0235 §0c, client half)
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// A pre-0225 client dated a message in the future. In the server's `(created_at, id)` order it
+// stays the newest, so every newest-window snapshot ends at it and the acknowledgement target is
+// it — before and after a real message lands. `ack` below is chat.tsx's acknowledgement effect:
+// target and admitted count under the coverage ceiling, `shouldMarkRead`, then remember both.
+{
+  const FWD = '2099-01-01T00:00:00.000000Z';
+  const fwdRow = { id: 6, createdAt: FWD, mine: false, body: 'forward-dated' };
+  const fwdServer = (lastReal) => {
+    const all = range(1, 5).concat([fwdRow], range(7, lastReal)).sort((x, y) => compareMessageOrder(x, y));
+    return { newest: () => all.slice(-CHAT_PAGE_SIZE) };
+  };
+  const acker = (s) => {
+    const a = { marked: [], lastTarget: null, lastCount: null, opened: false };
+    a.ack = () => {
+      const ceiling = coverageCeiling(s.cov);
+      const opts = { ceiling, fetchedIds: s.fetched };
+      const target = ceiling === null ? null : newestPeerMessageId(s.msgs, opts);
+      const count = ceiling === null ? 0 : admittedPeerCount(s.msgs, opts);
+      const ok = shouldMarkRead({
+        reason: a.opened ? 'message' : 'open', ready: true, appActive: true, focused: true,
+        newestPeerMessageId: target, lastMarkedPeerMessageId: a.lastTarget,
+        admittedPeerCount: count, lastMarkedAdmittedPeerCount: a.lastCount,
+      });
+      if (!ok || target === null) return null;
+      a.opened = true; a.lastTarget = target; a.lastCount = count; a.marked.push(target);
+      return target;
+    };
+    return a;
+  };
+
+  const s = screen();
+  s.open(fwdServer(0).newest());            // 1–5 + the forward row, the whole thread (short page)
+  const a = acker(s);
+  t('⑤ fixture — the forward-dated row sits on top of the window, and opening acknowledges it',
+    s.msgs.length === 6 && coverageCeiling(s.cov).id === 6 && a.ack() === 6, show(a.marked));
+
+  s.realtime(peer(7));                       // a real message, delivered by realtime only
+  t('🔴 ⑤ a realtime-only arrival is NOT acknowledged — no fetch vouched for it (client-review-4 holds)',
+    a.ack() === null && admittedPeerCount(s.msgs, { ceiling: coverageCeiling(s.cov), fetchedIds: s.fetched }) === 6);
+
+  s.snapshot(fwdServer(7).newest());         // the poll returns it
+  t('⑤ control — the poll does not move the target: it is still the forward-dated row',
+    s.target() === 6, String(s.target()));
+  const again = a.ack();
+  t('🔴 ⑤ …and the screen re-marks anyway: the fetched arrival is acknowledged while the screen is up',
+    again === 6 && a.marked.length === 2, show(a.marked));
+  t('⑤ a quiet poll after that calls nothing', (s.snapshot(fwdServer(7).newest()), a.ack() === null), show(a.marked));
+  s.snapshot(fwdServer(9).newest());         // two more land together
+  t('⑤ the next fetched arrival re-marks once more', a.ack() === 6 && a.marked.length === 3, show(a.marked));
+  t('⑤ every mark named a message a fetch returned, at or under the coverage ceiling',
+    a.marked.every((id) => s.fetched.has(id)
+      && compareMessageOrder(s.msgs.find((m) => m.id === id), coverageCeiling(s.cov)) <= 0));
+
+  // CONTROL — an ordinary thread moves its target on every arrival, so the count arm is not what
+  // acknowledges there; it adds no call to a quiet thread either.
+  const n = screen();
+  n.open(server(5).newest());
+  const na = acker(n);
+  na.ack();
+  n.snapshot(server(6).newest());
+  const moved = na.ack();
+  n.snapshot(server(6).newest());
+  t('⑤ control — an ordinary thread: the arrival moves the target, a quiet poll calls nothing',
+    moved === 6 && na.ack() === null && show(na.marked) === show([5, 6]), show(na.marked));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑥ SOURCE — chat.tsx hands the count to the judgment and remembers it at the mark
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ⑤ proves the helpers compose; it cannot prove the route calls them that way (no test can import
+// a route module). These read the acknowledgement effect's SOURCE, comments stripped (this slice's
+// own comments name every identifier matched below). Neither half is evidence for the other.
+{
+  const fs = require('fs');
+  const path = require('path');
+  /** Strip JS comments, keeping string and template contents (chat-window.test.cjs's stripper). */
+  const strip = (src) => {
+    let out = '', i = 0, inLine = false, inBlock = false, quote = null, tmpl = 0;
+    while (i < src.length) {
+      const c = src[i], d = src[i + 1];
+      if (inLine) { if (c === '\n') { inLine = false; out += c; } i++; continue; }
+      if (inBlock) { if (c === '*' && d === '/') { inBlock = false; i += 2; } else { if (c === '\n') out += c; i++; } continue; }
+      if (quote) { if (c === '\\') { out += c + (d ?? ''); i += 2; continue; } if (c === quote) quote = null; out += c; i++; continue; }
+      if (tmpl > 0) { if (c === '\\') { out += c + (d ?? ''); i += 2; continue; } if (c === '`') tmpl--; out += c; i++; continue; }
+      if (c === '/' && d === '/') { inLine = true; i += 2; continue; }
+      if (c === '/' && d === '*') { inBlock = true; i += 2; continue; }
+      if (c === '`') { tmpl++; out += c; i++; continue; }
+      if (c === '"' || c === "'") { quote = c; out += c; i++; continue; }
+      out += c; i++;
+    }
+    return out;
+  };
+  const FIX = "// admittedPeerCount: admitted,\nconst x = 'admittedPeerCount: admitted,';\n/* admittedPeerCount: admitted, */";
+  t('⑥ control — the stripper drops commented code and keeps strings (a comment must not satisfy a pin)',
+    strip(FIX).split('admittedPeerCount: admitted,').length - 1 === 1 && FIX.split('admittedPeerCount: admitted,').length - 1 === 3);
+  const CHAT = strip(fs.readFileSync(path.join(__dirname, '..', 'app', 'chat.tsx'), 'utf8'));
+  const callAt = CHAT.indexOf('if (!shouldMarkRead({');
+  const effEnd = CHAT.indexOf('}, [ctx, state, msgs, gapDoor, ackTick, recordRead]);');
+  const eff = callAt > 0 && effEnd > callAt ? CHAT.slice(CHAT.lastIndexOf('useEffect(() => {', callAt), effEnd) : '';
+  const call = eff.slice(eff.indexOf('if (!shouldMarkRead({'), eff.indexOf('})) return;'));
+  t('⑥ control — the acknowledgement effect and its one judgment call were found',
+    eff.length > 0 && call.length > 0 && CHAT.split('shouldMarkRead({').length - 1 === 1, `${callAt}..${effEnd}`);
+  t('🔴 ⑥ the count is computed under the TARGET\'s own options — the ceiling and the fetched set',
+    /admittedPeerCount\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(eff)
+    && /newestPeerMessageId\(msgs, \{ ceiling, fetchedIds: fetchedIds\.current \}\)/.test(eff));
+  t('🔴 ⑥ the judgment receives both counts',
+    call.includes('admittedPeerCount: admitted,') && call.includes('lastMarkedAdmittedPeerCount: lastMarkedAdmitted.current,'),
+    JSON.stringify(call));
+  const tail = eff.slice(eff.indexOf('})) return;'));
+  t('🔴 ⑥ the count is remembered at the mark, beside the target, before the record',
+    tail.indexOf('lastMarkedAdmitted.current = admitted;') > tail.indexOf('if (target === null) return;')
+    && tail.indexOf('if (target === null) return;') > 0
+    && tail.indexOf('lastMarkedAdmitted.current = admitted;') < tail.indexOf('recordRead(ctx.threadId, target);'));
 }
 
 console.log('\n' + pass + ' pass / ' + fail + ' fail');

@@ -30,11 +30,19 @@
 // gate on 'message' · [0223] let 'open'/'focus' record with NO peer message on screen (the old
 // 「up to now」) · gate 'message' on `>` of ids (an inverted pair is then never acknowledged) ·
 // compare the receipt with millisecond `Date.parse` · pick the newest peer message by id rather
-// than by (created_at, id) · read through an open gap · acknowledge a message no fetch returned.
+// than by (created_at, id) · read through an open gap · acknowledge a message no fetch returned ·
+// [④ forward-dated] drop the admitted-count arm of 'message' · count a realtime-only or
+// above-ceiling message as admitted · read an absent count as zero · clamp the receipt's message
+// side to the read position.
 const {
   unreadFor, unreadBadge, unreadBadgeLabel, totalUnread, totalUnreadBadge, formatUnreadBadge,
   UNREAD_BADGE_CAP, readReceiptMessageId, READ_RECEIPT_LABEL, shouldMarkRead, newestPeerMessageId,
+  admittedPeerCount: admittedPeerCountExport,
 } = require('./chat-read.build.cjs');
+// A missing export is a FAIL row, not a crash that hides every other row (the file was written
+// first and measured against the base, where this function did not exist).
+const admittedPeerCount = (...a) =>
+  (typeof admittedPeerCountExport === 'function' ? admittedPeerCountExport(...a) : NaN);
 
 let pass = 0, fail = 0;
 const t = (name, cond, detail = '') => {
@@ -279,6 +287,87 @@ t('🔴 a message that arrived while UNFOCUSED is marked on the next focus, not 
 t('…and it is still marked when this screen had already marked an OLDER message',
   shouldMarkRead(mk({ reason: 'focus', focused: true, newestPeerMessageId: 7,
     lastMarkedPeerMessageId: 3 })) === true);
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ④ a FORWARD-DATED peer message pins the target — an arrival must still be acknowledged
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// Named by 0235 §0c (R2 finding 2), not built there. A pre-0225 client wrote its own `created_at`,
+// so a thread can hold a peer row dated in the FUTURE. In the server's `(created_at, id)` order that
+// row is the newest message for as long as its date has not passed — so `newestPeerMessageId`
+// names it before AND after a real message arrives, and the old 'message' gate (「the target is a
+// different message」) never fired again: the real message stayed unread (and its 0228 nudge
+// unreleased) until the next open/focus. The fix keeps the target and adds a second fact — how
+// many peer messages the target's own admission rule lets in — and re-marks when that grew.
+const FWD = '2099-01-01T00:00:00.000000Z'; // a pre-0225 client's date, past any real clock
+const fwdBefore = [
+  { id: 60, mine: false, createdAt: FWD },
+  { id: 61, mine: true,  createdAt: '2026-09-23T10:00:00.000000Z' },
+];
+const fwdAfter = fwdBefore.concat([{ id: 62, mine: false, createdAt: '2026-09-23T10:05:00.000000Z' }]);
+t('④ control — the fixture reproduces the mechanism: the forward-dated row is the target before AND after a real message arrives',
+  newestPeerMessageId(fwdBefore) === 60 && newestPeerMessageId(fwdAfter) === 60);
+t('④ control — so the target alone cannot see the arrival: without the counts, \'message\' refuses',
+  shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60 })) === false);
+t('🔴 ④ the admitted count grows when the real message lands under the unchanged target',
+  admittedPeerCount(fwdBefore) === 1 && admittedPeerCount(fwdAfter) === 2,
+  `${admittedPeerCount(fwdBefore)} → ${admittedPeerCount(fwdAfter)}`);
+t('🔴 ④ …and \'message\' re-marks on it — the real message is acknowledged while the screen is up, not at the next focus',
+  shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: 1 })) === true);
+t('④ a quiet poll of the same thread does not call the RPC again (count and target both unchanged)',
+  shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: 2 })) === false);
+t('④ a count that did not GROW licenses nothing (a shrink under an unchanged target states nothing new)',
+  shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 1, lastMarkedAdmittedPeerCount: 2 })) === false);
+t('🔴 ④ an ABSENT count is unknown, never zero — no re-mark from a missing half',
+  shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: null })) === false
+  && shouldMarkRead(mk({ newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: null, lastMarkedAdmittedPeerCount: 1 })) === false);
+t('④ the count never overrides the gates above it — unfocused, backgrounded or unready still records nothing',
+  shouldMarkRead(mk({ focused: false, newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: 1 })) === false
+  && shouldMarkRead(mk({ appActive: false, newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: 1 })) === false
+  && shouldMarkRead(mk({ ready: false, newestPeerMessageId: 60, lastMarkedPeerMessageId: 60,
+    admittedPeerCount: 2, lastMarkedAdmittedPeerCount: 1 })) === false);
+// 🔴 client-review-4's invariant, restated for the new fact: the count admits EXACTLY what the
+// target may — a fetch vouched for it and it sits at or below the coverage ceiling. A count that
+// let a realtime-only arrival in would re-mark the forward-dated row, which the server clamps to
+// its now() — covering the dropped burst below that arrival, which no fetch returned.
+t('🔴 ④ a realtime-only arrival does not count — it waits for a fetch, exactly as it does for the target',
+  admittedPeerCount(fwdAfter, { fetchedIds: new Set([60, 61]) }) === 1
+  && admittedPeerCount(fwdAfter, { fetchedIds: new Set([60, 61, 62]) }) === 2);
+t('🔴 ④ the ceiling and the hole bound the count the way they bound the target',
+  admittedPeerCount(fwdAfter, { ceiling: { createdAt: '2026-09-23T10:06:00.000000Z', id: 99 } }) === 1
+  && newestPeerMessageId(fwdAfter, { ceiling: { createdAt: '2026-09-23T10:06:00.000000Z', id: 99 } }) === 62
+  && admittedPeerCount(fwdAfter, { ceilingId: 61 }) === 1);
+t('④ my own messages and an empty screen count nothing',
+  admittedPeerCount([{ id: 1, mine: true, createdAt: '2026-09-23T10:00:00Z' }]) === 0
+  && admittedPeerCount([]) === 0);
+// The same sentence reaches a second site with no forward date at all: an id/time INVERSION
+// (concurrent inserts — a larger id with an OLDER created_at) lands BELOW the unchanged target.
+const inverted = peers.concat([{ id: 8, mine: false, createdAt: '2026-09-23T10:01:30.000000Z' }]);
+t('🔴 ④ the same arm catches a peer message fetched BELOW the unchanged target (an id/time inversion)',
+  newestPeerMessageId(inverted) === 3 && admittedPeerCount(peers) === 3 && admittedPeerCount(inverted) === 4
+  && shouldMarkRead(mk({ newestPeerMessageId: 3, lastMarkedPeerMessageId: 3,
+    admittedPeerCount: 4, lastMarkedAdmittedPeerCount: 3 })) === true);
+
+// ── the receipt on a forward-dated OWN message: deliberately NOT clamped ───────────────────────
+// The counterpart's position is one timestamp. When they acknowledged my forward-dated row, the
+// server clamped it to ITS now() — a value that is not any message's created_at — and my row is
+// still after it; the server's durable model (their badge, `my_chat_unread`) counts that row
+// UNREAD until its date (0235 §0c). A client clamp cannot recover what they saw: clamping the row
+// to the position would put 「읽음」 on it whenever they have ANY position, including one written
+// before I sent it (this pin); clamping to the device's now leaves it after every past position.
+// So the receipt stays under my newest REAL message at or before the position — silence on the
+// forward row is the receipt's unknown, not a lie.
+t('🔴 ④ a forward-dated message of mine is NOT receipted by a position the server records before it',
+  readReceiptMessageId([
+    { id: 70, mine: true, createdAt: '2026-09-23T10:00:00.000000Z' },
+    { id: 71, mine: true, createdAt: FWD },
+  ], '2026-09-23T10:30:00.000000Z') === 70);
 
 console.log('');
 console.log(pass + ' pass / ' + fail + ' fail');

@@ -9,7 +9,8 @@ import {
   mergeMessageSnapshot, MessageCursor, olderPageSpan, windowSpan,
 } from '../src/lib/chat-messages';
 import {
-  MarkReadReason, newestPeerMessageId, READ_RECEIPT_LABEL, readReceiptMessageId, shouldMarkRead,
+  admittedPeerCount, MarkReadReason, newestPeerMessageId, READ_RECEIPT_LABEL, readReceiptMessageId,
+  shouldMarkRead,
 } from '../src/lib/chat-read';
 import {
   CHAT_PAGE_SIZE, chatBubble, OLDER_DOOR_BUSY_LABEL, olderCursor, olderDoorLabel, olderDoorState,
@@ -103,6 +104,9 @@ export default function Chat() {
   // RPC 를 부르지 않게 하는 게이트이고, 「열었다」와 「새 메시지가 왔다」를 가르는 기준이다.
   const markedOpen = useRef(false);
   const lastMarkedPeer = useRef<number | null>(null);
+  // How many peer messages were acknowledgeable at that mark (chat-read.ts `admittedPeerCount`). A
+  // forward-dated peer row pins the target, so only this count can see an arrival under it (0235 §0c).
+  const lastMarkedAdmitted = useRef<number | null>(null);
   // [0223 · codex #1] The ids a SUCCESSFUL FETCH has returned — the only messages a read may be
   // recorded up to (chat-read.ts `newestPeerMessageId`). A snapshot is the newest window of one
   // server order, so every message between its oldest and its newest was in it, and below its
@@ -133,6 +137,7 @@ export default function Chat() {
   useEffect(() => {
     setInput(''); setSending(false); pendingText.current = null; sendInFlight.current = null;
     seenPeerMsgId.current = null; markedOpen.current = false; lastMarkedPeer.current = null;
+    lastMarkedAdmitted.current = null;
   }, [bid]);
   // [2026-08-20] 실시간 링크 상태 — 채널의 실제 SUBSCRIBED에서만 온다 (api.ts subscribeMessages의
   // onLink). 예전엔 헤더가 `state === 'ready'`(= 메시지 fetch 성공)를 근거로 「● 실시간 연결됨」을
@@ -423,6 +428,7 @@ export default function Chat() {
     const target = ceiling === null
       ? null
       : newestPeerMessageId(msgs, { ceiling, fetchedIds: fetchedIds.current });
+    const admitted = ceiling === null ? 0 : admittedPeerCount(msgs, { ceiling, fetchedIds: fetchedIds.current });
     const reason: MarkReadReason = focusDue ? 'focus' : markedOpen.current ? 'message' : 'open';
     if (!shouldMarkRead({
       reason,
@@ -434,11 +440,14 @@ export default function Chat() {
       focused: screenFocused.current,
       newestPeerMessageId: target,
       lastMarkedPeerMessageId: lastMarkedPeer.current,
+      admittedPeerCount: admitted,
+      lastMarkedAdmittedPeerCount: lastMarkedAdmitted.current,
     })) return;
     // `shouldMarkRead` refuses a null target for every reason; this guard is for the type.
     if (target === null) return;
     markedOpen.current = true;
     lastMarkedPeer.current = target;
+    lastMarkedAdmitted.current = admitted;
     recordRead(ctx.threadId, target);
   }, [ctx, state, msgs, gapDoor, ackTick, recordRead]);
 
