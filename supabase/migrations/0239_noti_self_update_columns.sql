@@ -1,7 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 -- 0239 — a client may mark its own notifications READ, and may change nothing else about them
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
--- Suite: 270_noti_self_update_columns_suite.sql (tag `nsu`) — 0239-C1 · C2 · C3 · C4 · D1 · W1 · M1 · S1
+-- Suite: 270_noti_self_update_columns_suite.sql (tag `nsu`) — 0239-C1 · C2 · C3 · C4 · D1 · W1 · M1 · M2 · S1
 -- The root-cause follow-up 0238 §0d recommended and deliberately did not take (its three reasons are
 -- answered below, §0d). Stacked on cloud/0238-ops-bell-keys @ 185b96f.
 --
@@ -27,8 +27,23 @@
 --     · api.ts `markNotificationsReadByTap` … `.eq('title', t).is('read_at', null)` and
 --       `.eq('ref_id', r)` or `.is('ref_id', null)` (called from push.ts on an OS-push tap)
 --     Their filters read id / title / ref_id / read_at — that needs SELECT, which stays table-wide
---     (`noti self`, 0002:138, row-scoped). supabase-js sends `Prefer: return=minimal`, so no column
---     is RETURNED. Every one of them sets `read_at` from NULL to a non-NULL instant.
+--     (`noti self`, 0002:138, row-scoped). postgrest-js 2.109 `update()` sends no `Prefer` header
+--     (only `count=` when asked), and PostgREST's default return is minimal, so no column is
+--     RETURNED. Every one of them sets `read_at` from NULL to a non-NULL instant.
+--     ⚠ WITHOUT A SESSION (fix round, from the executing review — not in the first enumeration):
+--     supabase-js sends a session-less request with the anon key, i.e. as `anon`. Before this file
+--     `anon` held UPDATE (default privileges) and such a write matched 0 rows; after §A it holds
+--     none, so the same write fails 42501 `permission denied for table notifications` — the
+--     wrappers' meaning WIDENS for that caller. The one reachable signed-out path is push.ts's tap
+--     listener (it stays armed after sign-out) → `markNotificationsReadByTap`, which previously
+--     logged nothing and would now log `[push] tap mark read: permission denied…` (not
+--     user-visible, never awaited). Answered on the client, not by granting `anon` back:
+--     `markNotificationsReadByTap` now reads the session first and skips the write without one
+--     (270 `0239-M2` pins the server half; app/test/push-token-signout.test.cjs Ⓓ executes the
+--     client half). `markAllNotificationsRead` / `markNotificationsRead` run only from signed-in
+--     screens (alerts.tsx, ops/index.tsx); were one ever to run signed out, the 42501 surfaces as a
+--     failed mark, which is the honest answer (nothing was marked) — their callers clear the local
+--     seal only on success.
 --   INSERT — five paths, all through `noti party insert` (0114:273-283), all `kind: 'booking'`
 --     addressed to the booking counterparty: `addRunEvent`, `notifyKmMilestone`, `sendSOS`,
 --     `openBookingIncident`, `notifyRunStop`. The policy is therefore STILL NEEDED and is NOT
@@ -50,7 +65,8 @@
 --      revokes any column-level UPDATE those roles held (PostgreSQL REVOKE semantics), so no
 --      earlier column grant can survive it.
 --   ② `grant update (read_at) on notifications to authenticated` — the one column §0b proves a
---      client writes. anon gets nothing (it has no auth.uid(), so it never had a row to write).
+--      client writes. anon gets nothing (it has no auth.uid(), so it never had a row to write) —
+--      and a session-less write therefore ERRORS instead of matching 0 rows (§0b ⚠, 270 M2).
 --   ③ `noti self update` gains an explicit WITH CHECK and a role:
 --        to authenticated
 --        using      (profile_id = auth.uid())

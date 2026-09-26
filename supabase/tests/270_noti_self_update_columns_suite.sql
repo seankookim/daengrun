@@ -1,5 +1,5 @@
 -- ═══ 270 — 0239: a client may mark its own notifications READ, and may change nothing else
--- ═══        0239-C1 · C2 · C3 · C4 · D1 · W1 · M1 · S1, tag `nsu`
+-- ═══        0239-C1 · C2 · C3 · C4 · D1 · W1 · M1 · M2 · S1, tag `nsu`
 --
 -- THE PROPOSITION, once, without reference to any mutation: **a signed-in client's UPDATE of
 -- `notifications` can touch only its OWN rows, can write only `read_at`, can never leave a row
@@ -53,6 +53,13 @@
 --        `authenticated` with the caller's claim. Each changes EXACTLY the caller's matching unread
 --        rows (counted), never a stranger's same-titled unread row, never an already-read row's
 --        instant.
+--   · M2 **WITHOUT A SESSION THE SAME WRITE IS REFUSED, NOT A 0-ROW ANSWER** (fix round, from the
+--        executing review). supabase-js sends a session-less request as `anon` (push.ts's tap listener
+--        stays armed after sign-out). 0239 §A leaves `anon` no UPDATE, so the tap shape and the
+--        mark-all shape run as `anon` with no claim fail `permission denied for table notifications`
+--        (42501) and the row stays unread — on the base they updated 0 rows. This is the widened
+--        meaning the client answers by skipping the write when there is no session
+--        (`markNotificationsReadByTap`, pinned executed in app/test/push-token-signout.test.cjs Ⓓ).
 --   · S1 **DEPLOYED SHAPE.** Per column: `authenticated` holds UPDATE on `read_at` only, `anon` on
 --        none; `service_role` keeps table UPDATE; `noti self update` is the only UPDATE-capable
 --        policy, is `TO authenticated`, and its WITH CHECK names both conjuncts; `noti party insert`
@@ -98,7 +105,9 @@ exception when others then
   return jsonb_build_object('state', sqlstate, 'msg', sqlerrm);
 end $$;
 
--- PostgREST's UPDATE shape for `.update({ read_at }).<filters>` with Prefer: return=minimal.
+-- PostgREST's UPDATE shape for `.update({ read_at }).<filters>`. postgrest-js 2.109 `update()` sends
+-- no `Prefer` header (only `count=` when asked); PostgREST's default return is minimal, so no row is
+-- returned to the client and `RETURNING 1` here only counts.
 -- $1 = the JSON body, $2 = ids, $3 = title, $4 = ref_id. Returns {n} or {state,msg}.
 create or replace function t_nsu_pgrst(p_uid uuid, p_where text, p_ids uuid[], p_title text, p_ref uuid)
 returns jsonb language plpgsql as $$
@@ -124,6 +133,33 @@ exception when others then
   reset role;
   perform set_config('request.jwt.claim.sub', '', true);
   return jsonb_build_object('state', sqlstate, 'msg', sqlerrm);
+end $$;
+
+-- M2: the same PostgREST shape as `anon` with NO claim (a signed-out supabase-js client).
+-- $1 = body, $3 = title. Returns {n, who} or {state, msg, who}.
+create or replace function t_nsu_pgrst_anon(p_where text, p_title text)
+returns jsonb language plpgsql as $$
+declare v int; v_who text;
+begin
+  perform set_config('request.jwt.claim.sub', '', true);
+  set local role anon;
+  v_who := current_user;
+  if v_who <> 'anon' then raise exception 'nsu: anon role did not take'; end if;
+  execute
+    'with pgrst_source as (
+       update public.notifications set read_at = pgrst_body.read_at
+         from (select $1 as json_data) pgrst_payload,
+              lateral (select read_at from json_populate_record(null::public.notifications, pgrst_payload.json_data)) pgrst_body
+        where ' || p_where || '
+       returning 1)
+     select count(*)::int from pgrst_source'
+    into v
+    using json_build_object('read_at', now()), null::uuid[], p_title, null::uuid;
+  reset role;
+  return jsonb_build_object('n', v, 'who', v_who);
+exception when others then
+  reset role;
+  return jsonb_build_object('state', sqlstate, 'msg', sqlerrm, 'who', v_who);
 end $$;
 
 -- 269's strand shape (fixture note ③): active, run ended, only the runner's return stamp
@@ -478,6 +514,40 @@ begin
     if v_bad = '' then call _pass('nsu','0239-M1 클라이언트의 읽음 표시 세 래퍼(탭-ref·탭-무ref·ids·모두 읽음)를 PostgREST 모양으로 authenticated 재생 — 각각 호출자의 해당 안 읽은 행만 정확히(1·1·1·1), 같은 제목 남의 행 3개 불변, 이미 읽은 행의 시각 불변');
     else v_msg := v_bad; call _fail('nsu','0239-M1 mark-read wrappers', v_msg); end if;
   exception when others then reset role; call _fail('nsu','0239-M1 mark-read wrappers', sqlerrm); end;
+
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  -- [0239-M2] no session ⇒ the mark-read write is REFUSED (42501), not a 0-row answer (rolled back)
+  -- ══════════════════════════════════════════════════════════════════════════════════════════
+  begin
+    v_bad := ''; v_err := null; w := '{}'::jsonb;
+    begin
+      u := t_user('nsu_m2_u', 'owner');
+      w := w || jsonb_build_object('a', t_nsu_row(u, 'nsu m2 tap', null, false));
+      -- markNotificationsReadByTap(null, title) as a signed-out client
+      w := w || jsonb_build_object('tap', t_nsu_pgrst_anon(
+        'public.notifications.title = $3 and public.notifications.read_at is null and public.notifications.ref_id is null',
+        'nsu m2 tap'));
+      -- markAllNotificationsRead as a signed-out client
+      w := w || jsonb_build_object('all', t_nsu_pgrst_anon('public.notifications.read_at is null', null));
+      w := w || jsonb_build_object('stillUnread',
+        (select read_at is null from notifications where id = (w->>'a')::uuid));
+      raise exception 'nsu_rollback';
+    exception when others then
+      if sqlerrm is distinct from 'nsu_rollback' then v_err := sqlerrm; end if;
+    end;
+    reset role; perform set_config('request.jwt.claim.sub', '', true);
+    if v_err is not null then v_bad := v_bad || ' staging raised: ' || v_err; end if;
+    if (w->'tap'->>'who') is distinct from 'anon' or (w->'all'->>'who') is distinct from 'anon'
+      then v_bad := v_bad || ' ROLE: ' || coalesce((w->'tap')::text, 'NULL') || ' / ' || coalesce((w->'all')::text, 'NULL'); end if;
+    if ((w->'tap'->>'state') = '42501' and (w->'tap'->>'msg') ~ 'permission denied for table notifications') is not true
+      then v_bad := v_bad || ' 🔴 anon tap shape: ' || coalesce((w->'tap')::text, 'NULL') || ' (42501 permission denied)'; end if;
+    if ((w->'all'->>'state') = '42501' and (w->'all'->>'msg') ~ 'permission denied for table notifications') is not true
+      then v_bad := v_bad || ' 🔴 anon mark-all shape: ' || coalesce((w->'all')::text, 'NULL') || ' (42501 permission denied)'; end if;
+    if (w->>'stillUnread') is distinct from 'true'
+      then v_bad := v_bad || ' 🔴 the row is not unread after the anon writes (' || coalesce(w->>'stillUnread', 'NULL') || ')'; end if;
+    if v_bad = '' then call _pass('nsu','0239-M2 세션 없는 클라이언트(anon, 클레임 없음)의 탭·모두 읽음 모양 UPDATE는 0행이 아니라 42501 permission denied로 거부되고 행은 안 읽음 그대로 — 클라이언트가 세션 없이는 쓰기를 건너뛰는 이유');
+    else v_msg := v_bad; call _fail('nsu','0239-M2 anon mark-read refused', v_msg); end if;
+  exception when others then reset role; call _fail('nsu','0239-M2 anon mark-read refused', sqlerrm); end;
 
   -- ══════════════════════════════════════════════════════════════════════════════════════════
   -- [0239-S1] deployed shape
