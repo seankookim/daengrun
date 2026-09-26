@@ -60,6 +60,9 @@ export const CLASS_LABELS: Readonly<Record<string, string>> = {
   handoff_unanswered: '인계 무응답',
   // [0234 §C] open_incident_tx's ops bell — every newly reported incident, title by severity
   incident_opened: '사고 접수',
+  // [0237 §C] the recurring generator's failure ring — a series whose failure episode reached its
+  // third failed tick (`_recurring_failure_escalate`, one ring per episode)
+  recurring_generation_failed: '반복 예약 생성 실패',
   billing_key_revocation_abandoned: '결제수단 해지 실패',
   club_fee_mint_failed: '클럽 수수료 발행 실패',
   payment_manual_cancel: '결제 수동 취소',

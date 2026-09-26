@@ -457,10 +457,30 @@ declare
   --    stanza (still carries `[0111]`). 263 `0232-B1…B4`/`D1…D3` own the new behaviour.
   --    Previous values: src 6dacd315c158269553b56dc8befc0495 / 10920, comment
   --    5a249225fd11f029cca76670681af673 / 792.
-  c_gen_src_md5 constant text := 'ac52c31c24d7933b719ed1513d829c03';
-  c_gen_src_len constant int  := 15287;
-  c_gen_cmt_md5 constant text := '3e0908e17979419058cf14ec5e2687ed';
-  c_gen_cmt_len constant int  := 1224;
+  -- ⚠ [0237] RE-READ FROM THE CATALOG on 2026-09-26 after 0237 applied, as the note above asks.
+  --    The body moved ON PURPOSE in three places, all on the failure/recovery bookkeeping and none on
+  --    what is minted (Codex wave-4 s1 — a series failing every tick was recorded and nothing escalated):
+  --    (1) the failure upsert also counts the series' failure EPISODE (`episode_failures`,
+  --    `episode_started_at`); (2) after the record's own block, `_recurring_failure_escalate(s.id)` in
+  --    ITS OWN subtransaction rings the `recurring_generation_failed` roster once per episode; (3) after
+  --    `n := n + 1`, the recovery reset in its own subtransaction. 0237 §E built the body BY SCRIPT from
+  --    0232's and asserted that undoing the three edits gives 0232's text byte for byte, so every line
+  --    this arm froze before is still there. The comment gained one `[0237]` stanza (still carries
+  --    `[0111]`). 268 `0237-E1…E5` own the new behaviour.
+  --    Previous values: src ac52c31c24d7933b719ed1513d829c03 / 15287, comment
+  --    3e0908e17979419058cf14ec5e2687ed / 1224.
+  -- ⚠ [0237, exec-review round] RE-READ FROM THE CATALOG on 2026-09-26 after the revised 0237 applied.
+  --    The body moved ON PURPOSE by one more edit (0237 §E ④): `v_sched := null` at the top of each
+  --    series' block, and only a failure that is costing a booking (occurrence never named, or no booking
+  --    of the series on its KST date) advances the failure episode — an executing review measured lock
+  --    contention on an already-booked series paging the roster. Undoing the four edits still gives
+  --    0232's text byte for byte. The comment's `[0237]` stanza says so. 268 `0237-E9` owns it.
+  --    Previous values: src cfa69ec84f3e6dad221339d57543bbea / 17562, comment
+  --    b69c55a84a0820a7bbbaf0f9957173d7 / 1625.
+  c_gen_src_md5 constant text := '77d412da41f78bd8d39df7d8d20bb11e';
+  c_gen_src_len constant int  := 19250;
+  c_gen_cmt_md5 constant text := 'fe20c26f980d268e551cb805795ec15c';
+  c_gen_cmt_len constant int  := 1733;
   -- ── P6's frozen column-comment digests: RETIRED BY 0130 ────────────────────────────────────
   -- `c_cmt_status` / `c_cmt_basis` / `c_cmt_stamp` froze the md5 of 0127 §E's three column
   -- comments. A dropped column has no `pg_description` row, so those digests could only ever have

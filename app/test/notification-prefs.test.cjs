@@ -86,6 +86,9 @@ t('the ops row names what it actually covers (the titles themselves, not a categ
 // [0233/0234] the two new families, named in the sentence an operator reads before switching it off
 t('the ops row names the pre-run incident review and the incident reports (0233 arm ⓗ · 0234 incident_opened)',
   !!opsRow && opsRow.desc.includes('러닝 전 사고 검토') && opsRow.desc.includes('사고 접수'), opsRow && opsRow.desc);
+// [0237] the recurring generator's failure ring, named in the sentence an operator reads before switching it off
+t('the ops row names the recurring-generation failure ring (0237 recurring_generation_failed)',
+  !!opsRow && opsRow.desc.includes('반복 예약 생성 실패'), opsRow && opsRow.desc);
 t('🔴 the ops row says what STAYS — turning it off changes the phone and not the console',
   !!opsRow && opsRow.desc.includes('콘솔'), opsRow && opsRow.desc);
 
@@ -422,6 +425,8 @@ const OPS_FAMILY = [
   // [0233] arm ⓗ's pre-run incident bell · [0234] the incident_opened bells, one per severity
   { title: /^러닝 전 사고 검토/, word: '러닝 전 사고 검토' },
   { title: /사고 접수 — /, word: '사고 접수' },
+  // [0237] the recurring generator's failure-episode ring
+  { title: /^반복 예약 생성 실패/, word: '반복 예약 생성 실패' },
 ];
 const unnamedBy = (desc, titles) => titles.filter((ti) => {
   const fams = OPS_FAMILY.filter((f) => f.title.test(ti));
