@@ -14,7 +14,9 @@
 // The mutations that redden it (the brief's plant is the first): move `releasePushToken` after
 // `supabase.auth.signOut()` · drop `resetPushRegistration()` · make the delete unscoped by token ·
 // stop recording `_registeredToken` · await the tap mark before routing, or drop it · drop the
-// `ref_id is null` arm · let a release failure throw out of signOut.
+// `ref_id is null` arm · let a release failure throw out of signOut · (0239 review) drop
+// markNotificationsReadByTap's no-session guard, or its getSession error throw, or send any column
+// beside read_at — Ⓓ executes the REAL api.ts for these.
 const fs = require('fs');
 const path = require('path');
 const Module = require('module');
@@ -113,8 +115,35 @@ const STUBS = {
   'expo-notifications': fakeNotifications,
   'expo-constants': { default: { expoConfig: { extra: { eas: { projectId: 'proj-test' } } } } },
 };
+// Ⓓ's REAL api.ts bundle resolves `./supabase` and `./media` to ITS OWN stand-in (below), never
+// push.ts's — the two fakes record different things and must not share a call log.
+const API_BUILD = path.join(__dirname, 'push-signout-api.build.cjs');
+const apiWorld = { session: null, sessionError: null, getSessionCalls: 0, writes: [] };
+const apiFakeSupabase = {
+  auth: {
+    getSession: async () => {
+      apiWorld.getSessionCalls++;
+      return { data: { session: apiWorld.session }, error: apiWorld.sessionError };
+    },
+  },
+  from(table) {
+    const w = { table, op: null, body: null, filters: [] };
+    const q = {
+      update(body) { w.op = 'update'; w.body = body; return q; },
+      eq(c, v) { w.filters.push(['eq', c, v]); return q; },
+      is(c, v) { w.filters.push(['is', c, v]); return q; },
+      in(c, v) { w.filters.push(['in', c, v]); return q; },
+      then(res, rej) { apiWorld.writes.push(w); return Promise.resolve({ error: null }).then(res, rej); },
+    };
+    return q;
+  },
+};
 const realLoad = Module._load;
 Module._load = function (request, parent, isMain) {
+  if (parent && parent.filename === API_BUILD) {
+    if (request === './supabase') return { supabase: apiFakeSupabase };
+    if (request === './media') return { MEDIA_BUCKET: 'media' };
+  }
   if (Object.prototype.hasOwnProperty.call(STUBS, request)) return STUBS[request];
   return realLoad.call(this, request, parent, isMain);
 };
@@ -128,6 +157,10 @@ const tapOf = (id, title, kind, ref) => ({
 (async () => {
   let push;
   try { push = require('./push-signout.build.cjs'); } catch (e) { push = null; t('push.ts transpiles and loads', false, String(e)); }
+  // Ⓓ's api.ts bundle is loaded HERE, while the Module._load stand-ins are installed (Ⓐ restores
+  // the real loader before Ⓑ); it is exercised in Ⓓ.
+  let apiMod = null, apiLoadErr = null;
+  try { apiMod = require(API_BUILD); } catch (e) { apiLoadErr = e; }
   t('push.ts exports releasePushToken, resetPushRegistration and registerPushToken (a missing export must fail LOUDLY)',
     !!push && typeof push.releasePushToken === 'function' && typeof push.resetPushRegistration === 'function'
     && typeof push.registerPushToken === 'function');
@@ -297,6 +330,48 @@ const tapOf = (id, title, kind, ref) => ({
     && /\.eq\('title', title\)/.test(tap) && /\.is\('read_at', null\)/.test(tap), tap);
   t('it scopes by ref: eq when the push carried one, `is null` when it did not (never an unscoped title match)',
     /refId \? base\.eq\('ref_id', refId\) : base\.is\('ref_id', null\)/.test(tap), tap);
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // Ⓓ api.ts — markNotificationsReadByTap EXECUTED: no session ⇒ no write (0239 review)
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  // Since 0239 `anon` holds no UPDATE on `notifications`, so a session-less write (push.ts's tap
+  // listener stays armed after sign-out; supabase-js then sends the anon key) is refused 42501 where
+  // it used to update 0 rows. The wrapper must not send it. Measured against 270's server half:
+  // the same statement as `anon` → `permission denied for table notifications`.
+  // The mutation that reddens Ⓓ-1: delete the `if (!sess.session) return;` guard. Ⓓ-2 is the
+  // control that the guard is not a blanket skip; Ⓓ-3 that a session read error is not 「signed out」.
+  {
+    const api = apiMod;
+    if (apiLoadErr) t('api.ts bundles and loads', false, String(apiLoadErr && apiLoadErr.stack || apiLoadErr));
+    t('api.ts (the REAL bundle) exports markNotificationsReadByTap (absence fails LOUDLY)',
+      !!api && typeof api.markNotificationsReadByTap === 'function');
+    if (api) {
+      apiWorld.session = null; apiWorld.sessionError = null; apiWorld.getSessionCalls = 0; apiWorld.writes = [];
+      let threw = null;
+      try { await api.markNotificationsReadByTap('bk-1', '1km 돌파'); } catch (e) { threw = e; }
+      t('Ⓓ-1 NO SESSION: the session was read, NO write was sent, and the call resolves (a signed-out tap is not a failed mark)',
+        apiWorld.getSessionCalls === 1 && apiWorld.writes.length === 0 && threw === null,
+        show({ calls: apiWorld.getSessionCalls, writes: apiWorld.writes, threw: threw && String(threw) }));
+
+      apiWorld.session = { access_token: 'jwt-A', user: { id: 'A' } }; apiWorld.writes = [];
+      threw = null;
+      try { await api.markNotificationsReadByTap('bk-1', '1km 돌파'); } catch (e) { threw = e; }
+      const w = apiWorld.writes[0];
+      t('Ⓓ-2 CONTROL · WITH a session: exactly one UPDATE of notifications whose body is read_at ALONE (the one column 0239 grants), filtered title + unread + ref',
+        threw === null && apiWorld.writes.length === 1 && w.table === 'notifications' && w.op === 'update'
+        && show(Object.keys(w.body || {})) === show(['read_at'])
+        && show(w.filters) === show([['eq', 'title', '1km 돌파'], ['is', 'read_at', null], ['eq', 'ref_id', 'bk-1']]),
+        show({ writes: apiWorld.writes, threw: threw && String(threw) }));
+
+      apiWorld.session = null; apiWorld.sessionError = new Error('storage unreadable'); apiWorld.writes = [];
+      threw = null;
+      try { await api.markNotificationsReadByTap('bk-1', '1km 돌파'); } catch (e) { threw = e; }
+      t('Ⓓ-3 a getSession ERROR is thrown (push.ts logs it), never read as 「signed out」, and nothing is written',
+        threw !== null && /storage unreadable/.test(String(threw && threw.message)) && apiWorld.writes.length === 0,
+        show({ writes: apiWorld.writes, threw: threw && String(threw) }));
+      apiWorld.sessionError = null;
+    }
+  }
 
   finish();
 })().catch((e) => { t('the suite ran to completion', false, String(e && e.stack || e)); finish(); });

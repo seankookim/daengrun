@@ -6392,9 +6392,10 @@ export async function fetchLeaderboards(): Promise<{ dogs: BoardRow[]; runners: 
 // cannot be compared. `handoffCycleId` is 0183's ask identity — NULL on every notification except
 // 「인계 확인 요청」. `src/lib/alerts-group.ts` needs both to collapse a re-asked handoff into one
 // row and to back its claim about which of them is the newest.
-// Readable: `notifications` has no column-level grants anywhere in the migrations, and its RLS is
-// row-level only (`noti self`, 0002:138 — `profile_id = auth.uid()`), so a column added by
-// `alter table` inherits the table's privileges. Verified against the migration set, 2026-09-22.
+// Readable: `notifications` has no column-level SELECT grant anywhere in the migrations (0239's
+// only column grant is UPDATE (read_at) — it does not touch SELECT), and its RLS is row-level only
+// (`noti self`, 0002:138 — `profile_id = auth.uid()`), so a column added by `alter table` inherits
+// the table's SELECT. Verified against the migration set, 2026-09-22; re-read for 0239 2026-09-26.
 export interface LiveNoti { id: string; title: string; body: string | null; when: string; dateLabel: string; timeLabel: string; unread: boolean; kind: string; refId: string | null; createdAt: string; handoffCycleId: string | null }
 
 // [ops-notifications-8] `kind` narrows the read SERVER-side. The ops console asks for `system` only:
@@ -6556,9 +6557,14 @@ export async function markAllNotificationsRead(): Promise<void> {
 
 // [ops-notifications-7] Opening a notification marks THOSE rows read — before this, only 모두 읽음
 // wrote `read_at`, so the NEW seal and both home bells outlived every tap. RLS `noti self update`
-// (0002:139, `profile_id = auth.uid()`) scopes the write to the caller's own rows, exactly as it
-// does for markAll. `read_at is null` keeps an already-read row's first-read time. Callers clear
-// their local seal only after this resolves, so a failed write is never drawn as read.
+// (0239 §B: TO authenticated, USING `profile_id = auth.uid()`, WITH CHECK the row stays the
+// caller's and read) scopes the write to the caller's own rows, exactly as it does for markAll, and
+// 0239 §A's column grant lets `authenticated` write `read_at` and nothing else — which is all this
+// sends. `read_at is null` keeps an already-read row's first-read time. Callers clear their local
+// seal only after this resolves, so a failed write is never drawn as read.
+// ⚠ Since 0239 `anon` holds NO UPDATE on the table, so this and markAll THROW 42501 without a
+// session (before 0239 they updated 0 rows). Both run only from signed-in screens (alerts.tsx,
+// ops/index.tsx); if one ever ran signed out, the throw is the honest answer — nothing was marked.
 export async function markNotificationsRead(ids: readonly string[]): Promise<void> {
   if (ids.length === 0) return;
   const { error } = await supabase
@@ -6574,11 +6580,22 @@ export async function markNotificationsRead(ids: readonly string[]): Promise<voi
 // had already opened. The push payload (notify_push, 0210 §C) carries `{kind, ref_id}` and the
 // title and NO notification id, so the rows are matched on what the payload does carry: this
 // person's unread rows with that exact title and that ref (or no ref, for a ref-less title such
-// as 「반복 예약 일시 중지」). RLS `noti self update` (0002:139) scopes the write to the caller.
+// as 「반복 예약 일시 중지」). RLS `noti self update` (0239 §B, TO authenticated) scopes the write to
+// the caller, and 0239 §A's column grant admits exactly the `read_at` this sends.
 // ⚠ Zero rows is an ordinary answer, not an error: the row may already be read (the inbox got
-// there first), or a cold-start tap may resolve before the session that owns the row is loaded.
+// there first).
+// ⚠ NO SESSION ⇒ NOTHING TO MARK, and the write is skipped (0239 review). push.ts's tap listener
+// stays armed after sign-out, and supabase-js sends a session-less request as `anon`. Before 0239
+// that updated 0 rows; since 0239 `anon` holds no UPDATE on `notifications`, so it would be refused
+// 42501 and logged as a failed mark for a row no signed-out device could ever mark. The session is
+// read through `getSession()` — the same call supabase-js makes to pick the request's token, after
+// auth has restored any stored session — so a cold-start tap still marks once the session is back.
+// A getSession error is thrown, never read as 「signed out」.
 export async function markNotificationsReadByTap(refId: string | null | undefined, title: string): Promise<void> {
   if (!title) return;
+  const { data: sess, error: sessErr } = await supabase.auth.getSession();
+  if (sessErr) throw sessErr;
+  if (!sess.session) return;
   const base = supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })

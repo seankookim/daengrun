@@ -9,9 +9,15 @@
 # The auth-context.tsx and api.ts halves are read as TEXT with comments stripped.
 set -eu
 cd "$(dirname "$0")"
-trap 'rm -f push-signout.build.cjs push-signout-route.build.cjs' EXIT
+trap 'rm -f push-signout.build.cjs push-signout-route.build.cjs push-signout-api.build.cjs' EXIT
 npx esbuild ../src/lib/push.ts --platform=node --format=cjs \
   --log-level=error --outfile=push-signout.build.cjs
 npx esbuild ../src/lib/notification-route.ts --bundle --platform=node --format=cjs \
   --log-level=error --outfile=push-signout-route.build.cjs
+# The REAL api.ts, bundled with `./supabase` and `./media` external (the runner-live-run idiom), so
+# Ⓓ EXECUTES markNotificationsReadByTap against a stand-in that records getSession and the write.
+npx esbuild ../src/lib/api.ts --bundle --platform=node --format=cjs \
+  --external:./supabase --external:./media \
+  --external:@supabase/supabase-js --external:@react-native-async-storage/async-storage --external:react-native \
+  --log-level=error --outfile=push-signout-api.build.cjs
 node push-token-signout.test.cjs
