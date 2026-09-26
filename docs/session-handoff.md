@@ -1,3 +1,5 @@
+> ⚠ **2026-09-26: the 09-15 header block directly below (lines to the first MORNING READ) is HISTORICAL — its deploy freeze, `0156` production and five-file pending set are long past. The 2026-09-25 MORNING READ and its timestamped paragraphs supersede it.**
+
 # Session handoff — refreshed 2026-09-15 (new Mac, first session) — everything below the 09-15 block is the 08-31 record
 
 **Read this before doing anything.** `CLAUDE.md` holds the permanent laws; this file holds
@@ -39,6 +41,8 @@ Codex-plugin broker trees from finished 09-17…09-23 review/build runs (cwd gon
 **20:20: trunk `400b8b0` — harness 1573/0 · deno 393/0 · npm 4536/0. Twenty-three migrations above production (0203–0226). Since 19:30: 0225 (server-stamped chat time), the header/button consistency sweep, the custody client half (runner strips + two ops desks), 0226 (Codex's 0224 REJECT answered). Building: copy slice, nav/a11y sweep, 0227 recurring generator isolation. Your letters: queue item 0-custody (0224 thresholds, four questions), 0-sweep (sixteen), and the second push (b).**
 
 **20:35: every slice of the first sweep's plan is on trunk (`b4c273f`: harness 1573/0 · deno 393/0 · npm 4673/0). A SECOND sweep is running to find what's left; 0227 (recurring generator isolation) is building.**
+
+**2026-09-26 04:xx KST — cloud session.** Trunk `0ee30fa`. Measured on that tree in the cloud container: harness **1586 pass / 0 fail** (run as the `postgres` user — root cannot run initdb — with `LANG=C.UTF-8 LC_ALL=C.UTF-8`; en_US.UTF-8 does not exist there) · npm test **exit 0, 5156 PASS / 0 FAIL + 39 ✅** · `npm run lint` **11 errors > CI limit 6**, so `client-gates` is red on trunk. Wave 1 is building on `cloud/*` branches with migration/suite numbers **0232–0234 / 263–265**; 0229–0231 / 260–262 are skipped because unpushed worktrees on the Mac hold them (`supabase/migrations/REGISTRY.md:308`). Codex, the iOS simulator and local deno are unavailable in the cloud — edge code is covered only by GitHub CI's deno-edge job, and no cloud slice carries a Codex verdict.
 
 **Running now (02:3x):** (1) Workflow `finish-line-gap-sweep` — nine code-verified finders (owner/runner journeys, server↔client
 contracts, UI consistency measured, less-is-more, backend logic incl. inaction, ops+notifications, first-run, copy) → dedup →
