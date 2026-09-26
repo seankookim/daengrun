@@ -26,7 +26,7 @@ import { foldRpcError, PENDING_DEPLOY_KO, rpcRaw } from './rpc-error';
 import { bookingHoldError, dropError, payError } from './edge-errors';
 // 반복 러닝 — the rule parser and the refusal table live beside the pure state module so the
 // screens, the wrappers and `test/recurring-state.test.cjs` all read ONE copy (recurring-state.ts).
-import { CREATE_SERIES_TOKENS, ruleWeekdayAndTime } from './recurring-state';
+import { CREATE_SERIES_TOKENS, CourseGate, courseGateOf, ruleWeekdayAndTime } from './recurring-state';
 // ⚠ KST_MS is NOT imported: this file keeps its own module-private copy (below) that kstWeekStartMs
 // and kstMonthStartMs already use. Only the LABEL helpers are shared, so nothing here is redeclared.
 import { kstAmPm, kstCal, kstDateLabel, kstMonthDay } from './kst';
@@ -645,6 +645,8 @@ export interface SeriesRow {
   nextBookingAt: string | null;
   /** `my_unsettled_charge()` — the cron's own debt gate for MY series. null = the read failed. */
   unsettledCharge: boolean | null;
+  /** The generator's route gate (0232 §B) for this series' course. null = UNKNOWN (read failed). */
+  course: CourseGate | null;
 }
 
 /**
@@ -670,10 +672,10 @@ export async function fetchSeriesForBooking(bookingId: string): Promise<SeriesRo
 /** The same read keyed by the series itself — the schedule sheet already knows `seriesId`. */
 export async function fetchSeries(seriesId: string): Promise<SeriesRow | null> {
   const { data, error } = await supabase
-    .from('recurring_series').select('id, paused, rule').eq('id', seriesId).maybeSingle();
+    .from('recurring_series').select('id, paused, rule, route_id').eq('id', seriesId).maybeSingle();
   if (error) throw foldRpcError(error, { empty: '반복 정보를 불러오지 못했어요' });
   if (!data) return null;                       // 0 rows is a FACT (the maybeSingle law), not a failure
-  const row = data as { id: string; paused: boolean; rule: unknown };
+  const row = data as { id: string; paused: boolean; rule: unknown; route_id: string | null };
   const { weekday, time } = ruleWeekdayAndTime(row.rule);
 
   // Non-terminal statuses — what 「다음 예약」 may legitimately name. Wider than `IN_FLIGHT`
@@ -685,7 +687,22 @@ export async function fetchSeries(seriesId: string): Promise<SeriesRow | null> {
   // throw at import — which in an Expo Router app means a blank launch, not a caught error.
   const SERIES_UPCOMING = ['matching', 'runner_pending', ...IN_FLIGHT];
 
-  const [nextRes, debtRes] = await Promise.all([
+  // The course's lifecycle status — what 0232's route gate reads (`rt.status in ('suspended',
+  // 'retired')`). A plain second read, not an embed, for the reason in fetchSeriesForBooking's header, and
+  // through `routes_public` (0110), the client's read path for routes: it projects `status` and has
+  // no row filter, so a suspended or retired course still answers. Its failure — or a row that does
+  // not come back — is `null` (UNKNOWN), caught like the debt read: the series line must not die
+  // on a course read, and `describeSeries` then withholds the 3일 전 promise rather than assert it.
+  const courseRead: Promise<CourseGate | null> = row.route_id == null
+    ? Promise.resolve(courseGateOf(null, null))
+    : Promise.resolve(
+      supabase.from('routes_public').select('status').eq('id', row.route_id).maybeSingle(),
+    ).then(({ data: rt, error: rtErr }) => {
+      if (rtErr) { console.warn('[series] course:', rpcRaw(rtErr)); return null; }
+      return rt ? courseGateOf(row.route_id, (rt as { status?: unknown }).status) : null;
+    }, (e) => { console.warn('[series] course:', rpcRaw(e)); return null; });
+
+  const [nextRes, debtRes, course] = await Promise.all([
     supabase.from('bookings').select('scheduled_at')
       .eq('series_id', seriesId)
       .in('status', SERIES_UPCOMING)
@@ -693,6 +710,7 @@ export async function fetchSeries(seriesId: string): Promise<SeriesRow | null> {
       .order('scheduled_at', { ascending: true })
       .limit(1),
     fetchUnsettledCharge().catch((e) => { console.warn('[series] debt:', rpcRaw(e)); return null; }),
+    courseRead,
   ]);
   if (nextRes.error) throw foldRpcError(nextRes.error, { empty: '반복 정보를 불러오지 못했어요' });
   const next = (nextRes.data ?? [])[0] as { scheduled_at?: string } | undefined;
@@ -704,6 +722,7 @@ export async function fetchSeries(seriesId: string): Promise<SeriesRow | null> {
     time,
     nextBookingAt: next?.scheduled_at ?? null,
     unsettledCharge: debtRes,
+    course,
   };
 }
 
