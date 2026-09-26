@@ -3269,13 +3269,25 @@ export async function fetchRunPhotos(bookingId: string): Promise<string[]> {
 export interface RunStandings { nth: number; total: number; kmRank: number | null; paceRank: number | null }
 
 export async function fetchRunStandings(bookingId: string): Promise<RunStandings | null> {
-  const { data: user } = await supabase.auth.getUser();
+  // [PR #19 review finding 1, 2026-09-26] UNKNOWN throws; only KNOWN-EMPTY returns `null`.
+  // auth-js and postgrest-js RESOLVE with `{ data: null, error }` on a transport / 401 / 5xx
+  // failure instead of throwing. Both reads here used to drop that `error`, so a failed read fell
+  // through `data ?? []` into the same `null` as 「this run has no standing」 — and
+  // owner/report.tsx's standings `.catch` (its 「기록 순위를 불러오지 못했어요」 strip) could never
+  // fire: the badges vanished and the first-run nudge (gated on `nth === 1`) never loaded, silently.
+  // `null` now means only a known absence: no completed runs, this booking is not among them, or
+  // auth returned no user WITHOUT an error. ⚠ auth-js 2.x reports a missing session AS an error
+  // (AuthSessionMissingError), so signed-out now throws too — the same shape as fetchMyDogs' getUser
+  // guard; every caller already catches. Pinned by test/run-standings-error.test.cjs.
+  const { data: user, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw authErr;
   if (!user.user) return null;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('bookings')
     .select('id, scheduled_at, runs(actual_km, avg_pace_sec_per_km)')
     .eq('owner_id', user.user.id).eq('status', 'completed')
     .order('scheduled_at');
+  if (error) throw error;
   const rows = (data ?? [])
     .map((b: any) => {
       const r = Array.isArray(b.runs) ? b.runs[0] : b.runs;
