@@ -80,7 +80,7 @@ export function startOwnerActivity(bookingId: string, p: OwnerLAProps): void {
         .catch((e: Error) => console.warn('[ownerLA] push token:', e?.message));
     } else {
       // Same booking, already started — just refresh content.
-      try { instance.update(p); } catch { /* no-op */ }
+      try { instance.update(p); } catch { /* best-effort: the lock-screen banner keeps its last state */ }
     }
   } catch (e) {
     console.warn('[ownerLA] start:', (e as Error)?.message);
@@ -89,7 +89,7 @@ export function startOwnerActivity(bookingId: string, p: OwnerLAProps): void {
 
 export function updateOwnerActivity(p: OwnerLAProps): void {
   if (!instance) return;
-  try { instance.update(p); } catch { /* no-op */ }
+  try { instance.update(p); } catch { /* best-effort: the lock-screen banner keeps its last state */ }
 }
 
 // Local end — fallback for when the app is awake at completion (report screen reached). The 0063
@@ -98,11 +98,12 @@ export function updateOwnerActivity(p: OwnerLAProps): void {
 export function endOwnerActivity(p: OwnerLAProps): void {
   const bid = instanceBookingId;
   if (instance) {
-    try { instance.end({ after: new Date(Date.now() + 8 * 60 * 1000) }, p, new Date()); } catch { /* no-op */ }
+    try { instance.end({ after: new Date(Date.now() + 8 * 60 * 1000) }, p, new Date()); } catch { /* best-effort: the 0063 completion push also ends it */ }
   }
   tokenSub?.remove?.();
   tokenSub = null;
   instance = null;
   instanceBookingId = null;
+  // Best-effort cleanup: a stale server row only means a push to an activity the OS already ended.
   if (bid) ownerLaUnregister(bid).catch(() => {});
 }

@@ -6,12 +6,12 @@ export function haptic(style: 'light' | 'medium' | 'success' | 'error' = 'light'
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const H = require('expo-haptics');
     if (style === 'success') {
-      H.notificationAsync(H.NotificationFeedbackType.Success).catch(() => {});
+      H.notificationAsync(H.NotificationFeedbackType.Success).catch(() => {}); // best-effort: no UI consequence
     } else if (style === 'error') {
       // 실패는 느껴져야 한다 — 무반응 버튼 금지 (wave 2.5 적대 리뷰 P2)
-      H.notificationAsync(H.NotificationFeedbackType.Error).catch(() => {});
+      H.notificationAsync(H.NotificationFeedbackType.Error).catch(() => {}); // best-effort: the on-screen error still speaks
     } else {
-      H.impactAsync(style === 'medium' ? H.ImpactFeedbackStyle.Medium : H.ImpactFeedbackStyle.Light).catch(() => {});
+      H.impactAsync(style === 'medium' ? H.ImpactFeedbackStyle.Medium : H.ImpactFeedbackStyle.Light).catch(() => {}); // best-effort: no UI consequence
     }
   } catch { /* 미설치 빌드 — no-op */ }
 }

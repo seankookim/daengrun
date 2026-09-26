@@ -123,6 +123,7 @@ export default function AddressPin() {
           best = { ...BANPO }; fell = true;
         }
       } catch {
+        // Not silent: row stays null, so the banner says 주소를 불러오지 못했어요 and offers 다시 시도.
         best = { ...BANPO }; fell = true;
       }
       if (!alive) return;
@@ -168,6 +169,7 @@ export default function AddressPin() {
     setNoteBusy(true);
     try {
       await updateAddressDetail(id, noteVal);
+      // The save already succeeded; a failed re-read falls back to the documented normalisation below.
       const rows = await fetchAddresses().catch(() => null);
       const fresh = rows?.find((a) => a.id === id) ?? null;
       if (fresh) setRow(fresh);
