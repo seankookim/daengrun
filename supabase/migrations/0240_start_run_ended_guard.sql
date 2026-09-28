@@ -10,9 +10,10 @@
 -- settlement. `start_run_tx` (0087 §2) answers ANY `active` booking with `{unchanged:true}` and
 -- repairs a missing `started_at`; it never read `run_ended_at`. So on an ended-but-unsettled booking
 -- a start request is ACCEPTED, and three things follow, none of them a start:
---   ① the edge caller (`transition-booking/start_run.ts:59`) pushes the owner 「러닝 시작 —
---      실시간으로 지켜보세요」 on every accepted call (its own comment: 0087 §0c, behaviour
---      preserved) — a false 「러닝 시작」 after the run is over;
+--   ① the edge caller (`transition-booking/start_run.ts`, its `await notify(bk.owner_id,
+--      "러닝 시작", …)` line) pushes the owner 「러닝 시작 — 실시간으로 지켜보세요」 on every
+--      accepted call (its own comment: 0087 §0c, behaviour preserved) — a false 「러닝 시작」
+--      after the run is over;
 --   ② a client without PR #7's ended-check (every build before it, or one holding a stale cached
 --      verdict — c3's own mechanism: a failed `fetchReturnSeal` resolved the check to false and was
 --      cached) re-enters the live-run UI on a finished run and records again;
@@ -63,8 +64,12 @@
 --            runs.started_at, runs row count, notification rows). Fixture A is the REAL path —
 --            started through start_run_tx, ended through end_run_tx. Fixture B is hand-stamped
 --            (`active` + `run_ended_at` + NO runs row), a state the real path cannot reach because
---            end_run_tx always upserts the row; it is the arm that observes the ORDER — the refusal
---            precedes the repair, so no runs row is born.
+--            end_run_tx always upserts the row; it is the fixture on which 0087's repair arm would
+--            have fired (on 0087's body it is ACCEPTED and given a runs row — measured, M1v), and
+--            with the conjunct it is refused with no row surviving. ⚠ It does NOT observe the ORDER
+--            of the refusal against the repair: a raise after the insert rolls the insert back, so
+--            the two orders are behaviourally identical (measured M11v: conjunct moved below the
+--            insert → S1 GREEN, S7 alone red). The order is source position — S7 and §B own it.
 --   0240-S2  a second start on a LIVE run is still `{unchanged:true}` with the SAME started_at, one
 --            runs row, and no notification row change.
 --   0240-S3  0087's repair on a LIVE run is kept: no runs row → born with a server started_at; a
@@ -79,6 +84,8 @@
 --            service_role can · NO-FUNCTION red.
 --   0240-S7  source, COMMENTS STRIPPED: the raise and its conjunct present, positioned after the
 --            party gate and before both the repair insert and the unchanged return; NO-SOURCE red.
+--            This pin (with §B at apply) is the ONLY holder of the check's position relative to
+--            the repair — see S1 for why no behavioural pin can hold it.
 --
 -- ═══ §0e WHAT STAYS UNVERIFIED ═══
 -- · deno is not installed in the build container: `_test/start_run_test.ts`'s new case is

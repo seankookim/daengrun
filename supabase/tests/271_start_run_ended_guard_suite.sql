@@ -7,8 +7,13 @@
 --   reset. Fixtures start where production starts: a `picked_up` booking, started through
 --   `start_run_tx` and ended through `end_run_tx` — never a hand-stamped `run_ended_at` alone.
 --   The ONE hand-stamped fixture (S1 arm B) is a state the real path cannot reach — `active` +
---   `run_ended_at` + NO runs row, because end_run_tx always upserts the row — and it exists to
---   observe the ORDER of the refusal against the repair; the case says so where it is used.
+--   `run_ended_at` + NO runs row, because end_run_tx always upserts the row — and it exists so the
+--   conjunct is measured on the fixture where 0087's OTHER answer, the repair insert, would have
+--   fired (on 0087's body this booking is ACCEPTED and given a runs row). ⚠ It does NOT observe the
+--   ORDER of the refusal against the repair: a raise placed after the insert rolls the insert back
+--   inside the case's subtransaction, so 「refused, no row」 reads the same in both orders (measured:
+--   the conjunct moved below the insert leaves S1 GREEN and reddens S7 alone). The order is SOURCE
+--   POSITION, owned by S7 and 0240 §B VERIFY; the case says so where it is used.
 -- ⚠ Every refusal is captured by `t_sreg_try(...)`, which returns the message text or '' — so
 --   every assertion below is an EXACT BOOLEAN (`is distinct from true` / `is not true`), never a
 --   bare IF on a predicate that could be NULL (the plpgsql-NULL law: a bare IF on NULL is silent,
@@ -18,8 +23,10 @@
 --   the pin looks for, so an un-stripped match would be measuring the documentation.
 --
 -- ─── MUTATION map — each pin goes RED under a named revert (house law) ───
---   S1  ← delete the conjunct (`if b.run_ended_at is not null then raise …`), replace its raise
---         with the unchanged return, or move it BELOW the repair insert (arm B)             → RED
+--   S1  ← delete the conjunct (`if b.run_ended_at is not null then raise …`), or replace its
+--         raise with the unchanged return                                                   → RED
+--         ⚠ moving the conjunct BELOW the repair insert leaves S1 GREEN, arm B included: the raise
+--         rolls the repair back, so that order has no behavioural signature — S7 owns it
 --   S2  ← invert the conjunct (`is null`), let a second start raise, or let the idempotent branch
 --         overwrite `started_at`                                                             → RED
 --   S3  ← delete 0087's repair insert, or turn its coalesce into an overwrite of NULL         → RED
@@ -29,7 +36,8 @@
 --         two gates diverge rather than in their agreement zone)                            → RED
 --   S6  ← `security invoker`, drop the in-body search_path, grant execute to authenticated /
 --         anon / public, or drop the function (NO-FUNCTION)                                  → RED
---   S7  ← any of S1's reverts, or drop the function (NO-SOURCE)                              → RED
+--   S7  ← any of S1's reverts, move the conjunct BELOW the repair insert / the unchanged return
+--         (source position ONLY — measured 1592/1, S7 alone), or drop the function (NO-SOURCE) → RED
 --   ⚠ Dropping 0240's REVOKE/GRANT lines alone reddens NOTHING here: the harness applies 0087
 --     first, so `create or replace` PRESERVES the ACL and S6 then measures a preserved grant, not
 --     this file's. That class is structurally unreachable by this harness (CLAUDE.md
@@ -167,10 +175,15 @@ begin
       then v_bad := v_bad || ' 거부됐는데 알림 행이 변했다=' || v_noti || '→' || v_noti2; end if;
 
     -- Arm B — HAND-BUILT, and here is why: `active` + `run_ended_at` + NO runs row is a state the
-    -- real path cannot produce (end_run_tx always upserts the runs row). It is the one fixture on
-    -- which the ORDER is observable: 0087's repair would give this booking a runs row, so if the
-    -- refusal came AFTER the repair, a row would be born before the raise. The stamp goes in at
-    -- INSERT time so no update trigger runs on a row that has no run.
+    -- real path cannot produce (end_run_tx always upserts the runs row). It is the fixture on which
+    -- 0087's OTHER answer would fire: on 0087's body this booking is ACCEPTED and the repair insert
+    -- gives it a runs row (measured, M1v — S1 red with a row born here); with the conjunct it is
+    -- refused and no row survives. ⚠ What it does NOT prove: the ORDER of the refusal against the
+    -- repair. A raise placed after the insert rolls the insert back inside t_sreg_try's
+    -- begin…exception subtransaction, so `count = 0` reads the same whether the check precedes or
+    -- follows the repair (measured: the conjunct moved below the insert leaves this arm GREEN and
+    -- reddens S7 alone). The order is source position — S7 and 0240 §B VERIFY own it. The stamp
+    -- goes in at INSERT time so no update trigger runs on a row that has no run.
     b_b := t_sreg_picked(oo, dg, rt, rr, 'active', now() - interval '5 minutes');
     if (select count(*) from runs where booking_id = b_b) is distinct from 0
       then v_bad := v_bad || ' 팔B 픽스처에 runs 행이 있다'; end if;
@@ -179,10 +192,10 @@ begin
       then v_bad := v_bad || ' 팔B: 거부되지 않았다=' || coalesce(nullif(v_err2, ''), '(통과)'); end if;
     select count(*) into v_n2 from runs where booking_id = b_b;
     if v_n2 is distinct from 0
-      then v_bad := v_bad || ' 팔B: 거부보다 복구가 먼저 돌아 runs 행이 생겼다=' || v_n2; end if;
+      then v_bad := v_bad || ' 팔B: 거부됐는데 runs 행이 남았다=' || v_n2; end if;
 
     if v_bad = ''
-      then call _pass('sreg','0240-S1 종료된 러닝은 다시 시작할 수 없다 — 실경로(start_run_tx→end_run_tx) 픽스처는 run_ended로 거부, 상태·run_ended_at·started_at·runs 행·알림 무변; 손도장 팔B(runs 행 없음)도 거부되고 복구가 먼저 돌지 않는다');
+      then call _pass('sreg','0240-S1 종료된 러닝은 다시 시작할 수 없다 — 실경로(start_run_tx→end_run_tx) 픽스처는 run_ended로 거부, 상태·run_ended_at·started_at·runs 행·알림 무변; 손도장 팔B(runs 행 없음)도 거부되고 runs 행이 남지 않는다');
     else v_msg := v_bad; call _fail('sreg','0240-S1 종료된 러닝은 다시 시작할 수 없다', v_msg); end if;
   exception when others then
     perform set_config('request.jwt.claim.sub', '', false);
