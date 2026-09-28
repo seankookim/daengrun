@@ -173,7 +173,6 @@ const KNOWN_RAW = {
   // not held by any builder, and outside this slice's file list (its brief + the landed slices
   // 1–9 it was told to convert) — a one-line alertFail swap each, left for the orchestrator
   'app/owner/fitness.tsx': 1,
-  'app/owner/reschedule.tsx': 2,
 };
 
 // ── the title-grammar ledger (Ⓒ) ──────────────────────────────────────────────────────────────
