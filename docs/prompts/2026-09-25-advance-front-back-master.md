@@ -1,3 +1,4 @@
+<!-- SUPERSEDED 2026-09-28 by docs/prompts/2026-09-28-advance-front-back-master-fable.md (Fable 5.1, ultracode). Do not paste this file: its "State at write time" predates the cloud session that executed most of its §2, and its builder/landing procedure was replaced. Kept for history only. -->
 <!-- Written 2026-09-25 by a cloud Claude session at trunk 0ee30fa for Sean to paste into an Opus 5.5 ultracode session on his Mac. Everything in 'State at write time' is a snapshot to re-measure. Scouted by five parallel readers, then drafted, checked by a completeness critic and a claim-verification critic, and revised; key claims were spot-checked again by hand (highest migration 0228 and suite 259, the seven merges since b4c273f, the four PENDING_DEPLOY entries, the brief line numbers, the script paths). -->
 
 # MASTER PROMPT: finishing daengrun's front end and back end (Opus 5.5, ultracode)
