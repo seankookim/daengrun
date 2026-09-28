@@ -437,7 +437,20 @@ export default function Report() {
   // 못했어요」 strip on every healthy receipt would be noise that trains people to ignore strips.
   // The seal block's own error strip already covers the ⑫ area when the READ side is broken.
   const [resolution, setResolution] = useState<ReturnResolution | null>(null);
+  // LOAD GENERATION (PR #21 review, 2026-09-28). The seven reads in `load` are independent
+  // promises and every setter used to run unconditionally, so two OVERLAPPING loads let the LAST
+  // RESPONSE win rather than the last load: a stale bid's report over the new one, a stale failure
+  // flag (setErr / setStandingsErr / …) beside fresh good data, or a setState after unmount. Loads
+  // overlap whenever `bid` changes under a mounted instance (the `[load]` effect re-runs), when a
+  // 다시 시도 re-runs `load` while a slow read is still pending, and when the seal confirm re-runs it.
+  // Each `load()` takes the next generation number; every `.then`/`.catch` below lands its state
+  // only while that number is still current, and the unmount cleanup bumps the counter so nothing
+  // lands after the screen is gone. `loadGaps` and the two celebration pops keep their own gating
+  // and are deliberately outside this guard (see their notes).
+  const loadGen = useRef(0);
+  useEffect(() => () => { loadGen.current++; }, []);
   const load = useCallback(() => {
+    const my = ++loadGen.current;
     // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
     // same remedy — leave. Never a retry that would run the same early return again.
     if (!bid) { setNotFound(true); return; }
@@ -447,8 +460,8 @@ export default function Report() {
     setEarningErr(false);
     setReviewErr(false);
     fetchRunReportOrNull(bid)
-      .then((r) => { if (r) setReport(r); else setNotFound(true); })
-      .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); setErr(true); });
+      .then((r) => { if (my !== loadGen.current) return; if (r) setReport(r); else setNotFound(true); })
+      .catch((e) => { console.warn('[o-report] run report:', e?.message ?? e); if (my !== loadGen.current) return; setErr(true); });
     // 실패해도 직전 실값은 지우지 않는다 — 세터는 성공에서만 돈다.
     // ⚠ KNOWN OPEN, NOT FIXED (silent-catch-triage review, 2026-09-26): this `.catch` cannot fire
     // for the common failures. api.ts fetchRunStandings reads only `data` from the bookings query and
@@ -457,13 +470,13 @@ export default function Report() {
     // standings strip below never shows for those failures. The fix belongs in api.ts
     // (`if (error) throw error;`), which is outside this slice. This screen cannot tell a
     // failure-null from a real null.
-    fetchRunStandings(bid).then(setStandings)
-      .catch((e) => { console.warn('[o-report] standings:', e?.message ?? e); setStandingsErr(true); });
+    fetchRunStandings(bid).then((st) => { if (my !== loadGen.current) return; setStandings(st); })
+      .catch((e) => { console.warn('[o-report] standings:', e?.message ?? e); if (my !== loadGen.current) return; setStandingsErr(true); });
     // 실패 시 loaded 를 세우지 않는다 — 섹션은 그리지 않되, 아래 스트립이 왜 없는지 말한다 (거짓 0 금지)
     setEarning(null);
     setEarningLoaded(false);
-    fetchRunEarning(bid).then((e) => { setEarning(e); setEarningLoaded(true); })
-      .catch((e) => { console.warn('[o-report] earning:', e?.message ?? e); setEarningErr(true); });
+    fetchRunEarning(bid).then((e) => { if (my !== loadGen.current) return; setEarning(e); setEarningLoaded(true); })
+      .catch((e) => { console.warn('[o-report] earning:', e?.message ?? e); if (my !== loadGen.current) return; setEarningErr(true); });
     // 내가 이 러닝에 남긴 후기 — 없으면 null(=사실), 못 읽으면 known을 세우지 않는다(=모름).
     setMyReview(null);
     setMyReviewKnown(false);
@@ -473,22 +486,23 @@ export default function Report() {
     // strip: the slot vanished and 「못 읽었다」 looked like 「후기 칸이 없다」. The failure branch is
     // HERE, on the value; the `.catch` below only covers a throw from the setters themselves.
     readMyReview(bid).then((r) => {
+      if (my !== loadGen.current) return;
       if (r === undefined) { setReviewErr(true); return; }
       setMyReview(r);
       setMyReviewKnown(true);
     })
-      .catch((e) => { console.warn('[o-report] review:', e?.message ?? e); setReviewErr(true); });
+      .catch((e) => { console.warn('[o-report] review:', e?.message ?? e); if (my !== loadGen.current) return; setReviewErr(true); });
     // ⑫ [0188] 반환 확인 — the owner's half of the two-stamp return. `null` is UNKNOWN here (not
     // read yet, or the read failed) and the section then says so rather than drawing a hollow
     // seal, which would assert 「you have not confirmed」 — a fact we do not have.
     setSeal(null);
     setSealErr(false);
-    fetchReturnSeal(bid).then((s) => { if (s) setSeal(s); })
-      .catch((e) => { console.warn('[o-report] seal:', e?.message ?? e); setSealErr(true); });
+    fetchReturnSeal(bid).then((s) => { if (my !== loadGen.current) return; if (s) setSeal(s); })
+      .catch((e) => { console.warn('[o-report] seal:', e?.message ?? e); if (my !== loadGen.current) return; setSealErr(true); });
     // ⑫-bis [0199] 운영팀 판정 — the row exists only when ops actually resolved a stranded return.
     // No error flag by design; see the state's own note above.
     setResolution(null);
-    fetchMyReturnResolution(bid).then(setResolution)
+    fetchMyReturnResolution(bid).then((rs) => { if (my !== loadGen.current) return; setResolution(rs); })
       .catch((e) => { console.warn('[o-report] resolution:', e?.message ?? e); });
   }, [bid]);
   useEffect(() => { load(); }, [load]);

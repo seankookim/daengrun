@@ -1,4 +1,5 @@
 // silent-catch-triage — cloud/silent-catch-triage (2026-09-26, slice F5; review fixes same day).
+// Ⓓ added by cloud/report-load-generation (2026-09-28, PR #21 review finding).
 //
 // ═══ THE PROPERTIES, STATED WITHOUT REFERENCE TO ANY MUTATION ═══
 // Ⓐ owner/report.tsx: when the owner's own review of this run cannot be read, the ④b slot SAYS so
@@ -12,6 +13,14 @@
 //   rather than swallow it and leave a button that did nothing.
 // Ⓒ In the eight files this slice triaged, every remaining SWALLOWING catch carries a comment, on its
 //   own line(s) or in the comment block directly above it, that is more than a bare marker.
+// Ⓓ owner/report.tsx: a STALE load's response never lands. `load` fires seven independent reads; when
+//   a second `load()` starts while the first is in flight (bid changed under a mounted instance, a
+//   다시 시도 tapped while a slow read is pending, the seal confirm re-reading), or the screen unmounts,
+//   none of the FIRST load's `.then`/`.catch` handlers may set state — not its data (a stale bid's
+//   report over the new one), not its failure flag (setErr / setStandingsErr / setEarningErr /
+//   setReviewErr / setSealErr beside fresh good data), not `notFound`. Every read in `load` is
+//   covered: report, standings, earning, myReview, seal, resolution. `loadGaps` and the celebration
+//   pops are outside Ⓓ (their own notes in report.tsx say why).
 //
 // ═══ HOW EACH IS CHECKED ═══
 // report.tsx is a route module; a `.cjs` suite cannot import it (react-native, expo-router). So Ⓐ and
@@ -21,6 +30,13 @@
 // equivalent rewrite passes, and a `return` planted before a setter or before `alertFail` fails.
 // Names the extracted code uses and the suite does not know resolve to no-op recorders, so an added
 // `haptic('error')` does not break a pin. A syntax the transpiler cannot handle fails loudly.
+// ⚠ Ⓐ's handler now carries Ⓓ's generation guard (`if (my !== loadGen.current) return;`), so Ⓐ binds a
+// LIVE generation (`my === loadGen.current`) in its scope; left unbound, both names would resolve to
+// recorders, the guard would read as stale, and Ⓐ would redden for a reason that is not Ⓐ's.
+// Ⓓ EXTRACTS the whole `load` callback and RUNS it twice against stubbed reads whose promises the arm
+// settles by hand, plus the `useEffect` whose cleanup bumps the generation, which it also runs. Every
+// stubbed answer carries the bid it answers for, so 「load #1's setter fired」 means 「a setter saw an
+// A-tagged value」, never a call count that a reset `setX(null)` could inflate.
 //
 // ═══ WHAT THIS SUITE DOES NOT SEE (prose, deliberately not pinned) ═══
 // • Rendering. Whether the strip and the stars actually draw from these states is decided by render
@@ -43,6 +59,11 @@
 //   changes.
 //
 // ═══ THE MUTATIONS THAT REDDEN IT ═══
+// Ⓓ drop the generation check from any ONE read's `.then` → that read's L2 arm red (report also L2c;
+//   earning/review also via their loaded/known flag firing twice).   drop it from any one read's
+//   `.catch` → that flag's L3 arm red (review's value branch → L3b).   delete the loadGen `useEffect` →
+//   L0b red.   make its cleanup not bump (`+= 0`) → L4a and L4b/L4c red.   Controls: L1/L1b/L1c prove
+//   the live load still lands data AND flags, so a guard that blocked everything would redden them.
 // Ⓐ restore the retired handler `(r) => { if (r !== undefined) { … } }` → A1 red.
 //   drop the `return` from the undefined branch (reviewErr AND known=true) → A1 red.
 //   make readMyReview's error branch `return null` → A4 red.   drop setReviewErr from the `.catch` → A5 red.
@@ -311,7 +332,8 @@ async function main() {
       const run = (value) => {
         const rec = { setReviewErr: recorder(), setMyReview: recorder(), setMyReviewKnown: recorder() };
         let threw = false;
-        const { f } = evalIn(`const __f = (${handlerSrc});`, rec);
+        // Ⓓ's guard reads `my` and `loadGen.current`; this is the CURRENT load (see the header note)
+        const { f } = evalIn(`const __f = (${handlerSrc});`, { ...rec, my: 1, loadGen: { current: 1 } });
         try { f(value); } catch { threw = true; } // a throw is routed to the chained .catch (A5 pins it)
         return { ...rec, threw };
       };
@@ -345,7 +367,7 @@ async function main() {
         let got = null, e5 = '';
         try {
           const rec = { setReviewErr: recorder() };
-          const { f } = evalIn(`const __f = (${catchSrc});`, rec);
+          const { f } = evalIn(`const __f = (${catchSrc});`, { ...rec, my: 1, loadGen: { current: 1 } });
           f(new Error('boom'));
           got = rec.setReviewErr.calls;
         } catch (e) { e5 = String(e && e.message); }
@@ -395,6 +417,177 @@ async function main() {
           bad.length === 0, bad.map((k) => `${k}→${JSON.stringify(o[k])}`).join(' · '));
         t('A4c control: a successful read with no row answers `null`, and a row answers the row (so A4 is not a harness that answers undefined for everything)',
           o.none.v === null && !o.none.rejected && o.row.v && o.row.v.rating === 4, JSON.stringify({ none: o.none, row: o.row }));
+      }
+    }
+  }
+
+  // ══ L — report.tsx: a stale load's response never lands (Ⓓ, load generation) ═════════════════
+  {
+    const deferred = () => {
+      let resolve, reject;
+      const p = new Promise((rs, rj) => { resolve = rs; reject = rj; });
+      return { p, resolve, reject };
+    };
+    const tick = () => new Promise((r) => setTimeout(r, 0)); // a macrotask boundary drains every pending microtask
+    const READS = ['fetchRunReportOrNull', 'fetchRunStandings', 'fetchRunEarning', 'readMyReview', 'fetchReturnSeal', 'fetchMyReturnResolution'];
+    const SETTERS = ['setReport', 'setNotFound', 'setErr', 'setStandings', 'setStandingsErr', 'setEarning', 'setEarningLoaded',
+      'setEarningErr', 'setMyReview', 'setMyReviewKnown', 'setReviewErr', 'setSeal', 'setSealErr', 'setResolution'];
+    const FLAGS = ['setErr', 'setStandingsErr', 'setEarningErr', 'setReviewErr', 'setSealErr'];
+    // The Report component's `load`: the `const load = useCallback(` whose span reads the run report
+    // (RunnerWordSection declares its own `load`, which does not). First argument = the callback.
+    let loadSrc = '';
+    {
+      const re = /const load = useCallback\(/g;
+      let m;
+      while ((m = re.exec(rcode))) {
+        const open = m.index + m[0].length - 1;
+        const close = closeBracket(rcode, open);
+        if (close > open && rcode.slice(open, close).includes('fetchRunReportOrNull(')) {
+          const args = topLevelArgs(rcode, open + 1, close);
+          loadSrc = rnc.slice(args[0][0], args[0][1]);
+          break;
+        }
+      }
+    }
+    t('L0 report.tsx has a `const load = useCallback(` that reads fetchRunReportOrNull (NO-SOURCE arm)', loadSrc.length > 0);
+    // The unmount bump: the `useEffect(` whose span names `loadGen` (the `[load]` effect names `load`).
+    let cleanupEffectSrc = '';
+    {
+      const re = /useEffect\(/g;
+      let m;
+      while ((m = re.exec(rcode))) {
+        const open = m.index + m[0].length - 1;
+        const close = closeBracket(rcode, open);
+        if (close > open && /\bloadGen\b/.test(rcode.slice(open, close))) {
+          const args = topLevelArgs(rcode, open + 1, close);
+          cleanupEffectSrc = rnc.slice(args[0][0], args[0][1]);
+          break;
+        }
+      }
+    }
+    t('L0b report.tsx has a `useEffect(` that touches loadGen — the unmount bump (NO-SOURCE arm)', cleanupEffectSrc.length > 0);
+
+    /** One screen instance: a shared generation ref, setter recorders, and stubbed reads whose
+     *  promises stay pending until an arm settles them (indexed by call order = load order). */
+    const world = () => {
+      const loadGen = { current: 0 };
+      const rec = Object.fromEntries(SETTERS.map((k) => [k, recorder()]));
+      const pending = Object.fromEntries(READS.map((k) => [k, []]));
+      const api = Object.fromEntries(READS.map((k) => [k, (b) => { const d = deferred(); pending[k].push({ bid: b, ...d }); return d.p; }]));
+      const start = (bid) => { const { f } = evalIn(`const __f = (${loadSrc});`, { ...rec, ...api, loadGen, bid }); f(); };
+      const calls = () => SETTERS.reduce((n, k) => n + rec[k].calls.length, 0);
+      const seen = (k, tag) => rec[k].calls.some((a) => a[0] && a[0].tag === tag);
+      const flagged = (k) => rec[k].calls.some((a) => a[0] === true);
+      const ok = (i, tag) => { // answer load #i on every read, each value tagged with the bid it answers for
+        pending.fetchRunReportOrNull[i].resolve({ tag, run: { endReason: 'completed' } });
+        pending.fetchRunStandings[i].resolve({ tag, nth: 2 });
+        pending.fetchRunEarning[i].resolve({ tag, points: 10 });
+        pending.readMyReview[i].resolve({ tag, rating: 5, tags: [], createdAt: 'x', visibility: 'public' });
+        pending.fetchReturnSeal[i].resolve({ tag });
+        pending.fetchMyReturnResolution[i].resolve({ tag });
+      };
+      const bad = (i) => { for (const k of READS) pending[k][i].reject(new Error('boom ' + k)); };
+      const dump = (keys) => JSON.stringify(Object.fromEntries(keys.map((k) => [k, rec[k].calls])));
+      return { loadGen, rec, pending, start, calls, seen, flagged, ok, bad, dump };
+    };
+
+    if (loadSrc) {
+      // ── L1 controls: ONE load in flight lands every read and every flag (the harness is alive,
+      //    and a guard that blocked everything would redden here) ──
+      let runErr = '';
+      const w1 = world();
+      try { w1.start('A'); } catch (e) { runErr = String(e && e.message); }
+      t('L-run the `load` callback extracted from report.tsx transpiles and runs', !runErr, runErr);
+      if (!runErr) {
+        t('L1-calls one load calls each of the six reads exactly once, with its bid', READS.every((k) => w1.pending[k].length === 1 && w1.pending[k][0].bid === 'A'),
+          JSON.stringify(READS.map((k) => [k, w1.pending[k].map((x) => x.bid)])));
+        w1.ok(0, 'A'); await tick();
+        t('L1 control: with ONE load in flight every read lands (report · standings · earning+loaded · review+known · seal · resolution)',
+          w1.seen('setReport', 'A') && w1.seen('setStandings', 'A') && w1.seen('setEarning', 'A') && w1.flagged('setEarningLoaded')
+            && w1.seen('setMyReview', 'A') && w1.flagged('setMyReviewKnown') && w1.seen('setSeal', 'A') && w1.seen('setResolution', 'A'),
+          w1.dump(SETTERS));
+        const w1b = world(); w1b.start('A'); w1b.bad(0); await tick();
+        t('L1b control: with ONE load in flight every failure flag is reachable (setErr · setStandingsErr · setEarningErr · setReviewErr · setSealErr) — so L3\'s silence is the guard, not a dead catch',
+          FLAGS.every((k) => w1b.flagged(k)), w1b.dump(FLAGS));
+        const w1c = world(); w1c.start('A'); w1c.pending.readMyReview[0].resolve(undefined); await tick();
+        t('L1c control: an `undefined` review answer on the LIVE load raises reviewErr (the value branch is reachable)', w1c.flagged('setReviewErr'), w1c.dump(['setReviewErr']));
+        const w1n = world(); w1n.start('A'); w1n.pending.fetchRunReportOrNull[0].resolve(null); await tick();
+        t('L1n control: a null report on the LIVE load sets notFound', w1n.flagged('setNotFound'), w1n.dump(['setNotFound']));
+
+        // ── L2 🔴 bid changed under a mounted instance: load #1 (A), then load #2 (B); #1's answers
+        //    arrive AFTER #2's. Per read: no A-tagged value lands, B's does ──
+        const w2 = world();
+        w2.start('A'); w2.start('B');
+        w2.ok(1, 'B'); await tick();
+        w2.ok(0, 'A'); await tick();
+        for (const [k, flag] of [['setReport'], ['setStandings'], ['setEarning', 'setEarningLoaded'], ['setMyReview', 'setMyReviewKnown'], ['setSeal'], ['setResolution']]) {
+          const flagOnce = flag ? w2.rec[flag].calls.filter((a) => a[0] === true).length === 1 : true;
+          t(`L2 🔴 ${k}: a stale load's answer (bid A, arriving after load B's) never lands — only B's does${flag ? `, and ${flag}(true) fires exactly once` : ''}`,
+            !w2.seen(k, 'A') && w2.seen(k, 'B') && flagOnce, w2.dump(flag ? [k, flag] : [k]));
+        }
+        // the other order: #1's answers arrive BEFORE #2's, but after #2 STARTED — still stale
+        const w2b = world();
+        w2b.start('A'); w2b.start('B');
+        w2b.ok(0, 'A'); await tick();
+        w2b.ok(1, 'B'); await tick();
+        const staleLanded = ['setReport', 'setStandings', 'setEarning', 'setMyReview', 'setSeal', 'setResolution'].filter((k) => w2b.seen(k, 'A'));
+        t('L2b 🔴 a load-#1 answer arriving BEFORE load #2\'s answers (but after #2 started) is equally stale: none of the six lands',
+          staleLanded.length === 0 && w2b.seen('setReport', 'B'), staleLanded.join(','));
+        // a stale 「no such run」 must not flip notFound under the new bid's report
+        const w2c = world();
+        w2c.start('A'); w2c.start('B');
+        w2c.ok(1, 'B'); await tick();
+        w2c.pending.fetchRunReportOrNull[0].resolve(null); await tick();
+        t('L2c 🔴 a stale null report (bid A 「no such run」) never sets notFound beside bid B\'s report',
+          !w2c.flagged('setNotFound') && w2c.seen('setReport', 'B'), w2c.dump(['setNotFound', 'setReport']));
+
+        // ── L3 🔴 a retry overlaps a slow read: load #1 (A), load #2 (A again); #2 succeeds, THEN
+        //    #1's reads fail. No failure flag may land beside #2's good data ──
+        const w3 = world();
+        w3.start('A'); w3.start('A');
+        w3.ok(1, 'A2'); await tick();
+        w3.bad(0); await tick();
+        for (const k of FLAGS) {
+          t(`L3 🔴 ${k}: a stale load's FAILURE (rejecting after the retry succeeded) never raises the flag beside good data`, !w3.flagged(k), w3.dump([k]));
+        }
+        t('L3-control the retry\'s own answers did land (the flags\' silence is the guard, not a dead harness)',
+          w3.seen('setReport', 'A2') && w3.seen('setStandings', 'A2') && w3.seen('setEarning', 'A2') && w3.seen('setMyReview', 'A2') && w3.seen('setSeal', 'A2'),
+          w3.dump(['setReport', 'setStandings', 'setEarning', 'setMyReview', 'setSeal']));
+        // readMyReview's OTHER failure shape — the `undefined` value — on the stale load
+        const w3b = world();
+        w3b.start('A'); w3b.start('A');
+        w3b.ok(1, 'A2'); await tick();
+        w3b.pending.readMyReview[0].resolve(undefined); await tick();
+        t('L3b 🔴 setReviewErr: a stale `undefined` review answer (could not check) never raises the flag beside the retry\'s review',
+          !w3b.flagged('setReviewErr') && w3b.seen('setMyReview', 'A2'), w3b.dump(['setReviewErr', 'setMyReview']));
+      }
+
+      // ── L4 🔴 unmount: the effect's cleanup bumps the generation, and a load in flight at unmount
+      //    then sets nothing — neither data nor a failure flag ──
+      if (!runErr && cleanupEffectSrc) {
+        const mount = (w) => { const { f } = evalIn(`const __f = (${cleanupEffectSrc});`, { loadGen: w.loadGen }); return f(); };
+        const w4 = world();
+        let cleanup = null, effErr = '';
+        try { cleanup = mount(w4); } catch (e) { effErr = String(e && e.message); }
+        t('L4-run the loadGen effect extracted from report.tsx runs and returns a cleanup function', !effErr && typeof cleanup === 'function', effErr || typeof cleanup);
+        if (typeof cleanup === 'function') {
+          const atMount = w4.loadGen.current;
+          w4.start('A');
+          const gen = w4.loadGen.current, before = w4.calls();
+          cleanup();
+          t('L4a 🔴 mounting does not bump the generation, and the unmount cleanup bumps it past the in-flight load\'s',
+            atMount === 0 && gen === 1 && w4.loadGen.current > gen, `mount=${atMount} load=${gen} after-cleanup=${w4.loadGen.current}`);
+          w4.ok(0, 'A'); await tick();
+          t('L4b 🔴 after unmount, a resolving load sets NOTHING (no setState on an unmounted screen)', w4.calls() === before,
+            w4.dump(SETTERS.filter((k) => w4.rec[k].calls.length)));
+          const w4c = world();
+          const c2 = mount(w4c);
+          w4c.start('A');
+          const b2 = w4c.calls();
+          c2(); w4c.bad(0); await tick();
+          t('L4c 🔴 after unmount, a FAILING load sets nothing either (no stale failure flag on an unmounted screen)', w4c.calls() === b2,
+            w4c.dump(SETTERS.filter((k) => w4c.rec[k].calls.length)));
+        }
       }
     }
   }
