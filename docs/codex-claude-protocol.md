@@ -49,7 +49,7 @@ app/:               ./node_modules/.bin/tsc --noEmit
                     node scripts/check-definer-acl.mjs
                     node scripts/check-device-clock.mjs
                     npm test          # exit code + count ^PASS/^FAIL across the whole output
-supabase/tests/:    PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH" LC_ALL=C bash harness.sh
+supabase/tests/:    PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH" LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 bash harness.sh   # corrected 2026-09-26: was LC_ALL=C; the harness needs a UTF-8 locale (Mac: en_US.UTF-8, else the postmaster dies at start — session-handoff.md:900-902; cloud container: C.UTF-8, run as the postgres user)
                     pg_ctl -D "$(pwd)/.pgtest/data" stop -m fast     # always, when done
 supabase/functions: deno test --allow-all --node-modules-dir=auto _test   # 277/0 at 0157
 ```

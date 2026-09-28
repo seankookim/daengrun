@@ -1,6 +1,8 @@
 # 결제 도입 계획 (세션 25 — PG 스캐폴딩)
 
-현 상태: 결제는 시뮬레이션 (create-booking-hold가 서버 가격 확정 → confirmPayment = payment_ok 전이).
+> ⚠ **Corrected 2026-09-26 — the next line is stale: payments are no longer simulated in code.** Every money path calls Toss (`https://api.tosspayments.com/v1`, `supabase/functions/_shared/toss.ts:12`): widget confirm `confirm-payment/handler.ts:132` (`tossConfirm`), billing-key issue `register-billing-key/handler.ts:359` (`tossBillingIssue`), and the charge ladder `collect-charges/handler.ts:359` → `_shared/charge.ts:140,233` (`dispatchCharge` → `tossBillingCharge`). Whether money actually moves in production is gated by `TOSS_SECRET_KEY` (absent → 503, `_shared/toss.ts:24-27`) and `ops_flags.payments_live_since` (NULL → the settle charge is skipped, `_shared/charge.ts:572-577`; last recorded NULL on production 2026-08-28 per `:618`, not re-measured here).
+
+~~현 상태: 결제는 시뮬레이션 (create-booking-hold가 서버 가격 확정 → confirmPayment = payment_ok 전이).~~
 금액 계산·원장·수수료·정산 로직은 전부 실동작이므로, PG는 "돈이 실제로 움직이는 단계"만 갈아끼우면 된다.
 
 ## 선행 조건 (외부 — Sean만 할 수 있음, 오늘 시작 권장)
