@@ -69,3 +69,28 @@ The client build ships **after** the push. #7's chat read needs `chat_mark_read_
 - **F7 nav-back** (onboard, card-link). It waits for #2, which owns both onboards.
 - **`fetchRunStandings` error check** (#19 finding 1). Building as `cloud/run-standings-error`.
 - **Device smoke tests.** Every PR carries its own list. Nothing was seen on a simulator.
+
+## Addendum 2026-09-28 (same cloud session; trunk still `0ee30fa`)
+
+Four more draft PRs, each built in its own worktree, each with an executing adversarial reviewer and a fix round, each read back from origin. Still no Codex verdict on anything; nothing landed; nothing deployed.
+
+| PR | branch | base | what |
+|---|---|---|---|
+| #22 | `cloud/p8-reschedule-alert-fold` | #2 | F2's ledger half: `owner/reschedule.tsx`'s two raw `e.message` alerts fold through `alertFail`; `KNOWN_RAW` 13 → 11 (the sweep's own pin; no separate reviewer — two call swaps and a ledger line) |
+| #23 | `cloud/p8-nav-back-mock-chip` | #2 | F7 nav-back on both onboards and card-link (`KNOWN` 12 → 4, only `club/**` left) + the pay hold chip 「MOCK · 준비 중」 → 「HOLD · 접수 전」 with a 13-pin suite. Reviewer: APPROVE-WITH-FIXES; the fix corrected a false money fact in the first draft's comments (a `payment_hold` row holds no Toss authorization — `create-booking-hold/handler.ts:40-50`) |
+| #24 | `cloud/report-load-generation` | #19 | `owner/report.tsx` load-generation guard: a stale, overlapping or post-unmount load's response never lands; suite 41 → 73 pins. Reviewer: APPROVE-WITH-FIXES (a load *started* after unmount, and the previous record surviving a bid change — both reproduced, both fixed) |
+| #25 | `cloud/0240-start-run-ended-guard` | trunk | B4: migration **0240** + suite **271** — `start_run_tx` raises `run_ended` on an `active` booking whose run already ended, so no false 「러닝 시작」 push after the run. Reviewer: APPROVE-WITH-FIXES (a suite *claim* that S1 observed the refusal's order against the repair — it does not; the raise rolls the repair back, S7 owns the order as a source pin; docs corrected, body untouched, md5 asserted) |
+
+**Merge-order additions.** #25 joins the trunk-based group (after #6). #22 and #23 land after #2 (retarget each to `redesign-v4` once #2 is in; they touch disjoint files — #22 the alert-fail ledger, #23 the nav-back ledger — so either order works). #24 lands after #19 (retarget once #19 is in).
+
+**Deploy additions.** Migration **0240** joins the `--push` list after 0239 (`db push` only; `transition-booking`'s code is unchanged — only its comment and a deno test moved). Its client fold rides later (below).
+
+**Letters added.** #23: chip copy 「HOLD · 접수 전」 vs 「PENDING · 접수 전」 (ⓐ keep HOLD — it is the screen's own word for the slot hold and the plate says no charge · ⓑ PENDING; recommendation ⓐ). Queue items 8 (Codex-lane notes, four findings with pointers) and 9 (share-card standings failure: ⓐ notice above the card · ⓑ block export · ⓒ keep the silent omission; recommendation ⓐ) are in `docs/decisions/awaiting-sean.md` on this branch.
+
+**Still open after this addendum** (nothing else in the master prompt is buildable without a merge or a ruling):
+- The Korean fold for `run_ended` on the transition path — `api.ts` `invokeTransition` (≈`:1371-1383`; mirror `runEventError` ≈`:3162`, but match the token in `message`, since `details` does not survive the edge's `HttpError`) and `runner/run.tsx` (≈`:1168-1206`, which offers 다시 시도 on a start that can never succeed). `api.ts` is touched by 14 open PRs and `run.tsx` by #7: build it after #7 lands.
+- `owner/report.tsx`: the celebration effect's `setHaul`/`haptic('success')` and `loadGaps`'s `setProfileGaps` are still unguarded after unmount (#24 left them: outside its allowlist; the `dead` ref is the fix shape). After #24.
+- `owner/fitness.tsx`'s one raw alert (`KNOWN_RAW`) — after #6 and #9, which both edit the file.
+- `src/lib/ops-console.ts`'s `KNOWN_HAMNIDA` copy entry — P10 owns the copy ledger (#9).
+- F6 second pass: measured on #20's tree, the remaining sub-15 pt sites in free Claude-lane files are all annotated glyphs, Latin kickers or serials (`my.tsx`, `cards.tsx`), the meetups' seal caps (frozen zone), or `alerts.tsx` (letter #9). No slice.
+- Codex R1 and a Codex pass over every cloud PR, the landing queue, the post-landing gap sweep, B6 (0204/0211 after item 0), and every letter — all Mac-side or Sean's.
