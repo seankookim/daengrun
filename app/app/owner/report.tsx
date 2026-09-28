@@ -444,13 +444,30 @@ export default function Report() {
   // overlap whenever `bid` changes under a mounted instance (the `[load]` effect re-runs), when a
   // 다시 시도 re-runs `load` while a slow read is still pending, and when the seal confirm re-runs it.
   // Each `load()` takes the next generation number; every `.then`/`.catch` below lands its state
-  // only while that number is still current, and the unmount cleanup bumps the counter so nothing
-  // lands after the screen is gone. `loadGaps` and the two celebration pops keep their own gating
-  // and are deliberately outside this guard (see their notes).
+  // only while that number is still current.
+  // Unmount is TWO facts, not one (fixer pass on the same review, 2026-09-28). The cleanup bumps the
+  // counter, which strands every load IN FLIGHT at unmount — and it sets `dead`, which stops a load
+  // STARTED after unmount at the door: the seal confirm calls `load()` after its `await`, and when
+  // the owner has already left, the bump alone would not help, because a new load's own `++` makes
+  // it current and all seven reads would fire for a screen that is gone. `dead` is reset on mount so
+  // a remount starts alive.
+  // `loadBid` is the bid the previous load ran for. When the bid CHANGES under a mounted instance
+  // (a deep-link retarget; every in-app route here is a push/replace), `report` and `standings` are
+  // cleared before the new reads go out — they are the two values `load` otherwise never resets, so
+  // the previous run's record would be drawn under the new bid until (or beside, if never) the new
+  // report lands. A same-bid 다시 시도 keeps the previous real values, per the standings law below.
+  // `loadGaps` and the two celebration pops keep their own gating and are deliberately outside this
+  // guard (see their notes).
   const loadGen = useRef(0);
-  useEffect(() => () => { loadGen.current++; }, []);
+  const dead = useRef(false);
+  const loadBid = useRef<string | undefined>(undefined);
+  // `+= 1`, not `++`: react-hooks/exhaustive-deps takes a direct assignment to `.current` as the sign
+  // that this ref is ours (a counter), not a React-managed node whose value a cleanup reads too late.
+  useEffect(() => { dead.current = false; return () => { dead.current = true; loadGen.current += 1; }; }, []);
   const load = useCallback(() => {
+    if (dead.current) return;
     const my = ++loadGen.current;
+    if (bid !== loadBid.current) { loadBid.current = bid; setReport(null); setStandings(null); }
     // An entry with no bid (a truncated link) has nothing to re-read: same fact as zero rows,
     // same remedy — leave. Never a retry that would run the same early return again.
     if (!bid) { setNotFound(true); return; }

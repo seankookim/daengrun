@@ -19,7 +19,13 @@
 //   none of the FIRST load's `.then`/`.catch` handlers may set state — not its data (a stale bid's
 //   report over the new one), not its failure flag (setErr / setStandingsErr / setEarningErr /
 //   setReviewErr / setSealErr beside fresh good data), not `notFound`. Every read in `load` is
-//   covered: report, standings, earning, myReview, seal, resolution. `loadGaps` and the celebration
+//   covered: report, standings, earning, myReview, seal, resolution. Unmount is two facts: a load
+//   IN FLIGHT at unmount lands nothing (the generation bump), and a load STARTED after unmount — the
+//   seal confirm's `load()` after its `await`, when the owner has already left — fires no read and
+//   sets nothing (`dead`), while a remount starts alive again. And when the BID CHANGES under a
+//   mounted instance, `report` and `standings` (the two values `load` never resets) are cleared
+//   synchronously before the new reads go out, so the previous run's record is never drawn under
+//   the new bid; a same-bid 다시 시도 keeps them (the file's own law). `loadGaps` and the celebration
 //   pops are outside Ⓓ (their own notes in report.tsx say why).
 //
 // ═══ HOW EACH IS CHECKED ═══
@@ -36,7 +42,11 @@
 // Ⓓ EXTRACTS the whole `load` callback and RUNS it twice against stubbed reads whose promises the arm
 // settles by hand, plus the `useEffect` whose cleanup bumps the generation, which it also runs. Every
 // stubbed answer carries the bid it answers for, so 「load #1's setter fired」 means 「a setter saw an
-// A-tagged value」, never a call count that a reset `setX(null)` could inflate.
+// A-tagged value」, never a call count that a reset `setX(null)` could inflate. The world binds the
+// component's three refs (`loadGen`, `dead`, `loadBid`) as real shared objects, so the effect's cleanup
+// and a later `load()` see the same `dead`, and a second `load()` sees the bid the first ran for — left
+// unbound they would resolve to fresh recorders per call and the bid-change arms could not tell a
+// retarget from a retry.
 //
 // ═══ WHAT THIS SUITE DOES NOT SEE (prose, deliberately not pinned) ═══
 // • Rendering. Whether the strip and the stars actually draw from these states is decided by render
@@ -64,6 +74,10 @@
 //   `.catch` → that flag's L3 arm red (review's value branch → L3b).   delete the loadGen `useEffect` →
 //   L0b red.   make its cleanup not bump (`+= 0`) → L4a and L4b/L4c red.   Controls: L1/L1b/L1c prove
 //   the live load still lands data AND flags, so a guard that blocked everything would redden them.
+//   drop `if (dead.current) return;` from `load`, or `dead.current = true` from the cleanup → L5 red.
+//   drop `dead.current = false` from the effect body → L5b red.   drop the `bid !== loadBid.current`
+//   reset → L6 and L6c red.   make the reset unconditional → L6b red (a retry must keep the values).
+//   move the reset below the `!bid` early return → L6c red.
 // Ⓐ restore the retired handler `(r) => { if (r !== undefined) { … } }` → A1 red.
 //   drop the `return` from the undefined branch (reviewErr AND known=true) → A1 red.
 //   make readMyReview's error branch `return null` → A4 red.   drop setReviewErr from the `.catch` → A5 red.
@@ -471,11 +485,14 @@ async function main() {
      *  promises stay pending until an arm settles them (indexed by call order = load order). */
     const world = () => {
       const loadGen = { current: 0 };
+      const dead = { current: false };
+      const loadBid = { current: undefined };
       const rec = Object.fromEntries(SETTERS.map((k) => [k, recorder()]));
       const pending = Object.fromEntries(READS.map((k) => [k, []]));
       const api = Object.fromEntries(READS.map((k) => [k, (b) => { const d = deferred(); pending[k].push({ bid: b, ...d }); return d.p; }]));
-      const start = (bid) => { const { f } = evalIn(`const __f = (${loadSrc});`, { ...rec, ...api, loadGen, bid }); f(); };
+      const start = (bid) => { const { f } = evalIn(`const __f = (${loadSrc});`, { ...rec, ...api, loadGen, dead, loadBid, bid }); f(); };
       const calls = () => SETTERS.reduce((n, k) => n + rec[k].calls.length, 0);
+      const reads = () => READS.reduce((n, k) => n + pending[k].length, 0);
       const seen = (k, tag) => rec[k].calls.some((a) => a[0] && a[0].tag === tag);
       const flagged = (k) => rec[k].calls.some((a) => a[0] === true);
       const ok = (i, tag) => { // answer load #i on every read, each value tagged with the bid it answers for
@@ -488,7 +505,7 @@ async function main() {
       };
       const bad = (i) => { for (const k of READS) pending[k][i].reject(new Error('boom ' + k)); };
       const dump = (keys) => JSON.stringify(Object.fromEntries(keys.map((k) => [k, rec[k].calls])));
-      return { loadGen, rec, pending, start, calls, seen, flagged, ok, bad, dump };
+      return { loadGen, dead, loadBid, rec, pending, start, calls, reads, seen, flagged, ok, bad, dump };
     };
 
     if (loadSrc) {
@@ -560,12 +577,43 @@ async function main() {
         w3b.pending.readMyReview[0].resolve(undefined); await tick();
         t('L3b 🔴 setReviewErr: a stale `undefined` review answer (could not check) never raises the flag beside the retry\'s review',
           !w3b.flagged('setReviewErr') && w3b.seen('setMyReview', 'A2'), w3b.dump(['setReviewErr', 'setMyReview']));
+
+        // ── L6 🔴 the bid CHANGES under a mounted instance (deep-link retarget): A's record has landed;
+        //    load #2 for B must clear `report` and `standings` SYNCHRONOUSLY — the two values `load`
+        //    never resets — so A is not drawn under B while B loads, nor beside B's failure if it never lands ──
+        const nulls = (w, k, since) => w.rec[k].calls.slice(since).filter((a) => a[0] === null).length;
+        const w6 = world();
+        w6.start('A'); w6.ok(0, 'A'); await tick();
+        const r6 = w6.rec.setReport.calls.length, s6 = w6.rec.setStandings.calls.length;
+        w6.start('B');
+        const clearedSync = nulls(w6, 'setReport', r6) === 1 && nulls(w6, 'setStandings', s6) === 1;
+        w6.ok(1, 'B'); await tick();
+        t('L6 🔴 bid A → B: load #2 clears report AND standings synchronously (before any read answers), then B\'s own values land',
+          w6.seen('setReport', 'A') && clearedSync && w6.seen('setReport', 'B') && w6.seen('setStandings', 'B'),
+          w6.dump(['setReport', 'setStandings']));
+        // same bid, 다시 시도: the previous real values are KEPT (the file's own law at the standings read)
+        const w6b = world();
+        w6b.start('A'); w6b.ok(0, 'A'); await tick();
+        const r6b = w6b.rec.setReport.calls.length, s6b = w6b.rec.setStandings.calls.length;
+        w6b.start('A');
+        t('L6b control: a same-bid retry does NOT clear report or standings (a retry keeps the previous real values until the new ones land)',
+          w6b.rec.setReport.calls.length === r6b && w6b.rec.setStandings.calls.length === s6b,
+          w6b.dump(['setReport', 'setStandings']));
+        // the truncated-link retarget: bid A → no bid. The clear must precede the `!bid` early return, or
+        // A's record would sit under the 「찾을 수 없어요」 face
+        const w6c = world();
+        w6c.start('A'); w6c.ok(0, 'A'); await tick();
+        const r6c = w6c.rec.setReport.calls.length, s6c = w6c.rec.setStandings.calls.length;
+        w6c.start(undefined);
+        t('L6c 🔴 bid A → none: report and standings are cleared BEFORE the no-bid early return sets notFound (and no read fires)',
+          nulls(w6c, 'setReport', r6c) === 1 && nulls(w6c, 'setStandings', s6c) === 1 && w6c.flagged('setNotFound') && w6c.reads() === READS.length,
+          w6c.dump(['setReport', 'setStandings', 'setNotFound']) + ` reads=${w6c.reads()}`);
       }
 
       // ── L4 🔴 unmount: the effect's cleanup bumps the generation, and a load in flight at unmount
       //    then sets nothing — neither data nor a failure flag ──
       if (!runErr && cleanupEffectSrc) {
-        const mount = (w) => { const { f } = evalIn(`const __f = (${cleanupEffectSrc});`, { loadGen: w.loadGen }); return f(); };
+        const mount = (w) => { const { f } = evalIn(`const __f = (${cleanupEffectSrc});`, { loadGen: w.loadGen, dead: w.dead }); return f(); };
         const w4 = world();
         let cleanup = null, effErr = '';
         try { cleanup = mount(w4); } catch (e) { effErr = String(e && e.message); }
@@ -587,6 +635,24 @@ async function main() {
           c2(); w4c.bad(0); await tick();
           t('L4c 🔴 after unmount, a FAILING load sets nothing either (no stale failure flag on an unmounted screen)', w4c.calls() === b2,
             w4c.dump(SETTERS.filter((k) => w4c.rec[k].calls.length)));
+
+          // ── L5 🔴 a load STARTED after unmount (the seal confirm's `load()` after its `await`, the
+          //    owner already gone): the cleanup has run, THEN `load()` — no read fires, nothing sets.
+          //    The generation bump alone cannot do this: a new load's own `++` would make it current ──
+          const w5 = world();
+          mount(w5)();
+          w5.start('A');
+          t('L5 🔴 after the cleanup, a load that STARTS fires no read and sets nothing (dead screen — the seal-confirm path)',
+            w5.dead.current === true && w5.reads() === 0 && w5.calls() === 0,
+            `dead=${w5.dead.current} reads=${w5.reads()} setters=${w5.calls()} ${w5.dump(SETTERS.filter((k) => w5.rec[k].calls.length))}`);
+          // a remount (an effect that mounts, cleans up, mounts again) must start ALIVE, or a screen that
+          // survived a dev-mode double effect would never load
+          const w5b = world();
+          mount(w5b)();
+          mount(w5b);
+          w5b.start('A');
+          t('L5b control: mounting again after a cleanup revives the screen — the next load fires every read',
+            w5b.dead.current === false && w5b.reads() === READS.length, `dead=${w5b.dead.current} reads=${w5b.reads()}`);
         }
       }
     }
