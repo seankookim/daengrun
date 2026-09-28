@@ -25,7 +25,16 @@ export type PayPhase =
   | 'not_found'      // 0행·없는 bid·남의 예약 — 재시도 없는 정직한 부재 (H3/M5)
   // [O-5 §E.5.1] '실전이(confirmPayment)'는 삭제됐다 — payment_hold에 남은 예약을 앞으로 미는
   // 클라이언트 호출이 더 이상 없다. 이 페이즈는 이제 '아직 접수되지 않음'을 말할 뿐이다.
-  | 'mock_pending'   // PG 목업 · 접수 전 — 화면이 할 수 있는 일은 사실을 말하고 나가는 것뿐
+  // The NAME is historical — this phase was a simulated hold once. What a `payment_hold` row IS
+  // today (2026-09-28): a REAL booking holding a REAL slot that create-booking-hold did not close to
+  // `matching` — on every current path it closes in the same request (handler.ts:40-50, :362), so a
+  // row still here is a leftover no code path advances. It is NOT a money hold: nothing is charged
+  // at hold creation and no PG authorization exists — the widget confirm path (createPaymentIntent →
+  // TossSheet → confirmToss → confirm-payment) has no caller in the app (owner/pay.tsx header;
+  // api.ts:735/:762 are definitions only), and money moves only at settle via the billing key. So
+  // the screen's chip no longer calls it a mock (owner/pay.tsx CHIP): the BOOKING is real, not a
+  // payment. The value stays because pay-lab and the payphase suite spell it.
+  | 'mock_pending'   // payment_hold · not yet accepted — all the screen can do is state that and leave
   | 'authorizing'    // 미래 PG: 승인 요청 진행 중 — 취소 어포던스 없는 화면
   | 'authorized'     // 결제 홀드를 지난 예약 — 여기서는 종점, 다음 화면으로 보낸다
   | 'disputed'       // no_show·incident_review — '완료'로 위장하지 않는다 (C5)

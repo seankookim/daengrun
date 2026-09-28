@@ -42,7 +42,14 @@ export type PayScreen = PayPhase | 'error';
 const CHIP: Record<PayScreen, string> = {
   loading: 'LOADING',
   not_found: 'NOT FOUND',
-  mock_pending: 'MOCK · 준비 중',
+  // A booking at `payment_hold` is a REAL booking on a REAL slot hold (the plate below prints its
+  // expiry) — not a simulated one, and not a money hold either: nothing is charged at hold creation
+  // and no PG authorization exists (create-booking-hold/handler.ts:40-50; the widget confirm path
+  // has no caller in the app — see the header above). MOCK was a false word because the booking is
+  // real; HOLD is the screen's own word for the slot (「…까지 홀드돼요」) and the status name itself.
+  // The enum value keeps its historical name (renaming it reaches pay-lab and the payphase suite).
+  // 접수 전 is the screen's own word for this phase (HEAD and the plate below both say 접수).
+  mock_pending: 'HOLD · 접수 전',
   authorizing: 'AUTHORIZING',
   authorized: 'AUTHORIZED',
   disputed: 'REVIEW · 확인 중',
@@ -533,10 +540,12 @@ const s = StyleSheet.create({
   back: { fontSize: 26, lineHeight: 30, color: paper.ink, marginBottom: 6 },
   // 모노 캡스 키커 — 장식 클래스(15pt 플로어 면제), 자간으로 모노 질감을 대신한다
   kicker: { fontSize: 11.5, fontWeight: '800', letterSpacing: 2.6, color: paper.faint },
-  // [D13 FLOOR14 2026-08-12, re-raised to the 15pt floor 2026-08-27] 11.5 → 14 → 15. CHIP은 순수 라틴이 아니다 — 'MOCK · 준비 중',
-  // 'REVIEW · 확인 중', 'REFUND · 환불 중'이 한글을 싣는다. 한글은 라틴 레터스페이스 캡스
-  // 키커 예외를 타지 못한다(§3). 하필 **결제 화면의 상태 표시**다. 트래킹도 1.6 → 0.8로
-  // 낮춘다 — 레터스페이싱은 라틴 캡스의 문법이고 한글에 걸면 자간이 벌어져 더 안 읽힌다.
+  // [D13 FLOOR14 2026-08-12, re-raised to the 15pt floor 2026-08-27] 11.5 → 14 → 15. CHIP is not
+  // pure Latin: the hold, review and refund chips carry Hangul after the dot, and Hangul never
+  // rides the letterspaced Latin-caps kicker exemption (DESIGN.md §3) — least of all on the STATUS
+  // of the payment screen. Tracking went 1.6 → 0.8 for the same reason: letterspacing is the
+  // grammar of Latin caps, and on Hangul it only pushes the syllables apart.
+  // test/pay-chip-label.test.cjs keeps this at the floor because the label carries Hangul.
   chip: { fontSize: 15, lineHeight: 18, fontWeight: '800', letterSpacing: 0.8, color: paper.dim, marginTop: 2 },
   // [리뷰 #9] critical 잉크는 ≥15pt/700 플로어를 받는다 — 라우드일 땐 장식 클래스에서 승격
   chipLoud: { color: paper.critical, fontSize: 15, letterSpacing: 0.8 },
