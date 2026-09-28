@@ -55,14 +55,12 @@ const ROOT = process.env.NAV_ROOT || path.join(__dirname, '..');
 
 // Pre-existing bare sites in files this slice did not hold (2026-09-25). `path :: ancestor` → count.
 // Delete or lower a line when its site is fixed; the test fails until you do.
+// 2026-09-28 (cloud/p8-nav-back-mock-chip): the four Claude-lane lines (onboard/owner, onboard/runner,
+// card-link ×2 — 8 sites) were fixed with goBackOr and removed; the three club/** lines are Codex's.
 const KNOWN = {
   'app/club/companion/[sid].tsx :: CompanionRun': 2, // Codex lane (club/**) — :206 the ‹ key, :241 「세션 화면으로」
   'app/club/delegate/[sid].tsx :: submit': 1,        // Codex lane (club/**) — :95 Alert 확인 after a delegate submit
   'app/club/run/[sid].tsx :: doSettle': 1,           // Codex lane (club/**) — :398 Alert 확인 after settle
-  'app/onboard/owner.tsx :: OnboardOwner': 1,        // not in this slice's file list — :193 the ‹ key
-  'app/onboard/runner.tsx :: OnboardRunner': 1,      // not in this slice's file list — :92 the ‹ key
-  'app/owner/card-link.tsx :: onLinked': 4,          // copy builder held it — Alert 확인 ×4 after a card links
-  'app/owner/card-link.tsx :: CardLink': 2,          // copy builder held it — :114 the ‹ key, :150 onSkip
 };
 
 let pass = 0, fail = 0;

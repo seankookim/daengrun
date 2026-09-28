@@ -4,7 +4,7 @@
 //
 // ⚠ 네이티브 최상위 import 없음 — WebView는 패널 → billing-auth-sheet의 lazy() 뒤에 있다.
 //   이 라우트 모듈은 앱 시작 시 평가된다 (check-route-native-imports가 지키는 그 클래스).
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +12,7 @@ import { CardLinkPanel } from '../../src/components/card-link-panel';
 import { alertFail } from '../../src/lib/alert-fail';
 import { StatusBarCover } from '../../src/components/status-bar-cover';
 import { fetchMyPayments, fetchUnsettledCharge, retryCollect } from '../../src/lib/api';
+import { goBackOr } from '../../src/lib/nav';
 import { paper } from '../../src/theme';
 
 export default function CardLink() {
@@ -24,6 +25,20 @@ export default function CardLink() {
   const [readFailed, setReadFailed] = useState(false);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+
+  // Where this screen EXITS — the ‹ key, 나중에, and every 확인 after a link all leave through here.
+  // With history it goes BACK to whoever pushed it. Without history it must still land somewhere:
+  // `router.back()` is a NO-OP on an empty stack (src/lib/nav.ts), and this route is a
+  // `daengrun://owner/card-link` deep-link target, so a cold-started owner used to tap 확인 on
+  // 「카드 연결 완료」 and stay on a finished screen. The fallback is chosen per context, from who
+  // pushes it (measured on this tree, 2026-09-28): the only in-app pushers are payments.tsx
+  // (the arrears retry, 카드 바꾸기, and the first-link door), none of which pass `ctx`, so the
+  // settings and arrears faces fall back to /payments — the screen they came from. `ctx=booking`
+  // has NO pusher in app/ or src/ today (link-only), so its fallback is the owner home, the screen
+  // a booking-time link would have interrupted. `goBackOr` runs its own canGoBack() at TAP time,
+  // which is what an Alert button needs — it fires later, on a stack a render-time check never saw.
+  const exit = params.ctx === 'booking' ? '/owner/home' : '/payments';
+  const leave = useCallback(() => goBackOr(exit), [exit]);
 
   // ⚠ A read failure is NOT 「not locked」. The first draft caught both to null/[] and rendered
   //   the clean settings face, so a flaky network hid an arrears lock behind a screen that
@@ -66,7 +81,7 @@ export default function CardLink() {
     if (!arrears) {
       // 카드만 연결하러 온 방문 — 이름을 말하고 돌아간다.
       Alert.alert('카드 연결 완료', card.last4 ? `${card.brand ?? '카드'} ···· ${card.last4}` : undefined,
-        [{ text: '확인', onPress: () => router.back() }]);
+        [{ text: '확인', onPress: leave }]);
       return;
     }
     // 미납 컨텍스트의 약속은 「연결하고 결제하기」다 — 연결만 하고 떠나면 그 라벨이 거짓이 된다.
@@ -95,7 +110,7 @@ export default function CardLink() {
     if (failErr) { alertFail('결제 재시도 실패', failErr.e); return; }
     if (fresh === 'read_failed' || stillLocked === 'read_failed') {
       Alert.alert('카드 연결 완료', '결제 결과를 확인하지 못했어요 — 결제 관리에서 확인해주세요',
-        [{ text: '확인', onPress: () => router.back() }]);
+        [{ text: '확인', onPress: leave }]);
       return;
     }
     // BOTH must be clean: no failed row left AND the server's own lock released. Either one alone
@@ -104,17 +119,17 @@ export default function CardLink() {
     const settled = !fresh.some((r) => r.status === 'failed') && stillLocked !== true;
     if (!settled) {
       Alert.alert('카드 연결 완료', '결제는 아직 처리되지 않았어요 — 결제 관리에서 다시 시도할 수 있어요',
-        [{ text: '확인', onPress: () => router.back() }]);
+        [{ text: '확인', onPress: leave }]);
     } else {
       Alert.alert('결제 완료', '이제 바로 예약할 수 있어요',
-        [{ text: '확인', onPress: () => router.back() }]);
+        [{ text: '확인', onPress: leave }]);
     }
-  }, [arrears, failedIds]);
+  }, [arrears, failedIds, leave]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }} edges={['top', 'bottom']}>
       <View style={{ height: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
-        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
+        <Pressable onPress={leave} hitSlop={10} accessibilityRole="button" accessibilityLabel="뒤로">
           <Text style={{ fontSize: 19, color: paper.dim }}>‹</Text>
         </Pressable>
         <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: paper.ink, marginRight: 19 }}>
@@ -150,7 +165,7 @@ export default function CardLink() {
           context={arrears ? 'arrears' : (params.ctx === 'booking' ? 'booking' : 'settings')}
           dueAmount={dueAmount}
           onLinked={onLinked}
-          onSkip={params.ctx === 'booking' ? () => router.back() : undefined}
+          onSkip={params.ctx === 'booking' ? leave : undefined}
         />
       </View>
       <StatusBarCover />

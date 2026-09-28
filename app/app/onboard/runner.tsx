@@ -9,6 +9,7 @@ import { PaperBtn } from '../../src/components/paper-btn';
 import { updateMyProfile } from '../../src/lib/api';
 import { useDisplayFont } from '../../src/lib/displayFont';
 import { getTrackPermission, requestTrackPermission } from '../../src/lib/geo';
+import { goBackOr } from '../../src/lib/nav';
 import { foldRpcError, rpcRaw } from '../../src/lib/rpc-error';
 import { supabase } from '../../src/lib/supabase';
 import { layout, paper } from '../../src/theme';
@@ -91,9 +92,14 @@ export default function OnboardRunner() {
         {/* Escape hatch. index.tsx pushes (never replaces) into onboarding precisely so this can
             exist: the root stack has no header and no back-swipe, so an owner who mistapped
             러너예요 previously had no in-app way out. Rendered only when there IS somewhere to go
-            back to — a deep link straight here must not show a dead control. */}
+            back to — a deep link straight here must not show a dead control.
+            The tap itself goes through `goBackOr`, never a bare `router.back()`: the render-time
+            check decides whether the control is DRAWN, but the call runs later, on a stack the
+            render never looked at (test/nav-back.test.cjs, THE RULE). Its fallback is `/` — the
+            role picker — because that is what the label promises; the runner home would be a
+            different sentence on the same button. */}
         {router.canGoBack() && (
-          <Pressable onPress={() => router.back()} hitSlop={10} style={s.back}
+          <Pressable onPress={() => goBackOr('/')} hitSlop={10} style={s.back}
             accessibilityRole="button" accessibilityLabel="역할 다시 고르기">
             <Text style={s.backTxt}>‹ 역할 다시 고르기</Text>
           </Pressable>
