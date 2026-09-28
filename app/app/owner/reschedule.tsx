@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaperBtn } from '../../src/components/paper-btn';
+import { alertFail } from '../../src/lib/alert-fail';
 import { Row } from '../../src/components/ui';
 import {
   AvailRule, checkSlot, fetchOfferedSlots, fetchRescheduleInfo, fetchRunnerAvailability, NOT_FOUND,
@@ -235,7 +236,9 @@ export default function Reschedule() {
         [{ text: '확인', onPress: () => goBackOr('/owner/schedule') }],
       );
     } catch (e) {
-      Alert.alert('요청 실패', (e as Error).message); // 정직: 실패는 실패
+      // A failure is shown as a failure, in Korean: alertFail folds the PostgREST/edge sentence
+      // (foldRpcError), logs the original, and keeps a server-written Korean refusal as is.
+      alertFail('요청 실패', e);
     } finally {
       setBusy(false);
     }
@@ -249,7 +252,7 @@ export default function Reschedule() {
       setPicked(null);
       load();
     } catch (e) {
-      Alert.alert('철회 실패', (e as Error).message);
+      alertFail('철회 실패', e);
     } finally {
       setBusy(false);
     }
