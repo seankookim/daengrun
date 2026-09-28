@@ -1718,3 +1718,39 @@ Answer with the item number and a letter/word. Everything below is blocked on YO
    since 08-31.
 7. **km wallet** — `km_claim_welcome` grants an invisible ~₩16,700 asset with zero client callers
    for the whole km subsystem. ⓐ build the wallet surface · ⓑ retire the km model · ⓒ park.
+8. **Codex-lane notes — findings in `app/app/club/**`, which Claude does not edit (pointers
+   re-measured on trunk `0ee30fa`, 2026-09-28; master prompt §2E).** For the Codex session; nothing
+   here is built or lettered.
+   - **High — raw `e.message` reaches the customer on the SOS and settle paths.**
+     `club/session/[sid].tsx:859` (`Alert.alert('SOS 실패', (e as Error).message)`),
+     `club/run/[sid].tsx:416` (same), `:402` (「정산 실패」 prints the message), `:467`
+     (「사진 업로드 실패」), and the else-branch of `club/session/[sid].tsx:626` (「체크인 실패」). An
+     English PostgREST/edge sentence lands on the one screen where the reader is least able to
+     read it. The Claude lane folds these through `alertFail` (`src/lib/alert-fail.ts`).
+   - **High — a failed shell-access read renders as 「no access」.** `club/session/[sid].tsx:136`
+     initialises `access` to `'none'`; `:270` swallows the read's failure
+     (`fetchShellAccess(sid).then(setAccess).catch(() => {})`). The comment above it (「실패 시
+     이전 상태 유지」) holds on a RE-load only — on the first load the previous state IS the initial
+     `'none'`, so a transient failure gates the chat tab (`:340`, `:1816`), the roster (`:284`,
+     `:1244`) and the member doors (`:1500`, `:1791`) exactly as a server refusal would. Unknown is
+     not none.
+   - **Medium — fee and hold terms are hard-coded in consent copy** while the server reads
+     `club_cfg` (TODOS.md M2): `club/session/[sid].tsx:1940` 「24시간 전까지 무료 취소 · 이후 위탁
+     요금의 10% · 배정 수락 후 20%」, `:644` the same three numbers in the 취소 규정 Alert,
+     `club/delegate/[sid].tsx:277` 「승인 후 20분 안에 … 24시간 전까지 무료 취소」; and `:1951`
+     「결제 수단 연동 준비 중 — 파일럿 기간에는 자리 확정 시 실결제가 발생하지 않아요」 while the 1:1 flow
+     already charges through Toss (`docs/payments.md`, corrected 2026-09-26).
+   - **Low — a disabled `ClubCta` used as a status label**: `club/session/[sid].tsx:1170`
+     `<ClubCta label="집결지에서 인계가 시작돼요" tone="disabled" />` (TODOS.md M3). A button that
+     cannot be pressed is not a sentence — the dead-button arm of the honesty law.
+9. **🟡 Share-card standings failure (Claude lane; a copy/UI call, 2026-09-28).** PR #21 makes
+   `fetchRunStandings` THROW on a failed read (before it, a transport or 401 failure resolved `null`
+   and read as 「no standing」). `app/app/shot/[bid].tsx:299` still swallows it (`.catch(() => {})`),
+   so a failed read leaves the record decoration off the share card exactly as before — silently.
+   A failure strip cannot sit INSIDE an exported image, so the honest shape is a UI decision:
+   ⓐ a one-line notice ABOVE the card, outside the export — 「기록 순위를 불러오지 못했어요 · 다시
+   시도」 — and the card exports without the decoration · ⓑ block export until the read succeeds or
+   the owner explicitly picks 「순위 없이 공유」 · ⓒ keep the silent omission (the card claims nothing;
+   the decoration is a bonus). **Recommendation: ⓐ** — it is the report screen's own pattern and it
+   never puts an error inside the shared image. `shot/[bid].tsx` is also in PR #20's file set;
+   whichever lands first, the other rebases.
