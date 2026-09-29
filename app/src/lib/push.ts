@@ -6,6 +6,7 @@ import {
   destinationForSystemRef, isOwnerLiveRunTitle, needsClubProbe, needsCommunityClubProbe,
   needsCurrentBookingProbe, OWNER_MEETUP_TITLES, refMayBeClubSession,
 } from './notification-route';
+import { isPendingDeploy } from './rpc-skew';
 import { supabase } from './supabase';
 
 // APNs 푸시 등록 (Expo Push 경유, 0024) — 홈 진입 시 1회 호출 (양 역할).
@@ -16,6 +17,46 @@ let _registered = false;
 // The token THIS PROCESS upserted, so sign-out can delete exactly this device's row (see
 // `releasePushToken`). null until a registration succeeds, and again after `resetPushRegistration`.
 let _registeredToken: string | null = null;
+// Registration generation (R1 c3, 2026-09-26). Sign-out bumps it (`releasePushToken` and
+// `resetPushRegistration`); `registerPushToken` captures it at entry and only acts on a generation
+// that is still current. Without it, a registration whose slow token fetch was still in flight at
+// sign-out finished AFTER the release — so it re-wrote the signed-out account's row and set
+// `_registered = true`, and the next account on this device never registered (the reviewer ran
+// the real module and measured log ['delete A','upsert A'], final rows {A}).
+let _generation = 0;
+// One registration write at a time, in issue order ([0236 review, low], MEASURED by the executing
+// reviewer). A stale call — one whose write raced a sign-out — deletes exactly the row it wrote
+// (`registerPushToken`). When the same account signed straight back in, that (profile, token) pair
+// IS the new registration's row: the late cleanup removed it while `_registered` stayed true, and the
+// device got no pushes for the rest of the process. So each registration's write and its stale
+// cleanup form one section, and the next section starts only after the previous one has settled:
+// no later write is issued until the earlier write's response is in and its cleanup has landed.
+// That also means the server never processes an earlier call's write after a later call's (the
+// residual this file used to name), because the later write is not sent until then.
+// ⚠ Bounded: a request can hang (a device network stack with no timeout), and an unbounded queue
+//   would then block every later registration in the process. After `capMs` the next section runs
+//   anyway; the `superseded` arm below re-asserts the current registration if the old response
+//   lands after it. Named residual: an old response that arrives AFTER the cap AND between a newer
+//   same-account write and that write's commit still deletes the newer row.
+// Exported ONLY so the test can shorten the cap; nothing in the app writes it.
+export const registrationQueue = { capMs: 10_000 };
+let _registrationTail: Promise<void> = Promise.resolve();
+
+function afterEarlierRegistrations<T>(section: () => Promise<T>): Promise<T> {
+  const earlier = _registrationTail;
+  const run = (async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cap = new Promise<void>((r) => { timer = setTimeout(r, registrationQueue.capMs); });
+    try {
+      await Promise.race([earlier, cap]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    return section();
+  })();
+  _registrationTail = run.then(() => {}, () => {});
+  return run;
+}
 let _armed = false;
 const _handledTaps = new Set<string>();
 
@@ -299,7 +340,25 @@ export async function requestPushPermission(): Promise<string | null> {
   }
 }
 
+// Write this device's token for `uid`. 0236's `register_push_token` upserts the caller's row AND
+// removes every other profile's row holding the same token, so the next registration on a device
+// corrects a sign-out whose release never landed (R1 c2). Until 0236 is on production the RPC
+// answers PGRST202 (PENDING_DEPLOY in rpc-skew.ts) and this falls back to the pre-0236 direct
+// upsert, which carries that residual until the push. Any other RPC error is returned as-is:
+// a refusal (`account_deleted`, `no_profile`, …) must not be papered over by the direct write.
+async function writeDeviceToken(uid: string, token: string): Promise<{ message: string } | null> {
+  const { error } = await supabase.rpc('register_push_token', { p_token: token });
+  if (!error) return null;
+  if (!isPendingDeploy('register_push_token', error)) return error;
+  const { error: upErr } = await supabase.from('push_tokens').upsert(
+    { profile_id: uid, token, updated_at: new Date().toISOString() },
+    { onConflict: 'profile_id' },
+  );
+  return upErr ?? null;
+}
+
 export async function registerPushToken(): Promise<void> {
+  const gen = _generation;   // captured before any await — see `_generation`
   let Notifications: any;
   let Constants: any;
   try {
@@ -334,12 +393,40 @@ export async function registerPushToken(): Promise<void> {
     if (!token) return;
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) return;
-    const { error } = await supabase.from('push_tokens').upsert(
-      { profile_id: user.user.id, token, updated_at: new Date().toISOString() },
-      { onConflict: 'profile_id' },
-    );
-    if (!error) { _registered = true; _registeredToken = token; }
-    else console.warn('[push] token save:', error.message);
+    const uid = user.user.id;
+    const outcome = await afterEarlierRegistrations(async () => {
+      // A sign-out began while we were fetching or queued: the session this call started under is
+      // ending, so write nothing — the next account's own registration owns this device now.
+      if (gen !== _generation) return 'retired';
+      const error = await writeDeviceToken(uid, token);
+      if (error) { console.warn('[push] token save:', error.message); return 'failed'; }
+      if (gen === _generation) {
+        _registered = true;
+        _registeredToken = token;
+        return 'committed';
+      }
+      // A sign-out began while the write was in flight, so it may have landed AFTER the release.
+      // A NEWER registration already committed (only possible once the queue's cap let it past this
+      // section): this call's (profile, token) delete would remove THAT row when it is the same
+      // account, and RLS refuses it when it is another — so delete nothing and re-assert the
+      // current registration instead (below), which also takes the token back through 0236 if this
+      // stale write evicted another account.
+      if (_registered) return 'superseded';
+      // Otherwise take back exactly the row this call wrote (profile AND token, the release's own
+      // scope) and leave `_registered` false so the next account registers. Best-effort: if the
+      // session has already ended, RLS admits nothing and the next registration's 0236 takeover
+      // removes it. The next registration's write waits for this delete (the queue above).
+      const { error: delErr } = await supabase.from('push_tokens').delete()
+        .eq('profile_id', uid)
+        .eq('token', token);
+      if (delErr) console.warn('[push] stale registration cleanup:', delErr.message);
+      return 'retired';
+    });
+    if (outcome === 'superseded') {
+      _registered = false;
+      _registeredToken = null;
+      await registerPushToken();
+    }
   } catch (e) {
     console.warn('[push] register:', (e as Error)?.message);
   }
@@ -363,8 +450,15 @@ export async function registerPushToken(): Promise<void> {
  * read without prompting. No token obtainable ⇒ nothing is deleted: in every such case but a
  * failed token fetch, this device cannot be receiving pushes at all.
  * Bounded (`timeoutMs`) and throwing: the caller logs and signs out regardless.
+ * ⚠ Nothing retries a release that failed: the row is corrected only by the NEXT registration on
+ * this device (0236's takeover). With no next sign-in the old account's pushes keep arriving here —
+ * named, not closed, in 0236 §0d ④.
  */
 export async function releasePushToken(uid: string, timeoutMs = 4000): Promise<void> {
+  // The sign-out starts HERE, not at `resetPushRegistration`: a registration whose write lands
+  // while this release is still in flight would otherwise still see its own generation, commit,
+  // and leave the outgoing account's row behind (`test/push-token-signout.test.cjs` Ⓐ3 pins it).
+  _generation++;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error('push token release timed out')), timeoutMs);
@@ -389,6 +483,7 @@ export async function releasePushToken(uid: string, timeoutMs = 4000): Promise<v
 
 /** Forget this process's registration, so the next account to sign in on this device registers. */
 export function resetPushRegistration(): void {
+  _generation++;
   _registered = false;
   _registeredToken = null;
 }

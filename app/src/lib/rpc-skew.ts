@@ -47,6 +47,13 @@ export const PENDING_DEPLOY: Record<string, string> = {
   //   select count(*) from pg_proc where proname in ('ops_stranded_custody','ops_sealed_unsettled')  → 2
   ops_stranded_custody: '0224 §F custody-strand console list — until db push, the section shows the version-mismatch sentence',
   ops_sealed_unsettled: '0224 §F sealed-unsettled console list — until db push, the section shows the version-mismatch sentence',
+  // 2026-09-26: register_push_token (0236 §A) added — the device-token writer that also removes
+  //   every OTHER profile's row holding the same token (R1 c2), written in this build before 0236
+  //   is pushed, so a PGRST202 window is real. In that window `registerPushToken` (push.ts) falls
+  //   back to the pre-0236 direct upsert on push_tokens — today's behaviour, residual included.
+  //   When deployed, delete this line and the list pin in test/rpc-skew.test.cjs together:
+  //   select count(*) from pg_proc where proname='register_push_token'  → 1
+  register_push_token: '0236 device-token takeover writer — until db push, falls back to the direct push_tokens upsert',
 };
 
 /** 이 오류가 「그 함수가 아직 배포되지 않았다」인가. fn = 우리가 실제로 부른 이름. */
