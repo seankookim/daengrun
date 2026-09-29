@@ -12,6 +12,7 @@ import { useDisplayFont } from '../../src/lib/displayFont';
 import { useNumFont } from '../../src/lib/fonts';
 import { haptic } from '../../src/lib/haptics';
 import { kstCal, kstClock } from '../../src/lib/kst';
+import { loopUnlessReduced } from '../../src/lib/reducedMotion';
 import { goBackOrHome } from '../../src/lib/nav';
 import { clampSuggest } from '../../src/lib/pace';
 import { runnerJob } from '../../src/store';
@@ -322,12 +323,10 @@ export default function Meetup() {
   const isWaiting = stage === 'waiting';
   useEffect(() => {
     if (!isWaiting) { pulse.setValue(0); return; }
-    const loop = Animated.loop(Animated.sequence([
+    return loopUnlessReduced(() => Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
+    ])), () => pulse.setValue(0), () => pulse.setValue(0));
   }, [isWaiting, pulse]);
 
   // [P2-12] 반드시 마지막 effect — 같은 커밋에서 useStamp·celebrate effect가 먼저 실행된 뒤에

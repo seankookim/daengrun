@@ -31,6 +31,7 @@ import { PatchBadge } from '../../src/components/patch';
 import { NotificationPrimer, decideNotificationPrimer } from '../../src/components/notification-primer';
 import { registerPushToken } from '../../src/lib/push';
 import { haptic } from '../../src/lib/haptics';
+import { loopUnlessReduced } from '../../src/lib/reducedMotion';
 import { lateness } from '../../src/lib/lateness';
 import { CheckinAnswer } from '../../src/components/checkin-answer';
 import { LateNotice } from '../../src/components/late-notice';
@@ -211,14 +212,18 @@ function PulseRings({ color = colors.tang, size = 30 }: { color?: string; size?:
   const a1 = useRef(new Animated.Value(0)).current;
   const a2 = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const mk = (v: Animated.Value, delay: number) => Animated.loop(Animated.sequence([
+    // Reduce Motion (DESIGN.md §7c): no loop runs. The rings' phase 0 is opacity 0 — hidden — so
+    // `rest` parks each ring at a phase where it is still DRAWN outside the 28px tile it haloes
+    // (scale > 1): 0.6 → 1.14× at ~0.40 opacity, 0.8 → 1.37× at ~0.20. Two static concentric
+    // rings — the same "look here" mark, without the travel.
+    // The third callback returns each ring to phase 0 before any (re)start (live OFF-toggle).
+    const mk = (v: Animated.Value, delay: number, rest: number) => loopUnlessReduced(() => Animated.loop(Animated.sequence([
       Animated.delay(delay),
       Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-    ]));
-    const l1 = mk(a1, 0);
-    const l2 = mk(a2, 900);
-    l1.start(); l2.start();
-    return () => { l1.stop(); l2.stop(); };
+    ])), () => v.setValue(rest), () => v.setValue(0));
+    const stop1 = mk(a1, 0, 0.6);
+    const stop2 = mk(a2, 900, 0.8);
+    return () => { stop1(); stop2(); };
   }, [a1, a2]);
   const ring = (v: Animated.Value) => (
     <Animated.View
