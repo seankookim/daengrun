@@ -22,9 +22,13 @@
 //
 // The RPC's error is now THROWN, not swallowed — that is half the fix and the half that lives in
 // TypeScript. The refusals it can raise are all honest states the runner can act on
-// (`not_picked_up` = the handoff is not finished; `not_run_runner` = not your booking), and a
-// second start is `{unchanged:true}` rather than an error, so the retry path the runner's screen
-// depends on (`runner/run.tsx:623` re-fires on every re-entry) is unaffected.
+// (`not_picked_up` = the handoff is not finished; `not_run_runner` = not your booking;
+// `run_ended` = the run is already OVER — 0240: `bookings.run_ended_at` is set while the status is
+// still `active` awaiting settlement, so this is a stale screen re-entering a finished run, not a
+// live run, and the 「러닝 시작」 push below must not fire; before 0240 the RPC answered
+// `{unchanged:true}` here and it did — Codex wave-4 c3), and a second start on a LIVE run is
+// `{unchanged:true}` rather than an error, so the retry path the runner's screen depends on
+// (`runner/run.tsx` re-fires on every re-entry) is unaffected.
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { HttpError } from "../_shared/ctx.ts";
 

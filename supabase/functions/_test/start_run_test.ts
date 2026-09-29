@@ -91,6 +91,29 @@ Deno.test("start_run: a refused start is a 409 carrying the server's reason — 
   }
 });
 
+Deno.test("start_run: a start on a run that already ENDED is a 409 `run_ended` — and no 「러닝 시작」 goes out", async () => {
+  // 0240 (Codex wave-4 c3, the server half). `end_run_tx` stamps `bookings.run_ended_at` and leaves
+  // the status `active` until settlement, so before 0240 the RPC answered {unchanged:true} for this
+  // booking and the line after it pushed 「러닝 시작」 to the owner AFTER the run was over. The server
+  // now raises `run_ended`; this pins the TypeScript half — the 409 carries the token, the RPC was
+  // asked exactly once, and nothing after the failure ran. The booking is seeded in the state
+  // production has for it: active, ended, unsettled.
+  const db = scene({ rpc: () => ({ error: { message: "run_ended" } }) });
+  bk(db).status = "active";
+  bk(db).run_ended_at = "2026-08-13T01:40:00.000Z";
+  const e = await assertRejects(
+    () => startRun(db as never, { bookingId: BOOKING, uid: RUNNER, bk: bk(db), notify: notifier(db) }),
+    HttpError,
+  );
+  assertEquals(e.status, 409);
+  assertStringIncludes(e.message, "run_ended");
+  assertEquals(db.log.filter((l) => l === "rpc:start_run_tx").length, 1, "the refusal is the server's, asked once");
+  assertEquals(db.rows("notifications").length, 0, "notified 「러닝 시작」 on a run that had already ended");
+  // and Deno still wrote nothing itself — the refusal left the ended booking exactly as it found it
+  assertEquals(bk(db).status, "active");
+  assertEquals(db.log.filter((l) => l.startsWith("update:bookings") || l.startsWith("insert:runs")).length, 0);
+});
+
 Deno.test("start_run: the party gate refuses a non-runner before it reaches the RPC", async () => {
   const db = scene();
   const e = await assertRejects(
